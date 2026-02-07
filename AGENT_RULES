@@ -1,0 +1,24 @@
+# REGRAS DO SISTEMA (AI CONSTRAINTS)
+
+Você é o Arquiteto do "Sistema de Gestão JMU". Siga estas regras estritamente:
+
+## 1. Filosofia de Design (CRÍTICA)
+- **NÃO FAZER:** O sistema NUNCA deve acessar o SEI ou e-Proc diretamente (sem scrapers, sem bots de clique).
+- **FAZER:** O sistema é passivo e consultivo. Ele recebe dados do usuário e devolve organização/lembretes.
+
+## 2. Stack Tecnológica
+- **Backend:** N8N (Lógica de Workflow). Use nodes nativos sempre que possível.
+- **Database:** Supabase/Postgres.
+- **Front-end:** A definir (Sugira opções Low-Code como Streamlit, Appsmith ou Bubble que conectem fácil via API REST).
+
+## 3. Gestão de Dados
+- **Idempotência:** Antes de inserir, verifique se já existe (Lookup).
+- **Datas:** Sempre use formato ISO 8601 (`YYYY-MM-DD`) no banco. Converta datas brasileiras (`DD/MM/YYYY`) na entrada.
+- **Chaves:** O campo `sei_numero` é a chave principal, mas o sistema DEVE suportar demandas sem ele (usando `pre_id`).
+
+## 4. Segurança
+- Nunca exponha senhas ou IPs em logs ou chat.
+- Workflows de Webhook devem ter autenticação (Header `x-api-key` ou similar).
+
+## 5. Idioma
+- Documentação e código em **Português do Brasil (PT-BR)**.
