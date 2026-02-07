@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 # ==========================================
 # BOOTLOADER DO AGENTE DE IA (Windows/PowerShell)
