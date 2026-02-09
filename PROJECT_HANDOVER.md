@@ -34,9 +34,7 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
 
 ### C) Front-end (Appsmith)
 - **URL Base:** `https://app.johnsontn.com.br`
-- **Hospedagem:** Docker (`[REDACTED]:8081`)
-- **Pasta:** `/home/docker/appsmith`
-- **Status:** Instalado, Rodando e Acessível via HTTPS (SSL Let's Encrypt).
+- **App Principal:** "Gestão JMU"
 
 ---
 
@@ -45,8 +43,8 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
 ### 3.1 Infraestrutura Básica
 - [x] VPS Configurada e Segura (SSH ativo).
 - [x] CloudPanel Configurado (Reverse Proxy para N8N e Appsmith).
-- [x] **DNS Configurado:** `app.johnsontn.com.br` -> `[REDACTED]`A (via Cloudflare).
-- [x] **SSL Ativo:** Certificados Let's Encrypt instalados e válidos para ambos os subdomínios.
+- [x] **DNS Configurado:** `app.johnsontn.com.br` -> `[REDACTED]` (via Cloudflare).
+- [x] **SSL Ativo:** Certificados Let's Encrypt instalados e válidos.
 
 ### 3.2 Backend (N8N)
 Workflows JMU (Ativos):
@@ -54,8 +52,10 @@ Workflows JMU (Ativos):
 - **JMU - PreSEI Associar** (ID `clRfeCOLYAWBN3Qs`): Associação com SEI.
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
 
-### 3.3 Banco de Dados (Supabase)
-Schema `adminlog` provisionado com tabelas `pre_demanda`, `pre_to_sei_link` e funções auxiliares.
+### 3.3 Appsmith (Configurado)
+- **Datasources Criados:**
+  1.  **Supabase JMU:** Conectado ao Postgres (`[REDACTED]`).
+  2.  **N8N Webhooks:** REST API conectada (`https://n8n.johnsontn.com.br/webhook`) com header `x-api-key`.
 
 ---
 
@@ -80,22 +80,25 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 > **ATUE COMO DESENVOLVEDOR FRONT-END APPSMITH (LOW-CODE).**
 >
 > **CONTEXTO:**
-> O Sistema de Gestão JMU está com a infraestrutura pronta.
-> URL do Front: `https://app.johnsontn.com.br`.
-> Backend: N8N (`https://n8n.johnsontn.com.br`) e Supabase.
+> O Sistema de Gestão JMU está pronto para a criação das telas.
+> **Appsmith:** `https://app.johnsontn.com.br` (Login: `johnson.nascimento@gmail.com`).
+> **App:** "Gestão JMU".
+>
+> **STATUS:**
+> Os Datasources ("Supabase JMU" e "N8N Webhooks") JÁ ESTÃO CONFIGURADOS.
 >
 > **MISSÃO (Fase 3):**
-> Configurar o Appsmith e criar as telas iniciais.
+> Criar as interfaces do usuário.
 >
 > **PASSO A PASSO:**
-> 1.  **Configuração Inicial:** Acessar o Appsmith, criar a conta admin (se ainda não existir) e criar um novo App "Gestão JMU".
-> 2.  **Datasources:**
->     -   Conectar ao **Supabase** (Postgres) usando as credenciais do `PROJECT_HANDOVER.md` (ou solicitar ao usuário).
->     -   Conectar ao **N8N** (REST API) para os webhooks de criação/associação (usando Header `x-api-key`).
-> 3.  **UI - Dashboard:** Criar tabela listando dados da view/tabela `pre_demanda`.
-> 4.  **UI - Nova Demanda:** Criar formulário que dispara o webhook `JMU - PreSEI Criar`.
+> 1.  **Dashboard (Página Inicial):**
+>     -   Criar uma Query SQL usando "Supabase JMU": `SELECT * FROM adminlog.pre_demanda ORDER BY criado_em DESC;`
+>     -   Adicionar um Widget **Table** para exibir esses dados.
+> 2.  **Formulário de Nova Demanda (Modal ou Página):**
+>     -   Inputs: Solicitante (Text), Assunto (Text), Data (Datepicker), Observações (Rich Text).
+>     -   Botão "Salvar": Disparar Query API usando "N8N Webhooks" -> `POST /presei/criar` com os dados do form no Body.
 >
-> **Pode começar pela configuração dos Datasources?**
+> **Pode começar criando a Query SQL para o Dashboard?**
 
 ---
 
@@ -106,17 +109,3 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 - **Proxy:** CloudPanel redirecionando `app.johnsontn.com.br` (443) -> `127.0.0.1:8081`.
 - **SSL:** Gerado via Let's Encrypt no CloudPanel após ajuste de DNS no Cloudflare.
 
-### 6.2 Docker Compose do Appsmith (VPS: `/home/docker/appsmith/docker-compose.yml`)
-```yaml
-version: "3"
-services:
-  appsmith:
-    image: index.docker.io/appsmith/appsmith-ce
-    container_name: appsmith
-    ports:
-      - "8081:80"
-      - "9091:9090"
-    volumes:
-      - ./stacks:/appsmith-stacks
-    restart: unless-stopped
-```
