@@ -54,9 +54,16 @@ Workflows JMU (Ativos):
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
 
 ### 3.3 Appsmith (Configurado)
-- **Datasources Criados:**
-  1.  **Supabase JMU:** Conectado ao Postgres (Supabase).
-  2.  **N8N Webhooks:** REST API conectada (`https://n8n.johnsontn.com.br/webhook`) com header `x-api-key`.
+- **Status:** ✅ Pronto para desenvolvimento.
+- **Datasources Configured:**
+  1.  **Supabase JMU:**
+      -   Host: `db.tawymhilpwkatuglxgae.supabase.co`
+      -   Database: `postgres` (⚠️ Importante: usar `postgres`, não `admin`)
+      -   SSL Mode: `Require`
+  2.  **N8N Webhooks:**
+      -   REST API Global
+      -   URL: `https://n8n.johnsontn.com.br/webhook`
+      -   Header: `x-api-key` (Configurado no Datasource)
 
 ---
 
