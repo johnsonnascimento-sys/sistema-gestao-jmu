@@ -19,7 +19,7 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
 
 ### A) Servidor (VPS)
 - **Provedor:** Hostinger (CloudPanel + Ubuntu 24.04)
-- **IP:** `[REDACTED]`
+- **IP:** (ver painel do provedor/CloudPanel; nao registrar IP fixo em repo publico)
 - **Acesso:** SSH (user `root`)  
 - **Docker:** Hospeda os serviços (n8n, Appsmith).
 - **Nginx/CloudPanel:** Reverse proxy + TLS/SSL.
@@ -29,12 +29,13 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
   - **Status:** Workflows de backend ATIVOS (ativados via SSH).
   - **Webhooks protegidos:** Header `x-api-key`.
 - **Supabase (Postgres):**
-  - **Host:** `[REDACTED]`
+  - **Host:** (ver painel do Supabase; nao registrar host/credenciais em repo publico)
   - **Schema:** `adminlog`
 
 ### C) Front-end (Appsmith)
 - **URL Base:** `https://app.johnsontn.com.br`
 - **App Principal:** "Gestão JMU"
+- **Credenciais:** manter apenas no seu `MEUS_SEGREDOS.txt` (nao commitar)
 
 ---
 
@@ -43,7 +44,7 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
 ### 3.1 Infraestrutura Básica
 - [x] VPS Configurada e Segura (SSH ativo).
 - [x] CloudPanel Configurado (Reverse Proxy para N8N e Appsmith).
-- [x] **DNS Configurado:** `app.johnsontn.com.br` -> `[REDACTED]` (via Cloudflare).
+- [x] **DNS Configurado:** `app.johnsontn.com.br` apontando para a VPS (via Cloudflare).
 - [x] **SSL Ativo:** Certificados Let's Encrypt instalados e válidos.
 
 ### 3.2 Backend (N8N)
@@ -54,7 +55,7 @@ Workflows JMU (Ativos):
 
 ### 3.3 Appsmith (Configurado)
 - **Datasources Criados:**
-  1.  **Supabase JMU:** Conectado ao Postgres (`[REDACTED]`).
+  1.  **Supabase JMU:** Conectado ao Postgres (Supabase).
   2.  **N8N Webhooks:** REST API conectada (`https://n8n.johnsontn.com.br/webhook`) com header `x-api-key`.
 
 ---
@@ -81,7 +82,7 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 >
 > **CONTEXTO:**
 > O Sistema de Gestão JMU está pronto para a criação das telas.
-> **Appsmith:** `https://app.johnsontn.com.br` (Login: `johnson.nascimento@gmail.com`).
+> **Appsmith:** `https://app.johnsontn.com.br` (credenciais no `MEUS_SEGREDOS.txt`).
 > **App:** "Gestão JMU".
 >
 > **STATUS:**
@@ -108,4 +109,3 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 - **Appsmith:** Deployado via Docker Compose na porta 8081.
 - **Proxy:** CloudPanel redirecionando `app.johnsontn.com.br` (443) -> `127.0.0.1:8081`.
 - **SSL:** Gerado via Let's Encrypt no CloudPanel após ajuste de DNS no Cloudflare.
-
