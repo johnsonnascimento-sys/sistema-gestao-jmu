@@ -19,24 +19,24 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
 
 ### A) Servidor (VPS)
 - **Provedor:** Hostinger (CloudPanel + Ubuntu 24.04)
-- **IP:** (ver CloudPanel/Cloudflare; nao registrar IP fixo aqui)
-- **Acesso:** SSH (user `root`)
+- **IP:** `[REDACTED]`
+- **Acesso:** SSH (user `root`)  
 - **Docker:** Hospeda os serviços (n8n, Appsmith).
 - **Nginx/CloudPanel:** Reverse proxy + TLS/SSL.
 
 ### B) Backend (Lógica & Dados)
 - **n8n (self-hosted):** `https://n8n.johnsontn.com.br`
-  - **Status:** Workflows de backend ATIVOS.
+  - **Status:** Workflows de backend ATIVOS (ativados via SSH).
   - **Webhooks protegidos:** Header `x-api-key`.
 - **Supabase (Postgres):**
-  - **Host:** (ver painel do Supabase; nao registrar aqui)
+  - **Host:** `[REDACTED]`
   - **Schema:** `adminlog`
 
 ### C) Front-end (Appsmith)
 - **URL Base:** `https://app.johnsontn.com.br`
-- **Hospedagem:** Docker (porta `8081` no host -> `80` no container)
+- **Hospedagem:** Docker (`[REDACTED]:8081`)
 - **Pasta:** `/home/docker/appsmith`
-- **Status:** Instalado e Acessível via HTTPS.
+- **Status:** Instalado, Rodando e Acessível via HTTPS (SSL Let's Encrypt).
 
 ---
 
@@ -45,17 +45,14 @@ Sistema de memória administrativa pessoal para a Justiça Militar da União.
 ### 3.1 Infraestrutura Básica
 - [x] VPS Configurada e Segura (SSH ativo).
 - [x] CloudPanel Configurado (Reverse Proxy para N8N e Appsmith).
-- [x] **DNS Configurado:** `app.johnsontn.com.br` apontando para a VPS (Cloudflare).
-- [x] **SSL Ativo:** Certificados Let's Encrypt instalados para ambos os subdomínios.
+- [x] **DNS Configurado:** `app.johnsontn.com.br` -> `[REDACTED]`A (via Cloudflare).
+- [x] **SSL Ativo:** Certificados Let's Encrypt instalados e válidos para ambos os subdomínios.
 
 ### 3.2 Backend (N8N)
 Workflows JMU (Ativos):
 - **JMU - PreSEI Criar** (ID `nwV77ktZrCIawXYr`): Criação de demandas.
 - **JMU - PreSEI Associar** (ID `clRfeCOLYAWBN3Qs`): Associação com SEI.
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
-
-Nota operacional:
-- Se a ativacao via API do n8n falhar, ativar manualmente pela UI (toggle "Active").
 
 ### 3.3 Banco de Dados (Supabase)
 Schema `adminlog` provisionado com tabelas `pre_demanda`, `pre_to_sei_link` e funções auxiliares.
@@ -70,7 +67,7 @@ Arquivos de contexto do projeto:
 - `boot.sh` (Linux/macOS: copia o contexto para o clipboard)
 
 ### 4.1 Windows (recomendado)
-Executar:
+Executar (`Win`+`R` -> `powershell`):
 ```powershell
 cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 .\boot.ps1
@@ -83,39 +80,31 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 > **ATUE COMO DESENVOLVEDOR FRONT-END APPSMITH (LOW-CODE).**
 >
 > **CONTEXTO:**
-> O Sistema de Gestão JMU já possui backend (N8N) e banco (Supabase) prontos.
-> O Appsmith já está deployado em `https://app.johnsontn.com.br`.
+> O Sistema de Gestão JMU está com a infraestrutura pronta.
+> URL do Front: `https://app.johnsontn.com.br`.
+> Backend: N8N (`https://n8n.johnsontn.com.br`) e Supabase.
 >
 > **MISSÃO (Fase 3):**
-> Criar a interface do usuário no Appsmith para:
-> 1.  Registrar novas demandas informais (Formulário -> Webhook N8N).
-> 2.  Listar demandas pendentes (Consulta SQL ou via N8N).
-> 3.  Associar demandas a protocolos SEI.
+> Configurar o Appsmith e criar as telas iniciais.
 >
-> **PRÓXIMOS PASSOS:**
-> 1.  Acessar `https://app.johnsontn.com.br`.
-> 2.  Configurar Datasource para o Supabase (Postgres).
-> 3.  Configurar Datasource REST API para o N8N.
-> 4.  Criar a página "Dashboard" e o formulário "Nova Demanda".
+> **PASSO A PASSO:**
+> 1.  **Configuração Inicial:** Acessar o Appsmith, criar a conta admin (se ainda não existir) e criar um novo App "Gestão JMU".
+> 2.  **Datasources:**
+>     -   Conectar ao **Supabase** (Postgres) usando as credenciais do `PROJECT_HANDOVER.md` (ou solicitar ao usuário).
+>     -   Conectar ao **N8N** (REST API) para os webhooks de criação/associação (usando Header `x-api-key`).
+> 3.  **UI - Dashboard:** Criar tabela listando dados da view/tabela `pre_demanda`.
+> 4.  **UI - Nova Demanda:** Criar formulário que dispara o webhook `JMU - PreSEI Criar`.
 >
-> **Aguardo instruções para conectar os datasources.**
+> **Pode começar pela configuração dos Datasources?**
 
 ---
 
 ## 6. 📂 ANEXOS TÉCNICOS
 
-### 6.1 Scripts de Automação (Localizados na pasta do projeto)
-- `deploy.js`: Script Node.js para deploy do Appsmith via SSH.
-- `activate_n8n_ssh.js`: Script para ativar workflows do N8N via SSH.
-- `verify_https.js`: Script de validação de conectividade SSL.
-- `verify_n8n.js`: Script de verificação dos workflows via API do n8n.
-
-Observacao de seguranca:
-- Esses scripts NAO contem senhas/tokens hardcoded. Eles leem valores via variaveis de ambiente.
-
-Variaveis de ambiente (local):
-- `JMU_SSH_HOST`, `JMU_SSH_USER` (opcional), `JMU_SSH_PORT` (opcional), `JMU_SSH_KEY_PATH` (opcional) e/ou `JMU_SSH_PASSWORD` (opcional).
-- `N8N_API_KEY` e `N8N_URL` (opcional, default `https://n8n.johnsontn.com.br/api/v1`).
+### 6.1 Histórico de Deploy
+- **Appsmith:** Deployado via Docker Compose na porta 8081.
+- **Proxy:** CloudPanel redirecionando `app.johnsontn.com.br` (443) -> `127.0.0.1:8081`.
+- **SSL:** Gerado via Let's Encrypt no CloudPanel após ajuste de DNS no Cloudflare.
 
 ### 6.2 Docker Compose do Appsmith (VPS: `/home/docker/appsmith/docker-compose.yml`)
 ```yaml

@@ -1,16 +1,12 @@
 const axios = require('axios');
 
-function requireEnv(name) {
-  const v = process.env[name];
-  if (!v) {
-    console.error(`Env var obrigatoria ausente: ${name}`);
-    process.exit(2);
-  }
-  return v;
-}
-
 const apiKey = process.env.N8N_API_KEY;
-const baseUrl = process.env.N8N_URL || 'https://n8n.johnsontn.com.br/api/v1';
+const baseUrl = 'https://n8n.johnsontn.com.br/api/v1';
+
+if (!apiKey) {
+    console.error('Error: N8N_API_KEY environment variable is not set.');
+    process.exit(1);
+}
 
 const workflows = [
     'nwV77ktZrCIawXYr', // JMU - PreSEI Criar
