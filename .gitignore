@@ -1,0 +1,13 @@
+node_modules/
+
+# Secrets / local config
+.env
+.env.*
+*.local
+
+# Logs
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
