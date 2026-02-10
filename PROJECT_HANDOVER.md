@@ -53,20 +53,13 @@ Workflows JMU (Ativos):
 - **JMU - PreSEI Associar** (ID `clRfeCOLYAWBN3Qs`): Associação com SEI.
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
 
-### 3.3 Appsmith (Configurado)
-- **Status:** ✅ Pronto para desenvolvimento.
-- **Datasources (Configurados e Testados):**
-  1.  **Supabase JMU:**
-      -   Observacao: a conexao direta com o host `db.<ref>.supabase.co` falhou no Appsmith por incompatibilidade/rota de IPv6 no ambiente; a solucao foi usar o Pooler (IPv4).
-      -   **Host:** `aws-0-us-west-2.pooler.supabase.com` (Session Pooler IPv4)
-      -   **Porta:** `5432` (Session)
-      -   **Database:** `postgres`
-      -   **Username:** `postgres.tawymhilpwkatuglxgae`
-      -   **SSL Mode:** `Require`
-  2.  **N8N Webhooks:**
-      -   REST API Global
-      -   URL: `https://n8n.johnsontn.com.br/webhook`
-      -   Header: `x-api-key` (Configurado no Datasource)
+### 3.3 Appsmith (Configurado & Em Desenvolvimento)
+- **Status:** 🚧 Em Construção (Fase 3).
+- **Datasources:**
+  1.  **Supabase JMU:** Conectado via Session Pooler (`aws-0-us-west-2.pooler...`).
+  2.  **N8N Webhooks:** Conectado.
+- **Telas Prontas:**
+  - [x] **Nova Demanda:** Formulário de inserção funcional (SQL `insert_demanda` ajustado com `moment()`).
 
 ---
 
@@ -74,8 +67,8 @@ Workflows JMU (Ativos):
 
 Arquivos de contexto do projeto:
 - `AI_BOOTLOADER.md` (fonte da verdade do contexto)
-- `boot.ps1` (Windows/PowerShell: copia o contexto para o clipboard)
-- `boot.sh` (Linux/macOS: copia o contexto para o clipboard)
+- `SESSION_LOG_2026-02-10.md` (Detalhes técnicos da última sessão)
+- `boot.ps1` (Windows/PowerShell)
 
 ### 4.1 Windows (recomendado)
 Executar (`Win`+`R` -> `powershell`):
@@ -88,28 +81,23 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 
 ## 5. 🤖 PROMPT DE RETOMADA (Desenvolvimento Appsmith)
 
-> **ATUE COMO DESENVOLVEDOR FRONT-END APPSMITH (LOW-CODE).**
+> **ATUE COMO DESENVOLVEDOR FRONT-END APPSMITH.**
 >
 > **CONTEXTO:**
-> O Sistema de Gestão JMU está pronto para a criação das telas.
-> **Appsmith:** `https://app.johnsontn.com.br` (credenciais no `MEUS_SEGREDOS.txt`).
-> **App:** "Gestão JMU".
+> O sistema já conecta ao banco (Supabase) e insere dados (Tela "Nova Demanda" PRONTA).
 >
-> **STATUS:**
-> Os Datasources ("Supabase JMU" e "N8N Webhooks") JÁ ESTÃO CONFIGURADOS.
->
-> **MISSÃO (Fase 3):**
-> Criar as interfaces do usuário.
+> **MISSÃO ATUAL (Fase 3 - Continuação):**
+> Criar o Dashboard para visualizar os dados inseridos.
 >
 > **PASSO A PASSO:**
-> 1.  **Dashboard (Página Inicial):**
->     -   Criar uma Query SQL usando "Supabase JMU": `SELECT * FROM adminlog.pre_demanda ORDER BY criado_em DESC;`
->     -   Adicionar um Widget **Table** para exibir esses dados.
-> 2.  **Formulário de Nova Demanda (Modal ou Página):**
->     -   Inputs: Solicitante (Text), Assunto (Text), Data (Datepicker), Observações (Rich Text).
->     -   Botão "Salvar": Disparar Query API usando "N8N Webhooks" -> `POST /presei/criar` com os dados do form no Body.
+> 1.  **Dashboard (Página Inicial/Nova Página):**
+>     -   Criar Query `get_demandas`: `SELECT * FROM adminlog.pre_demanda ORDER BY criado_em DESC;`
+>     -   Adicionar Widget **Table** conectado a `{{get_demandas.data}}`.
+>     -   Configurar colunas (Ocultar IDs técnicos, formatar datas).
+> 2.  **Integração (Opcional):**
+>     -   Verificar necessidade de disparo para N8N no sucesso do formulário.
 >
-> **Pode começar criando a Query SQL para o Dashboard?**
+> **Pode começar criando a Query de listagem?**
 
 ---
 
