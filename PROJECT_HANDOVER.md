@@ -57,9 +57,10 @@ Workflows JMU (Ativos):
 - **Status:** ✅ Pronto para desenvolvimento.
 - **Datasources Configured:**
   1.  **Supabase JMU:**
-      -   Host: `db.tawymhilpwkatuglxgae.supabase.co`
-      -   Database: `postgres` (⚠️ Importante: usar `postgres`, não `admin`)
-      -   SSL Mode: `Require`
+      -   **Host:** `aws-0-us-west-2.pooler.supabase.com` (Session Pooler IPv4)
+      -   **Database:** `postgres`
+      -   **Username:** `postgres.tawymhilpwkatuglxgae`
+      -   **SSL Mode:** `Require`
   2.  **N8N Webhooks:**
       -   REST API Global
       -   URL: `https://n8n.johnsontn.com.br/webhook`
