@@ -1,7 +1,7 @@
 ﻿# 🚀 SISTEMA DE GESTÃO JMU - DOCUMENTAÇÃO DE HANDOVER
 
 > **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3: Construção do Front-end)  
-> **DATA:** 08/02/2026  
+> **DATA:** 10/02/2026  
 > **PRÓXIMA AÇÃO:** Desenvolvimento das interfaces no Appsmith (`app.johnsontn.com.br`)
 
 ---
@@ -55,9 +55,11 @@ Workflows JMU (Ativos):
 
 ### 3.3 Appsmith (Configurado)
 - **Status:** ✅ Pronto para desenvolvimento.
-- **Datasources Configured:**
+- **Datasources (Configurados e Testados):**
   1.  **Supabase JMU:**
+      -   Observacao: a conexao direta com o host `db.<ref>.supabase.co` falhou no Appsmith por incompatibilidade/rota de IPv6 no ambiente; a solucao foi usar o Pooler (IPv4).
       -   **Host:** `aws-0-us-west-2.pooler.supabase.com` (Session Pooler IPv4)
+      -   **Porta:** `5432` (Session)
       -   **Database:** `postgres`
       -   **Username:** `postgres.tawymhilpwkatuglxgae`
       -   **SSL Mode:** `Require`
@@ -117,3 +119,6 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 - **Appsmith:** Deployado via Docker Compose na porta 8081.
 - **Proxy:** CloudPanel redirecionando `app.johnsontn.com.br` (443) -> `127.0.0.1:8081`.
 - **SSL:** Gerado via Let's Encrypt no CloudPanel após ajuste de DNS no Cloudflare.
+
+### 6.2 Segredos (Local)
+- `MEUS_SEGREDOS.txt` existe localmente para facilitar o desenvolvimento e esta protegido por `.gitignore` (nao versionar).
