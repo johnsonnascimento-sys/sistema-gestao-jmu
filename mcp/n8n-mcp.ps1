@@ -5,8 +5,24 @@ param(
 $ErrorActionPreference = "Stop"
 
 $token = $env:N8N_MCP_BEARER
+
+# Fallback: Tentar ler do arquivo MEUS_SEGREDOS.txt se a env var nao estiver definida
 if ([string]::IsNullOrWhiteSpace($token)) {
-  Write-Error "Env var N8N_MCP_BEARER nao definida. Defina o Bearer token do MCP do n8n antes de iniciar."
+  $secretsPath = Join-Path $PSScriptRoot "..\MEUS_SEGREDOS.txt"
+  if (Test-Path $secretsPath) {
+    $content = Get-Content -LiteralPath $secretsPath
+    foreach ($line in $content) {
+      if ($line -match "API Key:\s*(.+)") {
+        $token = $matches[1].Trim()
+        Write-Host "Usando credencial encontrada em MEUS_SEGREDOS.txt" -ForegroundColor Cyan
+        break
+      }
+    }
+  }
+}
+
+if ([string]::IsNullOrWhiteSpace($token)) {
+  Write-Error "Env var N8N_MCP_BEARER nao definida e token nao encontrado em MEUS_SEGREDOS.txt."
   exit 1
 }
 

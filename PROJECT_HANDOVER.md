@@ -1,17 +1,21 @@
 ﻿# 🚀 SISTEMA DE GESTÃO JMU - DOCUMENTAÇÃO DE HANDOVER
 
-> **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3: Construção do Front-end)  
-> **DATA:** 10/02/2026  
-> **PRÓXIMA AÇÃO:** Desenvolvimento das interfaces no Appsmith (`app.johnsontn.com.br`)
+> **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3: Construção do Front-end + Integração RAG 3.0)  
+> **DATA:** 11/02/2026  
+> **PRÓXIMA AÇÃO:** Construção do Dashboard e Criação do Schema RAG no Supabase (`normas_index`, `modelos_index`, `ai_generation_log`)
 
 ---
 
 ## 1. 🧠 CONCEITO DO SISTEMA
-Sistema de memória administrativa pessoal para a Justiça Militar da União.
+Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e Normas (RAG) para a Justiça Militar da União.
 
-- **Objetivo:** Organizar demandas informais (WhatsApp, corredor) e apoiar preparação documental.
-- **Regra de Ouro:** Não substitui o SEI e não executa atos oficiais automaticamente.
-- **Fluxo:** `Fato Informal` -> `Appsmith` -> `N8N` -> `Supabase (Postgres)` -> `Monitoramento/Consulta`
+- **Objetivo:** 
+  1. Organizar demandas informais (WhatsApp, corredor) e apoiar preparação documental
+  2. Indexar normas e modelos em arquitetura Database-First
+  3. Automatizar geração de documentos fundamentados via IA (RAG)
+- **Regra de Ouro:** Não substitui o SEI e não executa atos oficiais automaticamente. IA gera sugestões, humano valida.
+- **Fluxo Clássico:** `Fato Informal` -> `Appsmith` -> `N8N` -> `Supabase (Postgres)` -> `Monitoramento/Consulta`
+- **Fluxo RAG:** `Appsmith` -> `N8N Agente RAG` -> `Supabase + Google Workspace` -> `Documento Gerado` -> `Validação Humana`
 
 ---
 
@@ -54,12 +58,21 @@ Workflows JMU (Ativos):
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
 
 ### 3.3 Appsmith (Configurado & Em Desenvolvimento)
-- **Status:** 🚧 Em Construção (Fase 3).
+- **Status:** 🚧 Em Construção (Fase 3 + Integração RAG 3.0).
 - **Datasources:**
   1.  **Supabase JMU:** Conectado via Session Pooler (`aws-0-us-west-2.pooler...`).
   2.  **N8N Webhooks:** Conectado.
 - **Telas Prontas:**
   - [x] **Nova Demanda:** Formulário de inserção funcional (SQL `insert_demanda` ajustado com `moment()`).
+- **Telas Planejadas (RAG 3.0):**
+  - [ ] **Biblioteca de Normas:** Listagem, upload e visualização de chunks
+  - [ ] **Gerador de Documentos:** Interface para geração assistida por IA
+
+### 3.4 Workflows RAG Planejados (N8N)
+- [ ] **JMU - Indexador de Normas:** Upload PDF -> Chunking via Gemini -> Google Sheets -> Supabase
+- [ ] **JMU - Gerador de Modelos:** Criar templates em Google Docs com variáveis
+- [ ] **JMU - Agente RAG (Assessor de Elite):** Advanced AI nodes com Tools (Query Supabase + Read Sheets + LLM)
+- [ ] **JMU - Auditoria de Geração:** Registrar uso de IA em `ai_generation_log`
 
 ---
 
@@ -79,25 +92,32 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 
 ---
 
-## 5. 🤖 PROMPT DE RETOMADA (Desenvolvimento Appsmith)
+## 5. 🤖 PROMPT DE RETOMADA (Desenvolvimento Appsmith + RAG)
 
-> **ATUE COMO DESENVOLVEDOR FRONT-END APPSMITH.**
+> **ATUE COMO ARQUITETO DE SOFTWARE E DESENVOLVEDOR FULL-STACK.**
 >
 > **CONTEXTO:**
 > O sistema já conecta ao banco (Supabase) e insere dados (Tela "Nova Demanda" PRONTA).
+> Estamos evoluindo para a **Integração 3.0 (RAG)**: migração dos "Gems Especializados" para arquitetura Database-First.
 >
-> **MISSÃO ATUAL (Fase 3 - Continuação):**
-> Criar o Dashboard para visualizar os dados inseridos.
+> **MISSÃO ATUAL (Fase 3 - Continuação + RAG):**
+> 1. Criar o Dashboard para visualizar demandas inseridas
+> 2. Criar Schema RAG no Supabase (`normas_index`, `modelos_index`, `ai_generation_log`)
+> 3. Desenvolver Workflows N8N para indexação e geração
 >
 > **PASSO A PASSO:**
 > 1.  **Dashboard (Página Inicial/Nova Página):**
 >     -   Criar Query `get_demandas`: `SELECT * FROM adminlog.pre_demanda ORDER BY criado_em DESC;`
 >     -   Adicionar Widget **Table** conectado a `{{get_demandas.data}}`.
 >     -   Configurar colunas (Ocultar IDs técnicos, formatar datas).
-> 2.  **Integração (Opcional):**
->     -   Verificar necessidade de disparo para N8N no sucesso do formulário.
+> 2.  **Schema RAG (Supabase):**
+>     -   Criar tabelas `normas_index`, `modelos_index`, `ai_generation_log` (ver `ARCHITECTURE.md` seção 6.2)
+>     -   Adicionar índices em campos de busca (`tags`, `tipo_norma`, `tipo_documento`)
+> 3.  **Workflows N8N (Planejamento):**
+>     -   Documentar estrutura dos 3 workflows RAG principais
+>     -   Preparar credenciais Google Workspace (Sheets + Docs API)
 >
-> **Pode começar criando a Query de listagem?**
+> **Pode começar criando o Schema RAG no Supabase?**
 
 ---
 
