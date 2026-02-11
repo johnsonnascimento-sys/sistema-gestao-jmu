@@ -4,6 +4,7 @@ node_modules/
 .env
 .env.*
 *.local
+jmu-automation-*.json
 
 # Logs
 *.log

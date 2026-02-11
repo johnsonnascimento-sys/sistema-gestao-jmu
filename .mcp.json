@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "c:\\Users\\jtnas\\.gemini\\antigravity\\scratch\\sistema-gestao-jmu\\mcp\\n8n-mcp.ps1"
+      ]
+    }
+  }
+}
