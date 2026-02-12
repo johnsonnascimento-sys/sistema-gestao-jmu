@@ -1,0 +1,134 @@
+{
+    "name": "JMU_Indexador_Atomico",
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "nodes": [
+        {
+            "parameters": {
+                "path": "index-norma",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook (Recebe PDF)",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                460,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Simulação de Chunking (Fatiamento) - Substitua pela lógica real de PDF\n// Aqui estamos simulando que o PDF já foi lido e virou texto\n\nconst fullText = items[0].json.text || \"Texto de exemplo da norma...\";\nconst chunkSize = 4000;\nconst chunks = [];\n\nfor (let i = 0, o = 0; i < fullText.length; i += chunkSize, o++) {\n  chunks.push({\n    json: {\n      chunk_id: o + 1,\n      text_content: fullText.substr(i, chunkSize),\n      total_chunks: Math.ceil(fullText.length / chunkSize)\n    }\n  });\n}\n\nreturn chunks;"
+            },
+            "id": "code-chunking",
+            "name": "Fatiador de Texto (Chunking)",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 1,
+            "position": [
+                680,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "body": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"{{ $json.text_content }}\"\n    }]\n  }],\n  \"systemInstruction\": {\n    \"parts\": [{\n      \"text\": \"VOCÊ É UM ESPECIALISTA JURÍDICO (INDEXADOR ATÔMICO).\\n\\nSUA MISSÃO:\\nAnalise o fragmento de norma fornecido e extraia os dados estruturados para indexação.\\n\\nSAÍDA JSON OBRIGATÓRIA (8 CAMPOS):\\n{\\n  \\\"Identificador\\\": \\\"ID único do bloco (ex: 1/5)\\\",\\n  \\\"Dispositivo\\\": \\\"Artigos abrangidos (ex: Art. 1º ao 5º)\\\",\\n  \\\"Status_Vigencia\\\": \\\"Vigente, Revogado ou Alterado\\\",\\n  \\\"Conteudo_Integral\\\": \\\"O texto exato do fragmento\\\",\\n  \\\"Resumo_Interpretativo\\\": \\\"Resumo jurídico conciso (max 2 linhas)\\\",\\n  \\\"Prazos_Gatilhos\\\": \\\"Prazos ou datas mencionadas (ou 'N/A')\\\",\\n  \\\"Normas_Alteradoras\\\": \\\"Leis citadas que alteram esta (ou 'N/A')\\\",\\n  \\\"Tags_Pentagonais\\\": \\\"Lista de tags para busca (ex: #Administrativo, #Ferias)\\\"\\n}\"\n    }]\n  },\n  \"generationConfig\": {\n    \"responseMimeType\": \"application/json\"\n  }\n}",
+                "options": {}
+            },
+            "id": "google-gemini",
+            "name": "Gemini (Indexador)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.1,
+            "position": [
+                900,
+                340
+            ],
+            "credentials": {
+                "httpHeaderAuth": {
+                    "id": "JMU_GEMINI_API_KEY_HEADER",
+                    "name": "Gemini API Key Header"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "authentication": "serviceAccount",
+                "documentId": {
+                    "__rl": true,
+                    "value": "1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Página1",
+                    "mode": "name"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "Identificador": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Identificador }}",
+                        "Dispositivo": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Dispositivo }}",
+                        "Status_Vigencia": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Status_Vigencia }}",
+                        "Conteudo_Integral": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Conteudo_Integral }}",
+                        "Resumo_Interpretativo": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Resumo_Interpretativo }}",
+                        "Prazos_Gatilhos": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Prazos_Gatilhos }}",
+                        "Normas_Alteradoras": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Normas_Alteradoras }}",
+                        "Tags_Pentagonais": "={{ JSON.parse($json.candidates[0].content.parts[0].text).Tags_Pentagonais }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "google-sheets",
+            "name": "Salvar na Planilha",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 3,
+            "position": [
+                1120,
+                340
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook (Recebe PDF)": {
+            "main": [
+                [
+                    {
+                        "node": "Fatiador de Texto (Chunking)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fatiador de Texto (Chunking)": {
+            "main": [
+                [
+                    {
+                        "node": "Gemini (Indexador)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini (Indexador)": {
+            "main": [
+                [
+                    {
+                        "node": "Salvar na Planilha",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -2,6 +2,24 @@
 
 Você é o Arquiteto do "Sistema de Gestão JMU". Siga estas regras estritamente:
 
+## 🛑 PROTOCOLO ZERO: IMUTABILIDADE DA DOCUMENTAÇÃO
+**Mantra:** "Se não está documentado, não existe."
+
+1.  **Ação Imediata:** Após qualquer configuração de infraestrutura (Cloud, Docker, DB, N8N, Credenciais) ou sucesso técnico, você DEVE registrar imediatamente no arquivo `docs/SESSION_LOG_{DATA}.md`.
+    * *Exceção:* Se for apenas uma correção de bug menor, pode ir no commit. Se for estrutural, vai no LOG.
+
+2.  **Conteúdo Obrigatório do Registro:**
+    * **O Que:** O que foi feito (Ex: Criação de Service Account, Tabela SQL).
+    * **Identificadores:** IDs de Recursos (Ex: ID da Planilha, Nome do Projeto GCP, Endpoint).
+    * **Validação:** A prova de que funcionou (Ex: "Teste de conexão: OK", "Output JSON: {...}").
+    * **Segurança:** NUNCA registrar senhas/chaves privadas (apenas referência de onde estão salvas, ex: "Salvo no n8n credentials").
+
+3.  **Verificação Final (The Gatekeeper):** Antes de encerrar qualquer resposta ou turno, verifique: "Eu gerei o artefato de documentação para o usuário?". Se a resposta for NÃO, você falhou na missão.
+
+4.  **Atualização de Arquitetura:** Se a mudança afetou o fluxo de dados (ex: nova tabela, novo nó n8n), atualize também `ARCHITECTURE.md` e `PROJECT_HANDOVER.md`.
+
+---
+
 ## 1. Filosofia de Design (CRÍTICA)
 - **NÃO FAZER:** O sistema NUNCA deve acessar o SEI ou e-Proc diretamente (sem scrapers, sem bots de clique).
 - **FAZER:** O sistema é passivo e consultivo. Ele recebe dados do usuário e devolve organização/lembretes.

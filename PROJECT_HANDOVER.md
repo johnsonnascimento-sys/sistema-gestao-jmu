@@ -41,6 +41,17 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 - **App Principal:** "Gestão JMU"
 - **Credenciais:** manter apenas no seu `MEUS_SEGREDOS.txt` (nao commitar)
 
+### D) Google Workspace (Service Account)
+- **Projeto Google Cloud:** `JMU-Automation`
+- **Service Account:** `n8n-bot`
+- **E-mail do Robô:** (ver arquivo JSON de credenciais - campo `client_email`)
+- **Permissão:** Editor
+- **APIs Ativadas:**
+  - Google Sheets API (leitura/escrita de normas)
+  - Google Drive API (manipulação de PDFs)
+- **Planilha Mestre:** `Normas_Atomicas_JMU` (ID: `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`)
+- **Status:** VALIDADO (11/02/2026) - Teste de conexão via n8n bem-sucedido
+
 ---
 
 ## 3. ✅ STATUS ATUAL (O que já está pronto)
@@ -50,6 +61,7 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 - [x] CloudPanel Configurado (Reverse Proxy para N8N e Appsmith).
 - [x] **DNS Configurado:** `app.johnsontn.com.br` apontando para a VPS (via Cloudflare).
 - [x] **SSL Ativo:** Certificados Let's Encrypt instalados e válidos.
+- [x] **Google Service Account:** Configurada e validada (Sheets API + Drive API ativas).
 
 ### 3.2 Backend (N8N)
 Workflows JMU (Ativos):

@@ -22,6 +22,8 @@ graph TD
 **Total de Nodes:** 8-10 nodes  
 **Tempo estimado de configuração:** 45-60 minutos  
 **Complexidade:** Média
+**Implementação (JSON):** [JMU_Indexador_Atomico.json](./n8n/JMU_Indexador_Atomico.json)
+**Status:** ✅ IMPORTADO (ID: `KbaYi3M7DMm3FhPe`) - *Requer Ativação*
 
 ---
 

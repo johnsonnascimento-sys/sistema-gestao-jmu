@@ -138,7 +138,25 @@ O sistema evoluiu de uma "Memória Administrativa" para um **Motor de Automaçã
 
 #### B) Orquestração n8n + Google Workspace
 
+**Autenticação: Google Service Account**
+
+Para permitir que o n8n acesse Google Sheets e Google Drive de forma automatizada, foi configurada uma Service Account:
+
+- **Projeto Google Cloud:** `JMU-Automation`
+- **Service Account:** `n8n-bot` (Editor)
+- **E-mail do Robô:** (campo `client_email` no arquivo JSON de credenciais)
+- **Autenticação:** Chave JSON armazenada como credencial no n8n
+- **APIs Ativadas:**
+  - **Google Sheets API:** Leitura e escrita de chunks de normas
+  - **Google Drive API:** Upload e manipulação de PDFs
+- **Planilha Mestre Compartilhada:**
+  - Nome: `Normas_Atomicas_JMU`
+  - ID: `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`
+  - Permissão: Service Account adicionada como **Editor**
+- **Status:** ✅ VALIDADO (11/02/2026) - Teste de conexão bem-sucedido
+
 **Workflow 1: Indexador de Normas (Chunking)**
+- **Status:** 🚧 CÓDIGO DISPONÍVEL (Core MVP) - [Ver JSON](../docs/n8n/JMU_Indexador_Atomico.json)
 - **Trigger:** Upload de PDF via Appsmith ou Webhook
 - **Processamento:**
   1. Recebe PDF da norma

@@ -55,6 +55,10 @@ if (!command) {
                 if (!param1) throw new Error('Workflow ID required');
                 await getWorkflow(param1);
                 break;
+            case 'import':
+                if (!param1) throw new Error('Workflow JSON file path required');
+                await importWorkflow(param1);
+                break;
             default:
                 console.error(`Unknown command: ${command}`);
                 printUsage();
@@ -86,7 +90,7 @@ async function listWorkflows() {
     const response = await axios.get(`${baseUrl}/workflows`, {
         headers: { 'X-N8N-API-KEY': apiKey }
     });
-    
+
     const workflows = response.data.data;
     console.log('\nID                   | STATUS   | NAME');
     console.log('---------------------+----------+--------------------------------');
@@ -104,7 +108,7 @@ async function setWorkflowActive(id, active) {
     const response = await axios.post(`${baseUrl}/workflows/${id}/${active ? 'activate' : 'deactivate'}`, {}, {
         headers: { 'X-N8N-API-KEY': apiKey }
     });
-    
+
     if (response.data) {
         console.log(`Success! Workflow ${id} is now ${active ? 'ACTIVE' : 'INACTIVE'}.`);
     } else {
@@ -117,4 +121,54 @@ async function getWorkflow(id) {
         headers: { 'X-N8N-API-KEY': apiKey }
     });
     console.log(JSON.stringify(response.data, null, 2));
+}
+
+async function importWorkflow(filePath) {
+    console.log(`Reading workflow from ${filePath}...`);
+    if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+    }
+
+    const workflowData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    // Handle N8N export format which wraps in { "nodes": [], ... } or array
+    // API expects: { name: "...", nodes: [...], connections: {...}, ... }
+
+    // Check if it's a raw array (sometimes exports are arrays)
+    let payload = workflowData;
+    if (Array.isArray(workflowData)) {
+        // Obsolete format? usually it is object
+        throw new Error('Unexpected array format. Expected object with nodes and connections.');
+    }
+
+    // If name is missing in JSON, use filename
+    if (!payload.name) {
+        payload.name = path.basename(filePath, path.extname(filePath));
+    }
+
+    // Ensure settings exist (API requirement)
+    if (!payload.settings) {
+        payload.settings = {};
+    }
+
+    console.log(`Importing workflow "${payload.name}"...`);
+    const response = await axios.post(`${baseUrl}/workflows`, payload, {
+        headers: { 'X-N8N-API-KEY': apiKey }
+    });
+
+    console.log(`Success! Workflow imported with ID: ${response.data.id}`);
+    console.log(`Name: ${response.data.name}`);
+    console.log(`Active: ${response.data.active}`);
+}
+
+function printUsage() {
+    console.log(`
+Usage: node n8n_manager.js <command> [args]
+
+Commands:
+  list                  List all workflows and their status
+  start <id>            Activate a workflow
+  stop  <id>            Deactivate a workflow
+  info  <id>            Get details of a workflow
+  import <file>         Import a workflow from JSON file
+`);
 }
