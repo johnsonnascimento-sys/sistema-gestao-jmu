@@ -65,10 +65,15 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 
 ### 3.2 Backend (N8N)
 Workflows JMU (Ativos):
-- **JMU_Indexador_Atomico** (ID `KbaYi3M7DMm3FhPe`): Indexação de normas (Gemini -> parse -> Google Sheets produção).
+- **JMU_Indexador_Atomico** (ID `KbaYi3M7DMm3FhPe`): Indexação de normas (Webhook POST -> Gemini 2.5 -> parse -> Google Sheets produção).
 - **JMU - PreSEI Criar** (ID `nwV77ktZrCIawXYr`): Criação de demandas.
 - **JMU - PreSEI Associar** (ID `clRfeCOLYAWBN3Qs`): Associação com SEI.
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
+
+Observações operacionais (12/02/2026):
+- Proxy Nginx do n8n corrigido para permitir tráfego externo em `/webhook/` (antes retornava `HTTP 403`).
+- Endpoint funcional validado: `POST https://n8n.johnsontn.com.br/webhook/index-norma`.
+- Fluxo completo validado em produção com execuções `mode=webhook` e escrita em planilha.
 
 ### 3.3 Appsmith (Configurado & Em Desenvolvimento)
 - **Status:** 🚧 Em Construção (Fase 3 + Integração RAG 3.0).
@@ -83,7 +88,7 @@ Workflows JMU (Ativos):
 
 ### 3.4 Workflows RAG (N8N)
 - [x] **JMU - Indexador de Normas** (ID `KbaYi3M7DMm3FhPe`): Workflow ativo em produção e corrigido em 12/02/2026.
-  - Fluxo validado de configuração: Webhook -> Chunking -> Gemini -> Parse -> Google Sheets.
+  - Fluxo validado de configuração: Webhook (`POST`) -> Chunking -> Gemini (`gemini-2.5-flash`) -> Parse -> Google Sheets.
   - Google Sheets alvo: `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, `append`, `autoMapInputData`.
 - [ ] **JMU - Gerador de Modelos:** Criar templates em Google Docs com variáveis
 - [ ] **JMU - Agente RAG (Assessor de Elite):** Advanced AI nodes com Tools (Query Supabase + Read Sheets + LLM)

@@ -56,3 +56,51 @@ Esta sessão alterou o fluxo efetivo de persistência do Indexador em produção
 - Escrita no Google Sheets agora ocorre apenas após parse/normalização do retorno do Gemini.
 - A planilha de produção real (`Normas_Atomicas_JMU`) foi reafirmada como alvo do workflow ativo.
 
+---
+
+## 3. Diagnóstico e Correção de Infra (Webhook)
+**Status:** OK (12/02/2026)
+
+### Problema encontrado
+- Requisições externas para `https://n8n.johnsontn.com.br/webhook/index-norma` retornavam `HTTP 403` com `server: nginx`.
+- O workflow não recebia execuções externas.
+
+### Causa raiz
+- Regra de bloqueio no vhost do Nginx para `location ^~ /webhook/` com `deny all`.
+
+### Correção aplicada
+- Ajustado o bloco de `location ^~ /webhook/` para encaminhar ao `@reverse_proxy` sem bloqueio por IP.
+- Nginx validado e recarregado (`nginx -t` + reload).
+
+### Validação
+- Após correção de infraestrutura, o endpoint passou a responder no n8n (deixou de retornar 403).
+- Ajustado método do Webhook no workflow para `POST`.
+- Execuções de teste passaram a aparecer no histórico (`mode=webhook`).
+
+---
+
+## 4. Correções Funcionais Finais no Workflow
+**Workflow:** `JMU_Indexador_Atomico` (`KbaYi3M7DMm3FhPe`)
+
+### Ajustes aplicados
+1. Nó `Webhook (Recebe PDF)`:
+- Definido `httpMethod=POST`.
+
+2. Nó `Gemini (Indexador)`:
+- Modelo atualizado para `gemini-2.5-flash`.
+- Body JSON estruturado para `generateContent`.
+
+3. Nó `Fatiador de Texto (Chunking)`:
+- Leitura da entrada real do webhook via `$input.first().json.body.text` com fallback.
+
+4. Nó `Code in JavaScript` (parser):
+- Ampliação do parse para aceitar múltiplos schemas de resposta do Gemini.
+
+### Validação final
+- Requisição de teste no webhook retornou `HTTP 200`.
+- Execuções recentes registradas com sucesso no n8n (ex.: `Exec=42`, `Exec=43`, `Exec=44`, `Exec=45`).
+- Nó `Salvar na Planilha` executou com sucesso após correção de credencial e aba.
+
+### Estado atual
+- Pipeline ponta-a-ponta funcional: Webhook -> Chunking -> Gemini -> Parse -> Google Sheets.
+- Existe melhoria pendente de qualidade de dados para tornar `Conteudo_Integral` e `Resumo_Interpretativo` sempre não vazios em todos os formatos de resposta do modelo.

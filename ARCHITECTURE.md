@@ -15,6 +15,7 @@
 - Termina HTTPS (SSL).
 - Reverse Proxy para o n8n.
 - Controle de acesso por rota (Proteção de Webhooks).
+- **Atualização 12/02/2026:** rota `/webhook/` do domínio n8n liberada para encaminhamento ao n8n (remoção de bloqueio por `deny all`), restabelecendo execuções externas.
 
 ### D) PostgreSQL (Schema `adminlog` ou `public`)
 - Fonte da verdade.
@@ -170,9 +171,10 @@ Para permitir que o n8n acesse Google Sheets e Google Drive de forma automatizad
 
 **Correções aplicadas em 12/02/2026 (produção)**
 - Nó Google Sheets apontado para planilha real `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, operação `append`.
-- Nó Gemini com body JSON estruturado (antes incompleto).
+- Nó Gemini com body JSON estruturado e modelo atualizado para `gemini-2.5-flash`.
 - Nó de parse robusto para normalizar chaves de saída antes da escrita.
 - Bloqueio do caminho direto `Fatiador -> Salvar na Planilha` para evitar escrita indevida sem normalização.
+- Webhook publicado em `POST /webhook/index-norma` com validação de execução externa.
 
 **Workflow 2: Gerador de Modelos**
 - **Trigger:** Webhook `POST /webhook/modelo/criar`
