@@ -156,21 +156,23 @@ Para permitir que o n8n acesse Google Sheets e Google Drive de forma automatizad
 - **Status:** ✅ VALIDADO (11/02/2026) - Teste de conexão bem-sucedido
 
 **Workflow 1: Indexador de Normas (Chunking)**
-- **Status:** 🚧 CÓDIGO DISPONÍVEL (Core MVP) - [Ver JSON](../docs/n8n/JMU_Indexador_Atomico.json)
+- **Status:** ✅ ATIVO E CORRIGIDO EM PRODUÇÃO (12/02/2026)
+- **Workflow ID ativo:** `KbaYi3M7DMm3FhPe`
+- **Referência de código:** [Ver JSON](../docs/n8n/JMU_Indexador_Atomico.json)
 - **Trigger:** Upload de PDF via Appsmith ou Webhook
 - **Processamento:**
   1. Recebe PDF da norma
   2. Envia para Gemini API para chunking (3-5 páginas por chunk)
-  3. Gemini retorna estrutura com 8 colunas:
-     - `chunk_id` (ex: "RES-001-2024-C01")
-     - `identificador_norma` (FK para normas_index)
-     - `dispositivo` (ex: "Art. 5º, §2º")
-     - `conteudo_texto` (texto do chunk)
-     - `resumo` (resumo gerado pela IA)
-     - `tags` (tags extraídas)
-     - `pagina_inicio`, `pagina_fim`
-  4. Cria Google Sheet estruturado com os chunks
-  5. Salva link do Google Sheet em `normas_index.google_sheet_chunks_url`
+  3. Gemini retorna estrutura com 8 colunas
+  4. Normaliza o JSON de saída em 8 colunas (Code node de parse)
+  5. Escreve em `Normas_Atomicas_JMU` (`Página1`) com `append` + `autoMapInputData`
+  6. Salva link do Google Sheet em `normas_index.google_sheet_chunks_url`
+
+**Correções aplicadas em 12/02/2026 (produção)**
+- Nó Google Sheets apontado para planilha real `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, operação `append`.
+- Nó Gemini com body JSON estruturado (antes incompleto).
+- Nó de parse robusto para normalizar chaves de saída antes da escrita.
+- Bloqueio do caminho direto `Fatiador -> Salvar na Planilha` para evitar escrita indevida sem normalização.
 
 **Workflow 2: Gerador de Modelos**
 - **Trigger:** Webhook `POST /webhook/modelo/criar`

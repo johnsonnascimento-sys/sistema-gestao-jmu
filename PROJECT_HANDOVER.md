@@ -1,7 +1,7 @@
 ﻿# 🚀 SISTEMA DE GESTÃO JMU - DOCUMENTAÇÃO DE HANDOVER
 
 > **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3: Construção do Front-end + Integração RAG 3.0)  
-> **DATA:** 11/02/2026  
+> **DATA:** 12/02/2026  
 > **PRÓXIMA AÇÃO:** Construção do Dashboard e Criação do Schema RAG no Supabase (`normas_index`, `modelos_index`, `ai_generation_log`)
 
 ---
@@ -65,6 +65,7 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 
 ### 3.2 Backend (N8N)
 Workflows JMU (Ativos):
+- **JMU_Indexador_Atomico** (ID `KbaYi3M7DMm3FhPe`): Indexação de normas (Gemini -> parse -> Google Sheets produção).
 - **JMU - PreSEI Criar** (ID `nwV77ktZrCIawXYr`): Criação de demandas.
 - **JMU - PreSEI Associar** (ID `clRfeCOLYAWBN3Qs`): Associação com SEI.
 - **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
@@ -80,8 +81,10 @@ Workflows JMU (Ativos):
   - [ ] **Biblioteca de Normas:** Listagem, upload e visualização de chunks
   - [ ] **Gerador de Documentos:** Interface para geração assistida por IA
 
-### 3.4 Workflows RAG Planejados (N8N)
-- [ ] **JMU - Indexador de Normas:** Upload PDF -> Chunking via Gemini -> Google Sheets -> Supabase
+### 3.4 Workflows RAG (N8N)
+- [x] **JMU - Indexador de Normas** (ID `KbaYi3M7DMm3FhPe`): Workflow ativo em produção e corrigido em 12/02/2026.
+  - Fluxo validado de configuração: Webhook -> Chunking -> Gemini -> Parse -> Google Sheets.
+  - Google Sheets alvo: `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, `append`, `autoMapInputData`.
 - [ ] **JMU - Gerador de Modelos:** Criar templates em Google Docs com variáveis
 - [ ] **JMU - Agente RAG (Assessor de Elite):** Advanced AI nodes com Tools (Query Supabase + Read Sheets + LLM)
 - [ ] **JMU - Auditoria de Geração:** Registrar uso de IA em `ai_generation_log`
