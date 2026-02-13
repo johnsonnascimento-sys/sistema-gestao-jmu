@@ -1,11 +1,11 @@
 {
-  "name": "JMU_Indexador_Atomico",
+  "name": "JMU_Indexador_Atomico_RAG_Supabase (TESTE)",
   "nodes": [
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "index-norma",
-        "responseMode": "lastNode",
+        "path": "index-norma-rag",
+        "responseMode": "onReceived",
         "options": {}
       },
       "id": "webhook-trigger",
@@ -15,8 +15,7 @@
       "position": [
         464,
         352
-      ],
-      "webhookId": "c95edc43-b7a9-4e6a-b57f-25bc4e0e565f"
+      ]
     },
     {
       "parameters": {
@@ -119,12 +118,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"content\":{\"parts\":[{\"text\":\"{{$json.embedding_text}}\"}]}}",
+        "jsonBody": "={\"content\":{\"parts\":[{\"text\":\"{{$json.embedding_text}}\"}]},\"outputDimensionality\":768}",
         "options": {}
       },
       "id": "8b0cd5dc-31d2-4104-b6e8-f4d5dad2880e",
@@ -145,15 +144,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "insert into adminlog.normas_index (norma_id, chunk_index, conteudo_texto, embedding, metadata) values ($1,$2,$3,$4::vector,$5::jsonb);",
-        "additionalFields": {
-          "queryParams": "={{ [ $json.norma_id, $json.chunk_index, $json.conteudo_texto, \"[\" + (($json.embedding?.values ?? [])).join(\",\") + \"]\", JSON.stringify($json.metadata) ] }}"
-        }
+        "query": "={{ (() => {   const normaId = String($json.norma_id ?? 'UNKNOWN');   const chunkIndex = Number($json.chunk_index ?? 0);   const conteudo = String($json.conteudo_texto ?? '').replace(/'/g, \"''\");   const meta = JSON.stringify($json.metadata ?? {}).replace(/'/g, \"''\");   const values = ($json.embedding?.values ?? $json.body?.embedding?.values ?? $json.data?.embedding?.values ?? []);   const vec = '[' + (Array.isArray(values) ? values : []).join(',') + ']';   return `insert into adminlog.normas_index (norma_id, chunk_index, conteudo_texto, embedding, metadata) values ('${normaId}', ${chunkIndex}, '${conteudo}', '${vec}'::vector, '${meta}'::jsonb);`; })() }}",
+        "options": {}
       },
       "id": "7b5ddf30-4e95-471c-b23b-adc968bb9b9a",
       "name": "Supabase (Normas) - Insert",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "typeVersion": 2.6,
       "position": [
         1560,
         520
@@ -167,15 +164,13 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "insert into adminlog.ai_generation_log (input_prompt, output_response, model_used, tokens_used) values ($1,$2,$3,$4);",
-        "additionalFields": {
-          "queryParams": "={{ [ ($json.embedding_text || \\\"\\\").slice(0, 4000), JSON.stringify({\\\"embedding_dim\\\": (($json.embedding?.values ?? [])).length}), \\\"text-embedding-004\\\", ($json.usageMetadata?.totalTokenCount ?? null) ] }}"
-        }
+        "query": "={{ (() => {   const prompt = String($json.embedding_text ?? '').slice(0, 4000).replace(/'/g, \"''\");   const values = ($json.embedding?.values ?? $json.body?.embedding?.values ?? $json.data?.embedding?.values ?? []);   const dim = Array.isArray(values) ? values.length : null;   const out = JSON.stringify({embedding_dim: dim}).replace(/'/g, \"''\");   const tokens = ($json.usageMetadata?.totalTokenCount ?? $json.body?.usageMetadata?.totalTokenCount ?? null);   const tokensSql = (tokens === null || tokens === undefined) ? 'NULL' : String(Number(tokens));   return `insert into adminlog.ai_generation_log (input_prompt, output_response, model_used, tokens_used) values ('${prompt}', '${out}', 'text-embedding-004', ${tokensSql});`; })() }}",
+        "options": {}
       },
       "id": "5adfd9c2-6fa9-4d00-b99b-752b50054764",
       "name": "Supabase (Log) - Insert",
       "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2.5,
+      "typeVersion": 2.6,
       "position": [
         1760,
         520
@@ -184,6 +179,19 @@
         "postgres": {
           "name": "Supabase Postgres - jmu-db"
         }
+      }
+    },
+    {
+      "id": "11bda8d3-aedd-4da9-b423-d3b9eb62ce1a",
+      "name": "Merge (Dados + Embedding)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1520,
+        520
+      ],
+      "parameters": {
+        "mode": "mergeByPosition"
       }
     }
   ],
@@ -254,6 +262,11 @@
             "node": "Gemini (Embeddings)",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Merge (Dados + Embedding)",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -273,9 +286,9 @@
       "main": [
         [
           {
-            "node": "Supabase (Normas) - Insert",
+            "node": "Merge (Dados + Embedding)",
             "type": "main",
-            "index": 0
+            "index": 1
           }
         ]
       ]
@@ -285,6 +298,17 @@
         [
           {
             "node": "Supabase (Log) - Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge (Dados + Embedding)": {
+      "main": [
+        [
+          {
+            "node": "Supabase (Normas) - Insert",
             "type": "main",
             "index": 0
           }
