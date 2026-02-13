@@ -1,8 +1,8 @@
 ﻿# 🚀 SISTEMA DE GESTÃO JMU - DOCUMENTAÇÃO DE HANDOVER
 
 > **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3: Construção do Front-end + Integração RAG 3.0)  
-> **DATA:** 12/02/2026  
-> **PRÓXIMA AÇÃO:** Construção do Dashboard e Criação do Schema RAG no Supabase (`normas_index`, `modelos_index`, `ai_generation_log`)
+> **DATA:** 13/02/2026  
+> **PRÓXIMA AÇÃO:** Construção do Dashboard e Criação da Fundação RAG no Supabase (`adminlog.normas_index`, `adminlog.ai_generation_log`)
 
 ---
 
@@ -92,7 +92,7 @@ Observações operacionais (12/02/2026):
   - Google Sheets alvo: `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, `append`, `autoMapInputData`.
 - [ ] **JMU - Gerador de Modelos:** Criar templates em Google Docs com variáveis
 - [ ] **JMU - Agente RAG (Assessor de Elite):** Advanced AI nodes com Tools (Query Supabase + Read Sheets + LLM)
-- [ ] **JMU - Auditoria de Geração:** Registrar uso de IA em `ai_generation_log`
+- [ ] **JMU - Auditoria de Geração:** Registrar uso de IA em `adminlog.ai_generation_log`
 
 ---
 
@@ -122,7 +122,7 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 >
 > **MISSÃO ATUAL (Fase 3 - Continuação + RAG):**
 > 1. Criar o Dashboard para visualizar demandas inseridas
-> 2. Criar Schema RAG no Supabase (`normas_index`, `modelos_index`, `ai_generation_log`)
+> 2. Criar Fundação RAG no Supabase (`adminlog.normas_index`, `adminlog.ai_generation_log`)
 > 3. Desenvolver Workflows N8N para indexação e geração
 >
 > **PASSO A PASSO:**
@@ -131,13 +131,12 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 >     -   Adicionar Widget **Table** conectado a `{{get_demandas.data}}`.
 >     -   Configurar colunas (Ocultar IDs técnicos, formatar datas).
 > 2.  **Schema RAG (Supabase):**
->     -   Criar tabelas `normas_index`, `modelos_index`, `ai_generation_log` (ver `ARCHITECTURE.md` seção 6.2)
->     -   Adicionar índices em campos de busca (`tags`, `tipo_norma`, `tipo_documento`)
+>     -   Executar `sql/setup_rag_v1.sql` (ver `ARCHITECTURE.md` seção 6.3.2)
 > 3.  **Workflows N8N (Planejamento):**
 >     -   Documentar estrutura dos 3 workflows RAG principais
 >     -   Preparar credenciais Google Workspace (Sheets + Docs API)
 >
-> **Pode começar criando o Schema RAG no Supabase?**
+> **Pode começar criando a Fundação RAG no Supabase?**
 
 ---
 

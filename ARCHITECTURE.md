@@ -106,158 +106,56 @@ Nginx limitando acesso + API Key no Header. Sem acesso automático a sistemas of
 
 O sistema evoluiu de uma "Memória Administrativa" para um **Motor de Automação de Pareceres e Normas** baseado em RAG (Retrieval-Augmented Generation). Esta integração migra o ecossistema de "Gems Especializados" (ferramentas manuais baseadas em CSV/Excel) para uma arquitetura Database-First totalmente automatizada.
 
-### 6.2 Componentes da Arquitetura RAG
+### 6.2 Fluxos de Ingestão (Pipelines)
 
-#### A) Supabase como Fonte da Verdade (Índices)
+#### 6.2.1 Pipeline A: Normas Internas (JMU)
+* **Alvo:** Portarias, Atos e Resoluções próprias da JMU.
+* **Entrada:** Arquivo PDF (Upload Manual).
+* **Armazenamento:** Arquivo original salvo no Google Drive (Pasta `00_JMU_Normas_Originais`).
+* **Processamento:** Extração de texto via OCR/Loader -> Chunking por caracteres/tokens -> Vetorização.
 
-**Schema:** `adminlog`
+#### 6.2.2 Pipeline B: Legislação Federal (Planalto)
+* **Alvo:** Leis Federais (8.112, CPM, CPPM) hospedadas no Planalto.gov.
+* **Entrada:** URL (Link da Web).
+* **Armazenamento:** Apenas metadados e link de referência (não salvamos HTML estático).
+* **Processamento:** Parseamento do DOM HTML -> Remoção de tags de revogação (`<strike>`) -> Chunking Semântico (por Artigo) -> Vetorização.
 
-**Tabela: `normas_index`**
-- `id` (PK, UUID)
-- `identificador` (text, único - ex: "RES-001-2024")
-- `tipo_norma` (text - Resolução, Portaria, Instrução Normativa)
-- `titulo` (text)
-- `ementa` (text)
-- `orgao_emissor` (text)
-- `data_publicacao` (date)
-- `url_original` (text - link para PDF original)
-- `google_sheet_chunks_url` (text - link para Google Sheet com chunks)
-- `status` (text - ativo, revogado, suspenso)
-- `tags` (text[] - array de tags para busca)
-- `created_at`, `updated_at` (timestamptz)
+### 6.3 Banco de Dados (Supabase + Google Drive)
 
-**Tabela: `modelos_index`**
-- `id` (PK, UUID)
-- `identificador` (text, único - ex: "MOD-OFICIO-001")
-- `tipo_documento` (text - Ofício, Despacho, Parecer, Informação)
-- `titulo` (text)
-- `descricao` (text)
-- `google_doc_template_url` (text - link para Google Doc modelo)
-- `variaveis_disponiveis` (jsonb - mapeamento de variáveis do template)
-- `tags` (text[])
-- `created_at`, `updated_at` (timestamptz)
+#### 6.3.1 Estrutura Híbrida
+O sistema utiliza uma abordagem híbrida:
+1.  **Dados Estruturados & Vetoriais (Supabase):** O "Cérebro". Armazena textos processados e vetores de IA.
+2.  **Arquivos Não-Estruturados (Google Drive):** O "Arquivo Morto". Armazena PDFs originais para segurança jurídica.
 
-#### B) Orquestração n8n + Google Workspace
+#### 6.3.2 Schema do Banco de Dados (Supabase - PostgreSQL)
 
-**Autenticação: Google Service Account**
+##### Tabela: `adminlog.normas_index` (Memória de Longo Prazo)
+Tabela principal do RAG.
+* `id` (BigInt, PK): Identificador único do fragmento.
+* `norma_id` (Text): ID da norma (ex: "PORTARIA-123-2026" ou "LEI-8112").
+* `chunk_index` (Int): Sequencial do fragmento (0, 1, 2...).
+* `conteudo_texto` (Text): O texto real do fragmento.
+* `embedding` (Vector[768]): O vetor matemático gerado pelo Gemini.
+* `metadata` (JSONB): Dados flexíveis (Ex: `{"origem": "pipeline_a", "drive_id": "xyz", "vigencia": "ativa"}`).
+* `created_at` (Timestamp): Data de indexação.
 
-Para permitir que o n8n acesse Google Sheets e Google Drive de forma automatizada, foi configurada uma Service Account:
+##### Tabela: `adminlog.ai_generation_log` (Auditoria)
+Registra interações para controle de custos e análise de uso.
+* `id` (BigInt, PK): Identificador da transação.
+* `input_prompt` (Text): O que foi pedido à IA.
+* `output_response` (Text): O que a IA respondeu.
+* `model_used` (Text): Modelo utilizado (ex: "gemini-2.0-flash").
+* `tokens_used` (Int): Consumo de tokens.
+* `created_at` (Timestamp): Data da geração.
 
-- **Projeto Google Cloud:** `JMU-Automation`
-- **Service Account:** `n8n-bot` (Editor)
-- **E-mail do Robô:** (campo `client_email` no arquivo JSON de credenciais)
-- **Autenticação:** Chave JSON armazenada como credencial no n8n
-- **APIs Ativadas:**
-  - **Google Sheets API:** Leitura e escrita de chunks de normas
-  - **Google Drive API:** Upload e manipulação de PDFs
-- **Planilha Mestre Compartilhada:**
-  - Nome: `Normas_Atomicas_JMU`
-  - ID: `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`
-  - Permissão: Service Account adicionada como **Editor**
-- **Status:** ✅ VALIDADO (11/02/2026) - Teste de conexão bem-sucedido
-
-**Workflow 1: Indexador de Normas (Chunking)**
-- **Status:** ✅ ATIVO E CORRIGIDO EM PRODUÇÃO (12/02/2026)
-- **Workflow ID ativo:** `KbaYi3M7DMm3FhPe`
-- **Referência de código:** [Ver JSON](../docs/n8n/JMU_Indexador_Atomico.json)
-- **Trigger:** Upload de PDF via Appsmith ou Webhook
-- **Processamento:**
-  1. Recebe PDF da norma
-  2. Envia para Gemini API para chunking (3-5 páginas por chunk)
-  3. Gemini retorna estrutura com 8 colunas
-  4. Normaliza o JSON de saída em 8 colunas (Code node de parse)
-  5. Escreve em `Normas_Atomicas_JMU` (`Página1`) com `append` + `autoMapInputData`
-  6. Salva link do Google Sheet em `normas_index.google_sheet_chunks_url`
-
-**Correções aplicadas em 12/02/2026 (produção)**
-- Nó Google Sheets apontado para planilha real `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, operação `append`.
-- Nó Gemini com body JSON estruturado e modelo atualizado para `gemini-2.5-flash`.
-- Nó de parse robusto para normalizar chaves de saída antes da escrita.
-- Bloqueio do caminho direto `Fatiador -> Salvar na Planilha` para evitar escrita indevida sem normalização.
-- Webhook publicado em `POST /webhook/index-norma` com validação de execução externa.
-
-**Workflow 2: Gerador de Modelos**
-- **Trigger:** Webhook `POST /webhook/modelo/criar`
-- **Processamento:**
-  1. Recebe dados do modelo (tipo, título, template base)
-  2. Cria Google Doc formatado
-  3. Insere marcadores de variáveis (ex: `{{numero_sei}}`, `{{interessado}}`)
-  4. Salva link em `modelos_index.google_doc_template_url`
-
-**Workflow 3: Agente RAG (Assessor de Elite)**
-- **Trigger:** Solicitação de parecer/documento via Appsmith
-- **Processamento (Advanced AI nodes):**
-  1. Recebe contexto da demanda (número SEI, assunto, tipo de documento)
-  2. **Tool 1 - Query Supabase:** Busca normas relevantes em `normas_index` por tags/assunto
-  3. **Tool 2 - Read Google Sheets:** Lê chunks específicos das normas encontradas
-  4. **Tool 3 - Get Template:** Busca modelo adequado em `modelos_index`
-  5. **Tool 4 - Read Google Doc:** Lê template do Google Doc
-  6. **Geração:** LLM (Gemini/GPT-4) gera documento fundamentado
-  7. **Output:** Cria novo Google Doc ou retorna texto para Appsmith
-
-#### C) Integração com Appsmith
-
-**Nova Interface: "Biblioteca de Normas"**
-- Listagem de normas indexadas (query em `normas_index`)
-- Upload de novas normas (trigger workflow de chunking)
-- Visualização de chunks (iframe do Google Sheet)
-
-**Nova Interface: "Gerador de Documentos"**
-- Seleção de tipo de documento
-- Preenchimento de variáveis
-- Botão "Gerar com IA" (chama Agente RAG)
-- Preview e edição do documento gerado
-
-### 6.3 Fluxo de Dados RAG
-
-```
-┌─────────────┐
-│  Appsmith   │ (Upload PDF norma)
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│ n8n Workflow│ (Indexador)
-│   Chunking  │
-└──────┬──────┘
-       │
-       ├──► Gemini API (Chunking 3-5 páginas)
-       │
-       ├──► Google Sheets (Salva chunks estruturados)
-       │
-       ▼
-┌─────────────┐
-│  Supabase   │ (normas_index + link para Sheet)
-└─────────────┘
-
---- GERAÇÃO DE DOCUMENTO ---
-
-┌─────────────┐
-│  Appsmith   │ (Solicita parecer)
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│ n8n Agente  │ (Advanced AI)
-│     RAG     │
-└──────┬──────┘
-       │
-       ├──► Tool: SELECT em normas_index (Supabase)
-       ├──► Tool: Read Google Sheets (chunks relevantes)
-       ├──► Tool: Get Template (modelos_index)
-       ├──► LLM: Gera documento fundamentado
-       │
-       ▼
-┌─────────────┐
-│ Google Docs │ (Documento final) ──► Appsmith (preview)
-└─────────────┘
-```
+#### 6.3.3 Estrutura de Pastas (Google Drive)
+* **Pasta Raiz:** `00_JMU_Normas_Originais`
+* **ID da Pasta:** `1QEZGPtlmg2ladDSyFdv7S7foNSpgiaqk`
+* **Conteúdo:** Apenas arquivos PDF originais do Pipeline A.
 
 ### 6.4 Regras de Negócio RAG
 
 1. **Chunking Inteligente:** Respeitar estrutura de artigos/parágrafos (não quebrar no meio de dispositivo).
 2. **Versionamento:** Normas revogadas mantêm `status='revogado'` mas permanecem no índice (histórico).
-3. **Cache de Chunks:** Google Sheets funcionam como cache estruturado (evita re-processar PDFs).
-4. **Auditoria de Geração:** Toda geração de documento via IA registra em tabela `ai_generation_log`:
-   - `id`, `demanda_id`, `normas_utilizadas` (array de IDs), `modelo_id`, `prompt_enviado`, `documento_gerado_url`, `generated_at`
-5. **Validação Humana:** Documentos gerados são sempre **sugestões** - humano revisa antes de usar oficialmente.
+3. **Auditoria de Geração:** Toda geração de documento via IA registra em tabela `adminlog.ai_generation_log`.
+4. **Validação Humana:** Documentos gerados são sempre **sugestões** - humano revisa antes de usar oficialmente.

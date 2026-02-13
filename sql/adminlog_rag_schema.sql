@@ -4,6 +4,11 @@
 -- Descrição: Tabelas para indexação de normas e modelos documentais
 -- Requisito: A função adminlog.fn_set_updated_at() já deve existir
 -- Criado em: 11/02/2026
+--
+-- ⚠️ LEGADO (13/02/2026)
+-- Este arquivo reflete um desenho anterior (UUID + Google Sheets) e pode conflitar
+-- com a "Verdade" atual do RAG.
+-- Use o script: sql/setup_rag_v1.sql
 -- =====================================================
 
 -- Habilitar extensão UUID (caso não esteja habilitada)
