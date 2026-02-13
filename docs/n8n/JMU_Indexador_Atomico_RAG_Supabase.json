@@ -1,0 +1,307 @@
+{
+  "name": "JMU_Indexador_Atomico",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "index-norma",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook (Recebe PDF)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        464,
+        352
+      ],
+      "webhookId": "c95edc43-b7a9-4e6a-b57f-25bc4e0e565f"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Usa a entrada real do webhook (evita interferência de dados fixados)\nconst input = $input.first().json;\nconst fullText = input.body?.text || input.text || \"Texto de exemplo da norma...\";\nconst normaId = input.body?.norma_id || input.body?.normaId || input.body?.norma_vigente || input.body?.normaVigente || input.body?.identificador || input.body?.assunto || input.norma_id || input.norma_vigente || input.assunto || null;\nconst chunkSize = 4000;\nconst chunks = [];\n\nfor (let i = 0, o = 0; i < fullText.length; i += chunkSize, o++) {\n  chunks.push({\n    json: {\n      chunk_id: o + 1,\n      text_content: fullText.substr(i, chunkSize),\n      total_chunks: Math.ceil(fullText.length / chunkSize),\n      norma_id: normaId\n    }\n  });\n}\n\nreturn chunks;"
+      },
+      "id": "code-chunking",
+      "name": "Fatiador de Texto (Chunking)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        688,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Página1",
+          "mode": "name"
+        },
+        "dataMode": "autoMapInputData",
+        "options": {}
+      },
+      "id": "google-sheets",
+      "name": "Salvar na Planilha",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        1328,
+        352
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "A8137sqsd18zeI5F",
+          "name": "Google Sheets - JMU Automation (Service Account)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"contents\":[{\"parts\":[{\"text\":\"{{$json.text_content}}\"}]}],\"generationConfig\":{\"responseMimeType\":\"application/json\"}}",
+        "options": {}
+      },
+      "id": "408c24fc-1603-48ae-b5f5-ffbff1771e04",
+      "name": "Gemini (Indexador)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        960,
+        400
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M4PweMUQm9HNn1fs",
+          "name": "Gemini API Key Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().flatMap(item => {\n  const raw = item?.json?.candidates?.[0]?.content?.parts?.[0]?.text;\n  if (!raw || typeof raw !== 'string') return [];\n\n  let parsed;\n  try {\n    parsed = JSON.parse(raw);\n  } catch {\n    return [];\n  }\n\n  const article = parsed.article_number ?? parsed.article ?? '';\n  const deadlineValue = parsed.deadline_days ?? parsed.deadline?.value;\n  const deadlineUnit = parsed.deadline?.unit ?? 'dias';\n\n  const tags = parsed.Tags_Pentagonais ?? parsed.tags_pentagonais ?? parsed.tags ?? '';\n  const tagsValue = Array.isArray(tags) ? tags.join(', ') : String(tags ?? '');\n\n  const prazo = parsed.Prazos_Gatilhos\n    ?? parsed.prazos_gatilhos\n    ?? (deadlineValue ? `${deadlineValue} ${deadlineUnit}` : 'N/A');\n\n  const conteudo = parsed.Conteudo_Integral\n    ?? parsed.conteudo_integral\n    ?? parsed.original_text\n    ?? '';\n\n  return [{\n    json: {\n      Identificador: parsed.Identificador ?? parsed.identificador ?? String(item.json.chunk_id ?? 1),\n      Dispositivo: parsed.Dispositivo ?? parsed.dispositivo ?? (article ? `Art. ${article}` : ''),\n      Status_Vigencia: parsed.Status_Vigencia ?? parsed.status_vigencia ?? 'Vigente',\n      Conteudo_Integral: conteudo,\n      Resumo_Interpretativo: parsed.Resumo_Interpretativo ?? parsed.resumo_interpretativo ?? parsed.purpose ?? conteudo,\n      Prazos_Gatilhos: prazo,\n      Normas_Alteradoras: parsed.Normas_Alteradoras ?? parsed.normas_alteradoras ?? 'N/A',\n      Tags_Pentagonais: tagsValue || 'N/A',\n\n      // RAG/Supabase fields\n      norma_id: item.json.norma_id ?? (String(parsed.Identificador ?? parsed.identificador ?? '').split('-C')[0] || 'UNKNOWN'),\n      chunk_index: (item.json.chunk_index ?? (Number(item.json.chunk_id ?? 1) - 1)),\n      conteudo_texto: conteudo,\n      embedding_text: conteudo || (parsed.Resumo_Interpretativo ?? parsed.resumo_interpretativo ?? ''),\n      metadata: {\n        origem: 'pipeline_a',\n        drive_folder_id: '1QEZGPtlmg2ladDSyFdv7S7foNSpgiaqk',\n        dispositivo: parsed.Dispositivo ?? parsed.dispositivo ?? (article ? `Art. ${article}` : ''),\n        status_vigencia: parsed.Status_Vigencia ?? parsed.status_vigencia ?? 'Vigente',\n        tags_pentagonais: tagsValue || 'N/A',\n        identificador_chunk: parsed.Identificador ?? parsed.identificador ?? String(item.json.chunk_id ?? 1),\n      }\n    }\n  }];\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        400
+      ],
+      "id": "7ffd4620-65ad-4a19-b888-9a98944fe547",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [];"
+      },
+      "id": "7ad30698-7a2f-4ebf-82ec-96e1ccf8a2f4",
+      "name": "Bloquear Escrita Direta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        240
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"content\":{\"parts\":[{\"text\":\"{{$json.embedding_text}}\"}]}}",
+        "options": {}
+      },
+      "id": "8b0cd5dc-31d2-4104-b6e8-f4d5dad2880e",
+      "name": "Gemini (Embeddings)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1328,
+        520
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M4PweMUQm9HNn1fs",
+          "name": "Gemini API Key Header"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into adminlog.normas_index (norma_id, chunk_index, conteudo_texto, embedding, metadata) values ($1,$2,$3,$4::vector,$5::jsonb);",
+        "additionalFields": {
+          "queryParams": "={{ [ $json.norma_id, $json.chunk_index, $json.conteudo_texto, \"[\" + (($json.embedding?.values ?? [])).join(\",\") + \"]\", JSON.stringify($json.metadata) ] }}"
+        }
+      },
+      "id": "7b5ddf30-4e95-471c-b23b-adc968bb9b9a",
+      "name": "Supabase (Normas) - Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1560,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres - jmu-db"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "insert into adminlog.ai_generation_log (input_prompt, output_response, model_used, tokens_used) values ($1,$2,$3,$4);",
+        "additionalFields": {
+          "queryParams": "={{ [ ($json.embedding_text || \\\"\\\").slice(0, 4000), JSON.stringify({\\\"embedding_dim\\\": (($json.embedding?.values ?? [])).length}), \\\"text-embedding-004\\\", ($json.usageMetadata?.totalTokenCount ?? null) ] }}"
+        }
+      },
+      "id": "5adfd9c2-6fa9-4d00-b99b-752b50054764",
+      "name": "Supabase (Log) - Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1760,
+        520
+      ],
+      "credentials": {
+        "postgres": {
+          "name": "Supabase Postgres - jmu-db"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Fatiador de Texto (Chunking)": [
+      {
+        "json": {
+          "name": "First item",
+          "code": 1
+        }
+      },
+      {
+        "json": {
+          "name": "Second item",
+          "code": 2
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook (Recebe PDF)": {
+      "main": [
+        [
+          {
+            "node": "Fatiador de Texto (Chunking)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fatiador de Texto (Chunking)": {
+      "main": [
+        [
+          {
+            "node": "Gemini (Indexador)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Bloquear Escrita Direta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Indexador)": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Salvar na Planilha",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gemini (Embeddings)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bloquear Escrita Direta": {
+      "main": [
+        [
+          {
+            "node": "Salvar na Planilha",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Embeddings)": {
+      "main": [
+        [
+          {
+            "node": "Supabase (Normas) - Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase (Normas) - Insert": {
+      "main": [
+        [
+          {
+            "node": "Supabase (Log) - Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "86d5f5c1-f43b-4066-9ae6-b875ecf47630",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e51a76caa89fc823b5f56f64006282da82afd47e81408d15c7c005141be31b46"
+  },
+  "id": "KbaYi3M7DMm3FhPe",
+  "tags": []
+}
