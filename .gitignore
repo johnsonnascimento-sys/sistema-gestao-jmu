@@ -13,3 +13,4 @@ jmu-automation-*.json
 .DS_Store
 Thumbs.db
 MEUS_SEGREDOS.txt
+tmp/
