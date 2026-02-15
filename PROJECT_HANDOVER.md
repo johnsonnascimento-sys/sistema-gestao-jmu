@@ -54,45 +54,21 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 
 ---
 
-## 3. ✅ STATUS ATUAL (O que já está pronto)
+## 3. 🚦 Status Atual (15/02/2026)
+* **Fase 0 (Fundação RAG):** ✅ CONCLUÍDO.
+  * Banco de Dados (Supabase) estruturado com vetores (`adminlog.normas_index`).
+  * Google Drive configurado para arquivos originais.
+* **Fase 1 (Cérebro/N8N):** ✅ CONCLUÍDO.
+  * Workflow de Produção (`JMU_Indexador_Atomico_RAG_Supabase`) rodando.
+  * Fluxo Híbrido: Salva no Google Sheets (Legado) e no Supabase (Vetores) simultaneamente.
+  * Correção de "Amnésia HTTP" aplicada via nó Merge.
+* **Fase 2 (Interface Visual):** 🚧 EM INÍCIO.
+  * Objetivo: Criar painel no Appsmith para busca e upload.
 
-### 3.1 Infraestrutura Básica
-- [x] VPS Configurada e Segura (SSH ativo).
-- [x] CloudPanel Configurado (Reverse Proxy para N8N e Appsmith).
-- [x] **DNS Configurado:** `app.johnsontn.com.br` apontando para a VPS (via Cloudflare).
-- [x] **SSL Ativo:** Certificados Let's Encrypt instalados e válidos.
-- [x] **Google Service Account:** Configurada e validada (Sheets API + Drive API ativas).
-
-### 3.2 Backend (N8N)
-Workflows JMU (Ativos):
-- **JMU_Indexador_Atomico** (ID `KbaYi3M7DMm3FhPe`): Indexação de normas (Webhook POST -> Gemini 2.5 -> parse -> Google Sheets produção).
-- **JMU - PreSEI Criar** (ID `nwV77ktZrCIawXYr`): Criação de demandas.
-- **JMU - PreSEI Associar** (ID `clRfeCOLYAWBN3Qs`): Associação com SEI.
-- **JMU - Bootstrap Adminlog** (ID `nfBKnnBjON6oU1NT`): Manutenção de Schema.
-
-Observações operacionais (12/02/2026):
-- Proxy Nginx do n8n corrigido para permitir tráfego externo em `/webhook/` (antes retornava `HTTP 403`).
-- Endpoint funcional validado: `POST https://n8n.johnsontn.com.br/webhook/index-norma`.
-- Fluxo completo validado em produção com execuções `mode=webhook` e escrita em planilha.
-
-### 3.3 Appsmith (Configurado & Em Desenvolvimento)
-- **Status:** 🚧 Em Construção (Fase 3 + Integração RAG 3.0).
-- **Datasources:**
-  1.  **Supabase JMU:** Conectado via Session Pooler (`aws-0-us-west-2.pooler...`).
-  2.  **N8N Webhooks:** Conectado.
-- **Telas Prontas:**
-  - [x] **Nova Demanda:** Formulário de inserção funcional (SQL `insert_demanda` ajustado com `moment()`).
-- **Telas Planejadas (RAG 3.0):**
-  - [ ] **Biblioteca de Normas:** Listagem, upload e visualização de chunks
-  - [ ] **Gerador de Documentos:** Interface para geração assistida por IA
-
-### 3.4 Workflows RAG (N8N)
-- [x] **JMU - Indexador de Normas** (ID `KbaYi3M7DMm3FhPe`): Workflow ativo em produção e corrigido em 12/02/2026.
-  - Fluxo validado de configuração: Webhook (`POST`) -> Chunking -> Gemini (`gemini-2.5-flash`) -> Parse -> Google Sheets.
-  - Google Sheets alvo: `Normas_Atomicas_JMU` (ID `1Emu8IWDuS4yIS_8vQ_wPrZPqCNTkUBfMQFuVYWvFHVI`), aba `Página1`, `append`, `autoMapInputData`.
-- [ ] **JMU - Gerador de Modelos:** Criar templates em Google Docs com variáveis
-- [ ] **JMU - Agente RAG (Assessor de Elite):** Advanced AI nodes com Tools (Query Supabase + Read Sheets + LLM)
-- [ ] **JMU - Auditoria de Geração:** Registrar uso de IA em `adminlog.ai_generation_log`
+### 3.1 🛠️ Stack Tecnológico Atual
+* **N8N:** Workflow `index-norma` (Recebe PDF -> Gemini -> Supabase + Sheets).
+* **Supabase:** Projeto `jmu-db` (Tabelas `normas_index` e `ai_generation_log`).
+* **Google Drive:** Pasta `00_JMU_Normas_Originais`.
 
 ---
 
