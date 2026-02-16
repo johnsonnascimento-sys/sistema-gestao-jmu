@@ -1,5 +1,8 @@
 # PROJECT CLOSEOUT: JMU Gestao Inteligente (v1.0)
 
+> Nota (16/02/2026): este closeout registra o encerramento da Fase 2 (Busca RAG).
+> O projeto segue ativo na Fase 3 (Central de Ingestao Hibrida). Ver `PROJECT_HANDOVER.md`.
+
 Data de Entrega: 2026-02-16
 Status: ENTREGUE (Producao)
 Versao: 1.0 (RAG Hibrido + Cache Client-Side)
@@ -54,4 +57,3 @@ Credenciais usadas no desenvolvimento devem ser rotacionadas no encerramento:
 ---
 
 Entrega concluida com foco em reproducibilidade, fallback operacional e seguranca pos-projeto.
-

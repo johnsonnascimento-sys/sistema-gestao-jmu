@@ -1,0 +1,643 @@
+{
+  "updatedAt": "2026-02-16T15:17:10.884Z",
+  "createdAt": "2026-02-16T15:15:36.861Z",
+  "id": "OTp1ykZvIPLmk8HE",
+  "name": "JMU_Indexador_Web_RAG_Supabase (FASE3-A-ATIVO)",
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "index-norma-web",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-web",
+      "name": "Webhook (Recebe URL)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        420,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || input;\nconst sourceUrl = String(body.url || body.source_url || body.link || '').trim();\nif (!sourceUrl) {\n  throw new Error('Campo url e obrigatorio. Exemplo: { \"url\": \"https://www.planalto.gov.br/...\" }');\n}\n\nconst normaIdRaw = String(body.norma_id || body.norma_vigente || '').trim();\nconst normaIdDerived = sourceUrl\n  .replace(/^https?:\\/\\//i, '')\n  .replace(/[^a-zA-Z0-9]+/g, '-')\n  .replace(/^-+|-+$/g, '')\n  .slice(0, 80)\n  .toUpperCase();\n\nreturn [{\n  json: {\n    source_url: sourceUrl,\n    target_url: sourceUrl,\n    norma_id: normaIdRaw || `WEB-${normaIdDerived}`,\n    origem: 'pipeline_b',\n    requested_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "prepare-url",
+      "name": "Preparar URL e Norma ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$json.target_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; JMU-RAG-Indexer/1.0; +https://n8n.johnsontn.com.br)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "string"
+            }
+          }
+        }
+      },
+      "id": "fetch-html",
+      "name": "Buscar HTML (Planalto)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        860,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-web-html",
+      "name": "Merge (URL + HTML)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst sourceUrl = String(item.source_url || item.target_url || '').trim();\nconst normaId = String(item.norma_id || 'WEB-UNKNOWN').trim();\n\nconst htmlRaw = String(\n  item.body ?? item.data ?? item.response ?? item.html ?? ''\n);\nif (!htmlRaw) {\n  throw new Error('Nao foi possivel obter HTML da URL informada.');\n}\n\n// Limpeza basica de DOM em string (sem parser externo)\nlet html = htmlRaw\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, ' ')\n  .replace(/<strike[\\s\\S]*?<\\/strike>/gi, ' ') // regra de negocio\n  .replace(/<s[\\s\\S]*?<\\/s>/gi, ' ')\n  .replace(/<!--([\\s\\S]*?)-->/g, ' ');\n\nconst text = html\n  .replace(/<br\\s*\\/?>/gi, '\\n')\n  .replace(/<\\/p>/gi, '\\n')\n  .replace(/<\\/div>/gi, '\\n')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/gi, ' ')\n  .replace(/&amp;/gi, '&')\n  .replace(/&quot;/gi, '\"')\n  .replace(/&#39;/gi, \"'\")\n  .replace(/\\u00a0/g, ' ')\n  .replace(/[ \\t]+/g, ' ')\n  .replace(/\\n{2,}/g, '\\n')\n  .trim();\n\nif (!text) {\n  throw new Error('Texto extraido ficou vazio apos limpeza de HTML.');\n}\n\n// Chunking semantico por artigos\nlet parts = text.split(/(?=\\bArt\\.?\\s*\\d+[A-Za-z\\u00ba\\u00b0-]*)/g)\n  .map(s => s.trim())\n  .filter(Boolean);\n\n// Fallback para textos sem marcador de artigo\nif (parts.length <= 1) {\n  const chunkSize = 3500;\n  parts = [];\n  for (let i = 0; i < text.length; i += chunkSize) {\n    parts.push(text.slice(i, i + chunkSize));\n  }\n}\n\nreturn parts\n  .map((conteudo, idx) => ({\n    json: {\n      norma_id: normaId,\n      chunk_index: idx,\n      conteudo_texto: conteudo,\n      embedding_text: conteudo,\n      metadata: {\n        origem: 'pipeline_b',\n        source_url: sourceUrl,\n        processamento: 'dom_parse_remove_strike_article_chunking',\n        vigencia: 'desconhecida',\n        chunk_total: parts.length,\n        chunk_chars: conteudo.length\n      }\n    }\n  }))\n  .filter(x => String(x.json.embedding_text || '').trim().length > 0);"
+      },
+      "id": "parse-chunk-web",
+      "name": "Parse HTML + Chunk por Artigo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"content\":{\"parts\":[{\"text\":\"{{$json.embedding_text}}\"}]},\"outputDimensionality\":768}",
+        "options": {}
+      },
+      "id": "embed-web",
+      "name": "Gemini (Embeddings Web)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1520,
+        420
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "M4PweMUQm9HNn1fs",
+          "name": "Gemini API Key Header"
+        }
+      },
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "id": "merge-data-embed-web",
+      "name": "Merge (Dados + Embedding Web)",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1720,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (() => {   const normaId = String($json.norma_id ?? 'UNKNOWN');   const chunkIndex = Number($json.chunk_index ?? 0);   const conteudo = String($json.conteudo_texto ?? '').replace(/'/g, \"''\");   const meta = JSON.stringify($json.metadata ?? {}).replace(/'/g, \"''\");   const values = ($json.embedding?.values ?? $json.body?.embedding?.values ?? $json.data?.embedding?.values ?? []);   const embeddingSql = (Array.isArray(values) && values.length) ? (`'[` + values.join(',') + `]'::vector`) : 'NULL';   return `insert into adminlog.normas_index (norma_id, chunk_index, conteudo_texto, embedding, metadata) values ('${normaId}', ${chunkIndex}, '${conteudo}', ${embeddingSql}, '${meta}'::jsonb);`; })() }}"
+      },
+      "id": "insert-normas-web",
+      "name": "Supabase (Normas Web) - Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1940,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "pwVK0pf9FRoPT0JZ",
+          "name": "Supabase Postgres - jmu-db (pooler allowUnauthorizedCerts)"
+        }
+      },
+      "continueOnFail": false
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "={{ (() => {   const prompt = String($json.embedding_text ?? '').slice(0, 4000).replace(/'/g, \"''\");   const values = ($json.embedding?.values ?? $json.body?.embedding?.values ?? $json.data?.embedding?.values ?? []);   const dim = Array.isArray(values) ? values.length : null;   const out = JSON.stringify({embedding_dim: dim, origem: 'pipeline_b'}).replace(/'/g, \"''\");   const tokens = ($json.usageMetadata?.totalTokenCount ?? $json.body?.usageMetadata?.totalTokenCount ?? null);   const tokensSql = (tokens === null || tokens === undefined) ? 'NULL' : String(Number(tokens));   return `insert into adminlog.ai_generation_log (input_prompt, output_response, model_used, tokens_used) values ('${prompt}', '${out}', 'gemini-embedding-001', ${tokensSql});`; })() }}"
+      },
+      "id": "insert-log-web",
+      "name": "Supabase (Log Web) - Insert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2160,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "pwVK0pf9FRoPT0JZ",
+          "name": "Supabase Postgres - jmu-db (pooler allowUnauthorizedCerts)"
+        }
+      },
+      "continueOnFail": false
+    }
+  ],
+  "connections": {
+    "Webhook (Recebe URL)": {
+      "main": [
+        [
+          {
+            "node": "Preparar URL e Norma ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar URL e Norma ID": {
+      "main": [
+        [
+          {
+            "node": "Merge (URL + HTML)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Buscar HTML (Planalto)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar HTML (Planalto)": {
+      "main": [
+        [
+          {
+            "node": "Merge (URL + HTML)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge (URL + HTML)": {
+      "main": [
+        [
+          {
+            "node": "Parse HTML + Chunk por Artigo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse HTML + Chunk por Artigo": {
+      "main": [
+        [
+          {
+            "node": "Merge (Dados + Embedding Web)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Gemini (Embeddings Web)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini (Embeddings Web)": {
+      "main": [
+        [
+          {
+            "node": "Merge (Dados + Embedding Web)",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge (Dados + Embedding Web)": {
+      "main": [
+        [
+          {
+            "node": "Supabase (Normas Web) - Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase (Normas Web) - Insert": {
+      "main": [
+        [
+          {
+            "node": "Supabase (Log Web) - Insert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {},
+  "activeVersionId": "bd7d050e-d2ec-4895-a571-a9ec289c2d8f",
+  "versionCounter": 6,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-02-16T15:15:36.861Z",
+      "createdAt": "2026-02-16T15:15:36.861Z",
+      "role": "workflow:owner",
+      "workflowId": "OTp1ykZvIPLmk8HE",
+      "projectId": "wG5OHKKuLfciDtop",
+      "project": {
+        "updatedAt": "2026-02-04T07:27:09.190Z",
+        "createdAt": "2026-02-04T03:51:13.817Z",
+        "id": "wG5OHKKuLfciDtop",
+        "name": "Johnson Teixeira do Nascimento <johnson.nascimento@gmail.com>",
+        "type": "personal",
+        "creatorId": "f8b51e6b-34f5-4df1-bab0-ffecfe7583fa",
+        "projectRelations": [
+          {
+            "updatedAt": "2026-02-04T03:51:13.817Z",
+            "createdAt": "2026-02-04T03:51:13.817Z",
+            "userId": "f8b51e6b-34f5-4df1-bab0-ffecfe7583fa",
+            "projectId": "wG5OHKKuLfciDtop",
+            "user": {
+              "updatedAt": "2026-02-16T15:07:17.589Z",
+              "createdAt": "2026-02-04T03:51:13.355Z",
+              "id": "f8b51e6b-34f5-4df1-bab0-ffecfe7583fa",
+              "email": "johnson.nascimento@gmail.com",
+              "firstName": "Johnson",
+              "lastName": "Teixeira do Nascimento",
+              "personalizationAnswers": {
+                "version": "v4",
+                "personalization_survey_submitted_at": "2026-02-04T07:27:26.162Z",
+                "personalization_survey_n8n_version": "2.6.3",
+                "companyType": "personal",
+                "reportedSource": "youtube"
+              },
+              "settings": {
+                "userActivated": true,
+                "firstSuccessfulWorkflowId": "KUVcU5P2QGNa75K_lMjBM",
+                "userActivatedAt": 1770221733110,
+                "npsSurvey": {
+                  "waitingForResponse": true,
+                  "ignoredCount": 1,
+                  "lastShownAt": 1770848654466
+                }
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-02-16",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-02-16T15:15:36.866Z",
+    "createdAt": "2026-02-16T15:15:36.866Z",
+    "versionId": "bd7d050e-d2ec-4895-a571-a9ec289c2d8f",
+    "workflowId": "OTp1ykZvIPLmk8HE",
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "index-norma-web",
+          "responseMode": "onReceived",
+          "options": {}
+        },
+        "id": "webhook-web",
+        "name": "Webhook (Recebe URL)",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 1,
+        "position": [
+          420,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst body = input.body || input;\nconst sourceUrl = String(body.url || body.source_url || body.link || '').trim();\nif (!sourceUrl) {\n  throw new Error('Campo url e obrigatorio. Exemplo: { \"url\": \"https://www.planalto.gov.br/...\" }');\n}\n\nconst normaIdRaw = String(body.norma_id || body.norma_vigente || '').trim();\nconst normaIdDerived = sourceUrl\n  .replace(/^https?:\\/\\//i, '')\n  .replace(/[^a-zA-Z0-9]+/g, '-')\n  .replace(/^-+|-+$/g, '')\n  .slice(0, 80)\n  .toUpperCase();\n\nreturn [{\n  json: {\n    source_url: sourceUrl,\n    target_url: sourceUrl,\n    norma_id: normaIdRaw || `WEB-${normaIdDerived}`,\n    origem: 'pipeline_b',\n    requested_at: new Date().toISOString()\n  }\n}];"
+        },
+        "id": "prepare-url",
+        "name": "Preparar URL e Norma ID",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          640,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "GET",
+          "url": "={{$json.target_url}}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "User-Agent",
+                "value": "Mozilla/5.0 (compatible; JMU-RAG-Indexer/1.0; +https://n8n.johnsontn.com.br)"
+              }
+            ]
+          },
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "string"
+              }
+            }
+          }
+        },
+        "id": "fetch-html",
+        "name": "Buscar HTML (Planalto)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          860,
+          420
+        ]
+      },
+      {
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        },
+        "id": "merge-web-html",
+        "name": "Merge (URL + HTML)",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3,
+        "position": [
+          1080,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first().json;\nconst sourceUrl = String(item.source_url || item.target_url || '').trim();\nconst normaId = String(item.norma_id || 'WEB-UNKNOWN').trim();\n\nconst htmlRaw = String(\n  item.body ?? item.data ?? item.response ?? item.html ?? ''\n);\nif (!htmlRaw) {\n  throw new Error('Nao foi possivel obter HTML da URL informada.');\n}\n\n// Limpeza basica de DOM em string (sem parser externo)\nlet html = htmlRaw\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, ' ')\n  .replace(/<strike[\\s\\S]*?<\\/strike>/gi, ' ') // regra de negocio\n  .replace(/<s[\\s\\S]*?<\\/s>/gi, ' ')\n  .replace(/<!--([\\s\\S]*?)-->/g, ' ');\n\nconst text = html\n  .replace(/<br\\s*\\/?>/gi, '\\n')\n  .replace(/<\\/p>/gi, '\\n')\n  .replace(/<\\/div>/gi, '\\n')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/gi, ' ')\n  .replace(/&amp;/gi, '&')\n  .replace(/&quot;/gi, '\"')\n  .replace(/&#39;/gi, \"'\")\n  .replace(/\\u00a0/g, ' ')\n  .replace(/[ \\t]+/g, ' ')\n  .replace(/\\n{2,}/g, '\\n')\n  .trim();\n\nif (!text) {\n  throw new Error('Texto extraido ficou vazio apos limpeza de HTML.');\n}\n\n// Chunking semantico por artigos\nlet parts = text.split(/(?=\\bArt\\.?\\s*\\d+[A-Za-z\\u00ba\\u00b0-]*)/g)\n  .map(s => s.trim())\n  .filter(Boolean);\n\n// Fallback para textos sem marcador de artigo\nif (parts.length <= 1) {\n  const chunkSize = 3500;\n  parts = [];\n  for (let i = 0; i < text.length; i += chunkSize) {\n    parts.push(text.slice(i, i + chunkSize));\n  }\n}\n\nreturn parts\n  .map((conteudo, idx) => ({\n    json: {\n      norma_id: normaId,\n      chunk_index: idx,\n      conteudo_texto: conteudo,\n      embedding_text: conteudo,\n      metadata: {\n        origem: 'pipeline_b',\n        source_url: sourceUrl,\n        processamento: 'dom_parse_remove_strike_article_chunking',\n        vigencia: 'desconhecida',\n        chunk_total: parts.length,\n        chunk_chars: conteudo.length\n      }\n    }\n  }))\n  .filter(x => String(x.json.embedding_text || '').trim().length > 0);"
+        },
+        "id": "parse-chunk-web",
+        "name": "Parse HTML + Chunk por Artigo",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1300,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent",
+          "authentication": "genericCredentialType",
+          "genericAuthType": "httpHeaderAuth",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\"content\":{\"parts\":[{\"text\":\"{{$json.embedding_text}}\"}]},\"outputDimensionality\":768}",
+          "options": {}
+        },
+        "id": "embed-web",
+        "name": "Gemini (Embeddings Web)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.1,
+        "position": [
+          1520,
+          420
+        ],
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "M4PweMUQm9HNn1fs",
+            "name": "Gemini API Key Header"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        },
+        "id": "merge-data-embed-web",
+        "name": "Merge (Dados + Embedding Web)",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3,
+        "position": [
+          1720,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "={{ (() => {   const normaId = String($json.norma_id ?? 'UNKNOWN');   const chunkIndex = Number($json.chunk_index ?? 0);   const conteudo = String($json.conteudo_texto ?? '').replace(/'/g, \"''\");   const meta = JSON.stringify($json.metadata ?? {}).replace(/'/g, \"''\");   const values = ($json.embedding?.values ?? $json.body?.embedding?.values ?? $json.data?.embedding?.values ?? []);   const embeddingSql = (Array.isArray(values) && values.length) ? (`'[` + values.join(',') + `]'::vector`) : 'NULL';   return `insert into adminlog.normas_index (norma_id, chunk_index, conteudo_texto, embedding, metadata) values ('${normaId}', ${chunkIndex}, '${conteudo}', ${embeddingSql}, '${meta}'::jsonb);`; })() }}"
+        },
+        "id": "insert-normas-web",
+        "name": "Supabase (Normas Web) - Insert",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          1940,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "pwVK0pf9FRoPT0JZ",
+            "name": "Supabase Postgres - jmu-db (pooler allowUnauthorizedCerts)"
+          }
+        },
+        "continueOnFail": false
+      },
+      {
+        "parameters": {
+          "operation": "executeQuery",
+          "query": "={{ (() => {   const prompt = String($json.embedding_text ?? '').slice(0, 4000).replace(/'/g, \"''\");   const values = ($json.embedding?.values ?? $json.body?.embedding?.values ?? $json.data?.embedding?.values ?? []);   const dim = Array.isArray(values) ? values.length : null;   const out = JSON.stringify({embedding_dim: dim, origem: 'pipeline_b'}).replace(/'/g, \"''\");   const tokens = ($json.usageMetadata?.totalTokenCount ?? $json.body?.usageMetadata?.totalTokenCount ?? null);   const tokensSql = (tokens === null || tokens === undefined) ? 'NULL' : String(Number(tokens));   return `insert into adminlog.ai_generation_log (input_prompt, output_response, model_used, tokens_used) values ('${prompt}', '${out}', 'gemini-embedding-001', ${tokensSql});`; })() }}"
+        },
+        "id": "insert-log-web",
+        "name": "Supabase (Log Web) - Insert",
+        "type": "n8n-nodes-base.postgres",
+        "typeVersion": 2.6,
+        "position": [
+          2160,
+          300
+        ],
+        "credentials": {
+          "postgres": {
+            "id": "pwVK0pf9FRoPT0JZ",
+            "name": "Supabase Postgres - jmu-db (pooler allowUnauthorizedCerts)"
+          }
+        },
+        "continueOnFail": false
+      }
+    ],
+    "connections": {
+      "Webhook (Recebe URL)": {
+        "main": [
+          [
+            {
+              "node": "Preparar URL e Norma ID",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Preparar URL e Norma ID": {
+        "main": [
+          [
+            {
+              "node": "Merge (URL + HTML)",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Buscar HTML (Planalto)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Buscar HTML (Planalto)": {
+        "main": [
+          [
+            {
+              "node": "Merge (URL + HTML)",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge (URL + HTML)": {
+        "main": [
+          [
+            {
+              "node": "Parse HTML + Chunk por Artigo",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse HTML + Chunk por Artigo": {
+        "main": [
+          [
+            {
+              "node": "Merge (Dados + Embedding Web)",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Gemini (Embeddings Web)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Gemini (Embeddings Web)": {
+        "main": [
+          [
+            {
+              "node": "Merge (Dados + Embedding Web)",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge (Dados + Embedding Web)": {
+        "main": [
+          [
+            {
+              "node": "Supabase (Normas Web) - Insert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Supabase (Normas Web) - Insert": {
+        "main": [
+          [
+            {
+              "node": "Supabase (Log Web) - Insert",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Johnson Teixeira do Nascimento",
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-02-16T15:17:11.295Z",
+        "id": 125,
+        "workflowId": "OTp1ykZvIPLmk8HE",
+        "versionId": "bd7d050e-d2ec-4895-a571-a9ec289c2d8f",
+        "event": "activated",
+        "userId": "f8b51e6b-34f5-4df1-bab0-ffecfe7583fa"
+      },
+      {
+        "createdAt": "2026-02-16T15:16:07.962Z",
+        "id": 124,
+        "workflowId": "OTp1ykZvIPLmk8HE",
+        "versionId": "bd7d050e-d2ec-4895-a571-a9ec289c2d8f",
+        "event": "activated",
+        "userId": "f8b51e6b-34f5-4df1-bab0-ffecfe7583fa"
+      }
+    ]
+  }
+}

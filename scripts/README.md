@@ -17,6 +17,7 @@ Alguns scripts antigos ainda referenciam `GerarEmbedding` (nome legado) e podem 
 ## Scripts uteis
 - `scripts/appsmith_publish_app.js`: publica (deploy) o app (unpublished -> published).
 - `scripts/appsmith_phase2_cache_vectors_and_origin.js`: cache client-side de vetores + coluna Tipo (origem) + backup local.
+- `scripts/appsmith_phase3_upload_page_web.js`: cria/atualiza a pagina `Upload_Normas` e action `IngerirNormaWeb`.
 - `scripts/appsmith_replace_action_refs_in_dsl.js`: troca referencias de um nome de action para outro no DSL.
 - `scripts/appsmith_delete_action.js`: remove actions antigas/teste (por id).
 - `scripts/appsmith_patch_busca_normas_err_visibility.js`: reduz ruido na tela publicada (so mostra erro apos busca).

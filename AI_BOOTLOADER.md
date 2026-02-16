@@ -39,14 +39,18 @@ Concluido:
 - Fase 1 (N8N -> Supabase): workflow `JMU_Indexador_Atomico_RAG_Supabase` gravando chunks + embeddings no Supabase e mantendo Google Sheets (legado).
 - Appsmith: deploy via Docker concluido e acessivel via HTTPS no subdominio configurado.
 
-Fase atual (Fase 2 - Appsmith / Busca):
-- Painel `Busca_Normas` criado (RAG semantico + fallback lexical).
-- Ajustes em andamento para UX e debug (tabela, erros, deploy).
+Fase atual (Fase 3-B - Ingestao PDF):
+- Fase 2 concluida: painel `Busca_Normas` em producao (hibrido + fallback lexical + cache client-side).
+- Fase 3-A concluida: pagina `Upload_Normas` criada no Appsmith + workflow web dedicado no n8n (`index-norma-web-v3`) operacional.
+- Validacao Fase 3-A: `LEI-8112-WEB-QA` indexada com 34 chunks e embeddings 768 em `adminlog.normas_index`.
+- Proxima entrega: Fase 3-B (ingestao PDF com upload, Drive e indexacao vetorial).
 
 Referencia rapida:
 - Docs Fase 2: `docs/FASE2_APPSMITH_BUSCA_RAG.md`
+- Docs Fase 3-A: `docs/FASE3_INGESTAO_WEB.md`
+- Log Fase 3-A: `docs/SESSION_LOG_2026-02-16_FASE3A.md`
 - Manual do usuario (Fase 2): `docs/MANUAL_USUARIO_JMU_GESTAO_INTELIGENTE.md`
-- Log da sessao: `docs/SESSION_LOG_2026-02-15.md`
+- Log da sessao: `docs/SESSION_LOG_2026-02-16_FASE3A.md`
 
 ---
 

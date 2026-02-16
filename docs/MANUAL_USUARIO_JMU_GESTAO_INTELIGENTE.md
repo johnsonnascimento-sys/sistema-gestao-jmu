@@ -51,9 +51,17 @@ Isso limpa `GEMINI_API_KEY` do `appsmith.store` (no seu navegador).
   - (icone de lupa) = texto (lexical/FTS)
   - (icone de cerebro) = semantica (embedding)
   - (2 icones) = apareceu nos 2
+- `norma_id`: identificador da norma de origem (ex.: `LEI_8112_1990`)
+- `artigo`: referencia automatica detectada no trecho (ex.: `Art. 80`)
 - `conteudo_texto`: trecho retornado do indice
 - `similarity`: score de similaridade (maior normalmente = mais perto)
 - `id`: id do chunk no banco
+- `chunk_index` e `source_url`: podem ser usados para auditoria tecnica no editor/consulta SQL
+
+## 6.1) Como limpar a busca rapidamente
+- Clique em `Limpar Busca`.
+- Isso limpa o campo de consulta, zera `SEARCH_RESULTS` e remove resultados antigos da tabela.
+- Use antes de um novo teste para evitar confusao com resultado residual.
 
 ## 7) Quota / uso restante
 A tela mostra "Quota (estimativa local)".
@@ -86,3 +94,16 @@ Para aumentar limites oficiais, normalmente e necessario configurar faturamento 
 - Nao cole API keys em arquivos do repo nem em headers hardcoded de datasource.
 - Se uma key/senha vazou em chat ou log, trate como comprometida e gere outra.
 - Prefira usar a key no `appsmith.store` (client-side) como esta tela faz hoje.
+
+## 10) Ingestao Web (Fase 3-A)
+Tela: `Upload_Normas` (aba `Legislacao Federal (Web)`).
+
+Fluxo rapido:
+1. Cole a URL do Planalto.
+2. (Opcional) Informe `norma_id`.
+3. Clique em `Ingerir URL`.
+4. Aguarde confirmacao e depois pesquise na `Busca_Normas`.
+
+Observacao:
+- A action `IngerirNormaWeb` depende do datasource `N8N Webhooks`.
+- Endpoint publicado atual: `/webhook/index-norma-web-v3`.

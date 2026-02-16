@@ -1,8 +1,11 @@
 ﻿# 🚀 SISTEMA DE GESTÃO JMU - DOCUMENTAÇÃO DE HANDOVER
 
-> **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 2: Painel de Busca RAG no Appsmith)  
-> **DATA:** 15/02/2026  
-> **PROXIMA ACAO:** Deploy e validacao do painel de busca RAG no Appsmith (`JMU_Gestao_Inteligente` -> `Busca_Normas`) + ajustes finos (semantica + fallback FTS)
+> **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3-B: Central de Ingestao PDF)  
+> **DATA:** 16/02/2026  
+> **PROXIMA ACAO:** construir pipeline de upload PDF (Appsmith + n8n + Google Drive) para normas internas da JMU
+
+> **FOCO TEMPORARIO DECIDIDO:** priorizar somente o modulo Gestor JMU (pre-SEI/SEI) e pausar evolucao de RAG/indexacao ate nova decisao.
+> **RESUMO GESTOR-ONLY:** `docs/RESUMO_PARA_GEMINI_GESTOR_ONLY_2026-02-16.md`
 
 ---
 
@@ -54,7 +57,7 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 
 ---
 
-## 3. 🚦 Status Atual (15/02/2026)
+## 3. 🚦 Status Atual (16/02/2026)
 * **Fase 0 (Fundação RAG):** ✅ CONCLUÍDO.
   * Banco de Dados (Supabase) estruturado com vetores (`adminlog.normas_index`).
   * Google Drive configurado para arquivos originais.
@@ -62,11 +65,25 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
   * Workflow de Produção (`JMU_Indexador_Atomico_RAG_Supabase`) rodando.
   * Fluxo Híbrido: Salva no Google Sheets (Legado) e no Supabase (Vetores) simultaneamente.
   * Correção de "Amnésia HTTP" aplicada via nó Merge.
-* **Fase 2 (Interface Visual):** 🚧 EM INÍCIO.
-  * Objetivo: Criar painel no Appsmith para busca e upload.
+* **Fase 2 (Interface Visual / Busca):** ✅ CONCLUÍDO.
+  * Appsmith `Busca_Normas` em produção com busca híbrida, cache client-side e fallback lexical.
+  * Tabela de resultados com contexto jurídico: `norma_id` + `artigo` (extração por regex de `conteudo_texto`).
+  * Botão `Limpar Busca` ativo para evitar resultado residual na tela.
+* **Fase 3-A (Ingestão Web):** ✅ CONCLUÍDO.
+  * Workflow Web em produção: `JMU_Indexador_Web_RAG_Supabase (FASE3-A-ATIVO)` (`index-norma-web-v3`).
+  * Página Appsmith criada: `Upload_Normas` (Aba Web funcional + Aba PDF placeholder).
+  * Action `IngerirNormaWeb` conectada ao datasource `N8N Webhooks` (correção de erro `DEFAULT_REST_DATASOURCE`).
+  * Parser HTML no n8n ajustado para resposta binária + detecção de charset (`utf8`/`latin1`/`windows-1252`) para evitar texto corrompido.
+  * Validação E2E concluída: inserção em `adminlog.normas_index` e `adminlog.ai_generation_log`.
+  * QA Lei 8112 reindexada (`LEI_8112_1990`): 269 chunks, 14 ocorrências de "férias", sem caractere inválido `�`.
 
 ### 3.1 🛠️ Stack Tecnológico Atual
-* **N8N:** Workflow `index-norma` (Recebe PDF -> Gemini -> Supabase + Sheets).
+* **N8N:** 
+  * `index-norma` (pipeline principal atual)
+  * `index-norma-web-v3` (Fase 3-A, operacional e validado)
+* **Appsmith:**
+  * `Busca_Normas` (consulta híbrida RAG)
+  * `Upload_Normas` (ingestão web pronta; ingestão PDF pendente)
 * **Supabase:** Projeto `jmu-db` (Tabelas `normas_index` e `ai_generation_log`).
 * **Google Drive:** Pasta `00_JMU_Normas_Originais`.
 
@@ -97,17 +114,18 @@ cd C:\Users\jtnas\OneDrive\Documentos\sistema-gestao-jmu
 > - Fase 1 (N8N -> Supabase) concluida: workflow `JMU_Indexador_Atomico_RAG_Supabase` gravando chunks e embeddings.
 > - Fase 2 (Appsmith) em andamento: app `JMU_Gestao_Inteligente`, pagina `Busca_Normas` (busca semantica + fallback lexical).
 >
-> **MISSÃO ATUAL (Fase 2 - Appsmith / Busca):**
-> 1. Garantir que a pagina publicada preencha a tabela com resultados (semantica ou FTS).
-> 2. Melhorar debug: exibir erros na tela e guiar onde ver logs no editor.
-> 3. Garantir "no-billing mode": se nao tiver API key, a busca lexical deve funcionar.
+> **MISSAO ATUAL (Fase 3-B - Ingestao PDF):**
+> 1. Criar aba PDF funcional na pagina `Upload_Normas`.
+> 2. Receber upload binario e enviar para webhook dedicado no n8n.
+> 3. Salvar PDF no Google Drive (pasta `00_JMU_Normas_Originais`) e indexar chunks no Supabase.
+> 4. Manter auditoria em `adminlog.ai_generation_log`.
 >
 > **ARQUIVOS/FONTES DA VERDADE:**
 > - `AI_BOOTLOADER.md`
 > - `ARCHITECTURE.md` (secao RAG)
-> - `docs/FASE2_APPSMITH_BUSCA_RAG.md`
+> - `docs/FASE3_INGESTAO_WEB.md`
+> - `docs/SESSION_LOG_2026-02-16_FASE3A.md`
 > - `docs/MANUAL_USUARIO_JMU_GESTAO_INTELIGENTE.md`
-> - `docs/SESSION_LOG_2026-02-15.md`
 >
 > **O QUE NAO FAZER:**
 > - Nao commitar API keys/senhas/JSON de service account.
