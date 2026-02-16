@@ -76,11 +76,15 @@ Principais widgets da pagina `Busca_Normas`:
 
 ## Store keys (Appsmith)
 - `GEMINI_API_KEY`: chave salva no browser/store do Appsmith
+- `IS_SEARCHING`: boolean (loading state do botao Buscar)
 - `LAST_MODE`: `hybrid` ou `fts` (informativo; a tabela prioriza `SEARCH_RESULTS`)
 - `LAST_ERROR`: ultima mensagem de erro exibida na tela (debug)
 - `LAST_EMBED_LEN`: dimensao do embedding da ultima busca (debug)
 - `GEMINI_WINDOW_START`, `GEMINI_WINDOW_COUNT`: janela local de RPM (estimativa)
 - `GEMINI_TOTAL_CALLS`: contador total local (estimativa)
+- Cache (client-side, economiza quota do Gemini):
+  - `CACHE_VEC_KEYS`: lista limitada de chaves (para nao crescer sem limite)
+  - `CACHE_VEC_<hash>`: vetor (string `[...]`) por termo normalizado (hash)
 
 ## Comportamento esperado
 - Sem API key:
@@ -107,11 +111,20 @@ Fix aplicado: a pagina `Busca_Normas` nao executa `GerarEmbedding2` no carregame
 - A tabela nao le diretamente `BuscarNormas.data` / `BuscarNormasFTS.data`.
 - O botao `Btn_Buscar` grava o resultado final no store:
   - `SEARCH_RESULTS` (array com linhas)
+- Cada linha recebe `origin`:
+  - `lexical` (FTS)
+  - `semantic` (embedding + pgvector)
+  - `both` (apareceu nos 2)
+- A tabela exibe uma coluna `Tipo` (icone) baseada no `origin`.
 - Campos auxiliares:
   - `SEARCH_QUERY` (texto consultado)
   - `SEARCH_LEX_COUNT` / `SEARCH_SEM_COUNT` / `SEARCH_COMBINED_COUNT`
+  - `DEBUG_INFO.cached` (true quando a busca semantica usou cache)
 
 ## Notas de seguranca
 - Nao commitar API keys, senhas ou JSON de service account.
 - A Gemini API key e armazenada apenas no `appsmith.store` (client-side).
 - Se chaves/senhas vazaram em chat ou logs, trate como comprometidas e rotacione.
+
+## Scripts (aplicacao via API)
+- `scripts/appsmith_phase2_cache_vectors_and_origin.js`: aplica cache de vetores + origem na UI (e faz backup em `tmp/appsmith/backups/`).

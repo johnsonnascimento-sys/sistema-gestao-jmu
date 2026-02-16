@@ -52,6 +52,8 @@ Voce e um engenheiro full-stack. Preciso que voce entenda o estado atual do repo
 ## Appsmith (UI / comportamento)
 - A pagina sempre faz busca lexical (FTS) e, se houver `GEMINI_API_KEY`, tenta busca semantica em paralelo.
 - Resultados sao mesclados (dedup por `id`) e gravados em `appsmith.store.SEARCH_RESULTS`.
+- Cada resultado recebe `origin` (`lexical`, `semantic` ou `both`) para explicar por que apareceu.
+- Embeddings usam cache local (client-side) por termo normalizado (hash) para economizar quota/limites do Gemini.
 - A tabela (`Table_Resultados`) renderiza somente `SEARCH_RESULTS` (evita estado antigo/stale).
 - API key e salva no browser via `appsmith.store.GEMINI_API_KEY` e pode ser apagada pelo botao `Apagar Key`.
 - Quota mostrada na tela e apenas estimativa local (contadores no store).
@@ -69,4 +71,3 @@ Voce e um engenheiro full-stack. Preciso que voce entenda o estado atual do repo
 Regras:
 - NAO inclua segredos (API keys, senhas) em nenhum arquivo.
 - Prefira mudancas documentadas e scripts idempotentes.
-

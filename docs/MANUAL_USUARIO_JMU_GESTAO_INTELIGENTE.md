@@ -26,6 +26,8 @@ Quando ha API key, o botao **Buscar** faz uma busca **hibrida**:
 - em paralelo tenta a busca semantica
 - no fim, combina os resultados e remove duplicatas por `id`
 
+Para economizar quota, a busca semantica usa **cache local**: se voce buscar o mesmo termo novamente, o sistema reaproveita o vetor salvo no navegador e evita chamar o Gemini de novo.
+
 ## 3) Como usar (passo a passo)
 1. Digite sua busca em "O que voce procura?"
 2. (Opcional) Se quiser busca semantica:
@@ -45,6 +47,10 @@ Clique no botao "Apagar Key".
 Isso limpa `GEMINI_API_KEY` do `appsmith.store` (no seu navegador).
 
 ## 6) O que significam os campos da tabela?
+- `tipo`: indica por que o resultado apareceu
+  - (icone de lupa) = texto (lexical/FTS)
+  - (icone de cerebro) = semantica (embedding)
+  - (2 icones) = apareceu nos 2
 - `conteudo_texto`: trecho retornado do indice
 - `similarity`: score de similaridade (maior normalmente = mais perto)
 - `id`: id do chunk no banco
@@ -55,6 +61,7 @@ A tela mostra "Quota (estimativa local)".
 Importante:
 - isso **nao** e a quota oficial do Google
 - e apenas um contador local para te dar nocao de quantas chamadas foram feitas na sessao
+- quando o cache semantico e usado, **nao** incrementa o contador (porque nao chama o Gemini)
 
 Para aumentar limites oficiais, normalmente e necessario configurar faturamento no projeto Google Cloud do API (isso pode exigir pre-pagamento).
 
@@ -79,4 +86,3 @@ Para aumentar limites oficiais, normalmente e necessario configurar faturamento 
 - Nao cole API keys em arquivos do repo nem em headers hardcoded de datasource.
 - Se uma key/senha vazou em chat ou log, trate como comprometida e gere outra.
 - Prefira usar a key no `appsmith.store` (client-side) como esta tela faz hoje.
-
