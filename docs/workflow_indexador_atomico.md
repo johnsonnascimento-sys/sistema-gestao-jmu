@@ -337,7 +337,7 @@ return [{
 1. **Host:** `aws-0-us-west-2.pooler.supabase.com`
 2. **Database:** `postgres`
 3. **User:** `postgres.tawymhilpwkatuglxgae`
-4. **Password:** `wSjvvEQPyM6TPn8x`
+4. **Password:** `<REDACTED>`
 5. **SSL:** `require`
 6. **Port:** `5432`
 

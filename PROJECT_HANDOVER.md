@@ -1,8 +1,8 @@
 ﻿# 🚀 SISTEMA DE GESTÃO JMU - DOCUMENTAÇÃO DE HANDOVER
 
-> **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 3: Construção do Front-end + Integração RAG 3.0)  
-> **DATA:** 13/02/2026  
-> **PRÓXIMA AÇÃO:** Construção do Dashboard e Criação da Fundação RAG no Supabase (`adminlog.normas_index`, `adminlog.ai_generation_log`)
+> **STATUS DO PROJETO:** EM DESENVOLVIMENTO (Fase 2: Painel de Busca RAG no Appsmith)  
+> **DATA:** 15/02/2026  
+> **PROXIMA ACAO:** Deploy e validacao do painel de busca RAG no Appsmith (`JMU_Gestao_Inteligente` -> `Busca_Normas`) + ajustes finos (semantica + fallback FTS)
 
 ---
 
@@ -82,7 +82,7 @@ Arquivos de contexto do projeto:
 ### 4.1 Windows (recomendado)
 Executar (`Win`+`R` -> `powershell`):
 ```powershell
-cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
+cd C:\Users\jtnas\OneDrive\Documentos\sistema-gestao-jmu
 .\boot.ps1
 ```
 
@@ -93,26 +93,25 @@ cd C:\Users\jtnas\.gemini\antigravity\scratch\sistema-gestao-jmu
 > **ATUE COMO ARQUITETO DE SOFTWARE E DESENVOLVEDOR FULL-STACK.**
 >
 > **CONTEXTO:**
-> O sistema já conecta ao banco (Supabase) e insere dados (Tela "Nova Demanda" PRONTA).
-> Estamos evoluindo para a **Integração 3.0 (RAG)**: migração dos "Gems Especializados" para arquitetura Database-First.
+> - Fase 0 (Supabase RAG) concluida: `adminlog.normas_index` + `adminlog.ai_generation_log`.
+> - Fase 1 (N8N -> Supabase) concluida: workflow `JMU_Indexador_Atomico_RAG_Supabase` gravando chunks e embeddings.
+> - Fase 2 (Appsmith) em andamento: app `JMU_Gestao_Inteligente`, pagina `Busca_Normas` (busca semantica + fallback lexical).
 >
-> **MISSÃO ATUAL (Fase 3 - Continuação + RAG):**
-> 1. Criar o Dashboard para visualizar demandas inseridas
-> 2. Criar Fundação RAG no Supabase (`adminlog.normas_index`, `adminlog.ai_generation_log`)
-> 3. Desenvolver Workflows N8N para indexação e geração
+> **MISSÃO ATUAL (Fase 2 - Appsmith / Busca):**
+> 1. Garantir que a pagina publicada preencha a tabela com resultados (semantica ou FTS).
+> 2. Melhorar debug: exibir erros na tela e guiar onde ver logs no editor.
+> 3. Garantir "no-billing mode": se nao tiver API key, a busca lexical deve funcionar.
 >
-> **PASSO A PASSO:**
-> 1.  **Dashboard (Página Inicial/Nova Página):**
->     -   Criar Query `get_demandas`: `SELECT * FROM adminlog.pre_demanda ORDER BY criado_em DESC;`
->     -   Adicionar Widget **Table** conectado a `{{get_demandas.data}}`.
->     -   Configurar colunas (Ocultar IDs técnicos, formatar datas).
-> 2.  **Schema RAG (Supabase):**
->     -   Executar `sql/setup_rag_v1.sql` (ver `ARCHITECTURE.md` seção 6.3.2)
-> 3.  **Workflows N8N (Planejamento):**
->     -   Documentar estrutura dos 3 workflows RAG principais
->     -   Preparar credenciais Google Workspace (Sheets + Docs API)
+> **ARQUIVOS/FONTES DA VERDADE:**
+> - `AI_BOOTLOADER.md`
+> - `ARCHITECTURE.md` (secao RAG)
+> - `docs/FASE2_APPSMITH_BUSCA_RAG.md`
+> - `docs/MANUAL_USUARIO_JMU_GESTAO_INTELIGENTE.md`
+> - `docs/SESSION_LOG_2026-02-15.md`
 >
-> **Pode começar criando a Fundação RAG no Supabase?**
+> **O QUE NAO FAZER:**
+> - Nao commitar API keys/senhas/JSON de service account.
+> - Se algum segredo vazou em chat/logs, trate como comprometido e rotacione.
 
 ---
 

@@ -21,8 +21,9 @@ Projeto: "Sistema de Gestao JMU"
 ## 2. Arquitetura Tecnica (Resumo)
 - Backend: n8n (workflows + webhooks + Advanced AI nodes para Agente RAG).
 - Banco: Supabase Postgres (schema `adminlog`) como Fonte da Verdade.
-  - Tabelas RAG: `normas_index`, `modelos_index`, `ai_generation_log`
+  - Tabelas RAG: `normas_index`, `ai_generation_log`
 - Front-end: Appsmith (painel de controle + interfaces RAG).
+  - App atual (Fase 2): `JMU_Gestao_Inteligente` / pagina `Busca_Normas`
 - Google Workspace:
   - Google Sheets: cache estruturado de chunks de normas
   - Google Docs: templates de modelos e documentos gerados
@@ -34,11 +35,18 @@ Projeto: "Sistema de Gestao JMU"
 ## 3. Status Atual
 Concluido:
 - Banco (Supabase): schema `adminlog` provisionado (pre_demanda, pre_to_sei_link, audit, funcoes/triggers).
-- n8n: workflows JMU criados e operacionais.
+- Fase 0 (RAG): extensao `vector` + tabelas `adminlog.normas_index` e `adminlog.ai_generation_log` (ver `sql/setup_rag_v1.sql` e `sql/adminlog_rag_schema.sql`).
+- Fase 1 (N8N -> Supabase): workflow `JMU_Indexador_Atomico_RAG_Supabase` gravando chunks + embeddings no Supabase e mantendo Google Sheets (legado).
 - Appsmith: deploy via Docker concluido e acessivel via HTTPS no subdominio configurado.
 
-Fase atual (Fase 3 - Front-end):
-- Construir telas no Appsmith e integrar com n8n (webhooks) e/ou Supabase (queries).
+Fase atual (Fase 2 - Appsmith / Busca):
+- Painel `Busca_Normas` criado (RAG semantico + fallback lexical).
+- Ajustes em andamento para UX e debug (tabela, erros, deploy).
+
+Referencia rapida:
+- Docs Fase 2: `docs/FASE2_APPSMITH_BUSCA_RAG.md`
+- Manual do usuario (Fase 2): `docs/MANUAL_USUARIO_JMU_GESTAO_INTELIGENTE.md`
+- Log da sessao: `docs/SESSION_LOG_2026-02-15.md`
 
 ---
 
@@ -57,6 +65,11 @@ Fase atual (Fase 3 - Front-end):
 - Google Sheets como cache: evitar reprocessamento de PDFs ja indexados.
 - Auditoria de geracao IA: registrar em `ai_generation_log` (normas usadas, prompt, output).
 - Validacao humana obrigatoria: documentos gerados sao sempre sugestoes.
+
+### Regras Gemini (embeddings)
+- Modelo atual via API key (AI Studio): `models/gemini-embedding-001` com `embedContent`.
+- Dimensao: `768` (compatibilidade com `vector(768)` no Supabase).
+- Sem billing: deve existir fallback lexical (FTS/trigram) para manter a busca funcionando.
 
 ---
 

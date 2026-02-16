@@ -159,3 +159,19 @@ Registra interações para controle de custos e análise de uso.
 2. **Versionamento:** Normas revogadas mantêm `status='revogado'` mas permanecem no índice (histórico).
 3. **Auditoria de Geração:** Toda geração de documento via IA registra em tabela `adminlog.ai_generation_log`.
 4. **Validação Humana:** Documentos gerados são sempre **sugestões** - humano revisa antes de usar oficialmente.
+
+### 6.5 Busca (Appsmith)
+
+O painel de busca RAG é implementado no Appsmith (Fase 2) com 2 caminhos:
+
+1. **Busca semântica (vetorial):**
+   - Appsmith chama o Gemini Embeddings e recebe `embedding.values` (768 dims).
+   - Appsmith chama a RPC `match_documents(query_embedding, threshold, count)` no Supabase.
+
+2. **Fallback "no-billing" (lexical/FTS):**
+   - Se não existir API key (ou semântica falhar), Appsmith chama `match_documents_lexical(query_text, count)`.
+   - Objetivo: manter a busca funcionando mesmo sem embeddings.
+
+Observação sobre modelos:
+- Com API key do Google AI Studio, o modelo usado para `embedContent` foi `models/gemini-embedding-001` com `outputDimensionality=768`.
+- `text-embedding-004` não estava disponível para `embedContent` no endpoint `v1beta` nesse setup.
