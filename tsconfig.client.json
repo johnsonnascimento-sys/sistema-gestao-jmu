@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "vitest/globals"],
+    "moduleDetection": "force",
+    "noEmit": true
+  },
+  "include": ["client/src/**/*.ts", "client/src/**/*.tsx", "vite.config.ts"]
+}
