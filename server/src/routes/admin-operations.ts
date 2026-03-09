@@ -5,6 +5,7 @@ import type { DatabasePool } from "../db";
 import { describeMigrations } from "../migrations/describe-migrations";
 import type { OperationsStore } from "../observability/operations-store";
 import { describeBackupStatus } from "../operations/backup-status";
+import { listOperationalEvents } from "../operations/operational-events";
 import type { SettingsRepository } from "../repositories/types";
 import { createRuntimeStatus } from "../runtime";
 
@@ -89,6 +90,7 @@ export async function registerAdminOperationsRoutes(
         migrations,
         queueHealthConfig: await settingsRepository.getQueueHealthConfig(),
         backupStatus: await describeBackupStatus(config),
+        operationalEvents: await listOperationalEvents(config, query.limit ?? 12),
       },
       error: null,
     });

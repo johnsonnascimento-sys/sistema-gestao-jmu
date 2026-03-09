@@ -62,6 +62,12 @@ function buildRemoteScript(options) {
     `ROLLBACK_COMMIT=${bashSingleQuote(options.rollbackCommit)}`,
     `SMOKE_PREFIX=${bashSingleQuote(smokePrefix)}`,
     "",
+    'EVENT_LOG="$BACKUP_DIR/operations-events.jsonl"',
+    'log_event() {',
+    '  mkdir -p "$BACKUP_DIR"',
+    '  printf \'{"id":"%s","kind":"rollback","status":"%s","source":"rollback-vps","message":"%s","reference":"%s","occurredAt":"%s"}\\n\' "$(date -u +%Y%m%dT%H%M%SZ)-$$" "$1" "$2" "$3" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVENT_LOG"',
+    '}',
+    "",
     'CURRENT_IMAGE="$(docker inspect "$CONTAINER_NAME" --format \'{{.Image}}\' 2>/dev/null || true)"',
     'TARGET_IMAGE="$ROLLBACK_IMAGE"',
     'if [ -z "$TARGET_IMAGE" ] && [ -n "$ROLLBACK_COMMIT" ]; then TARGET_IMAGE="$CONTAINER_NAME:commit-$ROLLBACK_COMMIT"; fi',
@@ -76,6 +82,7 @@ function buildRemoteScript(options) {
     '    echo "rollback_failed=1"',
     '    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true',
     '    docker run -d --name "$CONTAINER_NAME" --restart unless-stopped --env-file .env -e OPS_BACKUP_DIR=/backup/ops -e OPS_BACKUP_SCHEMA="$BACKUP_SCHEMA" -v "$BACKUP_DIR:/backup/ops:ro" -p "$PORT_BIND" "$CURRENT_IMAGE" >/dev/null',
+    '    log_event "failure" "Rollback falhou e a imagem anterior foi restaurada." "$TARGET_IMAGE"',
     '    echo "restore_completed=1"',
     "  fi",
     "}",
@@ -93,6 +100,7 @@ function buildRemoteScript(options) {
     "",
     'echo "health=$(cat /tmp/gestor-health.json)"',
     'echo "ready=$(cat /tmp/gestor-ready.json)"',
+    'log_event "success" "Rollback concluido com smoke validado." "$TARGET_IMAGE"',
     "rollback_failed=0",
   ].join("\n");
 }

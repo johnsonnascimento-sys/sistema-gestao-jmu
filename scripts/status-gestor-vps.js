@@ -49,6 +49,12 @@ function buildRemoteScript(options) {
     '  echo "latest_backups="',
     '  find "$BACKUP_DIR" -maxdepth 1 -type f -name "gestor-${SCHEMA_NAME}-*.sql.gz" ! -size 0c -printf "%TY-%Tm-%Td %TH:%TM:%TS %s %p\n" | sort -r | head -n 5',
     "fi",
+    'echo "cron_jobs="',
+    '(crontab -l 2>/dev/null || true) | grep "JMU_GESTOR_" || true',
+    'if [ -f "$BACKUP_DIR/operations-events.jsonl" ]; then',
+    '  echo "recent_ops_events="',
+    '  tail -n 8 "$BACKUP_DIR/operations-events.jsonl"',
+    "fi",
     'echo "recent_images="',
     'docker images --format \'{{.Repository}}:{{.Tag}} {{.CreatedSince}}\' | grep "^${CONTAINER_NAME}:" | head -n 8',
   ].join("\n");

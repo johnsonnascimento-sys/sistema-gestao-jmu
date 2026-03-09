@@ -65,6 +65,12 @@ function buildRemoteScript(options) {
     `PG_IMAGE=${bashSingleQuote(options.pgImage)}`,
     `SMOKE_PREFIX=${bashSingleQuote(smokePrefix)}`,
     "",
+    'EVENT_LOG="$BACKUP_DIR/operations-events.jsonl"',
+    'log_event() {',
+    '  mkdir -p "$BACKUP_DIR"',
+    '  printf \'{"id":"%s","kind":"restore","status":"%s","source":"restore-vps","message":"%s","reference":"%s","occurredAt":"%s"}\\n\' "$(date -u +%Y%m%dT%H%M%SZ)-$$" "$1" "$2" "$3" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVENT_LOG"',
+    '}',
+    "",
     'if [ "$CONFIRM_TOKEN" != "ERASE_ADMINLOG" ]; then echo "Defina JMU_RESTORE_CONFIRM=ERASE_ADMINLOG para permitir o restore." >&2; exit 1; fi',
     'if [ ! -f .env ]; then echo ".env remoto nao encontrado." >&2; exit 1; fi',
     "set -a",
@@ -113,6 +119,7 @@ function buildRemoteScript(options) {
     '  echo "health=$(cat /tmp/gestor-health.json)"',
     '  echo "ready=$(cat /tmp/gestor-ready.json)"',
     "fi",
+    'log_event "success" "Restore concluido com smoke validado." "$(basename "$TARGET_FILE")"',
   ].join("\n");
 }
 

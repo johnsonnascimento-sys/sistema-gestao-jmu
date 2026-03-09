@@ -65,6 +65,8 @@ function buildRemoteScript(options) {
     'echo "backup_file=$BACKUP_FILE"',
     'echo "backup_size=$(du -h "$BACKUP_FILE" | cut -f1)"',
     'echo "backup_sha256=$(sha256sum "$BACKUP_FILE" | cut -d" " -f1)"',
+    'EVENT_LOG="$BACKUP_DIR/operations-events.jsonl"',
+    'printf \'{"id":"%s","kind":"backup","status":"success","source":"backup-vps","message":"Backup remoto concluido.","reference":"%s","occurredAt":"%s"}\\n\' "$(date -u +%Y%m%dT%H%M%SZ)-$$" "$BACKUP_BASENAME" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$EVENT_LOG"',
     "",
     'find "$BACKUP_DIR" -maxdepth 1 -type f -name "gestor-${SCHEMA_NAME}-*.sql.gz" | while read -r invalid_file; do',
     '  INVALID_SIZE="$(gzip -l "$invalid_file" | awk \'NR==2 {print $2}\')"',

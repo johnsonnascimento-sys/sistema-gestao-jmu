@@ -542,6 +542,7 @@ class InMemorySettingsRepository implements SettingsRepository {
 
 describe("Gestor JMU API", () => {
   const backupDir = mkdtempSync(join(tmpdir(), "gestor-backup-test-"));
+  const eventLogPath = join(backupDir, "operations-events.jsonl");
   const config: AppConfig = {
     PORT: 3000,
     DATABASE_URL: "postgres://local/test",
@@ -552,6 +553,7 @@ describe("Gestor JMU API", () => {
     QUEUE_CRITICAL_DAYS: 5,
     OPS_BACKUP_DIR: backupDir,
     OPS_BACKUP_SCHEMA: "adminlog",
+    OPS_EVENT_LOG_PATH: eventLogPath,
     NODE_ENV: "test",
     isProduction: false,
   };
@@ -588,6 +590,18 @@ describe("Gestor JMU API", () => {
 
   beforeAll(async () => {
     writeFileSync(join(backupDir, "gestor-adminlog-20260309T223439Z-test.sql.gz"), gzipSync("-- test backup --\n"));
+    writeFileSync(
+      eventLogPath,
+      `${JSON.stringify({
+        id: "evt-1",
+        kind: "backup",
+        status: "success",
+        source: "backup-cron",
+        message: "Backup concluido.",
+        reference: "gestor-adminlog-20260309T223439Z-test.sql.gz",
+        occurredAt: "2026-03-09T22:34:39.000Z",
+      })}\n`,
+    );
 
     const passwordHash = await hashPassword("Senha1234");
     await userRepository.create({
@@ -984,6 +998,7 @@ describe("Gestor JMU API", () => {
     expect((ops.json().data as AdminOpsSummary).migrations?.totalFiles).toBeGreaterThanOrEqual(2);
     expect((ops.json().data as AdminOpsSummary).backupStatus.visible).toBe(true);
     expect((ops.json().data as AdminOpsSummary).backupStatus.lastBackup?.fileName).toContain("gestor-adminlog-");
+    expect((ops.json().data as AdminOpsSummary).operationalEvents[0]?.kind).toBe("backup");
 
     const updatedQueueConfig = await app.inject({
       method: "PATCH",

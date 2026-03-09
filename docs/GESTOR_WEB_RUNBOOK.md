@@ -39,6 +39,7 @@ Use `npm run status:vps` com:
 
 O comando mostra branch, commit actual, estado do checkout remoto, container activo, health/readiness e as ultimas tags de imagem disponiveis para rollback.
 Tambem mostra se o smoke autenticado e o smoke administrativo estao exigidos e configurados na `.env` remota, sem expor os segredos.
+Tambem mostra cron jobs `JMU_GESTOR_*`, backups visiveis e os ultimos eventos operacionais registados.
 
 ## Rollback
 Use `npm run rollback:vps` com:
@@ -72,6 +73,28 @@ Use `npm run backup:vps` com:
 - opcionais: `JMU_BACKUP_KEEP_LATEST` para retenção automática no diretório remoto
 
 O script lê a `DATABASE_URL` da `.env` remota, gera `pg_dump` comprimido do schema `adminlog` usando a imagem oficial do Postgres, valida o gzip e mostra checksum/arquivos recentes.
+
+### Instalacao da rotina operacional
+Use `npm run install:ops:vps` com:
+
+- `JMU_SSH_HOST`
+- `JMU_SSH_USER`
+- `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- opcionais: `JMU_REMOTE_APP_DIR`, `JMU_REMOTE_LOG_DIR`
+- opcionais: `JMU_BACKUP_CRON`, `JMU_MONITOR_CRON`, `JMU_RESTORE_DRILL_CRON`, `JMU_BOOTSTRAP_AUDIT_CRON`
+
+O instalador cria quatro jobs versionados no `crontab` remoto:
+
+- backup diario
+- monitoracao periodica com `health`, `ready` e `smoke-test`
+- drill semanal de restore em container temporario
+- auditoria semanal de bootstrap/governanca
+
+### Drill manual de restore
+Use `npm run drill:restore:vps` para restaurar o backup mais recente num PostgreSQL temporario e validar a presenca do schema e das tabelas criticas, sem tocar no banco de producao.
+
+### Auditoria manual de bootstrap
+Use `npm run audit:bootstrap:vps` para verificar `.env`, variaveis obrigatorias, cron jobs instalados, volume de backups e montagem do container.
 
 ### Restore remoto
 Use `npm run restore:vps` com:

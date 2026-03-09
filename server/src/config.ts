@@ -12,6 +12,7 @@ const envSchema = z.object({
   QUEUE_CRITICAL_DAYS: z.coerce.number().int().positive().default(5),
   OPS_BACKUP_DIR: z.string().trim().min(1).default("/backup/ops"),
   OPS_BACKUP_SCHEMA: z.string().trim().min(1).default("adminlog"),
+  OPS_EVENT_LOG_PATH: z.string().trim().min(1).default("/backup/ops/operations-events.jsonl"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -32,6 +33,7 @@ export function loadConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): AppConfi
     QUEUE_CRITICAL_DAYS: overrides.QUEUE_CRITICAL_DAYS ?? process.env.QUEUE_CRITICAL_DAYS,
     OPS_BACKUP_DIR: overrides.OPS_BACKUP_DIR ?? process.env.OPS_BACKUP_DIR,
     OPS_BACKUP_SCHEMA: overrides.OPS_BACKUP_SCHEMA ?? process.env.OPS_BACKUP_SCHEMA,
+    OPS_EVENT_LOG_PATH: overrides.OPS_EVENT_LOG_PATH ?? process.env.OPS_EVENT_LOG_PATH,
     NODE_ENV: overrides.NODE_ENV ?? process.env.NODE_ENV,
   });
 

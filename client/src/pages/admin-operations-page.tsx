@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { formatAppError, getAdminOpsSummary, updateQueueHealthConfig } from "../lib/api";
-import type { AdminOpsSummary, OperationsIncident } from "../types";
+import type { AdminOpsSummary, OperationalEvent, OperationsIncident } from "../types";
 
 function formatUptime(totalSeconds: number) {
   if (totalSeconds < 60) {
@@ -39,6 +39,27 @@ function describeIncident(incident: OperationsIncident) {
       return "Erro interno registado pela aplicacao.";
     default:
       return "Incidente operacional.";
+  }
+}
+
+function describeOperationalEvent(event: OperationalEvent) {
+  switch (event.kind) {
+    case "backup":
+      return "Backup";
+    case "restore":
+      return "Restore";
+    case "restore_drill":
+      return "Drill de restore";
+    case "deploy":
+      return "Deploy";
+    case "rollback":
+      return "Rollback";
+    case "monitor":
+      return "Monitoracao";
+    case "bootstrap_audit":
+      return "Auditoria de bootstrap";
+    default:
+      return "Operacao";
   }
 }
 
@@ -385,6 +406,40 @@ export function AdminOperationsPage() {
                     .filter(Boolean)
                     .join(" - ")}
                 </p>
+              </article>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Operacoes recentes</CardTitle>
+          <CardDescription>Backups, deploys, rollbacks, drills e auditorias executadas fora do processo da aplicacao.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {summary.operationalEvents.length === 0 ? (
+            <EmptyState description="Assim que backup, deploy, rollback, monitoracao ou auditoria registar eventos, eles aparecerao aqui." title="Sem operacoes registadas" />
+          ) : (
+            summary.operationalEvents.map((event) => (
+              <article
+                className={`grid gap-2 rounded-[24px] border px-4 py-4 ${
+                  event.status === "failure" ? "border-rose-200 bg-rose-50/80" : "border-emerald-200 bg-emerald-50/80"
+                }`}
+                key={event.id}
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{describeOperationalEvent(event)}</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">{event.message}</h3>
+                  </div>
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{new Date(event.occurredAt).toLocaleString("pt-BR")}</p>
+                </div>
+                <p className="text-sm text-slate-700">
+                  {event.status === "failure" ? "Falha operacional registada." : "Execucao concluida com sucesso."}
+                  {event.reference ? ` Referencia: ${event.reference}` : ""}
+                </p>
+                <p className="text-xs text-slate-500">Origem: {event.source}</p>
               </article>
             ))
           )}

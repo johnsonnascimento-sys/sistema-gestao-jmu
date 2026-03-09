@@ -238,6 +238,19 @@ export interface BackupStatusSummary {
   message: string | null;
 }
 
+export type OperationalEventKind = "backup" | "restore" | "restore_drill" | "deploy" | "rollback" | "monitor" | "bootstrap_audit";
+export type OperationalEventStatus = "success" | "failure";
+
+export interface OperationalEvent {
+  id: string;
+  kind: OperationalEventKind;
+  status: OperationalEventStatus;
+  source: string;
+  message: string;
+  reference: string | null;
+  occurredAt: string;
+}
+
 export interface AdminOpsSummary {
   runtime: RuntimeStatus;
   counters: OperationsCounters;
@@ -245,6 +258,7 @@ export interface AdminOpsSummary {
   migrations: SchemaMigrationSummary | null;
   queueHealthConfig: QueueHealthConfig;
   backupStatus: BackupStatusSummary;
+  operationalEvents: OperationalEvent[];
 }
 
 export type TimelineEventType = "created" | "status_changed" | "sei_linked" | "sei_reassociated";
