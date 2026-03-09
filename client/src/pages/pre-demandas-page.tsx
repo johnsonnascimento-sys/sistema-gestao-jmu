@@ -12,6 +12,12 @@ const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
   { value: "encerrada", label: "Encerrada" },
 ];
 
+const KANBAN_COLUMNS: Array<{ value: PreDemandaStatus; label: string; description: string }> = [
+  { value: "aberta", label: "Abertas", description: "Demandas prontas para triagem." },
+  { value: "aguardando_sei", label: "Aguardando SEI", description: "Pendentes de número SEI válido." },
+  { value: "associada", label: "Associadas", description: "Processos já vinculados ao SEI." },
+];
+
 export function PreDemandasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<PreDemanda[]>([]);
@@ -60,6 +66,7 @@ export function PreDemandasPage() {
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const hiddenItems = items.filter((item) => !KANBAN_COLUMNS.some((column) => column.value === item.status)).length;
 
   return (
     <section className="page-stack">
@@ -107,35 +114,66 @@ export function PreDemandasPage() {
       {error ? <p className="error-text">{error}</p> : null}
 
       <section className="panel">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>PRE</th>
-                <th>Solicitante</th>
-                <th>Assunto</th>
-                <th>Status</th>
-                <th>SEI</th>
-                <th>Atualizada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.preId}>
-                  <td>
-                    <Link to={`/pre-demandas/${item.preId}`}>{item.preId}</Link>
-                  </td>
-                  <td>{item.solicitante}</td>
-                  <td>{item.assunto}</td>
-                  <td>
-                    <StatusPill status={item.status} />
-                  </td>
-                  <td>{item.currentAssociation?.seiNumero ?? "-"}</td>
-                  <td>{new Date(item.updatedAt).toLocaleString("pt-BR")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {hiddenItems > 0 ? (
+          <p className="muted">
+            {hiddenItems} registro(s) com status fora do quadro principal nesta página. Use os filtros ou a paginação para rever esses itens.
+          </p>
+        ) : null}
+
+        <div className="kanban-board">
+          {KANBAN_COLUMNS.map((column) => {
+            const columnItems = items.filter((item) => item.status === column.value);
+
+            return (
+              <section className="kanban-column" key={column.value}>
+                <header className="kanban-column-header">
+                  <div>
+                    <h3>{column.label}</h3>
+                    <p>{column.description}</p>
+                  </div>
+                  <span className="kanban-count">{columnItems.length}</span>
+                </header>
+
+                <div className="kanban-cards">
+                  {columnItems.length ? (
+                    columnItems.map((item) => (
+                      <Link className="kanban-card" key={item.preId} to={`/pre-demandas/${item.preId}`}>
+                        <div className="kanban-card-top">
+                          <span className="kanban-card-id">{item.preId}</span>
+                          <StatusPill status={item.status} />
+                        </div>
+
+                        <div>
+                          <p className="kanban-label">Solicitante</p>
+                          <strong>{item.solicitante}</strong>
+                        </div>
+
+                        <div>
+                          <p className="kanban-label">Assunto</p>
+                          <p className="kanban-subject">{item.assunto}</p>
+                        </div>
+
+                        <div className="kanban-meta">
+                          <div>
+                            <p className="kanban-label">Data</p>
+                            <span>{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</span>
+                          </div>
+                          <div>
+                            <p className="kanban-label">SEI</p>
+                            <span>{item.currentAssociation?.seiNumero ?? "Nao associado"}</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  ) : (
+                    <div className="kanban-empty">
+                      <p>Nenhuma demanda nesta coluna.</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         <div className="pagination">

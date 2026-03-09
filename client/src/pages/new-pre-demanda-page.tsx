@@ -2,6 +2,15 @@ import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, createPreDemanda } from "../lib/api";
 
+function getConflictPreId(details: unknown) {
+  if (!details || typeof details !== "object") {
+    return null;
+  }
+
+  const maybePreId = (details as Record<string, unknown>).preId;
+  return typeof maybePreId === "string" && maybePreId.length > 0 ? maybePreId : null;
+}
+
 export function NewPreDemandaPage() {
   const [form, setForm] = useState({
     solicitante: "",
@@ -12,6 +21,7 @@ export function NewPreDemandaPage() {
     observacoes: "",
   });
   const [error, setError] = useState("");
+  const [conflictPreId, setConflictPreId] = useState<string | null>(null);
   const [result, setResult] = useState<{ preId: string; idempotent: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -19,6 +29,7 @@ export function NewPreDemandaPage() {
     event.preventDefault();
     setIsSubmitting(true);
     setError("");
+    setConflictPreId(null);
     setResult(null);
 
     try {
@@ -28,7 +39,12 @@ export function NewPreDemandaPage() {
         idempotent: created.idempotent,
       });
     } catch (nextError) {
-      setError(nextError instanceof ApiError ? nextError.message : "Falha ao criar demanda.");
+      if (nextError instanceof ApiError && nextError.status === 409) {
+        setConflictPreId(getConflictPreId(nextError.details));
+        setError("Ja existe uma demanda registada com estes dados.");
+      } else {
+        setError(nextError instanceof ApiError ? nextError.message : "Falha ao criar demanda.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -79,7 +95,12 @@ export function NewPreDemandaPage() {
             <textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
           </label>
 
-          {error ? <p className="error-text span-2">{error}</p> : null}
+          {error ? (
+            <p className="error-text span-2">
+              {error}{" "}
+              {conflictPreId ? <Link to={`/pre-demandas/${conflictPreId}`}>Abrir demanda existente</Link> : null}
+            </p>
+          ) : null}
 
           {result ? (
             <p className={`notice ${result.idempotent ? "notice-warning" : "notice-success"} span-2`}>

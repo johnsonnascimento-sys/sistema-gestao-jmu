@@ -13,9 +13,11 @@ interface ApiEnvelope<T> {
 export class ApiError extends Error {
   readonly code: string;
   readonly details?: unknown;
+  readonly status: number;
 
-  constructor(code: string, message: string, details?: unknown) {
+  constructor(status: number, code: string, message: string, details?: unknown) {
     super(message);
+    this.status = status;
     this.code = code;
     this.details = details;
   }
@@ -34,7 +36,12 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
   const body = (await response.json()) as ApiEnvelope<T>;
 
   if (!response.ok || !body.ok) {
-    throw new ApiError(body.error?.code ?? "REQUEST_FAILED", body.error?.message ?? "Falha na requisicao.", body.error?.details);
+    throw new ApiError(
+      response.status,
+      body.error?.code ?? "REQUEST_FAILED",
+      body.error?.message ?? "Falha na requisicao.",
+      body.error?.details,
+    );
   }
 
   return body.data;
