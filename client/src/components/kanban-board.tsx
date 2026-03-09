@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import type { PreDemanda, PreDemandaStatus } from "../types";
+import { getQueueHealth } from "../lib/queue-health";
+import { QueueHealthPill } from "./queue-health-pill";
 import { StatusPill } from "./status-pill";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -41,7 +43,10 @@ export function KanbanBoard({
                         <p className="text-xs font-bold uppercase tracking-[0.22em] text-rose-600">{item.preId}</p>
                         <h4 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h4>
                       </div>
-                      <StatusPill status={item.status} />
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <StatusPill status={item.status} />
+                        <QueueHealthPill item={item} />
+                      </div>
                     </div>
 
                     <div className="grid gap-2 text-sm text-slate-600">
@@ -53,6 +58,9 @@ export function KanbanBoard({
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">SEI:</span> {item.currentAssociation?.seiNumero ?? "Nao associado"}
+                      </p>
+                      <p>
+                        <span className="font-medium text-slate-950">Fila:</span> {getQueueHealth(item).detail}
                       </p>
                     </div>
 

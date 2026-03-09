@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
+import { QueueHealthPill } from "../components/queue-health-pill";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Timeline } from "../components/timeline";
@@ -12,6 +13,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { associateSei, formatAppError, getPreDemanda, getTimeline, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
+import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { PreDemanda, PreDemandaStatus, TimelineEvent } from "../types";
 
@@ -132,6 +134,8 @@ export function PreDemandaDetailPage() {
     return <ErrorState description="Demanda nao encontrada." />;
   }
 
+  const queueHealth = getQueueHealth(record);
+
   return (
     <section className="grid gap-6">
       <PageHeader
@@ -177,7 +181,10 @@ export function PreDemandaDetailPage() {
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <CardTitle>Resumo executivo</CardTitle>
-                <StatusPill status={record.status} />
+                <div className="flex flex-wrap justify-end gap-2">
+                  <StatusPill status={record.status} />
+                  <QueueHealthPill item={record} />
+                </div>
               </div>
               <CardDescription>{nextAction.description}</CardDescription>
             </CardHeader>
@@ -222,6 +229,11 @@ export function PreDemandaDetailPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">SEI actual</p>
                 <p className="mt-1 text-slate-950">{record.currentAssociation?.seiNumero ?? "Ainda nao associado"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Saude da fila</p>
+                <p className="mt-1 text-slate-950">{queueHealth.summary}</p>
+                <p className="mt-1 text-xs text-slate-500">{queueHealth.detail}</p>
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Ultima movimentacao</p>

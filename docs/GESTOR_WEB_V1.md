@@ -78,6 +78,9 @@ Se quiser validar tambem a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=tr
 - Cadastro de pre-demanda
 - Lista com filtros e paginacao
 - Dashboard com atalhos operacionais e ultimas movimentacoes
+- Sinalizacao operacional de fila parada no front:
+  - `Atencao`: 2 dias ou mais sem movimentacao
+  - `Critica`: 5 dias ou mais sem movimentacao
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 

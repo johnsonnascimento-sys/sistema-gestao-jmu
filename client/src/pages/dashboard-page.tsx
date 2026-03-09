@@ -1,16 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
+import { QueueHealthPill } from "../components/queue-health-pill";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { formatAppError, getDashboardSummary } from "../lib/api";
+import { formatAppError, getDashboardSummary, listPreDemandas } from "../lib/api";
+import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
 
 export function DashboardPage() {
   const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
+  const [activeQueueItems, setActiveQueueItems] = useState<PreDemanda[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -32,7 +35,18 @@ export function DashboardPage() {
   useEffect(() => {
     void (async () => {
       try {
-        setSummary(await getDashboardSummary());
+        const [nextSummary, activeQueue] = await Promise.all([
+          getDashboardSummary(),
+          listPreDemandas({
+            status: ["aberta", "aguardando_sei", "associada"],
+            sortBy: "updatedAt",
+            sortOrder: "asc",
+            page: 1,
+            pageSize: 30,
+          }),
+        ]);
+        setSummary(nextSummary);
+        setActiveQueueItems(activeQueue.items);
       } catch (nextError) {
         setError(formatAppError(nextError, "Falha ao carregar dashboard."));
       } finally {
@@ -40,6 +54,10 @@ export function DashboardPage() {
       }
     })();
   }, []);
+
+  const attentionItems = useMemo(() => activeQueueItems.filter((item) => getQueueHealth(item).level === "attention"), [activeQueueItems]);
+  const criticalItems = useMemo(() => activeQueueItems.filter((item) => getQueueHealth(item).level === "critical"), [activeQueueItems]);
+  const staleItems = useMemo(() => activeQueueItems.filter((item) => getQueueHealth(item).isAging).slice(0, 5), [activeQueueItems]);
 
   if (loading) {
     return <LoadingState description="Estamos a montar o resumo operativo do dia." title="A preparar dashboard" />;
@@ -54,6 +72,8 @@ export function DashboardPage() {
   }
 
   function renderQueueItem(item: PreDemanda) {
+    const queueHealth = getQueueHealth(item);
+
     return (
       <Link
         className="grid gap-2 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 transition hover:border-slate-300 hover:bg-white"
@@ -65,12 +85,16 @@ export function DashboardPage() {
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-600">{item.preId}</p>
             <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
           </div>
-          <StatusPill status={item.status} />
+          <div className="flex flex-wrap justify-end gap-2">
+            <StatusPill status={item.status} />
+            <QueueHealthPill item={item} />
+          </div>
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
           <p>{item.solicitante}</p>
           <p>Referencia: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
           <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
+          <p>{queueHealth.detail}</p>
         </div>
       </Link>
     );
@@ -94,10 +118,12 @@ export function DashboardPage() {
         title="Dashboard do Gestor"
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
         {summary.counts.map((item) => (
           <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
         ))}
+        <MetricCard label="Paradas 2d+" value={attentionItems.length + criticalItems.length} />
+        <MetricCard label="Criticas 5d+" value={criticalItems.length} />
         <MetricCard label="Reabertas 30d" value={summary.reopenedLast30Days} />
         <MetricCard label="Encerradas 30d" value={summary.closedLast30Days} />
       </div>
@@ -139,6 +165,20 @@ export function DashboardPage() {
         <div className="grid gap-6">
           <Card>
             <CardHeader>
+              <CardTitle>Demandas paradas</CardTitle>
+              <CardDescription>Itens activos sem movimentacao recente, ordenados pela actualizacao mais antiga.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {staleItems.length === 0 ? (
+                <EmptyState description="Quando houver fila a pedir seguimento por falta de movimentacao, ela aparecera aqui." title="Nenhuma demanda parada" />
+              ) : (
+                staleItems.map(renderQueueItem)
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Fila aguardando SEI</CardTitle>
               <CardDescription>Demandas que pedem seguimento operacional imediato.</CardDescription>
             </CardHeader>
@@ -162,6 +202,9 @@ export function DashboardPage() {
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=aguardando-sei">Fila aguardando SEI</Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/pre-demandas?preset=fila-parada">Fila parada</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=ultimas-encerradas">Ultimas encerradas</Link>

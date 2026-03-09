@@ -6,6 +6,7 @@ import { FormField } from "../components/form-field";
 import { KanbanBoard } from "../components/kanban-board";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
+import { QueueHealthPill } from "../components/queue-health-pill";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
@@ -13,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { formatAppError, listPreDemandas, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
+import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, SortOrder, StatusCount } from "../types";
 
 const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
@@ -26,7 +28,7 @@ const selectClassName =
   "h-11 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-amber-200/50";
 
 type BoardView = "kanban" | "table";
-type SavedViewId = "fila-operacional" | "triagem-abertas" | "aguardando-sei" | "com-sei" | "ultimas-encerradas";
+type SavedViewId = "fila-operacional" | "triagem-abertas" | "aguardando-sei" | "fila-parada" | "com-sei" | "ultimas-encerradas";
 
 type QuickAction = {
   item: PreDemanda;
@@ -89,6 +91,17 @@ const SAVED_VIEWS: Array<{
     defaults: {
       statuses: ["aguardando_sei"],
       sortBy: "dataReferencia",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "fila-parada",
+    label: "Fila parada",
+    description: "Demandas activas com maior tempo sem movimentacao, ordenadas pela actualizacao mais antiga.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      sortBy: "updatedAt",
       sortOrder: "asc",
       view: "table",
     },
@@ -316,7 +329,7 @@ export function PreDemandasPage() {
           <CardTitle>Visualizacoes salvas</CardTitle>
           <CardDescription>Presets partilhaveis por query string para os filtros mais usados da operacao.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-5">
+        <CardContent className="grid gap-3 xl:grid-cols-6">
           {SAVED_VIEWS.map((preset) => (
             <button
               className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
@@ -439,15 +452,16 @@ export function PreDemandasPage() {
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead className="text-slate-500">
-                  <tr>
-                    <th className="px-3 py-3">PRE</th>
-                    <th className="px-3 py-3">Solicitante</th>
-                    <th className="px-3 py-3">Assunto</th>
-                    <th className="px-3 py-3">Status</th>
-                    <th className="px-3 py-3">SEI</th>
-                    <th className="px-3 py-3">Data</th>
-                    <th className="px-3 py-3">Acoes</th>
-                  </tr>
+                <tr>
+                  <th className="px-3 py-3">PRE</th>
+                  <th className="px-3 py-3">Solicitante</th>
+                  <th className="px-3 py-3">Assunto</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3">Fila</th>
+                  <th className="px-3 py-3">SEI</th>
+                  <th className="px-3 py-3">Data</th>
+                  <th className="px-3 py-3">Acoes</th>
+                </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => (
@@ -459,6 +473,12 @@ export function PreDemandasPage() {
                       <td className="px-3 py-4">{item.assunto}</td>
                       <td className="px-3 py-4">
                         <StatusPill status={item.status} />
+                      </td>
+                      <td className="px-3 py-4">
+                        <div className="grid gap-2">
+                          <QueueHealthPill item={item} />
+                          <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
+                        </div>
                       </td>
                       <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
                       <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
