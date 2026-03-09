@@ -1,5 +1,8 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { buildApp } from "./app";
 import { hashPassword } from "./auth/password";
 import type { AppConfig } from "./config";
@@ -491,8 +494,29 @@ describe("Gestor JMU API", () => {
 
   const userRepository = new InMemoryUserRepository();
   const preDemandaRepository = new InMemoryPreDemandaRepository();
+  const migration001Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "001_gestor_bootstrap.sql"), "utf8")).digest("hex");
+  const migration002Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "002_admin_user_audit.sql"), "utf8")).digest("hex");
   const pool = {
-    query: async () => ({ rows: [{ "?column?": 1 }] }),
+    query: async (sql: string) => {
+      if (sql.includes("schema_migration")) {
+        return {
+          rows: [
+            {
+              version: "002_admin_user_audit.sql",
+              checksum: migration002Checksum,
+              applied_at: "2026-03-09T00:00:00.000Z",
+            },
+            {
+              version: "001_gestor_bootstrap.sql",
+              checksum: migration001Checksum,
+              applied_at: "2026-03-09T00:00:00.000Z",
+            },
+          ],
+        };
+      }
+
+      return { rows: [{ "?column?": 1 }] };
+    },
     end: async () => undefined,
   } as unknown as DatabasePool;
   let app: Awaited<ReturnType<typeof buildApp>>;
@@ -844,5 +868,6 @@ describe("Gestor JMU API", () => {
     expect(ops.json().data.runtime.database.status).toBe("ready");
     expect(typeof (ops.json().data as AdminOpsSummary).counters.requestsTotal).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).incidents)).toBe(true);
+    expect((ops.json().data as AdminOpsSummary).migrations?.totalFiles).toBeGreaterThanOrEqual(2);
   });
 });

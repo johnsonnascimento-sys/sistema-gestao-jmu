@@ -179,8 +179,25 @@ export interface OperationsCounters {
   unhandledErrorsTotal: number;
 }
 
+export type SchemaMigrationState = "applied" | "pending" | "drifted";
+
+export interface SchemaMigrationItem {
+  version: string;
+  state: SchemaMigrationState;
+  appliedAt: string | null;
+}
+
+export interface SchemaMigrationSummary {
+  totalFiles: number;
+  appliedCount: number;
+  pendingCount: number;
+  driftedCount: number;
+  items: SchemaMigrationItem[];
+}
+
 export interface AdminOpsSummary {
   runtime: RuntimeStatus;
   counters: OperationsCounters;
   incidents: OperationsIncident[];
+  migrations: SchemaMigrationSummary | null;
 }

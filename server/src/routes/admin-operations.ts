@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config";
 import type { DatabasePool } from "../db";
+import { describeMigrations } from "../migrations/describe-migrations";
 import type { OperationsStore } from "../observability/operations-store";
 import { createRuntimeStatus } from "../runtime";
 
@@ -23,10 +24,12 @@ export async function registerAdminOperationsRoutes(
     const query = listOpsSchema.parse(request.query);
     const startedAt = process.hrtime.bigint();
     let runtime;
+    let migrations = null;
 
     try {
       await pool.query("select 1");
       const latencyMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+      migrations = await describeMigrations(pool);
 
       runtime = createRuntimeStatus(config, "ready", {
         database: {
@@ -70,6 +73,7 @@ export async function registerAdminOperationsRoutes(
       data: {
         runtime,
         ...operationsStore.getSnapshot(query.limit ?? 12),
+        migrations,
       },
       error: null,
     });
