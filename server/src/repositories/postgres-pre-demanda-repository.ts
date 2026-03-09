@@ -1,6 +1,16 @@
 import type { PoolClient, QueryResultRow } from "pg";
+import type {
+  AuditActor,
+  PreDemandaAuditRecord,
+  PreDemandaDetail,
+  PreDemandaSortBy,
+  PreDemandaStatus,
+  PreDemandaStatusAuditRecord,
+  SeiAssociation,
+  SortOrder,
+  TimelineEvent,
+} from "../domain/types";
 import type { DatabasePool } from "../db";
-import type { PreDemandaAuditRecord, PreDemandaDetail, PreDemandaStatus, SeiAssociation } from "../domain/types";
 import { AppError } from "../errors";
 import type {
   AssociateSeiInput,
@@ -10,20 +20,81 @@ import type {
   ListPreDemandasParams,
   ListPreDemandasResult,
   PreDemandaRepository,
+  UpdatePreDemandaStatusInput,
+  UpdatePreDemandaStatusResult,
 } from "./types";
 
-function mapPreDemanda(row: QueryResultRow): PreDemandaDetail {
-  const currentAssociation =
-    row.sei_numero === null
-      ? null
-      : {
-          preId: String(row.pre_id),
-          seiNumero: String(row.sei_numero),
-          linkedAt: new Date(row.linked_at).toISOString(),
-          updatedAt: new Date(row.link_updated_at).toISOString(),
-          observacoes: row.link_observacoes ? String(row.link_observacoes) : null,
-        };
+type Queryable = DatabasePool | PoolClient;
 
+const BASE_SELECT = `
+  select
+    pd.id,
+    pd.pre_id,
+    pd.solicitante,
+    pd.assunto,
+    pd.data_referencia,
+    pd.status,
+    pd.descricao,
+    pd.fonte,
+    pd.observacoes,
+    pd.created_at,
+    pd.updated_at,
+    pd.created_by_user_id,
+    created_by.id as created_by_id,
+    created_by.email as created_by_email,
+    created_by.name as created_by_name,
+    created_by.role as created_by_role,
+    pts.sei_numero,
+    pts.sei_numero_inicial,
+    pts.linked_at,
+    pts.updated_at as link_updated_at,
+    pts.observacoes as link_observacoes,
+    pts.linked_by_user_id,
+    linked_by.id as linked_by_id,
+    linked_by.email as linked_by_email,
+    linked_by.name as linked_by_name,
+    linked_by.role as linked_by_role
+  from adminlog.pre_demanda pd
+  left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
+  left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
+  left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
+`;
+
+const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
+  updatedAt: "pd.updated_at",
+  createdAt: "pd.created_at",
+  dataReferencia: "pd.data_referencia",
+  solicitante: "pd.solicitante",
+  status: "pd.status",
+};
+
+const ALL_STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "encerrada"];
+
+function mapActor(row: QueryResultRow, prefix: string): AuditActor | null {
+  if (row[`${prefix}_id`] === null || row[`${prefix}_id`] === undefined) {
+    return null;
+  }
+
+  return {
+    id: Number(row[`${prefix}_id`]),
+    email: String(row[`${prefix}_email`]),
+    name: String(row[`${prefix}_name`]),
+    role: row[`${prefix}_role`] as AuditActor["role"],
+  };
+}
+
+function mapAssociation(row: QueryResultRow): SeiAssociation {
+  return {
+    preId: String(row.pre_id),
+    seiNumero: String(row.sei_numero),
+    linkedAt: new Date(row.linked_at).toISOString(),
+    updatedAt: new Date(row.link_updated_at ?? row.updated_at).toISOString(),
+    observacoes: row.link_observacoes ? String(row.link_observacoes) : row.observacoes ? String(row.observacoes) : null,
+    linkedBy: mapActor(row, "linked_by"),
+  };
+}
+
+function mapPreDemanda(row: QueryResultRow): PreDemandaDetail {
   return {
     id: Number(row.id),
     preId: String(row.pre_id),
@@ -36,33 +107,59 @@ function mapPreDemanda(row: QueryResultRow): PreDemandaDetail {
     observacoes: row.observacoes ? String(row.observacoes) : null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
-    currentAssociation,
+    createdBy: mapActor(row, "created_by"),
+    currentAssociation: row.sei_numero === null ? null : mapAssociation(row),
   };
 }
 
-function mapAssociation(row: QueryResultRow): SeiAssociation {
-  return {
-    preId: String(row.pre_id),
-    seiNumero: String(row.sei_numero),
-    linkedAt: new Date(row.linked_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString(),
-    observacoes: row.observacoes ? String(row.observacoes) : null,
-  };
-}
-
-function mapAudit(row: QueryResultRow): PreDemandaAuditRecord {
+function mapSeiAudit(row: QueryResultRow): PreDemandaAuditRecord {
   return {
     id: Number(row.id),
     preId: String(row.pre_id),
     seiNumeroAnterior: String(row.sei_numero_anterior),
     seiNumeroNovo: String(row.sei_numero_novo),
     motivo: row.motivo ? String(row.motivo) : null,
+    observacoes: row.observacoes ? String(row.observacoes) : null,
     registradoEm: new Date(row.registrado_em).toISOString(),
+    changedBy: mapActor(row, "changed_by"),
   };
 }
 
+function mapStatusAudit(row: QueryResultRow): PreDemandaStatusAuditRecord {
+  return {
+    id: Number(row.id),
+    preId: String(row.pre_id),
+    statusAnterior: row.status_anterior as PreDemandaStatus,
+    statusNovo: row.status_novo as PreDemandaStatus,
+    motivo: row.motivo ? String(row.motivo) : null,
+    observacoes: row.observacoes ? String(row.observacoes) : null,
+    registradoEm: new Date(row.registrado_em).toISOString(),
+    changedBy: mapActor(row, "changed_by"),
+  };
+}
+
+function mapTimelineEvent(row: QueryResultRow): TimelineEvent {
+  return {
+    id: String(row.event_id),
+    preId: String(row.pre_id),
+    type: row.event_type as TimelineEvent["type"],
+    occurredAt: new Date(row.occurred_at).toISOString(),
+    actor: mapActor(row, "actor"),
+    motivo: row.motivo ? String(row.motivo) : null,
+    observacoes: row.observacoes ? String(row.observacoes) : null,
+    statusAnterior: row.status_anterior ? (row.status_anterior as PreDemandaStatus) : null,
+    statusNovo: row.status_novo ? (row.status_novo as PreDemandaStatus) : null,
+    seiNumeroAnterior: row.sei_numero_anterior ? String(row.sei_numero_anterior) : null,
+    seiNumeroNovo: row.sei_numero_novo ? String(row.sei_numero_novo) : null,
+  };
+}
+
+function normalizeBool(value: boolean | undefined) {
+  return value === undefined ? undefined : value;
+}
+
 function buildWhereClause(params: ListPreDemandasParams) {
-  const values: Array<string | number | string[]> = [];
+  const values: Array<string | number | string[] | boolean> = [];
   const clauses: string[] = [];
 
   if (params.q) {
@@ -76,10 +173,61 @@ function buildWhereClause(params: ListPreDemandasParams) {
     clauses.push(`pd.status = any($${values.length}::text[])`);
   }
 
+  if (params.dateFrom) {
+    values.push(params.dateFrom);
+    clauses.push(`pd.data_referencia >= $${values.length}::date`);
+  }
+
+  if (params.dateTo) {
+    values.push(params.dateTo);
+    clauses.push(`pd.data_referencia <= $${values.length}::date`);
+  }
+
+  const hasSei = normalizeBool(params.hasSei);
+
+  if (hasSei === true) {
+    clauses.push("pts.pre_id is not null");
+  }
+
+  if (hasSei === false) {
+    clauses.push("pts.pre_id is null");
+  }
+
   return {
     where: clauses.length ? `where ${clauses.join(" and ")}` : "",
     values,
   };
+}
+
+function buildOrderClause(sortBy: PreDemandaSortBy | undefined, sortOrder: SortOrder | undefined) {
+  const resolvedSortBy = sortBy ?? "updatedAt";
+  const resolvedSortOrder = sortOrder ?? "desc";
+  const direction = resolvedSortOrder === "asc" ? "asc" : "desc";
+  const column = SORT_COLUMN_MAP[resolvedSortBy];
+  return `order by ${column} ${direction}, pd.updated_at desc, pd.id desc`;
+}
+
+function ensureStatusTransition(
+  currentStatus: PreDemandaStatus,
+  nextStatus: PreDemandaStatus,
+  hasAssociation: boolean,
+  motivo: string | null | undefined,
+) {
+  if (currentStatus === nextStatus) {
+    throw new AppError(409, "PRE_DEMANDA_STATUS_UNCHANGED", "A demanda ja se encontra nesse status.");
+  }
+
+  if (nextStatus === "associada" && !hasAssociation) {
+    throw new AppError(409, "PRE_DEMANDA_STATUS_INVALID", "Nao e possivel marcar como associada sem um numero SEI vinculado.");
+  }
+
+  if (currentStatus === "associada" && nextStatus !== "encerrada") {
+    throw new AppError(409, "PRE_DEMANDA_STATUS_INVALID", "Demandas associadas so podem ser encerradas.");
+  }
+
+  if ((nextStatus === "encerrada" || currentStatus === "encerrada") && !motivo) {
+    throw new AppError(400, "PRE_DEMANDA_STATUS_REASON_REQUIRED", "Informe o motivo para encerrar ou reabrir a demanda.");
+  }
 }
 
 async function inTransaction<T>(pool: DatabasePool, callback: (client: PoolClient) => Promise<T>) {
@@ -98,6 +246,19 @@ async function inTransaction<T>(pool: DatabasePool, callback: (client: PoolClien
   }
 }
 
+async function getRecordByPreId(queryable: Queryable, preId: string) {
+  const result = await queryable.query(
+    `
+      ${BASE_SELECT}
+      where pd.pre_id = $1
+      limit 1
+    `,
+    [preId],
+  );
+
+  return result.rows[0] ? mapPreDemanda(result.rows[0]) : null;
+}
+
 export class PostgresPreDemandaRepository implements PreDemandaRepository {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -113,7 +274,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             status,
             descricao,
             fonte,
-            observacoes
+            observacoes,
+            created_by_user_id
           )
           values (
             adminlog.fn_generate_pre_id($1::date),
@@ -123,24 +285,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             'aberta',
             $4,
             $5,
-            $6
+            $6,
+            $7
           )
-          returning
-            id,
-            pre_id,
-            solicitante,
-            assunto,
-            data_referencia,
-            status,
-            descricao,
-            fonte,
-            observacoes,
-            created_at,
-            updated_at,
-            null::text as sei_numero,
-            null::timestamptz as linked_at,
-            null::timestamptz as link_updated_at,
-            null::text as link_observacoes
+          returning pre_id
         `,
         [
           input.dataReferencia,
@@ -149,12 +297,20 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           input.descricao ?? null,
           input.fonte ?? null,
           input.observacoes ?? null,
+          input.createdByUserId,
         ],
       );
 
+      const record = await getRecordByPreId(this.pool, String(result.rows[0].pre_id));
+
+      if (!record) {
+        throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
+      }
+
       return {
-        record: mapPreDemanda(result.rows[0]),
+        record,
         idempotent: false,
+        existingPreId: null,
       };
     } catch (error) {
       const pgError = error as { code?: string; constraint?: string };
@@ -163,26 +319,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw error;
       }
 
-      const result = await this.pool.query(
+      const duplicate = await this.pool.query(
         `
-          select
-            pd.id,
-            pd.pre_id,
-            pd.solicitante,
-            pd.assunto,
-            pd.data_referencia,
-            pd.status,
-            pd.descricao,
-            pd.fonte,
-            pd.observacoes,
-            pd.created_at,
-            pd.updated_at,
-            pts.sei_numero,
-            pts.linked_at,
-            pts.updated_at as link_updated_at,
-            pts.observacoes as link_observacoes
-          from adminlog.pre_demanda pd
-          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
+          ${BASE_SELECT}
           where pd.solicitante_norm = lower(regexp_replace(trim($1), '\s+', ' ', 'g'))
             and pd.assunto_norm = lower(regexp_replace(trim($2), '\s+', ' ', 'g'))
             and pd.data_referencia = $3::date
@@ -191,19 +330,25 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.solicitante, input.assunto, input.dataReferencia],
       );
 
-      if (!result.rows[0]) {
-        throw new AppError(409, "PRE_DEMANDA_DUPLICATE", "Nao foi possivel recuperar a demanda existente.");
+      if (!duplicate.rows[0]) {
+        throw new AppError(409, "PRE_DEMANDA_DUPLICATE", "Nao foi possivel recuperar a demanda existente.", {
+          existingPreId: null,
+        });
       }
 
+      const record = mapPreDemanda(duplicate.rows[0]);
+
       return {
-        record: mapPreDemanda(result.rows[0]),
+        record,
         idempotent: true,
+        existingPreId: record.preId,
       };
     }
   }
 
   async list(params: ListPreDemandasParams): Promise<ListPreDemandasResult> {
     const { where, values } = buildWhereClause(params);
+    const orderBy = buildOrderClause(params.sortBy, params.sortOrder);
     const limitIndex = values.length + 1;
     const offsetIndex = values.length + 2;
     const offset = (params.page - 1) * params.pageSize;
@@ -211,26 +356,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const [itemsResult, totalResult] = await Promise.all([
       this.pool.query(
         `
-          select
-            pd.id,
-            pd.pre_id,
-            pd.solicitante,
-            pd.assunto,
-            pd.data_referencia,
-            pd.status,
-            pd.descricao,
-            pd.fonte,
-            pd.observacoes,
-            pd.created_at,
-            pd.updated_at,
-            pts.sei_numero,
-            pts.linked_at,
-            pts.updated_at as link_updated_at,
-            pts.observacoes as link_observacoes
-          from adminlog.pre_demanda pd
-          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
+          ${BASE_SELECT}
           ${where}
-          order by pd.updated_at desc
+          ${orderBy}
           limit $${limitIndex}
           offset $${offsetIndex}
         `,
@@ -240,6 +368,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `
           select count(*)::int as total
           from adminlog.pre_demanda pd
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           ${where}
         `,
         values,
@@ -261,47 +390,22 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       `,
     );
 
-    return result.rows.map((row) => ({
-      status: row.status as PreDemandaStatus,
-      total: Number(row.total),
+    const totals = new Map(result.rows.map((row) => [row.status as PreDemandaStatus, Number(row.total)]));
+    return ALL_STATUSES.map((status) => ({
+      status,
+      total: totals.get(status) ?? 0,
     }));
   }
 
   async getByPreId(preId: string) {
-    const result = await this.pool.query(
-      `
-        select
-          pd.id,
-          pd.pre_id,
-          pd.solicitante,
-          pd.assunto,
-          pd.data_referencia,
-          pd.status,
-          pd.descricao,
-          pd.fonte,
-          pd.observacoes,
-          pd.created_at,
-          pd.updated_at,
-          pts.sei_numero,
-          pts.linked_at,
-          pts.updated_at as link_updated_at,
-          pts.observacoes as link_observacoes
-        from adminlog.pre_demanda pd
-        left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
-        where pd.pre_id = $1
-        limit 1
-      `,
-      [preId],
-    );
-
-    return result.rows[0] ? mapPreDemanda(result.rows[0]) : null;
+    return getRecordByPreId(this.pool, preId);
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
     return inTransaction(this.pool, async (client) => {
-      const demandaResult = await client.query(
+      const demanda = await client.query(
         `
-          select pre_id
+          select pre_id, status
           from adminlog.pre_demanda
           where pre_id = $1
           limit 1
@@ -310,13 +414,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.preId],
       );
 
-      if (!demandaResult.rows[0]) {
+      if (!demanda.rows[0]) {
         throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
       }
 
       const currentLinkResult = await client.query(
         `
-          select pre_id, sei_numero, linked_at, updated_at, observacoes
+          select pre_id, sei_numero, sei_numero_inicial, linked_at, updated_at as link_updated_at, observacoes as link_observacoes
           from adminlog.pre_to_sei_link
           where pre_id = $1
           limit 1
@@ -328,15 +432,67 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       let audited = false;
 
       if (!currentLinkResult.rows[0]) {
-        const inserted = await client.query(
+        await client.query(
           `
-            insert into adminlog.pre_to_sei_link (pre_id, sei_numero, observacoes)
-            values ($1, $2, $3)
-            returning pre_id, sei_numero, linked_at, updated_at, observacoes
+            insert into adminlog.pre_to_sei_link (
+              pre_id,
+              sei_numero,
+              sei_numero_inicial,
+              observacoes,
+              linked_by_user_id
+            )
+            values ($1, $2, $2, $3, $4)
+          `,
+          [input.preId, input.seiNumero, input.observacoes ?? null, input.changedByUserId],
+        );
+      } else {
+        const currentLink = currentLinkResult.rows[0];
+
+        if (String(currentLink.sei_numero) !== input.seiNumero) {
+          audited = true;
+
+          await client.query(
+            `
+              insert into adminlog.pre_to_sei_link_audit (
+                pre_id,
+                sei_numero_anterior,
+                sei_numero_novo,
+                motivo,
+                observacoes,
+                changed_by_user_id
+              )
+              values ($1, $2, $3, $4, $5, $6)
+            `,
+            [input.preId, currentLink.sei_numero, input.seiNumero, input.motivo ?? null, input.observacoes ?? null, input.changedByUserId],
+          );
+        }
+
+        await client.query(
+          `
+            update adminlog.pre_to_sei_link
+            set
+              sei_numero = $2,
+              observacoes = $3,
+              updated_at = now()
+            where pre_id = $1
           `,
           [input.preId, input.seiNumero, input.observacoes ?? null],
         );
+      }
 
+      const statusResult = await client.query(
+        `
+          select status
+          from adminlog.pre_demanda
+          where pre_id = $1
+          limit 1
+        `,
+        [input.preId],
+      );
+
+      const currentStatus = statusResult.rows[0]?.status as PreDemandaStatus;
+
+      if (currentStatus !== "associada") {
         await client.query(
           `
             update adminlog.pre_demanda
@@ -346,71 +502,328 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           [input.preId],
         );
 
-        return {
-          association: mapAssociation(inserted.rows[0]),
-          audited,
-        };
-      }
-
-      const currentLink = mapAssociation(currentLinkResult.rows[0]);
-
-      if (currentLink.seiNumero !== input.seiNumero) {
-        audited = true;
-
         await client.query(
           `
-            insert into adminlog.pre_to_sei_link_audit (
+            insert into adminlog.pre_demanda_status_audit (
               pre_id,
-              sei_numero_anterior,
-              sei_numero_novo,
-              motivo
+              status_anterior,
+              status_novo,
+              motivo,
+              observacoes,
+              changed_by_user_id
             )
-            values ($1, $2, $3, $4)
+            values ($1, $2, 'associada', $3, $4, $5)
           `,
-          [input.preId, currentLink.seiNumero, input.seiNumero, input.motivo ?? null],
+          [input.preId, currentStatus, input.motivo ?? "Associacao de numero SEI.", input.observacoes ?? null, input.changedByUserId],
         );
       }
 
-      const updated = await client.query(
-        `
-          update adminlog.pre_to_sei_link
-          set
-            sei_numero = $2,
-            observacoes = $3,
-            updated_at = now()
-          where pre_id = $1
-          returning pre_id, sei_numero, linked_at, updated_at, observacoes
-        `,
-        [input.preId, input.seiNumero, input.observacoes ?? null],
-      );
+      const record = await getRecordByPreId(client, input.preId);
 
-      await client.query(
+      if (!record?.currentAssociation) {
+        throw new AppError(500, "PRE_DEMANDA_ASSOCIATION_FAILED", "Falha ao carregar a associacao atualizada.");
+      }
+
+      return {
+        association: record.currentAssociation,
+        audited,
+      };
+    });
+  }
+
+  async updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult> {
+    return inTransaction(this.pool, async (client) => {
+      const currentResult = await client.query(
         `
-          update adminlog.pre_demanda
-          set status = 'associada'
-          where pre_id = $1
+          select pd.status, pts.pre_id as has_link
+          from adminlog.pre_demanda pd
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
+          where pd.pre_id = $1
+          limit 1
+          for update
         `,
         [input.preId],
       );
 
-      return {
-        association: mapAssociation(updated.rows[0]),
-        audited,
-      };
+      if (!currentResult.rows[0]) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
+
+      const currentStatus = currentResult.rows[0].status as PreDemandaStatus;
+      const hasAssociation = Boolean(currentResult.rows[0].has_link);
+      ensureStatusTransition(currentStatus, input.status, hasAssociation, input.motivo);
+
+      await client.query(
+        `
+          update adminlog.pre_demanda
+          set status = $2
+          where pre_id = $1
+        `,
+        [input.preId, input.status],
+      );
+
+      await client.query(
+        `
+          insert into adminlog.pre_demanda_status_audit (
+            pre_id,
+            status_anterior,
+            status_novo,
+            motivo,
+            observacoes,
+            changed_by_user_id
+          )
+          values ($1, $2, $3, $4, $5, $6)
+        `,
+        [input.preId, currentStatus, input.status, input.motivo ?? null, input.observacoes ?? null, input.changedByUserId],
+      );
+
+      const record = await getRecordByPreId(client, input.preId);
+
+      if (!record) {
+        throw new AppError(500, "PRE_DEMANDA_STATUS_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
+      }
+
+      return { record };
     });
   }
 
   async listAudit(preId: string) {
     const result = await this.pool.query(
       `
-        select id, pre_id, sei_numero_anterior, sei_numero_novo, motivo, registrado_em
-        from adminlog.pre_to_sei_link_audit
-        where pre_id = $1
-        order by registrado_em desc
+        select
+          audit.id,
+          audit.pre_id,
+          audit.sei_numero_anterior,
+          audit.sei_numero_novo,
+          audit.motivo,
+          audit.observacoes,
+          audit.registrado_em,
+          changed_by.id as changed_by_id,
+          changed_by.email as changed_by_email,
+          changed_by.name as changed_by_name,
+          changed_by.role as changed_by_role
+        from adminlog.pre_to_sei_link_audit audit
+        left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
+        where audit.pre_id = $1
+        order by audit.registrado_em desc
       `,
       [preId],
     );
 
-    return result.rows.map(mapAudit);
+    return result.rows.map(mapSeiAudit);
+  }
+
+  async listStatusAudit(preId: string) {
+    const result = await this.pool.query(
+      `
+        select
+          audit.id,
+          audit.pre_id,
+          audit.status_anterior,
+          audit.status_novo,
+          audit.motivo,
+          audit.observacoes,
+          audit.registrado_em,
+          changed_by.id as changed_by_id,
+          changed_by.email as changed_by_email,
+          changed_by.name as changed_by_name,
+          changed_by.role as changed_by_role
+        from adminlog.pre_demanda_status_audit audit
+        left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
+        where audit.pre_id = $1
+        order by audit.registrado_em desc
+      `,
+      [preId],
+    );
+
+    return result.rows.map(mapStatusAudit);
+  }
+
+  async listTimeline(preId: string) {
+    const result = await this.pool.query(
+      `
+        select *
+        from (
+          select
+            concat('created-', pd.id) as event_id,
+            pd.pre_id,
+            'created'::text as event_type,
+            pd.created_at as occurred_at,
+            created_by.id as actor_id,
+            created_by.email as actor_email,
+            created_by.name as actor_name,
+            created_by.role as actor_role,
+            null::text as motivo,
+            pd.observacoes as observacoes,
+            null::text as status_anterior,
+            pd.status::text as status_novo,
+            null::text as sei_numero_anterior,
+            null::text as sei_numero_novo
+          from adminlog.pre_demanda pd
+          left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
+          where pd.pre_id = $1
+
+          union all
+
+          select
+            concat('status-', audit.id) as event_id,
+            audit.pre_id,
+            'status_changed'::text as event_type,
+            audit.registrado_em as occurred_at,
+            changed_by.id as actor_id,
+            changed_by.email as actor_email,
+            changed_by.name as actor_name,
+            changed_by.role as actor_role,
+            audit.motivo,
+            audit.observacoes,
+            audit.status_anterior::text,
+            audit.status_novo::text,
+            null::text,
+            null::text
+          from adminlog.pre_demanda_status_audit audit
+          left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
+          where audit.pre_id = $1
+
+          union all
+
+          select
+            concat('sei-linked-', pts.id) as event_id,
+            pts.pre_id,
+            'sei_linked'::text as event_type,
+            pts.linked_at as occurred_at,
+            linked_by.id as actor_id,
+            linked_by.email as actor_email,
+            linked_by.name as actor_name,
+            linked_by.role as actor_role,
+            'Associacao inicial ao SEI.'::text as motivo,
+            pts.observacoes,
+            null::text,
+            null::text,
+            null::text,
+            pts.sei_numero_inicial::text
+          from adminlog.pre_to_sei_link pts
+          left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
+          where pts.pre_id = $1
+
+          union all
+
+          select
+            concat('sei-audit-', audit.id) as event_id,
+            audit.pre_id,
+            'sei_reassociated'::text as event_type,
+            audit.registrado_em as occurred_at,
+            changed_by.id as actor_id,
+            changed_by.email as actor_email,
+            changed_by.name as actor_name,
+            changed_by.role as actor_role,
+            audit.motivo,
+            audit.observacoes,
+            null::text,
+            null::text,
+            audit.sei_numero_anterior::text,
+            audit.sei_numero_novo::text
+          from adminlog.pre_to_sei_link_audit audit
+          left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
+          where audit.pre_id = $1
+        ) timeline
+        order by occurred_at desc, event_id desc
+      `,
+      [preId],
+    );
+
+    return result.rows.map(mapTimelineEvent);
+  }
+
+  async listRecentTimeline(limit = 8) {
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(50, Math.trunc(limit))) : 8;
+    const result = await this.pool.query(
+      `
+        select *
+        from (
+          select
+            concat('created-', pd.id) as event_id,
+            pd.pre_id,
+            'created'::text as event_type,
+            pd.created_at as occurred_at,
+            created_by.id as actor_id,
+            created_by.email as actor_email,
+            created_by.name as actor_name,
+            created_by.role as actor_role,
+            null::text as motivo,
+            pd.observacoes as observacoes,
+            null::text as status_anterior,
+            pd.status::text as status_novo,
+            null::text as sei_numero_anterior,
+            null::text as sei_numero_novo
+          from adminlog.pre_demanda pd
+          left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
+
+          union all
+
+          select
+            concat('status-', audit.id) as event_id,
+            audit.pre_id,
+            'status_changed'::text as event_type,
+            audit.registrado_em as occurred_at,
+            changed_by.id as actor_id,
+            changed_by.email as actor_email,
+            changed_by.name as actor_name,
+            changed_by.role as actor_role,
+            audit.motivo,
+            audit.observacoes,
+            audit.status_anterior::text,
+            audit.status_novo::text,
+            null::text,
+            null::text
+          from adminlog.pre_demanda_status_audit audit
+          left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
+
+          union all
+
+          select
+            concat('sei-linked-', pts.id) as event_id,
+            pts.pre_id,
+            'sei_linked'::text as event_type,
+            pts.linked_at as occurred_at,
+            linked_by.id as actor_id,
+            linked_by.email as actor_email,
+            linked_by.name as actor_name,
+            linked_by.role as actor_role,
+            'Associacao inicial ao SEI.'::text as motivo,
+            pts.observacoes,
+            null::text,
+            null::text,
+            null::text,
+            pts.sei_numero_inicial::text
+          from adminlog.pre_to_sei_link pts
+          left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
+
+          union all
+
+          select
+            concat('sei-audit-', audit.id) as event_id,
+            audit.pre_id,
+            'sei_reassociated'::text as event_type,
+            audit.registrado_em as occurred_at,
+            changed_by.id as actor_id,
+            changed_by.email as actor_email,
+            changed_by.name as actor_name,
+            changed_by.role as actor_role,
+            audit.motivo,
+            audit.observacoes,
+            null::text,
+            null::text,
+            audit.sei_numero_anterior::text,
+            audit.sei_numero_novo::text
+          from adminlog.pre_to_sei_link_audit audit
+          left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
+        ) timeline
+        order by occurred_at desc, event_id desc
+        limit $1
+      `,
+      [safeLimit],
+    );
+
+    return result.rows.map(mapTimelineEvent);
   }
 }

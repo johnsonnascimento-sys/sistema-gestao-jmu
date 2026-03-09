@@ -10,6 +10,26 @@ BEGIN
 END;
 $$;
 
+CREATE TABLE IF NOT EXISTS adminlog.app_user (
+  id bigserial PRIMARY KEY,
+  email text NOT NULL,
+  name text NOT NULL,
+  password_hash text NOT NULL,
+  role text NOT NULL CHECK (role IN ('admin', 'operador')),
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT NOW(),
+  updated_at timestamptz NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_app_user_email_lower
+  ON adminlog.app_user (lower(email));
+
+DROP TRIGGER IF EXISTS trg_app_user_updated_at ON adminlog.app_user;
+CREATE TRIGGER trg_app_user_updated_at
+BEFORE UPDATE ON adminlog.app_user
+FOR EACH ROW
+EXECUTE FUNCTION adminlog.fn_set_updated_at();
+
 CREATE TABLE IF NOT EXISTS adminlog.pre_id_counter (
   ano integer PRIMARY KEY,
   ultimo_numero integer NOT NULL DEFAULT 0,
@@ -136,29 +156,3 @@ CREATE TABLE IF NOT EXISTS adminlog.pre_demanda_status_audit (
 
 CREATE INDEX IF NOT EXISTS idx_pre_demanda_status_audit_pre_id
   ON adminlog.pre_demanda_status_audit (pre_id, registrado_em DESC);
-
-CREATE TABLE IF NOT EXISTS adminlog.admin_user_audit (
-  id bigserial PRIMARY KEY,
-  action text NOT NULL,
-  actor_user_id bigint REFERENCES adminlog.app_user(id) ON DELETE SET NULL,
-  target_user_id bigint NOT NULL REFERENCES adminlog.app_user(id) ON DELETE RESTRICT,
-  target_email text NOT NULL,
-  target_name text NOT NULL,
-  target_role text NOT NULL CHECK (target_role IN ('admin', 'operador')),
-  target_active boolean NOT NULL,
-  name_anterior text,
-  name_novo text,
-  role_anterior text CHECK (role_anterior IN ('admin', 'operador')),
-  role_novo text CHECK (role_novo IN ('admin', 'operador')),
-  active_anterior boolean,
-  active_novo boolean,
-  registrado_em timestamptz NOT NULL DEFAULT NOW(),
-  CONSTRAINT ck_admin_user_audit_action
-    CHECK (action IN ('user_created', 'user_name_changed', 'user_role_changed', 'user_activated', 'user_deactivated', 'user_password_reset'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_admin_user_audit_registrado_em
-  ON adminlog.admin_user_audit (registrado_em DESC);
-
-CREATE INDEX IF NOT EXISTS idx_admin_user_audit_target_user
-  ON adminlog.admin_user_audit (target_user_id, registrado_em DESC);

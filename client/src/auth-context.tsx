@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { ApiError, getCurrentUser, login as apiLogin, logout as apiLogout } from "./lib/api";
-import type { AuthUser } from "./types";
+import type { AppPermission, AuthUser } from "./types";
 
 type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
@@ -10,6 +10,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
+  hasPermission: (permission: AppPermission) => boolean;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -51,7 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refresh();
   }, []);
 
-  return <AuthContext.Provider value={{ user, status, login, logout, refresh }}>{children}</AuthContext.Provider>;
+  function hasPermission(permission: AppPermission) {
+    return user?.permissions.includes(permission) ?? false;
+  }
+
+  return <AuthContext.Provider value={{ user, status, login, logout, refresh, hasPermission }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

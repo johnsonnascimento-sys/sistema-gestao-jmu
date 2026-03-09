@@ -1,41 +1,61 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { ConfirmDialog } from "../components/confirm-dialog";
+import { FormField } from "../components/form-field";
+import { PageHeader } from "../components/page-header";
+import { ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
-import { ApiError, associateSei, getAudit, getPreDemanda } from "../lib/api";
+import { Timeline } from "../components/timeline";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import { associateSei, getPreDemanda, getTimeline, updatePreDemandaStatus, ApiError } from "../lib/api";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { PreDemanda, PreDemandaAuditRecord } from "../types";
+import type { PreDemanda, PreDemandaStatus, TimelineEvent } from "../types";
+
+type StatusAction = {
+  nextStatus: PreDemandaStatus;
+  title: string;
+  requireReason: boolean;
+};
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
   const [record, setRecord] = useState<PreDemanda | null>(null);
-  const [audit, setAudit] = useState<PreDemandaAuditRecord[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
   const [associationForm, setAssociationForm] = useState({
     sei_numero: "",
     motivo: "",
     observacoes: "",
   });
-  const [message, setMessage] = useState("");
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
   async function load() {
-    const [nextRecord, nextAudit] = await Promise.all([getPreDemanda(preId), getAudit(preId)]);
-    setRecord(nextRecord);
-    setAudit(nextAudit);
-    setAssociationForm((current) => ({
-      ...current,
-      sei_numero: nextRecord.currentAssociation?.seiNumero ?? normalizeSeiValue(current.sei_numero),
-    }));
+    setLoading(true);
+
+    try {
+      const [nextRecord, nextTimeline] = await Promise.all([getPreDemanda(preId), getTimeline(preId)]);
+      setRecord(nextRecord);
+      setTimeline(nextTimeline);
+      setAssociationForm((current) => ({
+        ...current,
+        sei_numero: nextRecord.currentAssociation?.seiNumero ?? normalizeSeiValue(current.sei_numero),
+      }));
+      setError("");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Falha ao carregar demanda.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    void (async () => {
-      try {
-        await load();
-      } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : "Falha ao carregar demanda.");
-      }
-    })();
+    void load();
   }, [preId]);
 
   async function handleAssociation(event: FormEvent<HTMLFormElement>) {
@@ -53,129 +73,200 @@ export function PreDemandaDetailPage() {
         ...associationForm,
         sei_numero: normalizeSeiValue(associationForm.sei_numero),
       });
+      setMessage(response.audited ? "SEI reassociado com auditoria registada." : "SEI associado com sucesso.");
       await load();
-      setMessage(response.audited ? "SEI reassociado com auditoria registrada." : "SEI associado com sucesso.");
     } catch (nextError) {
       setError(nextError instanceof ApiError ? nextError.message : "Falha ao associar SEI.");
     }
   }
 
+  const nextAction = useMemo(() => {
+    if (!record) {
+      return "";
+    }
+
+    switch (record.status) {
+      case "aberta":
+        return "Triar a demanda e definir se deve aguardar SEI ou seguir para vinculacao.";
+      case "aguardando_sei":
+        return "Acompanhar o nascimento do processo e associar o numero SEI assim que estiver disponivel.";
+      case "associada":
+        return "Confirmar o contexto do processo e encerrar a demanda quando a acao administrativa estiver concluida.";
+      case "encerrada":
+        return "Reabrir apenas se houver nova necessidade operacional ou correcao do fluxo.";
+      default:
+        return "";
+    }
+  }, [record]);
+
+  if (loading) {
+    return <LoadingState description="A timeline, o estado e o vinculo SEI estao a ser preparados." title="Carregando demanda" />;
+  }
+
+  if (error && !record) {
+    return <ErrorState description={error} />;
+  }
+
   if (!record) {
-    return <div className="panel">Carregando demanda...</div>;
+    return <ErrorState description="Demanda nao encontrada." />;
   }
 
   return (
-    <section className="page-stack">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">{record.preId}</p>
-          <h2>{record.assunto}</h2>
-        </div>
+    <section className="grid gap-6">
+      <PageHeader
+        actions={
+          <>
+            {record.status !== "encerrada" ? (
+              <Button onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Encerrar demanda", requireReason: true })} type="button" variant="secondary">
+                Encerrar
+              </Button>
+            ) : (
+              <Button
+                onClick={() =>
+                  setStatusAction({
+                    nextStatus: record.currentAssociation ? "associada" : "aberta",
+                    title: "Reabrir demanda",
+                    requireReason: true,
+                  })
+                }
+                type="button"
+                variant="secondary"
+              >
+                Reabrir
+              </Button>
+            )}
+            {record.status !== "aguardando_sei" && record.status !== "encerrada" ? (
+              <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} type="button" variant="ghost">
+                Marcar aguardando SEI
+              </Button>
+            ) : null}
+          </>
+        }
+        description="Resumo operativo, estado actual e trilha cronologica completa da pre-demanda."
+        eyebrow={record.preId}
+        title={record.assunto}
+      />
 
-        <StatusPill status={record.status} />
-      </header>
+      {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
+      {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
 
-      {error ? <p className="error-text">{error}</p> : null}
-      {message ? <p className="notice notice-success">{message}</p> : null}
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle>Resumo executivo</CardTitle>
+                <StatusPill status={record.status} />
+              </div>
+              <CardDescription>{nextAction}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-sm text-slate-600">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Solicitante</p>
+                <p className="mt-1 text-slate-950">{record.solicitante}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Data de referencia</p>
+                <p className="mt-1 text-slate-950">{new Date(record.dataReferencia).toLocaleDateString("pt-BR")}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Criada por</p>
+                <p className="mt-1 text-slate-950">{record.createdBy ? `${record.createdBy.name} (${record.createdBy.email})` : "Autor nao informado"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Fonte</p>
+                <p className="mt-1 text-slate-950">{record.fonte ?? "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Descricao</p>
+                <p className="mt-1 text-slate-950">{record.descricao ?? "-"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Observacoes</p>
+                <p className="mt-1 text-slate-950">{record.observacoes ?? "-"}</p>
+              </div>
+            </CardContent>
+          </Card>
 
-      <section className="details-grid">
-        <article className="panel">
-          <h3>Dados da demanda</h3>
-          <dl className="detail-list">
-            <div>
-              <dt>Solicitante</dt>
-              <dd>{record.solicitante}</dd>
-            </div>
-            <div>
-              <dt>Data de referencia</dt>
-              <dd>{new Date(record.dataReferencia).toLocaleDateString("pt-BR")}</dd>
-            </div>
-            <div>
-              <dt>Fonte</dt>
-              <dd>{record.fonte ?? "-"}</dd>
-            </div>
-            <div>
-              <dt>Descricao</dt>
-              <dd>{record.descricao ?? "-"}</dd>
-            </div>
-            <div>
-              <dt>Observacoes</dt>
-              <dd>{record.observacoes ?? "-"}</dd>
-            </div>
-          </dl>
-        </article>
+          <Card>
+            <CardHeader>
+              <CardTitle>Associacao PRE para SEI</CardTitle>
+              <CardDescription>
+                SEI actual: {record.currentAssociation?.seiNumero ?? "nao associado"}
+                {record.currentAssociation?.linkedBy ? ` · vinculado por ${record.currentAssociation.linkedBy.name}` : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form className="grid gap-4" onSubmit={handleAssociation}>
+                <FormField
+                  hint={
+                    <>
+                      Formato aceite: <code>0000000-00.0000.0.00.0000</code>. Entradas parciais podem aparecer como <code>000000/00-00.000</code>.
+                    </>
+                  }
+                  label="Numero SEI"
+                >
+                  <Input
+                    onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))}
+                    placeholder="0000000-00.0000.0.00.0000"
+                    value={associationForm.sei_numero}
+                  />
+                </FormField>
 
-        <article className="panel">
-          <h3>Associacao PRE para SEI</h3>
-          <p className="muted">SEI atual: {record.currentAssociation?.seiNumero ?? "nao associado"}</p>
+                <FormField label="Motivo">
+                  <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, motivo: event.target.value }))} rows={3} value={associationForm.motivo} />
+                </FormField>
 
-          <form className="form-stack" onSubmit={handleAssociation}>
-            <label>
-              Numero SEI
-              <input
-                onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))}
-                placeholder="0000000-00.0000.0.00.0000"
-                value={associationForm.sei_numero}
-              />
-            </label>
+                <FormField label="Observacoes">
+                  <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, observacoes: event.target.value }))} rows={3} value={associationForm.observacoes} />
+                </FormField>
 
-            <p className={`field-hint ${isSeiValid ? "field-hint-valid" : ""}`}>
-              Formato aceito pelo backend: <code>0000000-00.0000.0.00.0000</code>. Entradas parciais podem aparecer como <code>000000/00-00.000</code>.
-            </p>
-
-            <label>
-              Motivo
-              <textarea onChange={(event) => setAssociationForm((current) => ({ ...current, motivo: event.target.value }))} rows={3} value={associationForm.motivo} />
-            </label>
-
-            <label>
-              Observacoes
-              <textarea onChange={(event) => setAssociationForm((current) => ({ ...current, observacoes: event.target.value }))} rows={3} value={associationForm.observacoes} />
-            </label>
-
-            <button className="button primary" disabled={!isSeiValid} type="submit">
-              Salvar associacao
-            </button>
-          </form>
-        </article>
-      </section>
-
-      <section className="panel">
-        <div className="section-header">
-          <div>
-            <h3>Auditoria de reassociacoes</h3>
-            <p className="muted">A API atual nao informa o utilizador responsavel pela alteracao. A timeline destaca data, troca realizada e motivo registrado.</p>
-          </div>
-        </div>
-
-        {audit.length ? (
-          <div className="timeline">
-            {audit.map((item) => (
-              <article className="timeline-item" key={item.id}>
-                <div className="timeline-marker" aria-hidden="true" />
-
-                <div className="timeline-card">
-                  <div className="timeline-heading">
-                    <div>
-                      <p className="kanban-label">Alteracao registada</p>
-                      <h4>{new Date(item.registradoEm).toLocaleString("pt-BR")}</h4>
-                    </div>
-                    <span className="timeline-author">Autor nao informado</span>
-                  </div>
-
-                  <p className="timeline-change">
-                    <strong>{item.seiNumeroAnterior}</strong> para <strong>{item.seiNumeroNovo}</strong>
-                  </p>
-
-                  <p className="timeline-reason">{item.motivo?.trim() || "Motivo nao informado."}</p>
+                <div className="flex justify-end">
+                  <Button disabled={!isSeiValid} type="submit">
+                    Salvar associacao
+                  </Button>
                 </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">Nenhuma reassociacao auditada ate ao momento.</p>
-        )}
-      </section>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Timeline operacional</CardTitle>
+            <CardDescription>Historico unificado de criacao, mudancas de estado e vinculacoes PRE para SEI.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Timeline events={timeline} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <ConfirmDialog
+        confirmLabel={statusAction?.title ?? "Confirmar alteracao"}
+        description="Registre o motivo da mudanca para manter a trilha de auditoria completa."
+        onConfirm={async ({ motivo, observacoes }) => {
+          if (!statusAction) {
+            return;
+          }
+
+          await updatePreDemandaStatus(preId, {
+            status: statusAction.nextStatus,
+            motivo,
+            observacoes,
+          });
+          setMessage(`Demanda actualizada para ${statusAction.nextStatus.replace("_", " ")}.`);
+          await load();
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setStatusAction(null);
+          }
+        }}
+        open={Boolean(statusAction)}
+        requireReason={statusAction?.requireReason}
+        title={statusAction?.title ?? "Alterar status"}
+      />
     </section>
   );
 }

@@ -8,11 +8,15 @@ function renderWithAuth(status: "loading" | "authenticated" | "unauthenticated")
   render(
     <AuthContext.Provider
       value={{
-        user: status === "authenticated" ? { id: 1, email: "user@test.local", name: "User", role: "operador" } : null,
+        user:
+          status === "authenticated"
+            ? { id: 1, email: "user@test.local", name: "User", role: "operador", permissions: ["dashboard.read"] }
+            : null,
         status,
         login: vi.fn(),
         logout: vi.fn(),
         refresh: vi.fn(),
+        hasPermission: vi.fn().mockReturnValue(true),
       }}
     >
       <MemoryRouter initialEntries={["/dashboard"]}>

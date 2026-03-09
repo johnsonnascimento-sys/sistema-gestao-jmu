@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { getPermissionsForRole } from "../auth/permissions";
 import { clearSessionCookie, setSessionCookie } from "../auth/session";
 import type { AppConfig } from "../config";
 import { AppError } from "../errors";
@@ -17,6 +18,7 @@ function serializeUser(user: { id: number; email: string; name: string; role: "a
     email: user.email,
     name: user.name,
     role: user.role,
+    permissions: getPermissionsForRole(user.role),
   };
 }
 

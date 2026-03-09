@@ -1,4 +1,15 @@
-import type { AuthUser, PreDemanda, PreDemandaAuditRecord, StatusCount } from "../types";
+import type {
+  AdminUserAuditRecord,
+  AdminUserSummary,
+  AuthUser,
+  PreDemanda,
+  PreDemandaAuditRecord,
+  PreDemandaSortBy,
+  PreDemandaStatus,
+  SortOrder,
+  StatusCount,
+  TimelineEvent,
+} from "../types";
 
 interface ApiEnvelope<T> {
   ok: boolean;
@@ -67,6 +78,11 @@ export function getCurrentUser() {
 export interface ListPreDemandasParams {
   q?: string;
   status?: string[];
+  dateFrom?: string;
+  dateTo?: string;
+  hasSei?: boolean;
+  sortBy?: PreDemandaSortBy;
+  sortOrder?: SortOrder;
   page?: number;
   pageSize?: number;
 }
@@ -80,6 +96,26 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
 
   if (params.status?.length) {
     searchParams.set("status", params.status.join(","));
+  }
+
+  if (params.dateFrom) {
+    searchParams.set("dateFrom", params.dateFrom);
+  }
+
+  if (params.dateTo) {
+    searchParams.set("dateTo", params.dateTo);
+  }
+
+  if (params.hasSei !== undefined) {
+    searchParams.set("hasSei", String(params.hasSei));
+  }
+
+  if (params.sortBy) {
+    searchParams.set("sortBy", params.sortBy);
+  }
+
+  if (params.sortOrder) {
+    searchParams.set("sortOrder", params.sortOrder);
   }
 
   searchParams.set("page", String(params.page ?? 1));
@@ -105,7 +141,7 @@ export function createPreDemanda(payload: {
   fonte?: string;
   observacoes?: string;
 }) {
-  return request<PreDemanda & { idempotent: boolean }>("/api/pre-demandas", {
+  return request<PreDemanda & { idempotent: boolean; existingPreId: string | null }>("/api/pre-demandas", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -113,6 +149,13 @@ export function createPreDemanda(payload: {
 
 export function getPreDemanda(preId: string) {
   return request<PreDemanda>(`/api/pre-demandas/${preId}`);
+}
+
+export function updatePreDemandaStatus(preId: string, payload: { status: PreDemandaStatus; motivo?: string; observacoes?: string }) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function associateSei(preId: string, payload: { sei_numero: string; motivo?: string; observacoes?: string }) {
@@ -127,4 +170,41 @@ export function associateSei(preId: string, payload: { sei_numero: string; motiv
 
 export function getAudit(preId: string) {
   return request<PreDemandaAuditRecord[]>(`/api/pre-demandas/${preId}/auditoria`);
+}
+
+export function getTimeline(preId: string) {
+  return request<TimelineEvent[]>(`/api/pre-demandas/${preId}/timeline`);
+}
+
+export function getRecentTimeline(limit = 8) {
+  return request<TimelineEvent[]>(`/api/pre-demandas/timeline/recentes?limit=${limit}`);
+}
+
+export function listAdminUsers() {
+  return request<AdminUserSummary[]>("/api/admin/users");
+}
+
+export function listAdminUserAudit(limit = 12) {
+  return request<AdminUserAuditRecord[]>(`/api/admin/users/auditoria?limit=${limit}`);
+}
+
+export function createAdminUser(payload: { email: string; name: string; password: string; role: "admin" | "operador" }) {
+  return request<AdminUserSummary>("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminUser(id: number, payload: { name?: string; role?: "admin" | "operador"; active?: boolean }) {
+  return request<AdminUserSummary>(`/api/admin/users/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function resetAdminUserPassword(id: number, password: string) {
+  return request<AdminUserSummary>(`/api/admin/users/${id}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
 }

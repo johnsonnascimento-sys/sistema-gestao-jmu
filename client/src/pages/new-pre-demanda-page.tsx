@@ -1,5 +1,11 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
+import { FormField } from "../components/form-field";
+import { PageHeader } from "../components/page-header";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
 import { ApiError, createPreDemanda } from "../lib/api";
 
 function getConflictPreId(details: unknown) {
@@ -7,7 +13,7 @@ function getConflictPreId(details: unknown) {
     return null;
   }
 
-  const maybePreId = (details as Record<string, unknown>).preId;
+  const maybePreId = (details as Record<string, unknown>).existingPreId ?? (details as Record<string, unknown>).preId;
   return typeof maybePreId === "string" && maybePreId.length > 0 ? maybePreId : null;
 }
 
@@ -35,7 +41,7 @@ export function NewPreDemandaPage() {
     try {
       const created = await createPreDemanda(form);
       setResult({
-        preId: created.preId,
+        preId: created.existingPreId ?? created.preId,
         idempotent: created.idempotent,
       });
     } catch (nextError) {
@@ -51,69 +57,63 @@ export function NewPreDemandaPage() {
   }
 
   return (
-    <section className="page-stack">
-      <header className="page-header">
-        <div>
-          <p className="eyebrow">Cadastro</p>
-          <h2>Nova pre-demanda</h2>
-        </div>
-      </header>
+    <section className="grid gap-6">
+      <PageHeader
+        description="Registe a demanda informal com dados suficientes para triagem, deduplicacao e acompanhamento posterior."
+        eyebrow="Cadastro"
+        title="Nova pre-demanda"
+      />
 
-      <section className="panel">
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <label>
-            Solicitante
-            <input onChange={(event) => setForm((current) => ({ ...current, solicitante: event.target.value }))} value={form.solicitante} />
-          </label>
+      <Card>
+        <CardContent className="p-6">
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+            <FormField label="Solicitante">
+              <Input onChange={(event) => setForm((current) => ({ ...current, solicitante: event.target.value }))} value={form.solicitante} />
+            </FormField>
 
-          <label>
-            Assunto
-            <input onChange={(event) => setForm((current) => ({ ...current, assunto: event.target.value }))} value={form.assunto} />
-          </label>
+            <FormField label="Assunto">
+              <Input onChange={(event) => setForm((current) => ({ ...current, assunto: event.target.value }))} value={form.assunto} />
+            </FormField>
 
-          <label>
-            Data de referencia
-            <input
-              onChange={(event) => setForm((current) => ({ ...current, data_referencia: event.target.value }))}
-              type="date"
-              value={form.data_referencia}
-            />
-          </label>
+            <FormField label="Data de referencia">
+              <Input onChange={(event) => setForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={form.data_referencia} />
+            </FormField>
 
-          <label>
-            Fonte
-            <input onChange={(event) => setForm((current) => ({ ...current, fonte: event.target.value }))} value={form.fonte} />
-          </label>
+            <FormField label="Fonte">
+              <Input onChange={(event) => setForm((current) => ({ ...current, fonte: event.target.value }))} placeholder="WhatsApp, e-mail, telefone..." value={form.fonte} />
+            </FormField>
 
-          <label className="span-2">
-            Descricao
-            <textarea onChange={(event) => setForm((current) => ({ ...current, descricao: event.target.value }))} rows={5} value={form.descricao} />
-          </label>
+            <FormField className="md:col-span-2" label="Descricao">
+              <Textarea onChange={(event) => setForm((current) => ({ ...current, descricao: event.target.value }))} rows={5} value={form.descricao} />
+            </FormField>
 
-          <label className="span-2">
-            Observacoes
-            <textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
-          </label>
+            <FormField className="md:col-span-2" label="Observacoes">
+              <Textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
+            </FormField>
 
-          {error ? (
-            <p className="error-text span-2">
-              {error}{" "}
-              {conflictPreId ? <Link to={`/pre-demandas/${conflictPreId}`}>Abrir demanda existente</Link> : null}
-            </p>
-          ) : null}
+            {error ? (
+              <div className="md:col-span-2 rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+                {error} {conflictPreId ? <Link className="underline" to={`/pre-demandas/${conflictPreId}`}>Abrir demanda existente</Link> : null}
+              </div>
+            ) : null}
 
-          {result ? (
-            <p className={`notice ${result.idempotent ? "notice-warning" : "notice-success"} span-2`}>
-              {result.idempotent ? "Demanda existente localizada." : "Demanda criada com sucesso."}{" "}
-              <Link to={`/pre-demandas/${result.preId}`}>{result.preId}</Link>
-            </p>
-          ) : null}
+            {result ? (
+              <div className="md:col-span-2 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                {result.idempotent ? "Demanda existente localizada." : "Demanda criada com sucesso."}{" "}
+                <Link className="underline" to={`/pre-demandas/${result.preId}`}>
+                  {result.preId}
+                </Link>
+              </div>
+            ) : null}
 
-          <button className="button primary" disabled={isSubmitting} type="submit">
-            {isSubmitting ? "Salvando..." : "Salvar demanda"}
-          </button>
-        </form>
-      </section>
+            <div className="md:col-span-2 flex justify-end">
+              <Button disabled={isSubmitting} type="submit">
+                {isSubmitting ? "Salvando..." : "Salvar demanda"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </section>
   );
 }

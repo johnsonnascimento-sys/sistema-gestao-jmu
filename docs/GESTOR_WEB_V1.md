@@ -22,8 +22,7 @@ NODE_ENV=development
 ## Banco
 Antes de subir a aplicacao, aplique:
 
-1. `sql/adminlog_provisionamento.sql`
-2. `sql/adminlog_auth.sql`
+1. `npm run db:migrate`
 
 ## Criacao do primeiro usuario
 ```bash
@@ -47,22 +46,38 @@ npm start
 
 Em producao, a API tambem serve o frontend buildado em `dist/client`.
 
+## Smoke test
+```bash
+npm run smoke:test
+```
+
+Defina `SMOKE_TEST_EMAIL` e `SMOKE_TEST_PASSWORD` para validar login e listagem autenticada.
+
 ## Rotas da API
 - `POST /api/auth/login`
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 - `POST /api/pre-demandas`
 - `GET /api/pre-demandas`
+- `GET /api/pre-demandas/timeline/recentes`
 - `GET /api/pre-demandas/:preId`
+- `PATCH /api/pre-demandas/:preId/status`
 - `POST /api/pre-demandas/:preId/associacoes-sei`
 - `GET /api/pre-demandas/:preId/auditoria`
+- `GET /api/pre-demandas/:preId/timeline`
+- `GET /api/admin/users`
+- `GET /api/admin/users/auditoria`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/:id`
+- `POST /api/admin/users/:id/reset-password`
 
 ## Escopo atual
 - Login proprio
 - Dashboard do Gestor
 - Cadastro de pre-demanda
 - Lista com filtros e paginacao
+- Dashboard com atalhos operacionais e ultimas movimentacoes
 - Associacao e reassociacao PRE -> SEI
-- Auditoria de reassociacoes
+- Auditoria de reassociacoes, status e administracao de utilizadores
 
 RAG, indexacao juridica e telas do Appsmith permanecem fora desta entrega.

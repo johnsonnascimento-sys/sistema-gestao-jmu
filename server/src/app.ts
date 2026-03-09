@@ -6,14 +6,17 @@ import helmet from "@fastify/helmet";
 import fastify from "fastify";
 import fastifyStatic from "@fastify/static";
 import { ZodError } from "zod";
+import { getPermissionsForRole, hasPermission } from "./auth/permissions";
 import { readSession } from "./auth/session";
 import { loadConfig, type AppConfig } from "./config";
 import { createPool, type DatabasePool } from "./db";
+import type { AppPermission } from "./domain/types";
 import type { SessionUser } from "./domain/types";
 import { AppError, isAppError } from "./errors";
 import { PostgresPreDemandaRepository } from "./repositories/postgres-pre-demanda-repository";
 import { PostgresUserRepository } from "./repositories/postgres-user-repository";
 import type { PreDemandaRepository, UserRepository } from "./repositories/types";
+import { registerAdminUserRoutes } from "./routes/admin-users";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPreDemandaRoutes } from "./routes/pre-demandas";
 
@@ -49,6 +52,10 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     request.user = null;
   });
 
+  app.addHook("onSend", async (request, reply) => {
+    reply.header("x-request-id", request.id);
+  });
+
   app.decorate("authenticate", async (request) => {
     const session = readSession(request);
 
@@ -67,17 +74,41 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
       email: user.email,
       name: user.name,
       role: user.role,
+      permissions: getPermissionsForRole(user.role),
     } satisfies SessionUser;
+  });
+
+  app.decorate("authorize", (permission: AppPermission) => {
+    return async (request) => {
+      if (!request.user) {
+        throw new AppError(401, "UNAUTHENTICATED", "Sessao invalida ou expirada.");
+      }
+
+      if (!hasPermission(request.user.role, permission)) {
+        throw new AppError(403, "FORBIDDEN", "Voce nao possui permissao para esta operacao.");
+      }
+    };
   });
 
   await registerAuthRoutes(app, { userRepository, config });
   await registerPreDemandaRoutes(app, { preDemandaRepository });
+  await registerAdminUserRoutes(app, { userRepository });
 
   app.get("/api/health", async () => ({
     ok: true,
     data: { status: "up" },
     error: null,
   }));
+
+  app.get("/api/ready", async (_request, reply) => {
+    await pool.query("select 1");
+
+    return reply.send({
+      ok: true,
+      data: { status: "ready" },
+      error: null,
+    });
+  });
 
   const clientRoot = join(process.cwd(), "dist", "client");
 
