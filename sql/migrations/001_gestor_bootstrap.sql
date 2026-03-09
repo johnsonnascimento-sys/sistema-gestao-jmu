@@ -107,6 +107,9 @@ CREATE TABLE IF NOT EXISTS adminlog.pre_to_sei_link (
 );
 
 ALTER TABLE adminlog.pre_to_sei_link
+  ADD COLUMN IF NOT EXISTS sei_numero_inicial text;
+
+ALTER TABLE adminlog.pre_to_sei_link
   ADD COLUMN IF NOT EXISTS linked_by_user_id bigint REFERENCES adminlog.app_user(id) ON DELETE SET NULL;
 
 UPDATE adminlog.pre_to_sei_link
