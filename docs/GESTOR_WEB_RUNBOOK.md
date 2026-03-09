@@ -15,6 +15,17 @@
 5. Subir ou reciclar o container/processo.
 6. Executar `npm run smoke:test`.
 
+### Deploy automatizado da VPS
+Use `npm run deploy:vps` com:
+
+- `JMU_SSH_HOST`
+- `JMU_SSH_USER`
+- `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- opcionais: `JMU_REMOTE_APP_DIR`, `JMU_CONTAINER_NAME`, `JMU_CONTAINER_BIND`, `JMU_BRANCH`
+- opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`
+
+O script executa `git pull`, rebuild da imagem Docker, recriacao do container, validacao de `GET /api/health`, `GET /api/ready` e `smoke-test`, com rollback automatico para a imagem anterior se a validacao falhar.
+
 ## Rollback
 1. Repor a imagem ou commit anterior.
 2. Recriar o container com a versao anterior.

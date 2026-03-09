@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "db:create-user": "tsx server/src/scripts/create-user.ts",
     "db:migrate": "tsx server/src/scripts/migrate.ts",
-    "smoke:test": "tsx server/src/scripts/smoke-test.ts"
+    "smoke:test": "tsx server/src/scripts/smoke-test.ts",
+    "deploy:vps": "node scripts/deploy-gestor-vps.js"
   },
   "repository": {
     "type": "git",
