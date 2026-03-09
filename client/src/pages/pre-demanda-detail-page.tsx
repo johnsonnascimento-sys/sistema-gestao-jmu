@@ -13,6 +13,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { associateSei, formatAppError, getPreDemanda, getTimeline, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
+import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { PreDemanda, PreDemandaStatus, TimelineEvent } from "../types";
@@ -141,15 +142,15 @@ export function PreDemandaDetailPage() {
       <PageHeader
         actions={
           <>
-            {record.status !== "encerrada" ? (
+            {record.allowedNextStatuses.includes("encerrada") ? (
               <Button onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Encerrar demanda", requireReason: true })} type="button" variant="secondary">
                 Encerrar
               </Button>
-            ) : (
+            ) : record.status === "encerrada" && getPreferredReopenStatus(record) ? (
               <Button
                 onClick={() =>
                   setStatusAction({
-                    nextStatus: record.currentAssociation ? "associada" : "aberta",
+                    nextStatus: getPreferredReopenStatus(record)!,
                     title: "Reabrir demanda",
                     requireReason: true,
                   })
@@ -159,8 +160,8 @@ export function PreDemandaDetailPage() {
               >
                 Reabrir
               </Button>
-            )}
-            {record.status === "aberta" ? (
+            ) : null}
+            {record.allowedNextStatuses.includes("aguardando_sei") ? (
               <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} type="button" variant="ghost">
                 Marcar aguardando SEI
               </Button>
@@ -253,6 +254,12 @@ export function PreDemandaDetailPage() {
                         : "Sem pendencia activa, apenas monitorar necessidade de reabertura."}
                 </p>
               </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Proximos estados permitidos</p>
+                <p className="mt-1 text-slate-950">
+                  {record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -330,7 +337,7 @@ export function PreDemandaDetailPage() {
               motivo,
               observacoes,
             });
-            setMessage(`Demanda actualizada para ${statusAction.nextStatus.replace("_", " ")}.`);
+            setMessage(`Demanda actualizada para ${getPreDemandaStatusLabel(statusAction.nextStatus)}.`);
             await load();
           } catch (nextError) {
             throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar a demanda."));

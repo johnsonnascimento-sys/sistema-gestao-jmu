@@ -13,6 +13,7 @@ import type {
   TimelineEvent,
 } from "../domain/types";
 import type { DatabasePool } from "../db";
+import { getAllowedNextStatuses } from "../domain/pre-demanda-status";
 import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-health";
 import { AppError } from "../errors";
 import type {
@@ -100,21 +101,25 @@ function mapAssociation(row: QueryResultRow): SeiAssociation {
 }
 
 function mapPreDemanda(row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds): PreDemandaDetail {
+  const currentAssociation = row.sei_numero === null ? null : mapAssociation(row);
+  const status = row.status as PreDemandaStatus;
+
   return {
     id: Number(row.id),
     preId: String(row.pre_id),
     solicitante: String(row.solicitante),
     assunto: String(row.assunto),
     dataReferencia: new Date(row.data_referencia).toISOString().slice(0, 10),
-    status: row.status as PreDemandaStatus,
+    status,
     descricao: row.descricao ? String(row.descricao) : null,
     fonte: row.fonte ? String(row.fonte) : null,
     observacoes: row.observacoes ? String(row.observacoes) : null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     createdBy: mapActor(row, "created_by"),
-    queueHealth: buildQueueHealth(row.status as PreDemandaStatus, row.updated_at, row.data_referencia, queueHealthThresholds),
-    currentAssociation: row.sei_numero === null ? null : mapAssociation(row),
+    queueHealth: buildQueueHealth(status, row.updated_at, row.data_referencia, queueHealthThresholds),
+    allowedNextStatuses: getAllowedNextStatuses({ currentStatus: status, hasAssociation: currentAssociation !== null }),
+    currentAssociation,
   };
 }
 
@@ -251,16 +256,14 @@ function ensureStatusTransition(
   hasAssociation: boolean,
   motivo: string | null | undefined,
 ) {
+  const allowedNextStatuses = getAllowedNextStatuses({ currentStatus, hasAssociation });
+
   if (currentStatus === nextStatus) {
     throw new AppError(409, "PRE_DEMANDA_STATUS_UNCHANGED", "A demanda ja se encontra nesse status.");
   }
 
-  if (nextStatus === "associada" && !hasAssociation) {
-    throw new AppError(409, "PRE_DEMANDA_STATUS_INVALID", "Nao e possivel marcar como associada sem um numero SEI vinculado.");
-  }
-
-  if (currentStatus === "associada" && nextStatus !== "encerrada") {
-    throw new AppError(409, "PRE_DEMANDA_STATUS_INVALID", "Demandas associadas so podem ser encerradas.");
+  if (!allowedNextStatuses.includes(nextStatus)) {
+    throw new AppError(409, "PRE_DEMANDA_STATUS_INVALID", "A transicao de status nao e permitida para a situacao actual da demanda.");
   }
 
   if ((nextStatus === "encerrada" || currentStatus === "encerrada") && !motivo) {

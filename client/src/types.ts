@@ -104,6 +104,7 @@ export interface PreDemanda {
   createdBy: AuditActor | null;
   currentAssociation: SeiAssociation | null;
   queueHealth: QueueHealth;
+  allowedNextStatuses: PreDemandaStatus[];
 }
 
 export interface PreDemandaAuditRecord {

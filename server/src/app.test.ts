@@ -8,6 +8,7 @@ import { hashPassword } from "./auth/password";
 import type { AppConfig } from "./config";
 import type { DatabasePool } from "./db";
 import { buildQueueHealth, type QueueHealthThresholds } from "./domain/queue-health";
+import { getAllowedNextStatuses } from "./domain/pre-demanda-status";
 import type {
   AdminOpsSummary,
   AdminUserAuditRecord,
@@ -258,6 +259,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       createdBy: null,
       currentAssociation: null,
       queueHealth: buildQueueHealth("aberta", new Date().toISOString(), input.dataReferencia, this.queueHealthThresholds),
+      allowedNextStatuses: getAllowedNextStatuses({ currentStatus: "aberta", hasAssociation: false }),
     };
 
     this.nextId += 1;
@@ -376,6 +378,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     record.status = "associada";
     record.updatedAt = now;
     record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
+    record.allowedNextStatuses = getAllowedNextStatuses({ currentStatus: record.status, hasAssociation: true });
 
     return { association, audited };
   }
@@ -406,6 +409,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     record.status = input.status;
     record.updatedAt = now;
     record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
+    record.allowedNextStatuses = getAllowedNextStatuses({ currentStatus: record.status, hasAssociation: record.currentAssociation !== null });
 
     return { record };
   }
@@ -805,6 +809,7 @@ describe("Gestor JMU API", () => {
 
     expect(updated.statusCode).toBe(200);
     expect(updated.json().data.status).toBe("encerrada");
+    expect(updated.json().data.allowedNextStatuses).toContain("aberta");
 
     const timeline = await app.inject({
       method: "GET",
@@ -836,6 +841,15 @@ describe("Gestor JMU API", () => {
     expect(typeof dashboardSummary.json().data.agingAttentionTotal).toBe("number");
     expect(typeof dashboardSummary.json().data.agingCriticalTotal).toBe("number");
     expect(Array.isArray(dashboardSummary.json().data.staleItems)).toBe(true);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/PRE-2026-001",
+      headers: { cookie },
+    });
+
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json().data.allowedNextStatuses).toContain("aberta");
   });
 
   it("forbids operator admin access and allows admin user management", async () => {

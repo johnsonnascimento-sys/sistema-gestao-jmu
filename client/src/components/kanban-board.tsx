@@ -68,17 +68,17 @@ export function KanbanBoard({
                       <Button asChild size="sm" variant="secondary">
                         <Link to={`/pre-demandas/${item.preId}`}>Abrir detalhe</Link>
                       </Button>
-                      {onQuickAction && item.status === "aberta" ? (
+                      {onQuickAction && item.allowedNextStatuses.includes("aguardando_sei") ? (
                         <Button onClick={() => onQuickAction(item, "aguardando")} size="sm" type="button" variant="ghost">
                           Aguardar SEI
                         </Button>
                       ) : null}
-                      {onQuickAction && item.status !== "encerrada" ? (
+                      {onQuickAction && item.allowedNextStatuses.includes("encerrada") ? (
                         <Button onClick={() => onQuickAction(item, "encerrar")} size="sm" type="button" variant="ghost">
                           Encerrar
                         </Button>
                       ) : null}
-                      {onQuickAction && item.status === "encerrada" ? (
+                      {onQuickAction && item.status === "encerrada" && item.allowedNextStatuses.length > 0 ? (
                         <Button onClick={() => onQuickAction(item, "reabrir")} size="sm" type="button" variant="ghost">
                           Reabrir
                         </Button>

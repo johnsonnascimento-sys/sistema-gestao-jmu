@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { formatAppError, listPreDemandas, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
+import { getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder, StatusCount } from "../types";
 
@@ -466,9 +467,15 @@ export function PreDemandasPage() {
               return;
             }
 
+            const reopenStatus = getPreferredReopenStatus(item);
+
+            if (!reopenStatus) {
+              return;
+            }
+
             setQuickAction({
               item,
-              nextStatus: item.currentAssociation ? "associada" : "aberta",
+              nextStatus: reopenStatus,
               label: "Reabrir demanda",
               requireReason: true,
             });
@@ -520,7 +527,7 @@ export function PreDemandasPage() {
                           <Button asChild size="sm" variant="secondary">
                             <Link to={`/pre-demandas/${item.preId}`}>Detalhe</Link>
                           </Button>
-                          {item.status === "aberta" ? (
+                          {item.allowedNextStatuses.includes("aguardando_sei") ? (
                             <Button
                               onClick={() => setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false })}
                               size="sm"
@@ -530,16 +537,16 @@ export function PreDemandasPage() {
                               Aguardar SEI
                             </Button>
                           ) : null}
-                          {item.status !== "encerrada" ? (
+                          {item.allowedNextStatuses.includes("encerrada") ? (
                             <Button onClick={() => setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar demanda", requireReason: true })} size="sm" type="button" variant="ghost">
                               Encerrar
                             </Button>
-                          ) : (
+                          ) : item.status === "encerrada" && getPreferredReopenStatus(item) ? (
                             <Button
                               onClick={() =>
                                 setQuickAction({
                                   item,
-                                  nextStatus: item.currentAssociation ? "associada" : "aberta",
+                                  nextStatus: getPreferredReopenStatus(item)!,
                                   label: "Reabrir demanda",
                                   requireReason: true,
                                 })
@@ -550,7 +557,7 @@ export function PreDemandasPage() {
                             >
                               Reabrir
                             </Button>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -602,7 +609,7 @@ export function PreDemandasPage() {
               motivo,
               observacoes,
             });
-            setMessage(`Demanda ${quickAction.item.preId} actualizada para ${quickAction.nextStatus.replace("_", " ")}.`);
+            setMessage(`Demanda ${quickAction.item.preId} actualizada para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
             await load();
           } catch (nextError) {
             throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar a demanda."));
