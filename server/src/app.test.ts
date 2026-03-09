@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "./app";
 import { hashPassword } from "./auth/password";
 import type { AppConfig } from "./config";
+import type { DatabasePool } from "./db";
 import type {
   AdminUserAuditRecord,
   AdminUserSummary,
@@ -489,6 +490,10 @@ describe("Gestor JMU API", () => {
 
   const userRepository = new InMemoryUserRepository();
   const preDemandaRepository = new InMemoryPreDemandaRepository();
+  const pool = {
+    query: async () => ({ rows: [{ "?column?": 1 }] }),
+    end: async () => undefined,
+  } as unknown as DatabasePool;
   let app: Awaited<ReturnType<typeof buildApp>>;
 
   beforeAll(async () => {
@@ -509,6 +514,7 @@ describe("Gestor JMU API", () => {
 
     app = await buildApp({
       config,
+      pool,
       userRepository,
       preDemandaRepository,
     });
@@ -525,6 +531,29 @@ describe("Gestor JMU API", () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+
+  it("exposes runtime metadata on health and ready endpoints", async () => {
+    const health = await app.inject({
+      method: "GET",
+      url: "/api/health",
+    });
+
+    expect(health.statusCode).toBe(200);
+    expect(health.headers["x-request-id"]).toBeTruthy();
+    expect(health.json().data.status).toBe("up");
+    expect(typeof health.json().data.version).toBe("string");
+    expect(typeof health.json().data.uptimeSeconds).toBe("number");
+
+    const ready = await app.inject({
+      method: "GET",
+      url: "/api/ready",
+    });
+
+    expect(ready.statusCode).toBe(200);
+    expect(ready.json().data.status).toBe("ready");
+    expect(ready.json().data.database.status).toBe("ready");
+    expect(typeof ready.json().data.database.latencyMs).toBe("number");
   });
 
   it("logs in with valid credentials and rejects invalid ones", async () => {

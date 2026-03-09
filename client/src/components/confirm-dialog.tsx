@@ -3,6 +3,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { FormField } from "./form-field";
 import { Textarea } from "./ui/textarea";
+import { formatAppError } from "../lib/api";
 
 export function ConfirmDialog({
   open,
@@ -48,7 +49,7 @@ export function ConfirmDialog({
       await onConfirm({ motivo: motivo.trim(), observacoes: observacoes.trim() });
       onOpenChange(false);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Falha ao executar a acao.");
+      setError(formatAppError(nextError, "Falha ao executar a acao."));
     } finally {
       setSubmitting(false);
     }

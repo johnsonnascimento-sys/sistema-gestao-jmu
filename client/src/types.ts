@@ -133,3 +133,17 @@ export interface StatusCount {
   status: PreDemandaStatus;
   total: number;
 }
+
+export interface RuntimeStatus {
+  status: "up" | "ready";
+  environment: "development" | "test" | "production";
+  version: string;
+  commitSha: string | null;
+  startedAt: string;
+  checkedAt: string;
+  uptimeSeconds: number;
+  database?: {
+    status: "ready";
+    latencyMs: number;
+  };
+}

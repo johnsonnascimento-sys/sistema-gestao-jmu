@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { createAdminUser, listAdminUserAudit, listAdminUsers, resetAdminUserPassword, updateAdminUser } from "../lib/api";
+import { createAdminUser, formatAppError, listAdminUserAudit, listAdminUsers, resetAdminUserPassword, updateAdminUser } from "../lib/api";
 import type { AdminUserAuditRecord, AdminUserSummary, UserRole } from "../types";
 
 const selectClassName =
@@ -36,7 +36,7 @@ export function AdminUsersPage() {
       setAudit(nextAudit);
       setError("");
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Falha ao carregar utilizadores.");
+      setError(formatAppError(nextError, "Falha ao carregar utilizadores."));
     } finally {
       setLoading(false);
     }
@@ -122,7 +122,7 @@ export function AdminUsersPage() {
                   setMessage("Utilizador criado com sucesso.");
                   await load();
                 } catch (nextError) {
-                  setError(nextError instanceof Error ? nextError.message : "Falha ao criar utilizador.");
+                  setError(formatAppError(nextError, "Falha ao criar utilizador."));
                 }
               }}
               type="button"
@@ -155,7 +155,7 @@ export function AdminUsersPage() {
                         setMessage(`Papel de ${user.name} atualizado.`);
                         await load();
                       } catch (nextError) {
-                        setError(nextError instanceof Error ? nextError.message : "Falha ao atualizar papel.");
+                        setError(formatAppError(nextError, "Falha ao atualizar papel."));
                       }
                     }}
                   >
@@ -170,7 +170,7 @@ export function AdminUsersPage() {
                         setMessage(`${user.name} ${user.active ? "desativado" : "ativado"} com sucesso.`);
                         await load();
                       } catch (nextError) {
-                        setError(nextError instanceof Error ? nextError.message : "Falha ao atualizar utilizador.");
+                        setError(formatAppError(nextError, "Falha ao atualizar utilizador."));
                       }
                     }}
                     type="button"
@@ -247,7 +247,7 @@ export function AdminUsersPage() {
                   setNewPassword("");
                   setResetTarget(null);
                 } catch (nextError) {
-                  setError(nextError instanceof Error ? nextError.message : "Falha ao redefinir senha.");
+                  setError(formatAppError(nextError, "Falha ao redefinir senha."));
                 }
               }}
               type="button"

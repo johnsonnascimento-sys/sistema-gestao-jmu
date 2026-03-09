@@ -12,7 +12,10 @@ FROM node:24-alpine AS runner
 
 WORKDIR /app
 
+ARG APP_COMMIT_SHA=""
+
 ENV NODE_ENV=production
+ENV APP_COMMIT_SHA=$APP_COMMIT_SHA
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev

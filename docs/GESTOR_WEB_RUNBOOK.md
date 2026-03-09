@@ -24,12 +24,29 @@ Use `npm run deploy:vps` com:
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_CONTAINER_NAME`, `JMU_CONTAINER_BIND`, `JMU_BRANCH`
 - opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`
 
-O script executa `git pull`, rebuild da imagem Docker, recriacao do container, validacao de `GET /api/health`, `GET /api/ready` e `smoke-test`, com rollback automatico para a imagem anterior se a validacao falhar.
+O script executa `git pull`, rebuild da imagem Docker, recriacao do container, validacao de `GET /api/health`, `GET /api/ready` e `smoke-test`, com rollback automatico para a imagem anterior se a validacao falhar. Cada release passa a ser tagueada como `gestor-jmu-web:commit-<sha>`, o que permite rollback explicito sem rebuild.
+
+### Inspecao rapida da VPS
+Use `npm run status:vps` com:
+
+- `JMU_SSH_HOST`
+- `JMU_SSH_USER`
+- `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- opcionais: `JMU_REMOTE_APP_DIR`, `JMU_CONTAINER_NAME`, `JMU_HEALTH_URL`, `JMU_READY_URL`
+
+O comando mostra branch, commit actual, estado do checkout remoto, container activo, health/readiness e as ultimas tags de imagem disponiveis para rollback.
 
 ## Rollback
-1. Repor a imagem ou commit anterior.
-2. Recriar o container com a versao anterior.
-3. Validar `GET /api/health` e `npm run smoke:test`.
+Use `npm run rollback:vps` com:
+
+- `JMU_SSH_HOST`
+- `JMU_SSH_USER`
+- `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- `JMU_ROLLBACK_COMMIT=<sha>` para usar a imagem `gestor-jmu-web:commit-<sha>`
+- ou `JMU_ROLLBACK_IMAGE=<imagem>` para apontar uma tag/imagem especifica
+- opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`
+
+O rollback recria o container com a imagem alvo, valida `GET /api/health`, `GET /api/ready` e `smoke-test`, e restaura a imagem que estava em execucao se a reversao falhar.
 
 ## Rotacao de segredos
 - Rotacionar `DATABASE_URL` no Supabase e atualizar o `.env`.

@@ -19,6 +19,7 @@ import type { PreDemandaRepository, UserRepository } from "./repositories/types"
 import { registerAdminUserRoutes } from "./routes/admin-users";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPreDemandaRoutes } from "./routes/pre-demandas";
+import { createRuntimeStatus } from "./runtime";
 
 export interface AppDependencies {
   config: AppConfig;
@@ -96,16 +97,23 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
 
   app.get("/api/health", async () => ({
     ok: true,
-    data: { status: "up" },
+    data: createRuntimeStatus(config, "up"),
     error: null,
   }));
 
   app.get("/api/ready", async (_request, reply) => {
+    const startedAt = process.hrtime.bigint();
     await pool.query("select 1");
+    const latencyMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
 
     return reply.send({
       ok: true,
-      data: { status: "ready" },
+      data: createRuntimeStatus(config, "ready", {
+        database: {
+          status: "ready",
+          latencyMs: Number(latencyMs.toFixed(2)),
+        },
+      }),
       error: null,
     });
   });

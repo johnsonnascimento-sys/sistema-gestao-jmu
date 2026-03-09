@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { ApiError, createPreDemanda } from "../lib/api";
+import { ApiError, appendRequestReference, createPreDemanda, formatAppError } from "../lib/api";
 
 function getConflictPreId(details: unknown) {
   if (!details || typeof details !== "object") {
@@ -47,9 +47,9 @@ export function NewPreDemandaPage() {
     } catch (nextError) {
       if (nextError instanceof ApiError && nextError.status === 409) {
         setConflictPreId(getConflictPreId(nextError.details));
-        setError("Ja existe uma demanda registada com estes dados.");
+        setError(appendRequestReference("Ja existe uma demanda registada com estes dados.", nextError.requestId));
       } else {
-        setError(nextError instanceof ApiError ? nextError.message : "Falha ao criar demanda.");
+        setError(formatAppError(nextError, "Falha ao criar demanda."));
       }
     } finally {
       setIsSubmitting(false);

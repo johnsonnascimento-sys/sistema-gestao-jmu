@@ -5,7 +5,7 @@ import { FormField } from "../components/form-field";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { ApiError } from "../lib/api";
+import { formatAppError } from "../lib/api";
 
 export function LoginPage() {
   const { status, login } = useAuth();
@@ -30,7 +30,7 @@ export function LoginPage() {
       const redirectTo = (location.state as { from?: string } | null)?.from ?? "/dashboard";
       navigate(redirectTo, { replace: true });
     } catch (nextError) {
-      setError(nextError instanceof ApiError ? nextError.message : "Falha ao entrar.");
+      setError(formatAppError(nextError, "Falha ao entrar."));
     } finally {
       setIsSubmitting(false);
     }

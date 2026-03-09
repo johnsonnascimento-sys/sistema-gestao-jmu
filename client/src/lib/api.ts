@@ -7,6 +7,7 @@ import type {
   PreDemandaDashboardSummary,
   PreDemandaSortBy,
   PreDemandaStatus,
+  RuntimeStatus,
   SortOrder,
   StatusCount,
   TimelineEvent,
@@ -26,12 +27,14 @@ export class ApiError extends Error {
   readonly code: string;
   readonly details?: unknown;
   readonly status: number;
+  readonly requestId?: string;
 
-  constructor(status: number, code: string, message: string, details?: unknown) {
+  constructor(status: number, code: string, message: string, details?: unknown, requestId?: string) {
     super(message);
     this.status = status;
     this.code = code;
     this.details = details;
+    this.requestId = requestId;
   }
 }
 
@@ -45,18 +48,39 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
     ...init,
   });
 
-  const body = (await response.json()) as ApiEnvelope<T>;
+  const requestId = response.headers.get("x-request-id") ?? undefined;
+  const contentType = response.headers.get("content-type") ?? "";
+  const body = contentType.includes("application/json") ? ((await response.json()) as ApiEnvelope<T>) : null;
 
-  if (!response.ok || !body.ok) {
-    throw new ApiError(
-      response.status,
-      body.error?.code ?? "REQUEST_FAILED",
-      body.error?.message ?? "Falha na requisicao.",
-      body.error?.details,
-    );
+  if (!response.ok) {
+    throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "Falha na requisicao.", body?.error?.details, requestId);
+  }
+
+  if (!body?.ok) {
+    throw new ApiError(response.status, body?.error?.code ?? "INVALID_RESPONSE", body?.error?.message ?? "Resposta invalida do servidor.", body?.error?.details, requestId);
   }
 
   return body.data;
+}
+
+export function appendRequestReference(message: string, requestId?: string | null) {
+  if (!requestId) {
+    return message;
+  }
+
+  return `${message} Referencia: ${requestId}.`;
+}
+
+export function formatAppError(error: unknown, fallback: string) {
+  if (error instanceof ApiError) {
+    return appendRequestReference(error.message || fallback, error.requestId);
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 export function login(email: string, password: string) {
@@ -74,6 +98,10 @@ export function logout() {
 
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
+}
+
+export function getRuntimeHealth() {
+  return request<RuntimeStatus>("/api/health");
 }
 
 export interface ListPreDemandasParams {

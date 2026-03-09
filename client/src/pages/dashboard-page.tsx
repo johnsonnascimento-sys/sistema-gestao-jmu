@@ -6,7 +6,7 @@ import { ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { getDashboardSummary } from "../lib/api";
+import { formatAppError, getDashboardSummary } from "../lib/api";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
 
 export function DashboardPage() {
@@ -34,7 +34,7 @@ export function DashboardPage() {
       try {
         setSummary(await getDashboardSummary());
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : "Falha ao carregar dashboard.");
+        setError(formatAppError(nextError, "Falha ao carregar dashboard."));
       } finally {
         setLoading(false);
       }

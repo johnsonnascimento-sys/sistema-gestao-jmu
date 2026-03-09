@@ -6,6 +6,8 @@ const envSchema = z.object({
   SESSION_SECRET: z.string().min(16),
   CLIENT_ORIGIN: z.string().url().default("http://localhost:5173"),
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
+  APP_VERSION: z.string().trim().min(1).optional(),
+  APP_COMMIT_SHA: z.string().trim().min(1).optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -20,6 +22,8 @@ export function loadConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): AppConfi
     SESSION_SECRET: overrides.SESSION_SECRET ?? process.env.SESSION_SECRET,
     CLIENT_ORIGIN: overrides.CLIENT_ORIGIN ?? process.env.CLIENT_ORIGIN,
     APP_BASE_URL: overrides.APP_BASE_URL ?? process.env.APP_BASE_URL,
+    APP_VERSION: overrides.APP_VERSION ?? process.env.APP_VERSION,
+    APP_COMMIT_SHA: overrides.APP_COMMIT_SHA ?? process.env.APP_COMMIT_SHA,
     NODE_ENV: overrides.NODE_ENV ?? process.env.NODE_ENV,
   });
 

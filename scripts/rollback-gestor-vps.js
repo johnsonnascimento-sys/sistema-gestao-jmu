@@ -38,41 +38,33 @@ function buildRemoteScript(options) {
     "",
     `CONTAINER_NAME=${bashSingleQuote(options.containerName)}`,
     `PORT_BIND=${bashSingleQuote(options.portBind)}`,
-    `BRANCH=${bashSingleQuote(options.branch)}`,
     `HEALTH_URL=${bashSingleQuote(options.healthUrl)}`,
     `READY_URL=${bashSingleQuote(options.readyUrl)}`,
+    `ROLLBACK_IMAGE=${bashSingleQuote(options.rollbackImage)}`,
+    `ROLLBACK_COMMIT=${bashSingleQuote(options.rollbackCommit)}`,
     `SMOKE_PREFIX=${bashSingleQuote(smokePrefix)}`,
     "",
-    'OLD_IMAGE="$(docker inspect "$CONTAINER_NAME" --format \'{{.Image}}\')"',
-    'CURRENT_COMMIT="$(git rev-parse HEAD)"',
-    'CURRENT_COMMIT_IMAGE="$CONTAINER_NAME:commit-$CURRENT_COMMIT"',
-    'echo "current_commit=${CURRENT_COMMIT}"',
-    'echo "old_image=${OLD_IMAGE}"',
+    'CURRENT_IMAGE="$(docker inspect "$CONTAINER_NAME" --format \'{{.Image}}\' 2>/dev/null || true)"',
+    'TARGET_IMAGE="$ROLLBACK_IMAGE"',
+    'if [ -z "$TARGET_IMAGE" ] && [ -n "$ROLLBACK_COMMIT" ]; then TARGET_IMAGE="$CONTAINER_NAME:commit-$ROLLBACK_COMMIT"; fi',
+    'if [ -z "$TARGET_IMAGE" ]; then echo "Informe ROLLBACK_IMAGE ou ROLLBACK_COMMIT." >&2; exit 1; fi',
+    'docker image inspect "$TARGET_IMAGE" >/dev/null',
+    'echo "rollback_target=${TARGET_IMAGE}"',
+    'echo "current_image=${CURRENT_IMAGE}"',
     "",
-    'git fetch origin "$BRANCH"',
-    'git checkout "$BRANCH"',
-    'git pull --ff-only origin "$BRANCH"',
-    'NEW_COMMIT="$(git rev-parse HEAD)"',
-    'COMMIT_IMAGE="$CONTAINER_NAME:commit-$NEW_COMMIT"',
-    'echo "new_commit=${NEW_COMMIT}"',
-    'echo "commit_image=${COMMIT_IMAGE}"',
-    "",
-    'docker tag "$OLD_IMAGE" "$CURRENT_COMMIT_IMAGE" >/dev/null 2>&1 || true',
-    'docker build --build-arg APP_COMMIT_SHA="$NEW_COMMIT" -t "$CONTAINER_NAME:latest" -t "$COMMIT_IMAGE" .',
-    "",
-    "deploy_failed=1",
+    "rollback_failed=1",
     "cleanup_on_failure() {",
-    '  if [ "$deploy_failed" -eq 1 ]; then',
-    '    echo "deploy_failed=1"',
+    '  if [ "$rollback_failed" -eq 1 ] && [ -n "$CURRENT_IMAGE" ]; then',
+    '    echo "rollback_failed=1"',
     '    docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true',
-    '    docker run -d --name "$CONTAINER_NAME" --restart unless-stopped --env-file .env -p "$PORT_BIND" "$OLD_IMAGE" >/dev/null',
-    '    echo "rollback_completed=1"',
+    '    docker run -d --name "$CONTAINER_NAME" --restart unless-stopped --env-file .env -p "$PORT_BIND" "$CURRENT_IMAGE" >/dev/null',
+    '    echo "restore_completed=1"',
     "  fi",
     "}",
     "trap cleanup_on_failure EXIT",
     "",
     'docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true',
-    'docker run -d --name "$CONTAINER_NAME" --restart unless-stopped --env-file .env -p "$PORT_BIND" "$CONTAINER_NAME:latest" >/dev/null',
+    'docker run -d --name "$CONTAINER_NAME" --restart unless-stopped --env-file .env -p "$PORT_BIND" "$TARGET_IMAGE" >/dev/null',
     "",
     "sleep 15",
     'curl -fsS "$HEALTH_URL" >/tmp/gestor-health.json',
@@ -82,7 +74,7 @@ function buildRemoteScript(options) {
     "",
     'echo "health=$(cat /tmp/gestor-health.json)"',
     'echo "ready=$(cat /tmp/gestor-ready.json)"',
-    "deploy_failed=0",
+    "rollback_failed=0",
   ].join("\n");
 }
 
@@ -92,6 +84,12 @@ async function run() {
   const port = Number(process.env.JMU_SSH_PORT || "22");
   const password = process.env.JMU_SSH_PASSWORD;
   const keyPath = process.env.JMU_SSH_KEY_PATH;
+  const rollbackCommit = process.env.JMU_ROLLBACK_COMMIT || "";
+  const rollbackImage = process.env.JMU_ROLLBACK_IMAGE || "";
+
+  if (!rollbackCommit && !rollbackImage) {
+    throw new Error("Informe JMU_ROLLBACK_COMMIT ou JMU_ROLLBACK_IMAGE.");
+  }
 
   if (!password && !keyPath && !process.env.SSH_AUTH_SOCK) {
     throw new Error("Informe JMU_SSH_PASSWORD, JMU_SSH_KEY_PATH ou SSH_AUTH_SOCK.");
@@ -101,11 +99,12 @@ async function run() {
     remoteDir: process.env.JMU_REMOTE_APP_DIR || "/home/johnsontn-app/apps/gestor-web",
     containerName: process.env.JMU_CONTAINER_NAME || "gestor-jmu-web",
     portBind: process.env.JMU_CONTAINER_BIND || "127.0.0.1:3000:3000",
-    branch: process.env.JMU_BRANCH || "main",
     healthUrl: process.env.JMU_HEALTH_URL || "http://127.0.0.1:3000/api/health",
     readyUrl: process.env.JMU_READY_URL || "http://127.0.0.1:3000/api/ready",
     smokeEmail: process.env.JMU_SMOKE_TEST_EMAIL || "",
     smokePassword: process.env.JMU_SMOKE_TEST_PASSWORD || "",
+    rollbackCommit,
+    rollbackImage,
   };
 
   const remoteScript = buildRemoteScript(options);
@@ -131,7 +130,7 @@ async function run() {
               return;
             }
 
-            reject(new Error(`Deploy remoto falhou com codigo ${code}.`));
+            reject(new Error(`Rollback remoto falhou com codigo ${code}.`));
           });
         });
       })

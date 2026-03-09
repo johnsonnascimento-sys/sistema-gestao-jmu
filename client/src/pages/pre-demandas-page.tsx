@@ -11,7 +11,7 @@ import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { listPreDemandas, updatePreDemandaStatus } from "../lib/api";
+import { formatAppError, listPreDemandas, updatePreDemandaStatus } from "../lib/api";
 import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, SortOrder, StatusCount } from "../types";
 
 const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
@@ -195,7 +195,7 @@ export function PreDemandasPage() {
       setTotal(response.total);
       setError("");
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Falha ao carregar pre-demandas.");
+      setError(formatAppError(nextError, "Falha ao carregar pre-demandas."));
     } finally {
       setLoading(false);
     }

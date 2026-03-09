@@ -10,7 +10,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { associateSei, getPreDemanda, getTimeline, updatePreDemandaStatus, ApiError } from "../lib/api";
+import { associateSei, formatAppError, getPreDemanda, getTimeline, updatePreDemandaStatus } from "../lib/api";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { PreDemanda, PreDemandaStatus, TimelineEvent } from "../types";
 
@@ -48,7 +48,7 @@ export function PreDemandaDetailPage() {
       }));
       setError("");
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Falha ao carregar demanda.");
+      setError(formatAppError(nextError, "Falha ao carregar demanda."));
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export function PreDemandaDetailPage() {
       setMessage(response.audited ? "SEI reassociado com auditoria registada." : "SEI associado com sucesso.");
       await load();
     } catch (nextError) {
-      setError(nextError instanceof ApiError ? nextError.message : "Falha ao associar SEI.");
+      setError(formatAppError(nextError, "Falha ao associar SEI."));
     }
   }
 
