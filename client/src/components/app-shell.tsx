@@ -115,10 +115,10 @@ export function AppShell() {
               <p className="font-bold uppercase tracking-[0.22em] text-amber-200">Runtime</p>
               <p className="mt-2 text-sm font-semibold text-white">
                 v{runtime.version}
-                {runtime.commitSha ? ` · ${runtime.commitSha.slice(0, 7)}` : ""}
+                {runtime.commitSha ? ` - ${runtime.commitSha.slice(0, 7)}` : ""}
               </p>
               <p className="mt-1">
-                {runtime.environment} · no ar ha {formatUptime(runtime.uptimeSeconds)}
+                {runtime.environment} - no ar ha {formatUptime(runtime.uptimeSeconds)}
               </p>
             </div>
           ) : null}

@@ -6,12 +6,13 @@ import { FormField } from "../components/form-field";
 import { KanbanBoard } from "../components/kanban-board";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
-import { ErrorState, LoadingState } from "../components/states";
+import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { formatAppError, listPreDemandas, updatePreDemandaStatus } from "../lib/api";
+import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, SortOrder, StatusCount } from "../types";
 
 const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
@@ -269,6 +270,9 @@ export function PreDemandasPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const metrics = useMemo(() => counts, [counts]);
+  const hiddenClosedCount = useMemo(() => (resolvedState.view === "kanban" ? items.filter((item) => item.status === "encerrada").length : 0), [items, resolvedState.view]);
+  const firstVisibleItem = total === 0 ? 0 : (resolvedState.page - 1) * pageSize + 1;
+  const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
   if (loading) {
     return <LoadingState description="A preparar o quadro operativo e os filtros da fila." title="Carregando pre-demandas" />;
@@ -391,6 +395,17 @@ export function PreDemandasPage() {
         </FilterBar>
       </form>
 
+      {hiddenClosedCount > 0 ? (
+        <div className="flex flex-col items-start justify-between gap-3 rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 md:flex-row md:items-center">
+          <p>
+            {hiddenClosedCount} demanda{hiddenClosedCount > 1 ? "s" : ""} encerrada{hiddenClosedCount > 1 ? "s" : ""} corresponde{hiddenClosedCount > 1 ? "m" : ""} aos filtros, mas aparece{hiddenClosedCount > 1 ? "m" : ""} apenas na tabela analitica.
+          </p>
+          <Button onClick={() => updateView("table")} type="button" variant="secondary">
+            Ver na tabela
+          </Button>
+        </div>
+      ) : null}
+
       {resolvedState.view === "kanban" ? (
         <KanbanBoard
           items={items}
@@ -419,70 +434,84 @@ export function PreDemandasPage() {
             <CardTitle>Tabela analitica</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="text-slate-500">
-                <tr>
-                  <th className="px-3 py-3">PRE</th>
-                  <th className="px-3 py-3">Solicitante</th>
-                  <th className="px-3 py-3">Assunto</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">SEI</th>
-                  <th className="px-3 py-3">Data</th>
-                  <th className="px-3 py-3">Acoes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr className="border-t border-slate-200" key={item.preId}>
-                    <td className="px-3 py-4 font-semibold text-slate-950">
-                      <Link to={`/pre-demandas/${item.preId}`}>{item.preId}</Link>
-                    </td>
-                    <td className="px-3 py-4">{item.solicitante}</td>
-                    <td className="px-3 py-4">{item.assunto}</td>
-                    <td className="px-3 py-4">
-                      <StatusPill status={item.status} />
-                    </td>
-                    <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
-                    <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
-                    <td className="px-3 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="secondary">
-                          <Link to={`/pre-demandas/${item.preId}`}>Detalhe</Link>
-                        </Button>
-                        {item.status !== "encerrada" ? (
-                          <Button onClick={() => setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar demanda", requireReason: true })} size="sm" type="button" variant="ghost">
-                            Encerrar
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() =>
-                              setQuickAction({
-                                item,
-                                nextStatus: item.currentAssociation ? "associada" : "aberta",
-                                label: "Reabrir demanda",
-                                requireReason: true,
-                              })
-                            }
-                            size="sm"
-                            type="button"
-                            variant="ghost"
-                          >
-                            Reabrir
-                          </Button>
-                        )}
-                      </div>
-                    </td>
+            {items.length === 0 ? (
+              <EmptyState description="Ajuste os filtros ou mude para outro preset para encontrar demandas nesta fila." title="Nenhuma demanda encontrada" />
+            ) : (
+              <table className="min-w-full text-left text-sm">
+                <thead className="text-slate-500">
+                  <tr>
+                    <th className="px-3 py-3">PRE</th>
+                    <th className="px-3 py-3">Solicitante</th>
+                    <th className="px-3 py-3">Assunto</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">SEI</th>
+                    <th className="px-3 py-3">Data</th>
+                    <th className="px-3 py-3">Acoes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr className="border-t border-slate-200" key={item.preId}>
+                      <td className="px-3 py-4 font-semibold text-slate-950">
+                        <Link to={`/pre-demandas/${item.preId}`}>{item.preId}</Link>
+                      </td>
+                      <td className="px-3 py-4">{item.solicitante}</td>
+                      <td className="px-3 py-4">{item.assunto}</td>
+                      <td className="px-3 py-4">
+                        <StatusPill status={item.status} />
+                      </td>
+                      <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
+                      <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
+                      <td className="px-3 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild size="sm" variant="secondary">
+                            <Link to={`/pre-demandas/${item.preId}`}>Detalhe</Link>
+                          </Button>
+                          {item.status === "aberta" ? (
+                            <Button
+                              onClick={() => setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false })}
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              Aguardar SEI
+                            </Button>
+                          ) : null}
+                          {item.status !== "encerrada" ? (
+                            <Button onClick={() => setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar demanda", requireReason: true })} size="sm" type="button" variant="ghost">
+                              Encerrar
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() =>
+                                setQuickAction({
+                                  item,
+                                  nextStatus: item.currentAssociation ? "associada" : "aberta",
+                                  label: "Reabrir demanda",
+                                  requireReason: true,
+                                })
+                              }
+                              size="sm"
+                              type="button"
+                              variant="ghost"
+                            >
+                              Reabrir
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
       )}
 
       <div className="flex flex-col items-center justify-between gap-3 rounded-[24px] border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600 sm:flex-row">
         <span>
-          Pagina {resolvedState.page} de {totalPages}
+          Pagina {resolvedState.page} de {totalPages} - {firstVisibleItem} a {lastVisibleItem} de {total}
         </span>
         <div className="flex gap-2">
           <Button
@@ -512,13 +541,19 @@ export function PreDemandasPage() {
             return;
           }
 
-          await updatePreDemandaStatus(quickAction.item.preId, {
-            status: quickAction.nextStatus,
-            motivo,
-            observacoes,
-          });
-          setMessage(`Demanda ${quickAction.item.preId} actualizada para ${quickAction.nextStatus.replace("_", " ")}.`);
-          await load();
+          try {
+            setError("");
+            setMessage("");
+            await updatePreDemandaStatus(quickAction.item.preId, {
+              status: quickAction.nextStatus,
+              motivo,
+              observacoes,
+            });
+            setMessage(`Demanda ${quickAction.item.preId} actualizada para ${quickAction.nextStatus.replace("_", " ")}.`);
+            await load();
+          } catch (nextError) {
+            throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar a demanda."));
+          }
         }}
         onOpenChange={(open) => {
           if (!open) {

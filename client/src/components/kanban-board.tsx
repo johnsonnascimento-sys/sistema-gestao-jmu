@@ -60,7 +60,7 @@ export function KanbanBoard({
                       <Button asChild size="sm" variant="secondary">
                         <Link to={`/pre-demandas/${item.preId}`}>Abrir detalhe</Link>
                       </Button>
-                      {onQuickAction && item.status !== "aguardando_sei" && item.status !== "encerrada" ? (
+                      {onQuickAction && item.status === "aberta" ? (
                         <Button onClick={() => onQuickAction(item, "aguardando")} size="sm" type="button" variant="ghost">
                           Aguardar SEI
                         </Button>

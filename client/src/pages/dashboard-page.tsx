@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
-import { ErrorState, LoadingState } from "../components/states";
+import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -109,27 +109,30 @@ export function DashboardPage() {
             <CardDescription>A timeline recente do modulo pre-SEI/SEI.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
-            {summary.recentTimeline.map((event) => (
-              <Link
-                className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 transition hover:border-slate-300 hover:bg-white"
-                key={event.id}
-                to={`/pre-demandas/${event.preId}`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{event.preId}</p>
-                    <h3 className="mt-2 text-base font-semibold text-slate-950">{describeEvent(event)}</h3>
+            {summary.recentTimeline.length === 0 ? (
+              <EmptyState description="As ultimas criacoes, mudancas de status e vinculacoes SEI aparecerao aqui." title="Sem movimentacoes recentes" />
+            ) : (
+              summary.recentTimeline.map((event) => (
+                <Link
+                  className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 transition hover:border-slate-300 hover:bg-white"
+                  key={event.id}
+                  to={`/pre-demandas/${event.preId}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{event.preId}</p>
+                      <h3 className="mt-2 text-base font-semibold text-slate-950">{describeEvent(event)}</h3>
+                    </div>
+                    {event.statusNovo ? <StatusPill status={event.statusNovo} /> : null}
                   </div>
-                  {event.statusNovo ? <StatusPill status={event.statusNovo} /> : null}
-                </div>
-                <div className="grid gap-1 text-sm text-slate-500">
-                  <p>{event.actor ? `${event.actor.name} (${event.actor.email})` : "Sistema"}</p>
-                  <p>{new Date(event.occurredAt).toLocaleString("pt-BR")}</p>
-                  {event.motivo ? <p>{event.motivo}</p> : null}
-                </div>
-              </Link>
-            ))}
-            {summary.recentTimeline.length === 0 ? <p className="text-sm text-slate-500">Ainda nao ha movimentacoes registadas.</p> : null}
+                  <div className="grid gap-1 text-sm text-slate-500">
+                    <p>{event.actor ? `${event.actor.name} (${event.actor.email})` : "Sistema"}</p>
+                    <p>{new Date(event.occurredAt).toLocaleString("pt-BR")}</p>
+                    {event.motivo ? <p>{event.motivo}</p> : null}
+                  </div>
+                </Link>
+              ))
+            )}
           </CardContent>
         </Card>
 
@@ -140,8 +143,11 @@ export function DashboardPage() {
               <CardDescription>Demandas que pedem seguimento operacional imediato.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
-              {summary.awaitingSeiItems.map(renderQueueItem)}
-              {summary.awaitingSeiItems.length === 0 ? <p className="text-sm text-slate-500">Nao ha demandas aguardando SEI neste momento.</p> : null}
+              {summary.awaitingSeiItems.length === 0 ? (
+                <EmptyState description="Quando uma demanda entrar em acompanhamento ate nascer o processo, ela aparecera aqui." title="Nenhuma demanda aguardando SEI" />
+              ) : (
+                summary.awaitingSeiItems.map(renderQueueItem)
+              )}
             </CardContent>
           </Card>
 

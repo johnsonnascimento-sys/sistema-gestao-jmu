@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
-import { ErrorState, LoadingState } from "../components/states";
+import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Timeline } from "../components/timeline";
 import { Button } from "../components/ui/button";
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { associateSei, formatAppError, getPreDemanda, getTimeline, updatePreDemandaStatus } from "../lib/api";
+import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { PreDemanda, PreDemandaStatus, TimelineEvent } from "../types";
 
@@ -76,7 +77,7 @@ export function PreDemandaDetailPage() {
       setMessage(response.audited ? "SEI reassociado com auditoria registada." : "SEI associado com sucesso.");
       await load();
     } catch (nextError) {
-      setError(formatAppError(nextError, "Falha ao associar SEI."));
+      setError(formatPreDemandaMutationError(nextError, "Falha ao associar SEI."));
     }
   }
 
@@ -155,7 +156,7 @@ export function PreDemandaDetailPage() {
                 Reabrir
               </Button>
             )}
-            {record.status !== "aguardando_sei" && record.status !== "encerrada" ? (
+            {record.status === "aberta" ? (
               <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} type="button" variant="ghost">
                 Marcar aguardando SEI
               </Button>
@@ -225,7 +226,7 @@ export function PreDemandaDetailPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Ultima movimentacao</p>
                 <p className="mt-1 text-slate-950">
-                  {lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} · ${lastEvent.actor ? lastEvent.actor.name : "Sistema"}` : "Nenhum evento registado"}
+                  {lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.actor ? lastEvent.actor.name : "Sistema"}` : "Nenhum evento registado"}
                 </p>
               </div>
               <div>
@@ -248,7 +249,7 @@ export function PreDemandaDetailPage() {
               <CardTitle>Associacao PRE para SEI</CardTitle>
               <CardDescription>
                 SEI actual: {record.currentAssociation?.seiNumero ?? "nao associado"}
-                {record.currentAssociation?.linkedBy ? ` · vinculado por ${record.currentAssociation.linkedBy.name}` : ""}
+                {record.currentAssociation?.linkedBy ? ` - vinculado por ${record.currentAssociation.linkedBy.name}` : ""}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -292,7 +293,11 @@ export function PreDemandaDetailPage() {
             <CardDescription>Historico unificado de criacao, mudancas de estado e vinculacoes PRE para SEI.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Timeline events={timeline} />
+            {timeline.length === 0 ? (
+              <EmptyState description="Assim que houver criacao, mudanca de status ou vinculacao SEI, os eventos aparecerao aqui." title="Sem eventos registados" />
+            ) : (
+              <Timeline events={timeline} />
+            )}
           </CardContent>
         </Card>
       </div>
@@ -305,13 +310,19 @@ export function PreDemandaDetailPage() {
             return;
           }
 
-          await updatePreDemandaStatus(preId, {
-            status: statusAction.nextStatus,
-            motivo,
-            observacoes,
-          });
-          setMessage(`Demanda actualizada para ${statusAction.nextStatus.replace("_", " ")}.`);
-          await load();
+          try {
+            setError("");
+            setMessage("");
+            await updatePreDemandaStatus(preId, {
+              status: statusAction.nextStatus,
+              motivo,
+              observacoes,
+            });
+            setMessage(`Demanda actualizada para ${statusAction.nextStatus.replace("_", " ")}.`);
+            await load();
+          } catch (nextError) {
+            throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar a demanda."));
+          }
         }}
         onOpenChange={(open) => {
           if (!open) {

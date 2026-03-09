@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
-import { ErrorState, LoadingState } from "../components/states";
+import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { formatAppError, getAdminOpsSummary } from "../lib/api";
@@ -115,7 +115,7 @@ export function AdminOperationsPage() {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Versao</p>
               <p className="mt-1 text-slate-950">
                 v{summary.runtime.version}
-                {summary.runtime.commitSha ? ` · ${summary.runtime.commitSha}` : ""}
+                {summary.runtime.commitSha ? ` - ${summary.runtime.commitSha}` : ""}
               </p>
             </div>
             <div>
@@ -134,8 +134,8 @@ export function AdminOperationsPage() {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Banco</p>
               <p className="mt-1 text-slate-950">
                 {summary.runtime.database?.status === "ready"
-                  ? `Pronto · ${summary.runtime.database.latencyMs ?? 0} ms`
-                  : `Falha · ${summary.runtime.database?.message ?? "Sem detalhe."}`}
+                  ? `Pronto - ${summary.runtime.database.latencyMs ?? 0} ms`
+                  : `Falha - ${summary.runtime.database?.message ?? "Sem detalhe."}`}
               </p>
               {summary.runtime.database?.checkedAt ? (
                 <p className="mt-1 text-xs text-slate-500">Verificado em {new Date(summary.runtime.database.checkedAt).toLocaleString("pt-BR")}</p>
@@ -196,7 +196,7 @@ export function AdminOperationsPage() {
                 </div>
               </>
             ) : (
-              <p className="text-sm text-slate-500">Nao foi possivel inspecionar as migracoes enquanto o banco nao responde.</p>
+              <EmptyState description="O resumo de migracoes volta a aparecer assim que o banco responder normalmente." title="Migracoes indisponiveis" />
             )}
           </CardContent>
         </Card>
@@ -208,29 +208,32 @@ export function AdminOperationsPage() {
           <CardDescription>Eventos registados desde o ultimo arranque do processo.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
-          {summary.incidents.map((incident) => (
-            <article
-              className={`grid gap-2 rounded-[24px] border px-4 py-4 ${
-                incident.level === "error" ? "border-rose-200 bg-rose-50/80" : "border-amber-200 bg-amber-50/80"
-              }`}
-              key={incident.id}
-            >
-              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{incident.kind.replaceAll("_", " ")}</p>
-                  <h3 className="mt-1 text-sm font-semibold text-slate-950">{describeIncident(incident)}</h3>
+          {summary.incidents.length === 0 ? (
+            <EmptyState description="Quando houver falha de autenticacao, erro interno ou problema de prontidao, os eventos aparecerao aqui." title="Nenhum incidente desde o ultimo start" />
+          ) : (
+            summary.incidents.map((incident) => (
+              <article
+                className={`grid gap-2 rounded-[24px] border px-4 py-4 ${
+                  incident.level === "error" ? "border-rose-200 bg-rose-50/80" : "border-amber-200 bg-amber-50/80"
+                }`}
+                key={incident.id}
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{incident.kind.replaceAll("_", " ")}</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">{describeIncident(incident)}</h3>
+                  </div>
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{new Date(incident.occurredAt).toLocaleString("pt-BR")}</p>
                 </div>
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{new Date(incident.occurredAt).toLocaleString("pt-BR")}</p>
-              </div>
-              <p className="text-sm text-slate-700">{incident.message}</p>
-              <p className="text-xs text-slate-500">
-                {[incident.method, incident.path, incident.statusCode ? `HTTP ${incident.statusCode}` : null, incident.requestId ? `req ${incident.requestId}` : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </article>
-          ))}
-          {summary.incidents.length === 0 ? <p className="text-sm text-slate-500">Nenhum incidente operacional registado desde o ultimo start.</p> : null}
+                <p className="text-sm text-slate-700">{incident.message}</p>
+                <p className="text-xs text-slate-500">
+                  {[incident.method, incident.path, incident.statusCode ? `HTTP ${incident.statusCode}` : null, incident.requestId ? `req ${incident.requestId}` : null]
+                    .filter(Boolean)
+                    .join(" - ")}
+                </p>
+              </article>
+            ))
+          )}
         </CardContent>
       </Card>
     </section>
