@@ -8,6 +8,7 @@ const ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     "pre_demanda.update_status",
     "pre_demanda.associate_sei",
     "pre_demanda.read_timeline",
+    "admin.ops.read",
     "admin.user.read",
     "admin.user.create",
     "admin.user.update",

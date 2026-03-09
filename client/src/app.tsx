@@ -3,6 +3,7 @@ import { AuthProvider } from "./auth-context";
 import { AppShell } from "./components/app-shell";
 import { RequireAuth } from "./components/require-auth";
 import { RequirePermission } from "./components/require-permission";
+import { AdminOperationsPage } from "./pages/admin-operations-page";
 import { AdminUsersPage } from "./pages/admin-users-page";
 import { DashboardPage } from "./pages/dashboard-page";
 import { LoginPage } from "./pages/login-page";
@@ -32,6 +33,14 @@ export function App() {
                   </RequirePermission>
                 }
                 path="/admin/users"
+              />
+              <Route
+                element={
+                  <RequirePermission permission="admin.ops.read">
+                    <AdminOperationsPage />
+                  </RequirePermission>
+                }
+                path="/admin/operacoes"
               />
             </Route>
           </Route>

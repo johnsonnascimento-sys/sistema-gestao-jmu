@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen } from "lucide-react";
+import { Activity, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth-context";
@@ -93,6 +93,12 @@ export function AppShell() {
               <NavLink className={navLinkClassName} to="/admin/users">
                 <ShieldCheck className="h-4 w-4" />
                 Usuarios
+              </NavLink>
+            ) : null}
+            {hasPermission("admin.ops.read") ? (
+              <NavLink className={navLinkClassName} to="/admin/operacoes">
+                <Activity className="h-4 w-4" />
+                Operacoes
               </NavLink>
             ) : null}
           </nav>

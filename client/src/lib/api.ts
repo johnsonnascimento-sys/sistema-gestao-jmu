@@ -1,4 +1,5 @@
 import type {
+  AdminOpsSummary,
   AdminUserAuditRecord,
   AdminUserSummary,
   AuthUser,
@@ -102,6 +103,10 @@ export function getCurrentUser() {
 
 export function getRuntimeHealth() {
   return request<RuntimeStatus>("/api/health");
+}
+
+export function getAdminOpsSummary(limit = 12) {
+  return request<AdminOpsSummary>(`/api/admin/ops/resumo?limit=${limit}`);
 }
 
 export interface ListPreDemandasParams {

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AppConfig } from "./config";
+import type { RuntimeStatus } from "./domain/types";
 
 const processStartedAt = new Date();
 let cachedPackageVersion: string | null = null;
@@ -27,25 +28,11 @@ function getPackageVersion() {
   return cachedPackageVersion;
 }
 
-export interface RuntimeStatusPayload {
-  status: "up" | "ready";
-  environment: AppConfig["NODE_ENV"];
-  version: string;
-  commitSha: string | null;
-  startedAt: string;
-  checkedAt: string;
-  uptimeSeconds: number;
-  database?: {
-    status: "ready";
-    latencyMs: number;
-  };
-}
-
 export function createRuntimeStatus(
   config: AppConfig,
-  status: RuntimeStatusPayload["status"],
-  extra?: Pick<RuntimeStatusPayload, "database">,
-): RuntimeStatusPayload {
+  status: RuntimeStatus["status"],
+  extra?: Pick<RuntimeStatus, "database">,
+): RuntimeStatus {
   const checkedAt = new Date();
 
   return {

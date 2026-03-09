@@ -5,6 +5,7 @@ import { hashPassword } from "./auth/password";
 import type { AppConfig } from "./config";
 import type { DatabasePool } from "./db";
 import type {
+  AdminOpsSummary,
   AdminUserAuditRecord,
   AdminUserSummary,
   AppUser,
@@ -754,6 +755,14 @@ describe("Gestor JMU API", () => {
 
     expect(forbidden.statusCode).toBe(403);
 
+    const forbiddenOps = await app.inject({
+      method: "GET",
+      url: "/api/admin/ops/resumo",
+      headers: { cookie: operatorCookie },
+    });
+
+    expect(forbiddenOps.statusCode).toBe(403);
+
     const adminLogin = await app.inject({
       method: "POST",
       url: "/api/auth/login",
@@ -824,5 +833,16 @@ describe("Gestor JMU API", () => {
     expect(audit.json().data.some((item: AdminUserAuditRecord) => item.action === "user_role_changed")).toBe(true);
     expect(audit.json().data.some((item: AdminUserAuditRecord) => item.action === "user_deactivated")).toBe(true);
     expect(audit.json().data.some((item: AdminUserAuditRecord) => item.action === "user_password_reset")).toBe(true);
+
+    const ops = await app.inject({
+      method: "GET",
+      url: "/api/admin/ops/resumo?limit=5",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(ops.statusCode).toBe(200);
+    expect(ops.json().data.runtime.database.status).toBe("ready");
+    expect(typeof (ops.json().data as AdminOpsSummary).counters.requestsTotal).toBe("number");
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).incidents)).toBe(true);
   });
 });

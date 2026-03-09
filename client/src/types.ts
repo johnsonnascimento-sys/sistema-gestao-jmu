@@ -7,6 +7,7 @@ export type AppPermission =
   | "pre_demanda.update_status"
   | "pre_demanda.associate_sei"
   | "pre_demanda.read_timeline"
+  | "admin.ops.read"
   | "admin.user.read"
   | "admin.user.create"
   | "admin.user.update"
@@ -143,7 +144,43 @@ export interface RuntimeStatus {
   checkedAt: string;
   uptimeSeconds: number;
   database?: {
-    status: "ready";
-    latencyMs: number;
+    status: "ready" | "error";
+    checkedAt: string;
+    latencyMs?: number;
+    message?: string | null;
   };
+}
+
+export type OperationsIncidentKind = "auth_failure" | "server_error" | "database_readiness_failure";
+export type OperationsIncidentLevel = "warn" | "error";
+
+export interface OperationsIncident {
+  id: string;
+  kind: OperationsIncidentKind;
+  level: OperationsIncidentLevel;
+  message: string;
+  occurredAt: string;
+  requestId: string | null;
+  userId: number | null;
+  method: string | null;
+  path: string | null;
+  statusCode: number | null;
+}
+
+export interface OperationsCounters {
+  requestsTotal: number;
+  successfulRequestsTotal: number;
+  clientErrorsTotal: number;
+  serverErrorsTotal: number;
+  loginSuccessTotal: number;
+  loginFailuresTotal: number;
+  authFailuresTotal: number;
+  readyChecksFailedTotal: number;
+  unhandledErrorsTotal: number;
+}
+
+export interface AdminOpsSummary {
+  runtime: RuntimeStatus;
+  counters: OperationsCounters;
+  incidents: OperationsIncident[];
 }

@@ -13,9 +13,11 @@ import { createPool, type DatabasePool } from "./db";
 import type { AppPermission } from "./domain/types";
 import type { SessionUser } from "./domain/types";
 import { AppError, isAppError } from "./errors";
+import { OperationsStore } from "./observability/operations-store";
 import { PostgresPreDemandaRepository } from "./repositories/postgres-pre-demanda-repository";
 import { PostgresUserRepository } from "./repositories/postgres-user-repository";
 import type { PreDemandaRepository, UserRepository } from "./repositories/types";
+import { registerAdminOperationsRoutes } from "./routes/admin-operations";
 import { registerAdminUserRoutes } from "./routes/admin-users";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerPreDemandaRoutes } from "./routes/pre-demandas";
@@ -26,6 +28,7 @@ export interface AppDependencies {
   userRepository: UserRepository;
   preDemandaRepository: PreDemandaRepository;
   pool?: DatabasePool;
+  operationsStore?: OperationsStore;
 }
 
 export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
@@ -33,6 +36,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   const pool = partialDependencies?.pool ?? createPool(config.DATABASE_URL);
   const userRepository = partialDependencies?.userRepository ?? new PostgresUserRepository(pool);
   const preDemandaRepository = partialDependencies?.preDemandaRepository ?? new PostgresPreDemandaRepository(pool);
+  const operationsStore = partialDependencies?.operationsStore ?? new OperationsStore();
 
   const app = fastify({ logger: true });
 
@@ -55,6 +59,10 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
 
   app.addHook("onSend", async (request, reply) => {
     reply.header("x-request-id", request.id);
+  });
+
+  app.addHook("onResponse", async (_request, reply) => {
+    operationsStore.recordResponse(reply.statusCode);
   });
 
   app.decorate("authenticate", async (request) => {
@@ -91,8 +99,9 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     };
   });
 
-  await registerAuthRoutes(app, { userRepository, config });
+  await registerAuthRoutes(app, { userRepository, config, operationsStore });
   await registerPreDemandaRoutes(app, { preDemandaRepository });
+  await registerAdminOperationsRoutes(app, { config, pool, operationsStore });
   await registerAdminUserRoutes(app, { userRepository });
 
   app.get("/api/health", async () => ({
@@ -111,7 +120,9 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
       data: createRuntimeStatus(config, "ready", {
         database: {
           status: "ready",
+          checkedAt: new Date().toISOString(),
           latencyMs: Number(latencyMs.toFixed(2)),
+          message: null,
         },
       }),
       error: null,
@@ -160,6 +171,17 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     if (isAppError(error)) {
       request.log.warn({ code: error.code, details: error.details }, "request.app-error");
 
+      if (error.code === "INVALID_CREDENTIALS" || error.code === "UNAUTHENTICATED" || error.code === "FORBIDDEN") {
+        operationsStore.recordAuthFailure(error.message, {
+          requestId: request.id,
+          userId: request.user?.id ?? null,
+          method: request.method,
+          path: request.url,
+          statusCode: error.statusCode,
+          isLoginFailure: error.code === "INVALID_CREDENTIALS",
+        });
+      }
+
       return reply.status(error.statusCode).send({
         ok: false,
         data: null,
@@ -172,6 +194,13 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     }
 
     request.log.error(error, "request.unhandled-error");
+    operationsStore.recordUnhandledError(error instanceof Error ? error.message : "Falha interna do servidor.", {
+      requestId: request.id,
+      userId: request.user?.id ?? null,
+      method: request.method,
+      path: request.url,
+      statusCode: 500,
+    });
 
     return reply.status(500).send({
       ok: false,

@@ -4,6 +4,7 @@ import { getPermissionsForRole } from "../auth/permissions";
 import { clearSessionCookie, setSessionCookie } from "../auth/session";
 import type { AppConfig } from "../config";
 import { AppError } from "../errors";
+import type { OperationsStore } from "../observability/operations-store";
 import { verifyPassword } from "../auth/password";
 import type { UserRepository } from "../repositories/types";
 
@@ -22,8 +23,8 @@ function serializeUser(user: { id: number; email: string; name: string; role: "a
   };
 }
 
-export async function registerAuthRoutes(app: FastifyInstance, options: { userRepository: UserRepository; config: AppConfig }) {
-  const { userRepository, config } = options;
+export async function registerAuthRoutes(app: FastifyInstance, options: { userRepository: UserRepository; config: AppConfig; operationsStore: OperationsStore }) {
+  const { userRepository, config, operationsStore } = options;
 
   app.post("/api/auth/login", async (request, reply) => {
     const payload = loginSchema.parse(request.body);
@@ -43,6 +44,7 @@ export async function registerAuthRoutes(app: FastifyInstance, options: { userRe
 
     const sessionUser = serializeUser(user);
     setSessionCookie(reply, sessionUser, config.isProduction);
+    operationsStore.recordLoginSuccess();
     request.log.info({ userId: user.id, role: user.role }, "auth.login.success");
 
     return reply.send({
