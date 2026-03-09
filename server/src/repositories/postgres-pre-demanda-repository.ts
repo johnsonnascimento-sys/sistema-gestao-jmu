@@ -23,6 +23,7 @@ import type {
   ListPreDemandasParams,
   ListPreDemandasResult,
   PreDemandaRepository,
+  SettingsRepository,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
 } from "./types";
@@ -299,10 +300,20 @@ async function getRecordByPreId(queryable: Queryable, preId: string, queueHealth
 export class PostgresPreDemandaRepository implements PreDemandaRepository {
   constructor(
     private readonly pool: DatabasePool,
-    private readonly queueHealthThresholds: QueueHealthThresholds,
+    private readonly settingsRepository: SettingsRepository,
   ) {}
 
+  private async loadQueueHealthThresholds() {
+    const config = await this.settingsRepository.getQueueHealthConfig();
+    return {
+      attentionDays: config.attentionDays,
+      criticalDays: config.criticalDays,
+    };
+  }
+
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+
     try {
       const result = await this.pool.query(
         `
@@ -341,7 +352,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         ],
       );
 
-      const record = await getRecordByPreId(this.pool, String(result.rows[0].pre_id), this.queueHealthThresholds);
+      const record = await getRecordByPreId(this.pool, String(result.rows[0].pre_id), queueHealthThresholds);
 
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
@@ -376,7 +387,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         });
       }
 
-      const record = mapPreDemanda(duplicate.rows[0], this.queueHealthThresholds);
+      const record = mapPreDemanda(duplicate.rows[0], queueHealthThresholds);
 
       return {
         record,
@@ -387,7 +398,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async list(params: ListPreDemandasParams): Promise<ListPreDemandasResult> {
-    const { where, values } = buildWhereClause(params, this.queueHealthThresholds);
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+    const { where, values } = buildWhereClause(params, queueHealthThresholds);
     const orderBy = buildOrderClause(params.sortBy, params.sortOrder);
     const limitIndex = values.length + 1;
     const offsetIndex = values.length + 2;
@@ -416,7 +428,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     ]);
 
     return {
-      items: itemsResult.rows.map((row) => mapPreDemanda(row, this.queueHealthThresholds)),
+      items: itemsResult.rows.map((row) => mapPreDemanda(row, queueHealthThresholds)),
       total: Number(totalResult.rows[0]?.total ?? 0),
     };
   }
@@ -438,10 +450,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async getByPreId(preId: string) {
-    return getRecordByPreId(this.pool, preId, this.queueHealthThresholds);
+    return getRecordByPreId(this.pool, preId, await this.loadQueueHealthThresholds());
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
       const demanda = await client.query(
         `
@@ -558,7 +571,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         );
       }
 
-      const record = await getRecordByPreId(client, input.preId, this.queueHealthThresholds);
+      const record = await getRecordByPreId(client, input.preId, queueHealthThresholds);
 
       if (!record?.currentAssociation) {
         throw new AppError(500, "PRE_DEMANDA_ASSOCIATION_FAILED", "Falha ao carregar a associacao atualizada.");
@@ -572,6 +585,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult> {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
       const currentResult = await client.query(
         `
@@ -617,7 +631,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.preId, currentStatus, input.status, input.motivo ?? null, input.observacoes ?? null, input.changedByUserId],
       );
 
-      const record = await getRecordByPreId(client, input.preId, this.queueHealthThresholds);
+      const record = await getRecordByPreId(client, input.preId, queueHealthThresholds);
 
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_STATUS_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
@@ -868,6 +882,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
@@ -893,7 +908,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           order by pd.updated_at asc, pd.data_referencia asc, pd.id asc
           limit 5
         `,
-        [this.queueHealthThresholds.attentionDays],
+        [queueHealthThresholds.attentionDays],
       ),
       this.pool.query(
         `
@@ -917,7 +932,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             )::int as aging_critical_total
           from adminlog.pre_demanda pd
         `,
-        [this.queueHealthThresholds.attentionDays, this.queueHealthThresholds.criticalDays],
+        [queueHealthThresholds.attentionDays, queueHealthThresholds.criticalDays],
       ),
       this.listRecentTimeline(8),
     ]);
@@ -928,8 +943,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
       agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),
       agingCriticalTotal: Number(agingMetricsResult.rows[0]?.aging_critical_total ?? 0),
-      staleItems: staleItemsResult.rows.map((row) => mapPreDemanda(row, this.queueHealthThresholds)),
-      awaitingSeiItems: awaitingSeiResult.rows.map((row) => mapPreDemanda(row, this.queueHealthThresholds)),
+      staleItems: staleItemsResult.rows.map((row) => mapPreDemanda(row, queueHealthThresholds)),
+      awaitingSeiItems: awaitingSeiResult.rows.map((row) => mapPreDemanda(row, queueHealthThresholds)),
       recentTimeline,
     };
   }

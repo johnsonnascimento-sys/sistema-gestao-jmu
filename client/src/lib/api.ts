@@ -6,6 +6,7 @@ import type {
   PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
+  QueueHealthConfig,
   QueueHealthLevel,
   PreDemandaSortBy,
   PreDemandaStatus,
@@ -108,6 +109,13 @@ export function getRuntimeHealth() {
 
 export function getAdminOpsSummary(limit = 12) {
   return request<AdminOpsSummary>(`/api/admin/ops/resumo?limit=${limit}`);
+}
+
+export function updateQueueHealthConfig(payload: { attentionDays: number; criticalDays: number }) {
+  return request<QueueHealthConfig>("/api/admin/ops/queue-health-config", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export interface ListPreDemandasParams {

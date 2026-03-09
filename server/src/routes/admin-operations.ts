@@ -4,11 +4,22 @@ import type { AppConfig } from "../config";
 import type { DatabasePool } from "../db";
 import { describeMigrations } from "../migrations/describe-migrations";
 import type { OperationsStore } from "../observability/operations-store";
+import type { SettingsRepository } from "../repositories/types";
 import { createRuntimeStatus } from "../runtime";
 
 const listOpsSchema = z.object({
   limit: z.coerce.number().int().positive().max(30).optional(),
 });
+
+const updateQueueHealthConfigSchema = z
+  .object({
+    attentionDays: z.coerce.number().int().positive(),
+    criticalDays: z.coerce.number().int().positive(),
+  })
+  .refine((value) => value.criticalDays >= value.attentionDays, {
+    message: "O limite critico deve ser maior ou igual ao limite de atencao.",
+    path: ["criticalDays"],
+  });
 
 export async function registerAdminOperationsRoutes(
   app: FastifyInstance,
@@ -16,9 +27,10 @@ export async function registerAdminOperationsRoutes(
     config: AppConfig;
     pool: DatabasePool;
     operationsStore: OperationsStore;
+    settingsRepository: SettingsRepository;
   },
 ) {
-  const { config, pool, operationsStore } = options;
+  const { config, pool, operationsStore, settingsRepository } = options;
 
   app.get("/api/admin/ops/resumo", { preHandler: [app.authenticate, app.authorize("admin.ops.read")] }, async (request, reply) => {
     const query = listOpsSchema.parse(request.query);
@@ -74,7 +86,40 @@ export async function registerAdminOperationsRoutes(
         runtime,
         ...operationsStore.getSnapshot(query.limit ?? 12),
         migrations,
+        queueHealthConfig: await settingsRepository.getQueueHealthConfig(),
       },
+      error: null,
+    });
+  });
+
+  app.get("/api/admin/ops/queue-health-config", { preHandler: [app.authenticate, app.authorize("admin.ops.read")] }, async (_request, reply) => {
+    return reply.send({
+      ok: true,
+      data: await settingsRepository.getQueueHealthConfig(),
+      error: null,
+    });
+  });
+
+  app.patch("/api/admin/ops/queue-health-config", { preHandler: [app.authenticate, app.authorize("admin.ops.update")] }, async (request, reply) => {
+    const payload = updateQueueHealthConfigSchema.parse(request.body);
+    const configResult = await settingsRepository.updateQueueHealthConfig({
+      attentionDays: payload.attentionDays,
+      criticalDays: payload.criticalDays,
+      updatedByUserId: request.user!.id,
+    });
+
+    request.log.info(
+      {
+        userId: request.user?.id,
+        attentionDays: payload.attentionDays,
+        criticalDays: payload.criticalDays,
+      },
+      "admin.ops.update-queue-health-config",
+    );
+
+    return reply.send({
+      ok: true,
+      data: configResult,
       error: null,
     });
   });

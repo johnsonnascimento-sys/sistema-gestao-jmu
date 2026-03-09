@@ -15,8 +15,9 @@ import type { SessionUser } from "./domain/types";
 import { AppError, isAppError } from "./errors";
 import { OperationsStore } from "./observability/operations-store";
 import { PostgresPreDemandaRepository } from "./repositories/postgres-pre-demanda-repository";
+import { PostgresSettingsRepository } from "./repositories/postgres-settings-repository";
 import { PostgresUserRepository } from "./repositories/postgres-user-repository";
-import type { PreDemandaRepository, UserRepository } from "./repositories/types";
+import type { PreDemandaRepository, SettingsRepository, UserRepository } from "./repositories/types";
 import { registerAdminOperationsRoutes } from "./routes/admin-operations";
 import { registerAdminUserRoutes } from "./routes/admin-users";
 import { registerAuthRoutes } from "./routes/auth";
@@ -26,6 +27,7 @@ import { createRuntimeStatus } from "./runtime";
 export interface AppDependencies {
   config: AppConfig;
   userRepository: UserRepository;
+  settingsRepository: SettingsRepository;
   preDemandaRepository: PreDemandaRepository;
   pool?: DatabasePool;
   operationsStore?: OperationsStore;
@@ -35,12 +37,15 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   const config = partialDependencies?.config ?? loadConfig();
   const pool = partialDependencies?.pool ?? createPool(config.DATABASE_URL);
   const userRepository = partialDependencies?.userRepository ?? new PostgresUserRepository(pool);
-  const preDemandaRepository =
-    partialDependencies?.preDemandaRepository ??
-    new PostgresPreDemandaRepository(pool, {
+  const settingsRepository =
+    partialDependencies?.settingsRepository ??
+    new PostgresSettingsRepository(pool, {
       attentionDays: config.QUEUE_ATTENTION_DAYS,
       criticalDays: config.QUEUE_CRITICAL_DAYS,
     });
+  const preDemandaRepository =
+    partialDependencies?.preDemandaRepository ??
+    new PostgresPreDemandaRepository(pool, settingsRepository);
   const operationsStore = partialDependencies?.operationsStore ?? new OperationsStore();
 
   const app = fastify({ logger: true });
@@ -106,7 +111,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
 
   await registerAuthRoutes(app, { userRepository, config, operationsStore });
   await registerPreDemandaRoutes(app, { preDemandaRepository });
-  await registerAdminOperationsRoutes(app, { config, pool, operationsStore });
+  await registerAdminOperationsRoutes(app, { config, pool, operationsStore, settingsRepository });
   await registerAdminUserRoutes(app, { userRepository });
 
   app.get("/api/health", async () => ({

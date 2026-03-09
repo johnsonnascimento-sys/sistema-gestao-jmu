@@ -155,6 +155,7 @@ async function run() {
   }
 
   await authenticatedGet("/api/admin/ops/resumo?limit=3", adminSession.cookie);
+  await authenticatedGet("/api/admin/ops/queue-health-config", adminSession.cookie);
   await authenticatedGet("/api/admin/users", adminSession.cookie);
   console.log("admin smoke test ok");
 }

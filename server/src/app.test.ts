@@ -18,6 +18,7 @@ import type {
   PreDemandaDetail,
   PreDemandaStatus,
   PreDemandaStatusAuditRecord,
+  QueueHealthConfig,
   SeiAssociation,
   TimelineEvent,
 } from "./domain/types";
@@ -31,8 +32,10 @@ import type {
   ListPreDemandasResult,
   PreDemandaRepository,
   ResetUserPasswordInput,
+  SettingsRepository,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
+  UpdateQueueHealthConfigInput,
   UpdateUserInput,
   UserRepository,
 } from "./repositories/types";
@@ -500,6 +503,37 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
   }
 }
 
+class InMemorySettingsRepository implements SettingsRepository {
+  private config: QueueHealthConfig = {
+    attentionDays: 2,
+    criticalDays: 5,
+    updatedAt: null,
+    updatedBy: null,
+    source: "fallback",
+  };
+
+  async getQueueHealthConfig() {
+    return this.config;
+  }
+
+  async updateQueueHealthConfig(input: UpdateQueueHealthConfigInput) {
+    this.config = {
+      attentionDays: input.attentionDays,
+      criticalDays: input.criticalDays,
+      updatedAt: new Date().toISOString(),
+      updatedBy: {
+        id: input.updatedByUserId,
+        email: input.updatedByUserId === 2 ? "admin@jmu.local" : "operador@jmu.local",
+        name: input.updatedByUserId === 2 ? "Admin JMU" : "Operador JMU",
+        role: input.updatedByUserId === 2 ? "admin" : "operador",
+      },
+      source: "database",
+    };
+
+    return this.config;
+  }
+}
+
 describe("Gestor JMU API", () => {
   const config: AppConfig = {
     PORT: 3000,
@@ -514,6 +548,7 @@ describe("Gestor JMU API", () => {
   };
 
   const userRepository = new InMemoryUserRepository();
+  const settingsRepository = new InMemorySettingsRepository();
   const preDemandaRepository = new InMemoryPreDemandaRepository();
   const migration001Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "001_gestor_bootstrap.sql"), "utf8")).digest("hex");
   const migration002Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "002_admin_user_audit.sql"), "utf8")).digest("hex");
@@ -562,6 +597,7 @@ describe("Gestor JMU API", () => {
       config,
       pool,
       userRepository,
+      settingsRepository,
       preDemandaRepository,
     });
   });
@@ -830,6 +866,18 @@ describe("Gestor JMU API", () => {
 
     expect(forbiddenOps.statusCode).toBe(403);
 
+    const forbiddenOpsUpdate = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/ops/queue-health-config",
+      headers: { cookie: operatorCookie },
+      payload: {
+        attentionDays: 3,
+        criticalDays: 7,
+      },
+    });
+
+    expect(forbiddenOpsUpdate.statusCode).toBe(403);
+
     const adminLogin = await app.inject({
       method: "POST",
       url: "/api/auth/login",
@@ -912,5 +960,29 @@ describe("Gestor JMU API", () => {
     expect(typeof (ops.json().data as AdminOpsSummary).counters.requestsTotal).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).incidents)).toBe(true);
     expect((ops.json().data as AdminOpsSummary).migrations?.totalFiles).toBeGreaterThanOrEqual(2);
+
+    const updatedQueueConfig = await app.inject({
+      method: "PATCH",
+      url: "/api/admin/ops/queue-health-config",
+      headers: { cookie: adminCookie },
+      payload: {
+        attentionDays: 3,
+        criticalDays: 7,
+      },
+    });
+
+    expect(updatedQueueConfig.statusCode).toBe(200);
+    expect(updatedQueueConfig.json().data.attentionDays).toBe(3);
+    expect(updatedQueueConfig.json().data.criticalDays).toBe(7);
+
+    const opsAfterUpdate = await app.inject({
+      method: "GET",
+      url: "/api/admin/ops/resumo?limit=5",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(opsAfterUpdate.statusCode).toBe(200);
+    expect(opsAfterUpdate.json().data.queueHealthConfig.attentionDays).toBe(3);
+    expect(opsAfterUpdate.json().data.queueHealthConfig.criticalDays).toBe(7);
   });
 });

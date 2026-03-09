@@ -8,6 +8,7 @@ export type AppPermission =
   | "pre_demanda.associate_sei"
   | "pre_demanda.read_timeline"
   | "admin.ops.read"
+  | "admin.ops.update"
   | "admin.user.read"
   | "admin.user.create"
   | "admin.user.update"
@@ -127,6 +128,14 @@ export interface PreDemandaDashboardSummary {
   recentTimeline: TimelineEvent[];
 }
 
+export interface QueueHealthConfig {
+  attentionDays: number;
+  criticalDays: number;
+  updatedAt: string | null;
+  updatedBy: AuditActor | null;
+  source: "database" | "fallback";
+}
+
 export type TimelineEventType = "created" | "status_changed" | "sei_linked" | "sei_reassociated";
 
 export interface TimelineEvent {
@@ -213,4 +222,5 @@ export interface AdminOpsSummary {
   counters: OperationsCounters;
   incidents: OperationsIncident[];
   migrations: SchemaMigrationSummary | null;
+  queueHealthConfig: QueueHealthConfig;
 }

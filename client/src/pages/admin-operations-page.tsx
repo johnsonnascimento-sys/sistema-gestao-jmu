@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../auth-context";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { formatAppError, getAdminOpsSummary } from "../lib/api";
+import { Input } from "../components/ui/input";
+import { formatAppError, getAdminOpsSummary, updateQueueHealthConfig } from "../lib/api";
 import type { AdminOpsSummary, OperationsIncident } from "../types";
 
 function formatUptime(totalSeconds: number) {
@@ -41,15 +43,27 @@ function describeIncident(incident: OperationsIncident) {
 }
 
 export function AdminOperationsPage() {
+  const { hasPermission } = useAuth();
   const [summary, setSummary] = useState<AdminOpsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [queueThresholds, setQueueThresholds] = useState({
+    attentionDays: "2",
+    criticalDays: "5",
+  });
+  const [savingQueueThresholds, setSavingQueueThresholds] = useState(false);
 
   async function load() {
     setLoading(true);
 
     try {
-      setSummary(await getAdminOpsSummary(12));
+      const nextSummary = await getAdminOpsSummary(12);
+      setSummary(nextSummary);
+      setQueueThresholds({
+        attentionDays: String(nextSummary.queueHealthConfig.attentionDays),
+        criticalDays: String(nextSummary.queueHealthConfig.criticalDays),
+      });
       setError("");
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao carregar operacoes."));
@@ -88,6 +102,7 @@ export function AdminOperationsPage() {
       />
 
       {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
+      {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Requests" value={summary.counters.requestsTotal} />
@@ -141,6 +156,88 @@ export function AdminOperationsPage() {
                 <p className="mt-1 text-xs text-slate-500">Verificado em {new Date(summary.runtime.database.checkedAt).toLocaleString("pt-BR")}</p>
               ) : null}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Regras da fila</CardTitle>
+            <CardDescription>Limiar operativo para sinalizar demandas em atencao ou criticas.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm text-slate-600">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atencao</p>
+                <p className="mt-1 text-slate-950">{summary.queueHealthConfig.attentionDays} dias sem movimentacao</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Critica</p>
+                <p className="mt-1 text-slate-950">{summary.queueHealthConfig.criticalDays} dias sem movimentacao</p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Origem</p>
+              <p className="mt-1 text-slate-950">{summary.queueHealthConfig.source === "database" ? "Configuracao persistida no banco" : "Fallback do ambiente"}</p>
+              {summary.queueHealthConfig.updatedAt ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Atualizada em {new Date(summary.queueHealthConfig.updatedAt).toLocaleString("pt-BR")}
+                  {summary.queueHealthConfig.updatedBy ? ` por ${summary.queueHealthConfig.updatedBy.name}` : ""}
+                </p>
+              ) : null}
+            </div>
+
+            {hasPermission("admin.ops.update") ? (
+              <form
+                className="grid gap-4 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  setSavingQueueThresholds(true);
+                  setError("");
+                  setMessage("");
+
+                  try {
+                    await updateQueueHealthConfig({
+                      attentionDays: Number(queueThresholds.attentionDays),
+                      criticalDays: Number(queueThresholds.criticalDays),
+                    });
+                    setMessage("Regras da fila actualizadas com sucesso.");
+                    await load();
+                  } catch (nextError) {
+                    setError(formatAppError(nextError, "Falha ao actualizar regras da fila."));
+                  } finally {
+                    setSavingQueueThresholds(false);
+                  }
+                }}
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atencao</span>
+                    <Input
+                      min="1"
+                      onChange={(event) => setQueueThresholds((current) => ({ ...current, attentionDays: event.target.value }))}
+                      type="number"
+                      value={queueThresholds.attentionDays}
+                    />
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Critica</span>
+                    <Input
+                      min="1"
+                      onChange={(event) => setQueueThresholds((current) => ({ ...current, criticalDays: event.target.value }))}
+                      type="number"
+                      value={queueThresholds.criticalDays}
+                    />
+                  </label>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button disabled={savingQueueThresholds} type="submit" variant="secondary">
+                    {savingQueueThresholds ? "Salvando..." : "Salvar regras"}
+                  </Button>
+                </div>
+              </form>
+            ) : null}
           </CardContent>
         </Card>
 

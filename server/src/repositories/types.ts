@@ -7,6 +7,7 @@ import type {
   PreDemandaAuditRecord,
   PreDemandaDetail,
   QueueHealthLevel,
+  QueueHealthConfig,
   PreDemandaSortBy,
   PreDemandaStatusAuditRecord,
   PreDemandaStatus,
@@ -104,6 +105,17 @@ export interface UserRepository {
   listAudit(limit?: number): Promise<AdminUserAuditRecord[]>;
   update(input: UpdateUserInput): Promise<AdminUserSummary>;
   resetPassword(input: ResetUserPasswordInput): Promise<AdminUserSummary>;
+}
+
+export interface UpdateQueueHealthConfigInput {
+  attentionDays: number;
+  criticalDays: number;
+  updatedByUserId: number;
+}
+
+export interface SettingsRepository {
+  getQueueHealthConfig(): Promise<QueueHealthConfig>;
+  updateQueueHealthConfig(input: UpdateQueueHealthConfigInput): Promise<QueueHealthConfig>;
 }
 
 export interface PreDemandaRepository {
