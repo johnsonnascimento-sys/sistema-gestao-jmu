@@ -1,7 +1,9 @@
 // @vitest-environment node
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildApp } from "./app";
 import { hashPassword } from "./auth/password";
@@ -539,6 +541,7 @@ class InMemorySettingsRepository implements SettingsRepository {
 }
 
 describe("Gestor JMU API", () => {
+  const backupDir = mkdtempSync(join(tmpdir(), "gestor-backup-test-"));
   const config: AppConfig = {
     PORT: 3000,
     DATABASE_URL: "postgres://local/test",
@@ -547,6 +550,8 @@ describe("Gestor JMU API", () => {
     APP_BASE_URL: "http://localhost:3000",
     QUEUE_ATTENTION_DAYS: 2,
     QUEUE_CRITICAL_DAYS: 5,
+    OPS_BACKUP_DIR: backupDir,
+    OPS_BACKUP_SCHEMA: "adminlog",
     NODE_ENV: "test",
     isProduction: false,
   };
@@ -582,6 +587,8 @@ describe("Gestor JMU API", () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
 
   beforeAll(async () => {
+    writeFileSync(join(backupDir, "gestor-adminlog-20260309T223439Z-test.sql.gz"), gzipSync("-- test backup --\n"));
+
     const passwordHash = await hashPassword("Senha1234");
     await userRepository.create({
       email: "operador@jmu.local",
@@ -608,6 +615,7 @@ describe("Gestor JMU API", () => {
 
   afterAll(async () => {
     await app.close();
+    rmSync(backupDir, { recursive: true, force: true });
   });
 
   it("rejects unauthenticated access", async () => {
@@ -974,6 +982,8 @@ describe("Gestor JMU API", () => {
     expect(typeof (ops.json().data as AdminOpsSummary).counters.requestsTotal).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).incidents)).toBe(true);
     expect((ops.json().data as AdminOpsSummary).migrations?.totalFiles).toBeGreaterThanOrEqual(2);
+    expect((ops.json().data as AdminOpsSummary).backupStatus.visible).toBe(true);
+    expect((ops.json().data as AdminOpsSummary).backupStatus.lastBackup?.fileName).toContain("gestor-adminlog-");
 
     const updatedQueueConfig = await app.inject({
       method: "PATCH",

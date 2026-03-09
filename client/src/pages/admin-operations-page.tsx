@@ -42,6 +42,18 @@ function describeIncident(incident: OperationsIncident) {
   }
 }
 
+function formatBytes(sizeBytes: number) {
+  if (sizeBytes < 1024) {
+    return `${sizeBytes} B`;
+  }
+
+  if (sizeBytes < 1024 * 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function AdminOperationsPage() {
   const { hasPermission } = useAuth();
   const [summary, setSummary] = useState<AdminOpsSummary | null>(null);
@@ -119,7 +131,7 @@ export function AdminOperationsPage() {
         <MetricCard label="Unhandled" value={summary.counters.unhandledErrorsTotal} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Runtime actual</CardTitle>
@@ -238,6 +250,51 @@ export function AdminOperationsPage() {
                 </div>
               </form>
             ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Backups visiveis</CardTitle>
+            <CardDescription>Ultimos dumps acessiveis ao container para conferencias e resposta a incidente.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm text-slate-600">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Diretorio montado</p>
+              <p className="mt-1 text-slate-950">{summary.backupStatus.directory}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Schema</p>
+              <p className="mt-1 text-slate-950">{summary.backupStatus.schemaName}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Ultimo backup valido</p>
+              {summary.backupStatus.lastBackup ? (
+                <>
+                  <p className="mt-1 text-slate-950">{summary.backupStatus.lastBackup.fileName}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {new Date(summary.backupStatus.lastBackup.modifiedAt).toLocaleString("pt-BR")} - {formatBytes(summary.backupStatus.lastBackup.sizeBytes)}
+                  </p>
+                </>
+              ) : (
+                <p className="mt-1 text-slate-950">Nenhum backup visivel</p>
+              )}
+            </div>
+            {summary.backupStatus.message ? <p className="rounded-[20px] border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900">{summary.backupStatus.message}</p> : null}
+            {summary.backupStatus.recentBackups.length ? (
+              <div className="grid gap-2">
+                {summary.backupStatus.recentBackups.map((backup) => (
+                  <article className="rounded-[20px] border border-slate-200 bg-slate-50/70 px-4 py-3" key={backup.fileName}>
+                    <p className="text-sm font-semibold text-slate-950">{backup.fileName}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {new Date(backup.modifiedAt).toLocaleString("pt-BR")} - {formatBytes(backup.sizeBytes)}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState description="Assim que o volume de backup estiver montado e houver dumps validos, eles aparecerao aqui." title="Sem backups visiveis" />
+            )}
           </CardContent>
         </Card>
 

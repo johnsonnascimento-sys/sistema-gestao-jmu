@@ -223,12 +223,28 @@ export interface SchemaMigrationSummary {
   items: SchemaMigrationItem[];
 }
 
+export interface BackupArtifactSummary {
+  fileName: string;
+  sizeBytes: number;
+  modifiedAt: string;
+}
+
+export interface BackupStatusSummary {
+  directory: string;
+  schemaName: string;
+  visible: boolean;
+  lastBackup: BackupArtifactSummary | null;
+  recentBackups: BackupArtifactSummary[];
+  message: string | null;
+}
+
 export interface AdminOpsSummary {
   runtime: RuntimeStatus;
   counters: OperationsCounters;
   incidents: OperationsIncident[];
   migrations: SchemaMigrationSummary | null;
   queueHealthConfig: QueueHealthConfig;
+  backupStatus: BackupStatusSummary;
 }
 
 export type TimelineEventType = "created" | "status_changed" | "sei_linked" | "sei_reassociated";
