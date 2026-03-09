@@ -22,12 +22,28 @@ function bashSingleQuote(value) {
 function buildRemoteScript(options) {
   const smokeEnv = [];
 
+  if (options.smokeRequireAuth) {
+    smokeEnv.push(`SMOKE_TEST_REQUIRE_AUTH=${bashSingleQuote(options.smokeRequireAuth)}`);
+  }
+
+  if (options.smokeRequireAdmin) {
+    smokeEnv.push(`SMOKE_TEST_REQUIRE_ADMIN=${bashSingleQuote(options.smokeRequireAdmin)}`);
+  }
+
   if (options.smokeEmail) {
     smokeEnv.push(`SMOKE_TEST_EMAIL=${bashSingleQuote(options.smokeEmail)}`);
   }
 
   if (options.smokePassword) {
     smokeEnv.push(`SMOKE_TEST_PASSWORD=${bashSingleQuote(options.smokePassword)}`);
+  }
+
+  if (options.smokeAdminEmail) {
+    smokeEnv.push(`SMOKE_TEST_ADMIN_EMAIL=${bashSingleQuote(options.smokeAdminEmail)}`);
+  }
+
+  if (options.smokeAdminPassword) {
+    smokeEnv.push(`SMOKE_TEST_ADMIN_PASSWORD=${bashSingleQuote(options.smokeAdminPassword)}`);
   }
 
   const smokePrefix = smokeEnv.length ? `${smokeEnv.join(" ")} ` : "";
@@ -104,8 +120,12 @@ async function run() {
     branch: process.env.JMU_BRANCH || "main",
     healthUrl: process.env.JMU_HEALTH_URL || "http://127.0.0.1:3000/api/health",
     readyUrl: process.env.JMU_READY_URL || "http://127.0.0.1:3000/api/ready",
+    smokeRequireAuth: process.env.JMU_SMOKE_TEST_REQUIRE_AUTH || "",
+    smokeRequireAdmin: process.env.JMU_SMOKE_TEST_REQUIRE_ADMIN || "",
     smokeEmail: process.env.JMU_SMOKE_TEST_EMAIL || "",
     smokePassword: process.env.JMU_SMOKE_TEST_PASSWORD || "",
+    smokeAdminEmail: process.env.JMU_SMOKE_TEST_ADMIN_EMAIL || "",
+    smokeAdminPassword: process.env.JMU_SMOKE_TEST_ADMIN_PASSWORD || "",
   };
 
   const remoteScript = buildRemoteScript(options);

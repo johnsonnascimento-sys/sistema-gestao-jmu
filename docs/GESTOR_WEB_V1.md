@@ -51,7 +51,8 @@ Em producao, a API tambem serve o frontend buildado em `dist/client`.
 npm run smoke:test
 ```
 
-Defina `SMOKE_TEST_EMAIL` e `SMOKE_TEST_PASSWORD` para validar login e listagem autenticada.
+Defina `SMOKE_TEST_REQUIRE_AUTH=true`, `SMOKE_TEST_EMAIL` e `SMOKE_TEST_PASSWORD` para tornar obrigatoria a validacao autenticada de login, sessao e fila operacional.
+Se quiser validar tambem a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_TEST_ADMIN_EMAIL` e `SMOKE_TEST_ADMIN_PASSWORD`.
 
 ## Rotas da API
 - `POST /api/auth/login`

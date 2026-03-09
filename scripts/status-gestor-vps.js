@@ -37,6 +37,12 @@ function buildRemoteScript(options) {
     'curl -fsS "$READY_URL" >/tmp/gestor-ready.json',
     'echo "health=$(cat /tmp/gestor-health.json)"',
     'echo "ready=$(cat /tmp/gestor-ready.json)"',
+    'if [ -f .env ]; then',
+    '  echo "smoke_require_auth=$(grep -E \'^SMOKE_TEST_REQUIRE_AUTH=\' .env | tail -n 1 | cut -d= -f2- || true)"',
+    '  echo "smoke_require_admin=$(grep -E \'^SMOKE_TEST_REQUIRE_ADMIN=\' .env | tail -n 1 | cut -d= -f2- || true)"',
+    '  echo "smoke_user_configured=$(grep -q \'^SMOKE_TEST_EMAIL=\' .env && ! grep -q \'^SMOKE_TEST_EMAIL=$\' .env && grep -q \'^SMOKE_TEST_PASSWORD=\' .env && ! grep -q \'^SMOKE_TEST_PASSWORD=$\' .env && echo true || echo false)"',
+    '  echo "smoke_admin_configured=$(grep -q \'^SMOKE_TEST_ADMIN_EMAIL=\' .env && ! grep -q \'^SMOKE_TEST_ADMIN_EMAIL=$\' .env && grep -q \'^SMOKE_TEST_ADMIN_PASSWORD=\' .env && ! grep -q \'^SMOKE_TEST_ADMIN_PASSWORD=$\' .env && echo true || echo false)"',
+    'fi',
     'echo "recent_images="',
     'docker images --format \'{{.Repository}}:{{.Tag}} {{.CreatedSince}}\' | grep "^${CONTAINER_NAME}:" | head -n 8',
   ].join("\n");
