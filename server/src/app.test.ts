@@ -8,6 +8,7 @@ import type {
   AdminUserSummary,
   AppUser,
   PreDemandaAuditRecord,
+  PreDemandaDashboardSummary,
   PreDemandaDetail,
   PreDemandaStatus,
   PreDemandaStatusAuditRecord,
@@ -456,6 +457,23 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
       .slice(0, limit);
   }
+
+  async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
+    const counts = await this.getStatusCounts();
+    const recentTimeline = await this.listRecentTimeline(8);
+    const awaitingSeiItems = this.records
+      .filter((item) => item.status === "aguardando_sei")
+      .sort((left, right) => left.dataReferencia.localeCompare(right.dataReferencia))
+      .slice(0, 5);
+
+    return {
+      counts,
+      reopenedLast30Days: this.statusAudit.filter((item) => item.statusAnterior === "encerrada" && item.statusNovo !== "encerrada").length,
+      closedLast30Days: this.statusAudit.filter((item) => item.statusNovo === "encerrada").length,
+      awaitingSeiItems,
+      recentTimeline,
+    };
+  }
 }
 
 describe("Gestor JMU API", () => {
@@ -675,6 +693,16 @@ describe("Gestor JMU API", () => {
 
     expect(recentTimeline.statusCode).toBe(200);
     expect(recentTimeline.json().data.length).toBeGreaterThan(0);
+
+    const dashboardSummary = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/dashboard/resumo",
+      headers: { cookie },
+    });
+
+    expect(dashboardSummary.statusCode).toBe(200);
+    expect(dashboardSummary.json().data.recentTimeline.length).toBeGreaterThan(0);
+    expect(typeof dashboardSummary.json().data.closedLast30Days).toBe("number");
   });
 
   it("forbids operator admin access and allows admin user management", async () => {

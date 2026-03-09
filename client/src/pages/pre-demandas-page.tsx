@@ -9,7 +9,7 @@ import { PageHeader } from "../components/page-header";
 import { ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { listPreDemandas, updatePreDemandaStatus } from "../lib/api";
 import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, SortOrder, StatusCount } from "../types";
@@ -24,12 +24,122 @@ const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
 const selectClassName =
   "h-11 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-amber-200/50";
 
+type BoardView = "kanban" | "table";
+type SavedViewId = "fila-operacional" | "triagem-abertas" | "aguardando-sei" | "com-sei" | "ultimas-encerradas";
+
 type QuickAction = {
   item: PreDemanda;
   nextStatus: PreDemandaStatus;
   label: string;
   requireReason: boolean;
 };
+
+type ResolvedSearchState = {
+  presetId: SavedViewId | null;
+  q: string;
+  statuses: string[];
+  dateFrom: string;
+  dateTo: string;
+  hasSei: "" | "true" | "false";
+  sortBy: PreDemandaSortBy;
+  sortOrder: SortOrder;
+  page: number;
+  view: BoardView;
+};
+
+const SAVED_VIEWS: Array<{
+  id: SavedViewId;
+  label: string;
+  description: string;
+  defaults: {
+    statuses?: string[];
+    hasSei?: "" | "true" | "false";
+    sortBy: PreDemandaSortBy;
+    sortOrder: SortOrder;
+    view: BoardView;
+  };
+}> = [
+  {
+    id: "fila-operacional",
+    label: "Fila operacional",
+    description: "Abertas, aguardando SEI e associadas no quadro principal.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "kanban",
+    },
+  },
+  {
+    id: "triagem-abertas",
+    label: "Triagem de abertas",
+    description: "Demandas novas, ordenadas pela referencia mais antiga.",
+    defaults: {
+      statuses: ["aberta"],
+      sortBy: "dataReferencia",
+      sortOrder: "asc",
+      view: "kanban",
+    },
+  },
+  {
+    id: "aguardando-sei",
+    label: "Aguardando SEI",
+    description: "Fila para acompanhamento ate o numero SEI nascer.",
+    defaults: {
+      statuses: ["aguardando_sei"],
+      sortBy: "dataReferencia",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "com-sei",
+    label: "Com SEI",
+    description: "Demandas que ja possuem vinculacao valida.",
+    defaults: {
+      hasSei: "true",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+  {
+    id: "ultimas-encerradas",
+    label: "Ultimas encerradas",
+    description: "Fechamentos mais recentes para revisao ou conferencias.",
+    defaults: {
+      statuses: ["encerrada"],
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+];
+
+function splitStatuses(value: string | null) {
+  return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
+}
+
+function getSavedView(presetId: string | null) {
+  return SAVED_VIEWS.find((item) => item.id === presetId) ?? null;
+}
+
+function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState {
+  const preset = getSavedView(searchParams.get("preset"));
+
+  return {
+    presetId: preset?.id ?? null,
+    q: searchParams.get("q") ?? "",
+    statuses: searchParams.has("status") ? splitStatuses(searchParams.get("status")) : preset?.defaults.statuses ?? [],
+    dateFrom: searchParams.get("dateFrom") ?? "",
+    dateTo: searchParams.get("dateTo") ?? "",
+    hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
+    sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
+    sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? preset?.defaults.sortOrder ?? "desc",
+    page: Number(searchParams.get("page") ?? "1"),
+    view: searchParams.get("view") === "table" ? "table" : preset?.defaults.view ?? "kanban",
+  };
+}
 
 export function PreDemandasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,31 +151,42 @@ export function PreDemandasPage() {
   const [message, setMessage] = useState("");
   const [quickAction, setQuickAction] = useState<QuickAction | null>(null);
 
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(searchParams.get("status")?.split(",").filter(Boolean) ?? []);
-  const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") ?? "");
-  const [dateTo, setDateTo] = useState(searchParams.get("dateTo") ?? "");
-  const [hasSei, setHasSei] = useState(searchParams.get("hasSei") ?? "");
-  const [sortBy, setSortBy] = useState<PreDemandaSortBy>((searchParams.get("sortBy") as PreDemandaSortBy) ?? "updatedAt");
-  const [sortOrder, setSortOrder] = useState<SortOrder>((searchParams.get("sortOrder") as SortOrder) ?? "desc");
+  const searchKey = searchParams.toString();
+  const resolvedState = useMemo(() => resolveSearchState(searchParams), [searchKey]);
 
-  const page = Number(searchParams.get("page") ?? "1");
+  const [query, setQuery] = useState(resolvedState.q);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
+  const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
+  const [dateTo, setDateTo] = useState(resolvedState.dateTo);
+  const [hasSei, setHasSei] = useState(resolvedState.hasSei);
+  const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
+  const [sortOrder, setSortOrder] = useState<SortOrder>(resolvedState.sortOrder);
+
   const pageSize = 12;
-  const view = searchParams.get("view") === "table" ? "table" : "kanban";
+
+  useEffect(() => {
+    setQuery(resolvedState.q);
+    setSelectedStatuses(resolvedState.statuses);
+    setDateFrom(resolvedState.dateFrom);
+    setDateTo(resolvedState.dateTo);
+    setHasSei(resolvedState.hasSei);
+    setSortBy(resolvedState.sortBy);
+    setSortOrder(resolvedState.sortOrder);
+  }, [searchKey, resolvedState]);
 
   async function load() {
     setLoading(true);
 
     try {
       const response = await listPreDemandas({
-        q: searchParams.get("q") ?? "",
-        status: searchParams.get("status")?.split(",").filter(Boolean) ?? [],
-        dateFrom: searchParams.get("dateFrom") ?? undefined,
-        dateTo: searchParams.get("dateTo") ?? undefined,
-        hasSei: searchParams.get("hasSei") ? searchParams.get("hasSei") === "true" : undefined,
-        sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? "updatedAt",
-        sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? "desc",
-        page,
+        q: resolvedState.q,
+        status: resolvedState.statuses,
+        dateFrom: resolvedState.dateFrom || undefined,
+        dateTo: resolvedState.dateTo || undefined,
+        hasSei: resolvedState.hasSei ? resolvedState.hasSei === "true" : undefined,
+        sortBy: resolvedState.sortBy,
+        sortOrder: resolvedState.sortOrder,
+        page: resolvedState.page,
         pageSize,
       });
 
@@ -82,7 +203,7 @@ export function PreDemandasPage() {
 
   useEffect(() => {
     void load();
-  }, [page, searchParams]);
+  }, [searchKey]);
 
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,15 +231,40 @@ export function PreDemandasPage() {
 
     next.set("sortBy", sortBy);
     next.set("sortOrder", sortOrder);
-    next.set("view", view);
+    next.set("view", resolvedState.view);
     next.set("page", "1");
     setSearchParams(next);
   }
 
-  function updateView(nextView: "kanban" | "table") {
+  function updateView(nextView: BoardView) {
     const next = new URLSearchParams(searchParams);
     next.set("view", nextView);
     setSearchParams(next);
+  }
+
+  function applyPreset(presetId: SavedViewId) {
+    const preset = getSavedView(presetId);
+
+    if (!preset) {
+      return;
+    }
+
+    const next = new URLSearchParams();
+    next.set("preset", presetId);
+    next.set("view", preset.defaults.view);
+    next.set("page", "1");
+    setSearchParams(next);
+  }
+
+  function clearFilters() {
+    setQuery("");
+    setSelectedStatuses([]);
+    setDateFrom("");
+    setDateTo("");
+    setHasSei("");
+    setSortBy("updatedAt");
+    setSortOrder("desc");
+    setSearchParams(new URLSearchParams({ view: resolvedState.view, page: "1", sortBy: "updatedAt", sortOrder: "desc" }));
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -137,10 +283,10 @@ export function PreDemandasPage() {
       <PageHeader
         actions={
           <>
-            <Button onClick={() => updateView("kanban")} type="button" variant={view === "kanban" ? "primary" : "secondary"}>
+            <Button onClick={() => updateView("kanban")} type="button" variant={resolvedState.view === "kanban" ? "primary" : "secondary"}>
               Quadro Kanban
             </Button>
-            <Button onClick={() => updateView("table")} type="button" variant={view === "table" ? "primary" : "secondary"}>
+            <Button onClick={() => updateView("table")} type="button" variant={resolvedState.view === "table" ? "primary" : "secondary"}>
               Tabela analitica
             </Button>
             <Button asChild>
@@ -161,80 +307,91 @@ export function PreDemandasPage() {
         ))}
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Visualizacoes salvas</CardTitle>
+          <CardDescription>Presets partilhaveis por query string para os filtros mais usados da operacao.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 xl:grid-cols-5">
+          {SAVED_VIEWS.map((preset) => (
+            <button
+              className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
+                resolvedState.presetId === preset.id
+                  ? "border-amber-300 bg-amber-50 text-amber-950 shadow-[0_12px_30px_rgba(217,119,6,0.12)]"
+                  : "border-slate-200 bg-slate-50/70 text-slate-700 hover:border-slate-300 hover:bg-white"
+              }`}
+              key={preset.id}
+              onClick={() => applyPreset(preset.id)}
+              type="button"
+            >
+              <span className="text-sm font-semibold">{preset.label}</span>
+              <span className="text-xs text-slate-500">{preset.description}</span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
       <form onSubmit={handleFilterSubmit}>
         <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
-            <FormField label="Buscar">
-              <Input onChange={(event) => setQuery(event.target.value)} placeholder="PRE, solicitante ou assunto" value={query} />
-            </FormField>
+          <FormField label="Buscar">
+            <Input onChange={(event) => setQuery(event.target.value)} placeholder="PRE, solicitante ou assunto" value={query} />
+          </FormField>
 
-            <FormField hint="Multiplos estados." label="Status">
-              <select className={selectClassName} multiple onChange={(event) => setSelectedStatuses(Array.from(event.target.selectedOptions, (option) => option.value))} value={selectedStatuses}>
-                {STATUSES.map((status) => (
-                  <option key={status.value} value={status.value}>
-                    {status.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
+          <FormField hint="Multiplos estados." label="Status">
+            <select className={selectClassName} multiple onChange={(event) => setSelectedStatuses(Array.from(event.target.selectedOptions, (option) => option.value))} value={selectedStatuses}>
+              {STATUSES.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
 
-            <FormField label="Data inicial">
-              <Input onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
-            </FormField>
+          <FormField label="Data inicial">
+            <Input onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
+          </FormField>
 
-            <FormField label="Data final">
-              <Input onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
-            </FormField>
+          <FormField label="Data final">
+            <Input onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
+          </FormField>
 
-            <FormField label="Presenca de SEI">
-              <select className={selectClassName} onChange={(event) => setHasSei(event.target.value)} value={hasSei}>
-                <option value="">Todos</option>
-                <option value="true">Com SEI</option>
-                <option value="false">Sem SEI</option>
-              </select>
-            </FormField>
+          <FormField label="Presenca de SEI">
+            <select className={selectClassName} onChange={(event) => setHasSei(event.target.value as "" | "true" | "false")} value={hasSei}>
+              <option value="">Todos</option>
+              <option value="true">Com SEI</option>
+              <option value="false">Sem SEI</option>
+            </select>
+          </FormField>
 
-            <FormField label="Ordenacao">
-              <select className={selectClassName} onChange={(event) => setSortBy(event.target.value as PreDemandaSortBy)} value={sortBy}>
-                <option value="updatedAt">Actualizacao</option>
-                <option value="createdAt">Criacao</option>
-                <option value="dataReferencia">Data de referencia</option>
-                <option value="solicitante">Solicitante</option>
-                <option value="status">Status</option>
-              </select>
-            </FormField>
+          <FormField label="Ordenacao">
+            <select className={selectClassName} onChange={(event) => setSortBy(event.target.value as PreDemandaSortBy)} value={sortBy}>
+              <option value="updatedAt">Actualizacao</option>
+              <option value="createdAt">Criacao</option>
+              <option value="dataReferencia">Data de referencia</option>
+              <option value="solicitante">Solicitante</option>
+              <option value="status">Status</option>
+            </select>
+          </FormField>
 
-            <FormField label="Direcao">
-              <select className={selectClassName} onChange={(event) => setSortOrder(event.target.value as SortOrder)} value={sortOrder}>
-                <option value="desc">Mais recentes</option>
-                <option value="asc">Mais antigas</option>
-              </select>
-            </FormField>
+          <FormField label="Direcao">
+            <select className={selectClassName} onChange={(event) => setSortOrder(event.target.value as SortOrder)} value={sortOrder}>
+              <option value="desc">Mais recentes</option>
+              <option value="asc">Mais antigas</option>
+            </select>
+          </FormField>
 
-            <div className="flex items-end gap-3">
-              <Button className="w-full" type="submit">
-                Filtrar
-              </Button>
-              <Button
-                onClick={() => {
-                  setQuery("");
-                  setSelectedStatuses([]);
-                  setDateFrom("");
-                  setDateTo("");
-                  setHasSei("");
-                  setSortBy("updatedAt");
-                  setSortOrder("desc");
-                  setSearchParams(new URLSearchParams({ view, page: "1", sortBy: "updatedAt", sortOrder: "desc" }));
-                }}
-                type="button"
-                variant="ghost"
-              >
-                Limpar
-              </Button>
-            </div>
+          <div className="flex items-end gap-3">
+            <Button className="w-full" type="submit">
+              Filtrar
+            </Button>
+            <Button onClick={clearFilters} type="button" variant="ghost">
+              Limpar
+            </Button>
+          </div>
         </FilterBar>
       </form>
 
-      {view === "kanban" ? (
+      {resolvedState.view === "kanban" ? (
         <KanbanBoard
           items={items}
           onQuickAction={(item, action) => {
@@ -325,20 +482,20 @@ export function PreDemandasPage() {
 
       <div className="flex flex-col items-center justify-between gap-3 rounded-[24px] border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600 sm:flex-row">
         <span>
-          Pagina {page} de {totalPages}
+          Pagina {resolvedState.page} de {totalPages}
         </span>
         <div className="flex gap-2">
           <Button
-            disabled={page <= 1}
-            onClick={() => setSearchParams(new URLSearchParams({ ...Object.fromEntries(searchParams), page: String(page - 1) }))}
+            disabled={resolvedState.page <= 1}
+            onClick={() => setSearchParams(new URLSearchParams({ ...Object.fromEntries(searchParams), page: String(resolvedState.page - 1) }))}
             type="button"
             variant="secondary"
           >
             Anterior
           </Button>
           <Button
-            disabled={page >= totalPages}
-            onClick={() => setSearchParams(new URLSearchParams({ ...Object.fromEntries(searchParams), page: String(page + 1) }))}
+            disabled={resolvedState.page >= totalPages}
+            onClick={() => setSearchParams(new URLSearchParams({ ...Object.fromEntries(searchParams), page: String(resolvedState.page + 1) }))}
             type="button"
             variant="secondary"
           >

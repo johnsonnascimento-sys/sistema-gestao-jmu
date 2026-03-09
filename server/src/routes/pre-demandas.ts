@@ -135,6 +135,20 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   });
 
   app.get(
+    "/api/pre-demandas/dashboard/resumo",
+    { preHandler: [app.authenticate, app.authorize("dashboard.read")] },
+    async (_request, reply) => {
+      const summary = await preDemandaRepository.getDashboardSummary();
+
+      return reply.send({
+        ok: true,
+        data: summary,
+        error: null,
+      });
+    },
+  );
+
+  app.get(
     "/api/pre-demandas/timeline/recentes",
     { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] },
     async (request, reply) => {

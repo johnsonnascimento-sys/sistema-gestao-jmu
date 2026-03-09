@@ -105,6 +105,14 @@ export interface PreDemandaAuditRecord {
   changedBy: AuditActor | null;
 }
 
+export interface PreDemandaDashboardSummary {
+  counts: StatusCount[];
+  reopenedLast30Days: number;
+  closedLast30Days: number;
+  awaitingSeiItems: PreDemanda[];
+  recentTimeline: TimelineEvent[];
+}
+
 export type TimelineEventType = "created" | "status_changed" | "sei_linked" | "sei_reassociated";
 
 export interface TimelineEvent {

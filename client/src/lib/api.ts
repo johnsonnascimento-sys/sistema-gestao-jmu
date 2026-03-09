@@ -4,6 +4,7 @@ import type {
   AuthUser,
   PreDemanda,
   PreDemandaAuditRecord,
+  PreDemandaDashboardSummary,
   PreDemandaSortBy,
   PreDemandaStatus,
   SortOrder,
@@ -178,6 +179,10 @@ export function getTimeline(preId: string) {
 
 export function getRecentTimeline(limit = 8) {
   return request<TimelineEvent[]>(`/api/pre-demandas/timeline/recentes?limit=${limit}`);
+}
+
+export function getDashboardSummary() {
+  return request<PreDemandaDashboardSummary>("/api/pre-demandas/dashboard/resumo");
 }
 
 export function listAdminUsers() {

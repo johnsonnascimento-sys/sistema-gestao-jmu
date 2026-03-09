@@ -82,22 +82,42 @@ export function PreDemandaDetailPage() {
 
   const nextAction = useMemo(() => {
     if (!record) {
-      return "";
+      return {
+        title: "",
+        description: "",
+      };
     }
 
     switch (record.status) {
       case "aberta":
-        return "Triar a demanda e definir se deve aguardar SEI ou seguir para vinculacao.";
+        return {
+          title: "Triar e decidir o fluxo",
+          description: "Validar o contexto da solicitacao e decidir se a demanda segue para aguardando SEI ou se ja pode receber vinculacao.",
+        };
       case "aguardando_sei":
-        return "Acompanhar o nascimento do processo e associar o numero SEI assim que estiver disponivel.";
+        return {
+          title: "Aguardar e monitorar o processo",
+          description: "Acompanhar o nascimento do processo e associar o numero SEI assim que estiver disponivel.",
+        };
       case "associada":
-        return "Confirmar o contexto do processo e encerrar a demanda quando a acao administrativa estiver concluida.";
+        return {
+          title: "Conferir e concluir",
+          description: "Confirmar o contexto do processo vinculado e encerrar a demanda quando a acao administrativa estiver concluida.",
+        };
       case "encerrada":
-        return "Reabrir apenas se houver nova necessidade operacional ou correcao do fluxo.";
+        return {
+          title: "Manter encerrada, salvo excecao",
+          description: "Reabrir apenas se houver nova necessidade operacional, correcao de fluxo ou vinculacao feita com erro.",
+        };
       default:
-        return "";
+        return {
+          title: "",
+          description: "",
+        };
     }
   }, [record]);
+
+  const lastEvent = useMemo(() => timeline[0] ?? null, [timeline]);
 
   if (loading) {
     return <LoadingState description="A timeline, o estado e o vinculo SEI estao a ser preparados." title="Carregando demanda" />;
@@ -158,7 +178,7 @@ export function PreDemandaDetailPage() {
                 <CardTitle>Resumo executivo</CardTitle>
                 <StatusPill status={record.status} />
               </div>
-              <CardDescription>{nextAction}</CardDescription>
+              <CardDescription>{nextAction.description}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 text-sm text-slate-600">
               <div>
@@ -184,6 +204,41 @@ export function PreDemandaDetailPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Observacoes</p>
                 <p className="mt-1 text-slate-950">{record.observacoes ?? "-"}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Proxima acao operacional</CardTitle>
+              <CardDescription>{nextAction.title}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 text-sm text-slate-600">
+              <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
+                <p className="text-sm font-semibold text-amber-900">{nextAction.title}</p>
+                <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">SEI actual</p>
+                <p className="mt-1 text-slate-950">{record.currentAssociation?.seiNumero ?? "Ainda nao associado"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Ultima movimentacao</p>
+                <p className="mt-1 text-slate-950">
+                  {lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} · ${lastEvent.actor ? lastEvent.actor.name : "Sistema"}` : "Nenhum evento registado"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Pendencia principal</p>
+                <p className="mt-1 text-slate-950">
+                  {record.status === "aguardando_sei"
+                    ? "Associar o numero SEI assim que o processo existir."
+                    : record.status === "aberta"
+                      ? "Classificar e mover a demanda para o proximo estado."
+                      : record.status === "associada"
+                        ? "Concluir a tratativa e encerrar quando apropriado."
+                        : "Sem pendencia activa, apenas monitorar necessidade de reabertura."}
+                </p>
               </div>
             </CardContent>
           </Card>

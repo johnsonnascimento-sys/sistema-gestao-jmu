@@ -2,6 +2,7 @@ import type { PoolClient, QueryResultRow } from "pg";
 import type {
   AuditActor,
   PreDemandaAuditRecord,
+  PreDemandaDashboardSummary,
   PreDemandaDetail,
   PreDemandaSortBy,
   PreDemandaStatus,
@@ -825,5 +826,43 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     );
 
     return result.rows.map(mapTimelineEvent);
+  }
+
+  async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
+    const [counts, metricsResult, awaitingSeiResult, recentTimeline] = await Promise.all([
+      this.getStatusCounts(),
+      this.pool.query(
+        `
+          select
+            count(*) filter (
+              where audit.status_anterior = 'encerrada'
+                and audit.status_novo in ('aberta', 'aguardando_sei', 'associada')
+                and audit.registrado_em >= now() - interval '30 days'
+            )::int as reopened_last_30_days,
+            count(*) filter (
+              where audit.status_novo = 'encerrada'
+                and audit.registrado_em >= now() - interval '30 days'
+            )::int as closed_last_30_days
+          from adminlog.pre_demanda_status_audit audit
+        `,
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
+          where pd.status = 'aguardando_sei'
+          order by pd.data_referencia asc, pd.updated_at desc, pd.id desc
+          limit 5
+        `,
+      ),
+      this.listRecentTimeline(8),
+    ]);
+
+    return {
+      counts,
+      reopenedLast30Days: Number(metricsResult.rows[0]?.reopened_last_30_days ?? 0),
+      closedLast30Days: Number(metricsResult.rows[0]?.closed_last_30_days ?? 0),
+      awaitingSeiItems: awaitingSeiResult.rows.map(mapPreDemanda),
+      recentTimeline,
+    };
   }
 }

@@ -2,6 +2,7 @@ import type {
   AdminUserAuditRecord,
   AdminUserSummary,
   AppUser,
+  PreDemandaDashboardSummary,
   PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDetail,
@@ -114,4 +115,5 @@ export interface PreDemandaRepository {
   listStatusAudit(preId: string): Promise<PreDemandaStatusAuditRecord[]>;
   listTimeline(preId: string): Promise<TimelineEvent[]>;
   listRecentTimeline(limit?: number): Promise<TimelineEvent[]>;
+  getDashboardSummary(): Promise<PreDemandaDashboardSummary>;
 }
