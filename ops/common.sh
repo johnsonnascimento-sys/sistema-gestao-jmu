@@ -13,7 +13,7 @@ fi
 
 BACKUP_DIR="${JMU_BACKUP_DIR:-/home/johnsontn-app/backups/gestor-web}"
 SCHEMA_NAME="${JMU_DATABASE_SCHEMA:-adminlog}"
-PG_IMAGE="${JMU_PG_IMAGE:-postgres:17-alpine}"
+PG_IMAGE="${JMU_PG_IMAGE:-pgvector/pgvector:pg17}"
 CONTAINER_NAME="${JMU_CONTAINER_NAME:-gestor-jmu-web}"
 HEALTH_URL="${JMU_HEALTH_URL:-http://127.0.0.1:3000/api/health}"
 READY_URL="${JMU_READY_URL:-http://127.0.0.1:3000/api/ready}"

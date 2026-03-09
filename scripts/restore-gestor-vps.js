@@ -145,7 +145,7 @@ async function run() {
     restoreLatest: process.env.JMU_RESTORE_LATEST || "",
     schemaName: process.env.JMU_DATABASE_SCHEMA || "adminlog",
     confirmToken: process.env.JMU_RESTORE_CONFIRM || "",
-    pgImage: process.env.JMU_PG_IMAGE || "postgres:17-alpine",
+    pgImage: process.env.JMU_PG_IMAGE || "pgvector/pgvector:pg17",
     smokeRequireAuth: process.env.JMU_SMOKE_TEST_REQUIRE_AUTH || "",
     smokeRequireAdmin: process.env.JMU_SMOKE_TEST_REQUIRE_ADMIN || "",
     smokeEmail: process.env.JMU_SMOKE_TEST_EMAIL || "",

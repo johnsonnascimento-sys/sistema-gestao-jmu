@@ -105,7 +105,7 @@ async function run() {
     schemaName: process.env.JMU_DATABASE_SCHEMA || "adminlog",
     backupLabel: sanitizeSegment(process.env.JMU_BACKUP_LABEL || ""),
     keepLatest: String(Number(process.env.JMU_BACKUP_KEEP_LATEST || "15")),
-    pgImage: process.env.JMU_PG_IMAGE || "postgres:17-alpine",
+    pgImage: process.env.JMU_PG_IMAGE || "pgvector/pgvector:pg17",
   };
 
   const remoteScript = buildRemoteScript(options);

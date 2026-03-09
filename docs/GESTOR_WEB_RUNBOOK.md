@@ -73,6 +73,7 @@ Use `npm run backup:vps` com:
 - opcionais: `JMU_BACKUP_KEEP_LATEST` para retenção automática no diretório remoto
 
 O script lê a `DATABASE_URL` da `.env` remota, gera `pg_dump` comprimido do schema `adminlog` usando a imagem oficial do Postgres, valida o gzip e mostra checksum/arquivos recentes.
+Por omissao, os scripts operacionais usam `pgvector/pgvector:pg17`, para que backups, restores e drills consigam lidar com objectos que referenciam `extensions.vector`.
 
 ### Instalacao da rotina operacional
 Use `npm run install:ops:vps` com:

@@ -39,7 +39,7 @@ for _attempt in $(seq 1 30); do
 done
 
 docker exec "$drill_container" pg_isready -U postgres -d gestor_drill >/dev/null 2>&1
-docker exec "$drill_container" psql -U postgres -d gestor_drill -v ON_ERROR_STOP=1 -c 'create schema if not exists extensions; create extension if not exists "uuid-ossp" with schema extensions;' >/dev/null
+docker exec "$drill_container" psql -U postgres -d gestor_drill -v ON_ERROR_STOP=1 -c 'create schema if not exists extensions; create extension if not exists "uuid-ossp" with schema extensions; create extension if not exists vector with schema extensions;' >/dev/null
 gunzip -c "$backup_file" | docker exec -i "$drill_container" psql -U postgres -d gestor_drill -v ON_ERROR_STOP=1 >/dev/null
 
 required_tables="$(docker exec "$drill_container" psql -U postgres -d gestor_drill -Atqc "select count(*) from information_schema.tables where table_schema='${SCHEMA_NAME}' and table_name in ('schema_migration','app_user','pre_demanda','pre_to_sei_link','pre_demanda_status_audit')")"
