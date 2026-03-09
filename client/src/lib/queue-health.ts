@@ -1,4 +1,4 @@
-import type { PreDemanda, PreDemandaStatus } from "../types";
+import type { PreDemanda, PreDemandaStatus, QueueHealth } from "../types";
 
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
 
@@ -32,7 +32,34 @@ function resolveQueueLevel(status: PreDemandaStatus, staleDays: number): QueueHe
   return "fresh";
 }
 
-export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "dataReferencia">) {
+export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "dataReferencia"> & { queueHealth?: QueueHealth }) {
+  if (item.queueHealth) {
+    return {
+      ...item.queueHealth,
+      label:
+        item.queueHealth.level === "critical"
+          ? "Critica"
+          : item.queueHealth.level === "attention"
+            ? "Atencao"
+            : item.queueHealth.level === "closed"
+              ? "Encerrada"
+              : "No prazo",
+      summary:
+        item.queueHealth.level === "critical"
+          ? `${item.queueHealth.staleDays}d sem movimentacao`
+          : item.queueHealth.level === "attention"
+            ? `${item.queueHealth.staleDays}d sem movimentacao`
+            : item.queueHealth.level === "closed"
+              ? "Demanda encerrada"
+              : item.queueHealth.staleDays === 0
+                ? "Movimentada hoje"
+                : `${item.queueHealth.staleDays}d desde a ultima acao`,
+      detail: `Idade ${item.queueHealth.ageDays}d - ${item.queueHealth.staleDays}d sem movimentacao`,
+      isAging: item.queueHealth.level === "attention" || item.queueHealth.level === "critical",
+      isCritical: item.queueHealth.level === "critical",
+    };
+  }
+
   const staleDays = diffInDays(item.updatedAt);
   const ageDays = diffInDays(item.dataReferencia);
   const level = resolveQueueLevel(item.status, staleDays);

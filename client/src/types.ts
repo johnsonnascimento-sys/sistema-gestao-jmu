@@ -14,6 +14,15 @@ export type AppPermission =
   | "admin.user.reset_password";
 export type PreDemandaSortBy = "updatedAt" | "createdAt" | "dataReferencia" | "solicitante" | "status";
 export type SortOrder = "asc" | "desc";
+export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
+
+export interface QueueHealth {
+  level: QueueHealthLevel;
+  staleDays: number;
+  ageDays: number;
+  attentionDays: number;
+  criticalDays: number;
+}
 
 export interface AuditActor {
   id: number;
@@ -93,6 +102,7 @@ export interface PreDemanda {
   updatedAt: string;
   createdBy: AuditActor | null;
   currentAssociation: SeiAssociation | null;
+  queueHealth: QueueHealth;
 }
 
 export interface PreDemandaAuditRecord {
@@ -110,6 +120,9 @@ export interface PreDemandaDashboardSummary {
   counts: StatusCount[];
   reopenedLast30Days: number;
   closedLast30Days: number;
+  agingAttentionTotal: number;
+  agingCriticalTotal: number;
+  staleItems: PreDemanda[];
   awaitingSeiItems: PreDemanda[];
   recentTimeline: TimelineEvent[];
 }

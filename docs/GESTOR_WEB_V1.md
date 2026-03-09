@@ -16,6 +16,8 @@ DATABASE_URL=postgresql://...
 SESSION_SECRET=troque-esta-chave
 CLIENT_ORIGIN=http://localhost:5173
 APP_BASE_URL=http://localhost:3000
+QUEUE_ATTENTION_DAYS=2
+QUEUE_CRITICAL_DAYS=5
 NODE_ENV=development
 ```
 
@@ -60,6 +62,7 @@ Se quiser validar tambem a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=tr
 - `GET /api/auth/me`
 - `POST /api/pre-demandas`
 - `GET /api/pre-demandas`
+- `GET /api/pre-demandas?queueHealth=attention,critical`
 - `GET /api/pre-demandas/timeline/recentes`
 - `GET /api/pre-demandas/:preId`
 - `PATCH /api/pre-demandas/:preId/status`
@@ -78,9 +81,9 @@ Se quiser validar tambem a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=tr
 - Cadastro de pre-demanda
 - Lista com filtros e paginacao
 - Dashboard com atalhos operacionais e ultimas movimentacoes
-- Sinalizacao operacional de fila parada no front:
-  - `Atencao`: 2 dias ou mais sem movimentacao
-  - `Critica`: 5 dias ou mais sem movimentacao
+- Sinalizacao operacional de fila parada no backend e front:
+  - `Atencao`: `QUEUE_ATTENTION_DAYS` dias ou mais sem movimentacao
+  - `Critica`: `QUEUE_CRITICAL_DAYS` dias ou mais sem movimentacao
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 

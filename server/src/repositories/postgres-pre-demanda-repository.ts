@@ -4,6 +4,7 @@ import type {
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaDetail,
+  QueueHealthLevel,
   PreDemandaSortBy,
   PreDemandaStatus,
   PreDemandaStatusAuditRecord,
@@ -12,6 +13,7 @@ import type {
   TimelineEvent,
 } from "../domain/types";
 import type { DatabasePool } from "../db";
+import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-health";
 import { AppError } from "../errors";
 import type {
   AssociateSeiInput,
@@ -70,6 +72,7 @@ const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
 };
 
 const ALL_STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "encerrada"];
+const FILTERABLE_QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 
 function mapActor(row: QueryResultRow, prefix: string): AuditActor | null {
   if (row[`${prefix}_id`] === null || row[`${prefix}_id`] === undefined) {
@@ -95,7 +98,7 @@ function mapAssociation(row: QueryResultRow): SeiAssociation {
   };
 }
 
-function mapPreDemanda(row: QueryResultRow): PreDemandaDetail {
+function mapPreDemanda(row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds): PreDemandaDetail {
   return {
     id: Number(row.id),
     preId: String(row.pre_id),
@@ -109,6 +112,7 @@ function mapPreDemanda(row: QueryResultRow): PreDemandaDetail {
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
     createdBy: mapActor(row, "created_by"),
+    queueHealth: buildQueueHealth(row.status as PreDemandaStatus, row.updated_at, row.data_referencia, queueHealthThresholds),
     currentAssociation: row.sei_numero === null ? null : mapAssociation(row),
   };
 }
@@ -159,7 +163,7 @@ function normalizeBool(value: boolean | undefined) {
   return value === undefined ? undefined : value;
 }
 
-function buildWhereClause(params: ListPreDemandasParams) {
+function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: QueueHealthThresholds) {
   const values: Array<string | number | string[] | boolean> = [];
   const clauses: string[] = [];
 
@@ -172,6 +176,38 @@ function buildWhereClause(params: ListPreDemandasParams) {
   if (params.statuses?.length) {
     values.push(params.statuses);
     clauses.push(`pd.status = any($${values.length}::text[])`);
+  }
+
+  if (params.queueHealthLevels?.length) {
+    const normalizedLevels = params.queueHealthLevels.filter((level) => FILTERABLE_QUEUE_HEALTH_LEVELS.includes(level));
+
+    if (normalizedLevels.length) {
+      const freshClauses: string[] = [];
+
+      for (const level of normalizedLevels) {
+        if (level === "fresh") {
+          values.push(queueHealthThresholds.attentionDays);
+          freshClauses.push(`(pd.status <> 'encerrada' and pd.updated_at > now() - make_interval(days => $${values.length}::int))`);
+          continue;
+        }
+
+        if (level === "attention") {
+          values.push(queueHealthThresholds.attentionDays);
+          const attentionIndex = values.length;
+          values.push(queueHealthThresholds.criticalDays);
+          const criticalIndex = values.length;
+          freshClauses.push(
+            `(pd.status <> 'encerrada' and pd.updated_at <= now() - make_interval(days => $${attentionIndex}::int) and pd.updated_at > now() - make_interval(days => $${criticalIndex}::int))`,
+          );
+          continue;
+        }
+
+        values.push(queueHealthThresholds.criticalDays);
+        freshClauses.push(`(pd.status <> 'encerrada' and pd.updated_at <= now() - make_interval(days => $${values.length}::int))`);
+      }
+
+      clauses.push(`(${freshClauses.join(" or ")})`);
+    }
   }
 
   if (params.dateFrom) {
@@ -247,7 +283,7 @@ async function inTransaction<T>(pool: DatabasePool, callback: (client: PoolClien
   }
 }
 
-async function getRecordByPreId(queryable: Queryable, preId: string) {
+async function getRecordByPreId(queryable: Queryable, preId: string, queueHealthThresholds: QueueHealthThresholds) {
   const result = await queryable.query(
     `
       ${BASE_SELECT}
@@ -257,11 +293,14 @@ async function getRecordByPreId(queryable: Queryable, preId: string) {
     [preId],
   );
 
-  return result.rows[0] ? mapPreDemanda(result.rows[0]) : null;
+  return result.rows[0] ? mapPreDemanda(result.rows[0], queueHealthThresholds) : null;
 }
 
 export class PostgresPreDemandaRepository implements PreDemandaRepository {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(
+    private readonly pool: DatabasePool,
+    private readonly queueHealthThresholds: QueueHealthThresholds,
+  ) {}
 
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     try {
@@ -302,7 +341,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         ],
       );
 
-      const record = await getRecordByPreId(this.pool, String(result.rows[0].pre_id));
+      const record = await getRecordByPreId(this.pool, String(result.rows[0].pre_id), this.queueHealthThresholds);
 
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
@@ -337,7 +376,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         });
       }
 
-      const record = mapPreDemanda(duplicate.rows[0]);
+      const record = mapPreDemanda(duplicate.rows[0], this.queueHealthThresholds);
 
       return {
         record,
@@ -348,7 +387,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async list(params: ListPreDemandasParams): Promise<ListPreDemandasResult> {
-    const { where, values } = buildWhereClause(params);
+    const { where, values } = buildWhereClause(params, this.queueHealthThresholds);
     const orderBy = buildOrderClause(params.sortBy, params.sortOrder);
     const limitIndex = values.length + 1;
     const offsetIndex = values.length + 2;
@@ -377,7 +416,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     ]);
 
     return {
-      items: itemsResult.rows.map(mapPreDemanda),
+      items: itemsResult.rows.map((row) => mapPreDemanda(row, this.queueHealthThresholds)),
       total: Number(totalResult.rows[0]?.total ?? 0),
     };
   }
@@ -399,7 +438,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async getByPreId(preId: string) {
-    return getRecordByPreId(this.pool, preId);
+    return getRecordByPreId(this.pool, preId, this.queueHealthThresholds);
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
@@ -519,7 +558,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         );
       }
 
-      const record = await getRecordByPreId(client, input.preId);
+      const record = await getRecordByPreId(client, input.preId, this.queueHealthThresholds);
 
       if (!record?.currentAssociation) {
         throw new AppError(500, "PRE_DEMANDA_ASSOCIATION_FAILED", "Falha ao carregar a associacao atualizada.");
@@ -578,7 +617,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.preId, currentStatus, input.status, input.motivo ?? null, input.observacoes ?? null, input.changedByUserId],
       );
 
-      const record = await getRecordByPreId(client, input.preId);
+      const record = await getRecordByPreId(client, input.preId, this.queueHealthThresholds);
 
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_STATUS_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
@@ -829,7 +868,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
-    const [counts, metricsResult, awaitingSeiResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -849,19 +888,48 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.pool.query(
         `
           ${BASE_SELECT}
+          where pd.status <> 'encerrada'
+            and pd.updated_at <= now() - make_interval(days => $1::int)
+          order by pd.updated_at asc, pd.data_referencia asc, pd.id asc
+          limit 5
+        `,
+        [this.queueHealthThresholds.attentionDays],
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
           where pd.status = 'aguardando_sei'
           order by pd.data_referencia asc, pd.updated_at desc, pd.id desc
           limit 5
         `,
+      ),
+      this.pool.query(
+        `
+          select
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.updated_at <= now() - make_interval(days => $1::int)
+                and pd.updated_at > now() - make_interval(days => $2::int)
+            )::int as aging_attention_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.updated_at <= now() - make_interval(days => $2::int)
+            )::int as aging_critical_total
+          from adminlog.pre_demanda pd
+        `,
+        [this.queueHealthThresholds.attentionDays, this.queueHealthThresholds.criticalDays],
       ),
       this.listRecentTimeline(8),
     ]);
 
     return {
       counts,
-      reopenedLast30Days: Number(metricsResult.rows[0]?.reopened_last_30_days ?? 0),
-      closedLast30Days: Number(metricsResult.rows[0]?.closed_last_30_days ?? 0),
-      awaitingSeiItems: awaitingSeiResult.rows.map(mapPreDemanda),
+      reopenedLast30Days: Number(lifecycleMetricsResult.rows[0]?.reopened_last_30_days ?? 0),
+      closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
+      agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),
+      agingCriticalTotal: Number(agingMetricsResult.rows[0]?.aging_critical_total ?? 0),
+      staleItems: staleItemsResult.rows.map((row) => mapPreDemanda(row, this.queueHealthThresholds)),
+      awaitingSeiItems: awaitingSeiResult.rows.map((row) => mapPreDemanda(row, this.queueHealthThresholds)),
       recentTimeline,
     };
   }

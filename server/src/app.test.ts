@@ -7,6 +7,7 @@ import { buildApp } from "./app";
 import { hashPassword } from "./auth/password";
 import type { AppConfig } from "./config";
 import type { DatabasePool } from "./db";
+import { buildQueueHealth, type QueueHealthThresholds } from "./domain/queue-health";
 import type {
   AdminOpsSummary,
   AdminUserAuditRecord,
@@ -222,6 +223,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
   private statusAudit: PreDemandaStatusAuditRecord[] = [];
   private nextId = 1;
   private nextAuditId = 1;
+  private readonly queueHealthThresholds: QueueHealthThresholds = {
+    attentionDays: 2,
+    criticalDays: 5,
+  };
 
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const existing = this.records.find(
@@ -249,6 +254,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       updatedAt: new Date().toISOString(),
       createdBy: null,
       currentAssociation: null,
+      queueHealth: buildQueueHealth("aberta", new Date().toISOString(), input.dataReferencia, this.queueHealthThresholds),
     };
 
     this.nextId += 1;
@@ -267,6 +273,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     if (params.statuses?.length) {
       items = items.filter((item) => params.statuses?.includes(item.status));
+    }
+
+    if (params.queueHealthLevels?.length) {
+      items = items.filter((item) => params.queueHealthLevels?.includes(item.queueHealth.level));
     }
 
     if (params.dateFrom) {
@@ -362,6 +372,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
     record.status = "associada";
     record.updatedAt = now;
+    record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
 
     return { association, audited };
   }
@@ -391,6 +402,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     record.status = input.status;
     record.updatedAt = now;
+    record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
 
     return { record };
   }
@@ -470,11 +482,18 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .filter((item) => item.status === "aguardando_sei")
       .sort((left, right) => left.dataReferencia.localeCompare(right.dataReferencia))
       .slice(0, 5);
+    const staleItems = this.records
+      .filter((item) => item.queueHealth.level === "attention" || item.queueHealth.level === "critical")
+      .sort((left, right) => left.updatedAt.localeCompare(right.updatedAt))
+      .slice(0, 5);
 
     return {
       counts,
       reopenedLast30Days: this.statusAudit.filter((item) => item.statusAnterior === "encerrada" && item.statusNovo !== "encerrada").length,
       closedLast30Days: this.statusAudit.filter((item) => item.statusNovo === "encerrada").length,
+      agingAttentionTotal: this.records.filter((item) => item.queueHealth.level === "attention").length,
+      agingCriticalTotal: this.records.filter((item) => item.queueHealth.level === "critical").length,
+      staleItems,
       awaitingSeiItems,
       recentTimeline,
     };
@@ -488,6 +507,8 @@ describe("Gestor JMU API", () => {
     SESSION_SECRET: "test-session-secret-123",
     CLIENT_ORIGIN: "http://localhost:5173",
     APP_BASE_URL: "http://localhost:3000",
+    QUEUE_ATTENTION_DAYS: 2,
+    QUEUE_CRITICAL_DAYS: 5,
     NODE_ENV: "test",
     isProduction: false,
   };
@@ -686,6 +707,16 @@ describe("Gestor JMU API", () => {
     expect(reassociation.statusCode).toBe(200);
     expect(reassociation.json().data.audited).toBe(true);
 
+    const agedRecord = (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records.find((item) => item.preId === "PRE-2026-001");
+
+    if (agedRecord) {
+      agedRecord.updatedAt = new Date(Date.now() - 6 * 86_400_000).toISOString();
+      agedRecord.queueHealth = buildQueueHealth(agedRecord.status, agedRecord.updatedAt, agedRecord.dataReferencia, {
+        attentionDays: 2,
+        criticalDays: 5,
+      });
+    }
+
     const filtered = await app.inject({
       method: "GET",
       url: "/api/pre-demandas?status=associada",
@@ -694,6 +725,15 @@ describe("Gestor JMU API", () => {
 
     expect(filtered.statusCode).toBe(200);
     expect(filtered.json().data.total).toBe(1);
+
+    const filteredByQueueHealth = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas?queueHealth=critical",
+      headers: { cookie },
+    });
+
+    expect(filteredByQueueHealth.statusCode).toBe(200);
+    expect(filteredByQueueHealth.json().data.total).toBeGreaterThanOrEqual(1);
 
     const audit = await app.inject({
       method: "GET",
@@ -757,6 +797,9 @@ describe("Gestor JMU API", () => {
     expect(dashboardSummary.statusCode).toBe(200);
     expect(dashboardSummary.json().data.recentTimeline.length).toBeGreaterThan(0);
     expect(typeof dashboardSummary.json().data.closedLast30Days).toBe("number");
+    expect(typeof dashboardSummary.json().data.agingAttentionTotal).toBe("number");
+    expect(typeof dashboardSummary.json().data.agingCriticalTotal).toBe("number");
+    expect(Array.isArray(dashboardSummary.json().data.staleItems)).toBe(true);
   });
 
   it("forbids operator admin access and allows admin user management", async () => {

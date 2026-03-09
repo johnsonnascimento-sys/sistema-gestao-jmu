@@ -15,13 +15,19 @@ import { Input } from "../components/ui/input";
 import { formatAppError, listPreDemandas, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { getQueueHealth } from "../lib/queue-health";
-import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, SortOrder, StatusCount } from "../types";
+import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder, StatusCount } from "../types";
 
 const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
   { value: "aberta", label: "Aberta" },
   { value: "aguardando_sei", label: "Aguardando SEI" },
   { value: "associada", label: "Associada" },
   { value: "encerrada", label: "Encerrada" },
+];
+
+const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: string }> = [
+  { value: "fresh", label: "No prazo" },
+  { value: "attention", label: "Atencao" },
+  { value: "critical", label: "Critica" },
 ];
 
 const selectClassName =
@@ -41,6 +47,7 @@ type ResolvedSearchState = {
   presetId: SavedViewId | null;
   q: string;
   statuses: string[];
+  queueHealth: QueueHealthLevel[];
   dateFrom: string;
   dateTo: string;
   hasSei: "" | "true" | "false";
@@ -56,6 +63,7 @@ const SAVED_VIEWS: Array<{
   description: string;
   defaults: {
     statuses?: string[];
+    queueHealth?: QueueHealthLevel[];
     hasSei?: "" | "true" | "false";
     sortBy: PreDemandaSortBy;
     sortOrder: SortOrder;
@@ -101,6 +109,7 @@ const SAVED_VIEWS: Array<{
     description: "Demandas activas com maior tempo sem movimentacao, ordenadas pela actualizacao mais antiga.",
     defaults: {
       statuses: ["aberta", "aguardando_sei", "associada"],
+      queueHealth: ["attention", "critical"],
       sortBy: "updatedAt",
       sortOrder: "asc",
       view: "table",
@@ -130,7 +139,7 @@ const SAVED_VIEWS: Array<{
   },
 ];
 
-function splitStatuses(value: string | null) {
+function splitValues(value: string | null) {
   return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
 }
 
@@ -144,7 +153,8 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
   return {
     presetId: preset?.id ?? null,
     q: searchParams.get("q") ?? "",
-    statuses: searchParams.has("status") ? splitStatuses(searchParams.get("status")) : preset?.defaults.statuses ?? [],
+    statuses: searchParams.has("status") ? splitValues(searchParams.get("status")) : preset?.defaults.statuses ?? [],
+    queueHealth: searchParams.has("queueHealth") ? (splitValues(searchParams.get("queueHealth")) as QueueHealthLevel[]) : preset?.defaults.queueHealth ?? [],
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
@@ -170,6 +180,7 @@ export function PreDemandasPage() {
 
   const [query, setQuery] = useState(resolvedState.q);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
+  const [selectedQueueHealth, setSelectedQueueHealth] = useState<QueueHealthLevel[]>(resolvedState.queueHealth);
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
@@ -181,6 +192,7 @@ export function PreDemandasPage() {
   useEffect(() => {
     setQuery(resolvedState.q);
     setSelectedStatuses(resolvedState.statuses);
+    setSelectedQueueHealth(resolvedState.queueHealth);
     setDateFrom(resolvedState.dateFrom);
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
@@ -195,6 +207,7 @@ export function PreDemandasPage() {
       const response = await listPreDemandas({
         q: resolvedState.q,
         status: resolvedState.statuses,
+        queueHealth: resolvedState.queueHealth,
         dateFrom: resolvedState.dateFrom || undefined,
         dateTo: resolvedState.dateTo || undefined,
         hasSei: resolvedState.hasSei ? resolvedState.hasSei === "true" : undefined,
@@ -229,6 +242,10 @@ export function PreDemandasPage() {
 
     if (selectedStatuses.length) {
       next.set("status", selectedStatuses.join(","));
+    }
+
+    if (selectedQueueHealth.length) {
+      next.set("queueHealth", selectedQueueHealth.join(","));
     }
 
     if (dateFrom) {
@@ -273,6 +290,7 @@ export function PreDemandasPage() {
   function clearFilters() {
     setQuery("");
     setSelectedStatuses([]);
+    setSelectedQueueHealth([]);
     setDateFrom("");
     setDateTo("");
     setHasSei("");
@@ -349,7 +367,7 @@ export function PreDemandasPage() {
       </Card>
 
       <form onSubmit={handleFilterSubmit}>
-        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
             <Input onChange={(event) => setQuery(event.target.value)} placeholder="PRE, solicitante ou assunto" value={query} />
           </FormField>
@@ -359,6 +377,21 @@ export function PreDemandasPage() {
               {STATUSES.map((status) => (
                 <option key={status.value} value={status.value}>
                   {status.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField hint="Acompanhe itens parados ou no prazo." label="Saude da fila">
+            <select
+              className={selectClassName}
+              multiple
+              onChange={(event) => setSelectedQueueHealth(Array.from(event.target.selectedOptions, (option) => option.value as QueueHealthLevel))}
+              value={selectedQueueHealth}
+            >
+              {QUEUE_HEALTH_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>

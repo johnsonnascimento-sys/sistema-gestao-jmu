@@ -8,6 +8,8 @@ const envSchema = z.object({
   APP_BASE_URL: z.string().url().default("http://localhost:3000"),
   APP_VERSION: z.string().trim().min(1).optional(),
   APP_COMMIT_SHA: z.string().trim().min(1).optional(),
+  QUEUE_ATTENTION_DAYS: z.coerce.number().int().positive().default(2),
+  QUEUE_CRITICAL_DAYS: z.coerce.number().int().positive().default(5),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -24,6 +26,8 @@ export function loadConfig(overrides: Partial<NodeJS.ProcessEnv> = {}): AppConfi
     APP_BASE_URL: overrides.APP_BASE_URL ?? process.env.APP_BASE_URL,
     APP_VERSION: overrides.APP_VERSION ?? process.env.APP_VERSION,
     APP_COMMIT_SHA: overrides.APP_COMMIT_SHA ?? process.env.APP_COMMIT_SHA,
+    QUEUE_ATTENTION_DAYS: overrides.QUEUE_ATTENTION_DAYS ?? process.env.QUEUE_ATTENTION_DAYS,
+    QUEUE_CRITICAL_DAYS: overrides.QUEUE_CRITICAL_DAYS ?? process.env.QUEUE_CRITICAL_DAYS,
     NODE_ENV: overrides.NODE_ENV ?? process.env.NODE_ENV,
   });
 

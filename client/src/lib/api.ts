@@ -6,6 +6,7 @@ import type {
   PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
+  QueueHealthLevel,
   PreDemandaSortBy,
   PreDemandaStatus,
   RuntimeStatus,
@@ -112,6 +113,7 @@ export function getAdminOpsSummary(limit = 12) {
 export interface ListPreDemandasParams {
   q?: string;
   status?: string[];
+  queueHealth?: QueueHealthLevel[];
   dateFrom?: string;
   dateTo?: string;
   hasSei?: boolean;
@@ -130,6 +132,10 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
 
   if (params.status?.length) {
     searchParams.set("status", params.status.join(","));
+  }
+
+  if (params.queueHealth?.length) {
+    searchParams.set("queueHealth", params.queueHealth.join(","));
   }
 
   if (params.dateFrom) {

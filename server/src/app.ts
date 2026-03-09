@@ -35,7 +35,12 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   const config = partialDependencies?.config ?? loadConfig();
   const pool = partialDependencies?.pool ?? createPool(config.DATABASE_URL);
   const userRepository = partialDependencies?.userRepository ?? new PostgresUserRepository(pool);
-  const preDemandaRepository = partialDependencies?.preDemandaRepository ?? new PostgresPreDemandaRepository(pool);
+  const preDemandaRepository =
+    partialDependencies?.preDemandaRepository ??
+    new PostgresPreDemandaRepository(pool, {
+      attentionDays: config.QUEUE_ATTENTION_DAYS,
+      criticalDays: config.QUEUE_CRITICAL_DAYS,
+    });
   const operationsStore = partialDependencies?.operationsStore ?? new OperationsStore();
 
   const app = fastify({ logger: true });

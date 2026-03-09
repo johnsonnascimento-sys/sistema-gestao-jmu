@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
@@ -7,13 +7,12 @@ import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { formatAppError, getDashboardSummary, listPreDemandas } from "../lib/api";
+import { formatAppError, getDashboardSummary } from "../lib/api";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
 
 export function DashboardPage() {
   const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
-  const [activeQueueItems, setActiveQueueItems] = useState<PreDemanda[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -35,18 +34,7 @@ export function DashboardPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const [nextSummary, activeQueue] = await Promise.all([
-          getDashboardSummary(),
-          listPreDemandas({
-            status: ["aberta", "aguardando_sei", "associada"],
-            sortBy: "updatedAt",
-            sortOrder: "asc",
-            page: 1,
-            pageSize: 30,
-          }),
-        ]);
-        setSummary(nextSummary);
-        setActiveQueueItems(activeQueue.items);
+        setSummary(await getDashboardSummary());
       } catch (nextError) {
         setError(formatAppError(nextError, "Falha ao carregar dashboard."));
       } finally {
@@ -54,10 +42,6 @@ export function DashboardPage() {
       }
     })();
   }, []);
-
-  const attentionItems = useMemo(() => activeQueueItems.filter((item) => getQueueHealth(item).level === "attention"), [activeQueueItems]);
-  const criticalItems = useMemo(() => activeQueueItems.filter((item) => getQueueHealth(item).level === "critical"), [activeQueueItems]);
-  const staleItems = useMemo(() => activeQueueItems.filter((item) => getQueueHealth(item).isAging).slice(0, 5), [activeQueueItems]);
 
   if (loading) {
     return <LoadingState description="Estamos a montar o resumo operativo do dia." title="A preparar dashboard" />;
@@ -70,6 +54,8 @@ export function DashboardPage() {
   if (!summary) {
     return <ErrorState description="Resumo operativo indisponivel." />;
   }
+
+  const staleItems = summary.staleItems;
 
   function renderQueueItem(item: PreDemanda) {
     const queueHealth = getQueueHealth(item);
@@ -122,8 +108,8 @@ export function DashboardPage() {
         {summary.counts.map((item) => (
           <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
         ))}
-        <MetricCard label="Paradas 2d+" value={attentionItems.length + criticalItems.length} />
-        <MetricCard label="Criticas 5d+" value={criticalItems.length} />
+        <MetricCard label="Paradas 2d+" value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
+        <MetricCard label="Criticas 5d+" value={summary.agingCriticalTotal} />
         <MetricCard label="Reabertas 30d" value={summary.reopenedLast30Days} />
         <MetricCard label="Encerradas 30d" value={summary.closedLast30Days} />
       </div>

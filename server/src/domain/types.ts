@@ -81,6 +81,15 @@ export interface AdminUserAuditRecord {
 export type PreDemandaStatus = "aberta" | "aguardando_sei" | "associada" | "encerrada";
 export type PreDemandaSortBy = "updatedAt" | "createdAt" | "dataReferencia" | "solicitante" | "status";
 export type SortOrder = "asc" | "desc";
+export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
+
+export interface QueueHealth {
+  level: QueueHealthLevel;
+  staleDays: number;
+  ageDays: number;
+  attentionDays: number;
+  criticalDays: number;
+}
 
 export interface PreDemanda {
   id: number;
@@ -95,6 +104,7 @@ export interface PreDemanda {
   createdAt: string;
   updatedAt: string;
   createdBy: AuditActor | null;
+  queueHealth: QueueHealth;
 }
 
 export interface SeiAssociation {
@@ -136,6 +146,9 @@ export interface PreDemandaDashboardSummary {
   counts: Array<{ status: PreDemandaStatus; total: number }>;
   reopenedLast30Days: number;
   closedLast30Days: number;
+  agingAttentionTotal: number;
+  agingCriticalTotal: number;
+  staleItems: PreDemandaDetail[];
   awaitingSeiItems: PreDemandaDetail[];
   recentTimeline: TimelineEvent[];
 }

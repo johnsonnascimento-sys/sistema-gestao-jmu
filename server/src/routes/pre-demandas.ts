@@ -1,10 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { PreDemandaSortBy, PreDemandaStatus, SortOrder } from "../domain/types";
+import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
 import { AppError } from "../errors";
 import type { PreDemandaRepository } from "../repositories/types";
 
 const STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "encerrada"];
+const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
 const SEI_REGEX = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
@@ -21,6 +22,7 @@ const createSchema = z.object({
 const listSchema = z.object({
   q: z.string().trim().optional(),
   status: z.union([z.string(), z.array(z.string())]).optional(),
+  queueHealth: z.union([z.string(), z.array(z.string())]).optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   hasSei: z.enum(["true", "false"]).optional(),
@@ -67,6 +69,23 @@ function parseStatuses(input: string | string[] | undefined) {
   return normalized as PreDemandaStatus[];
 }
 
+function parseQueueHealthLevels(input: string | string[] | undefined) {
+  if (!input) {
+    return [];
+  }
+
+  const values = Array.isArray(input) ? input : input.split(",");
+  const normalized = values.map((value) => value.trim()).filter(Boolean);
+
+  for (const value of normalized) {
+    if (!QUEUE_HEALTH_LEVELS.includes(value as QueueHealthLevel)) {
+      throw new AppError(400, "INVALID_QUEUE_HEALTH_FILTER", `Filtro de fila invalido: ${value}`);
+    }
+  }
+
+  return normalized as QueueHealthLevel[];
+}
+
 export async function registerPreDemandaRoutes(app: FastifyInstance, options: { preDemandaRepository: PreDemandaRepository }) {
   const { preDemandaRepository } = options;
 
@@ -106,10 +125,12 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.get("/api/pre-demandas", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
     const query = listSchema.parse(request.query);
     const statuses = parseStatuses(query.status);
+    const queueHealthLevels = parseQueueHealthLevels(query.queueHealth);
     const [listResult, counts] = await Promise.all([
       preDemandaRepository.list({
         q: query.q,
         statuses,
+        queueHealthLevels,
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
         hasSei: query.hasSei ? query.hasSei === "true" : undefined,

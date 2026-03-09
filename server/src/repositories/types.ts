@@ -6,6 +6,7 @@ import type {
   PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDetail,
+  QueueHealthLevel,
   PreDemandaSortBy,
   PreDemandaStatusAuditRecord,
   PreDemandaStatus,
@@ -80,6 +81,7 @@ export interface UpdatePreDemandaStatusResult {
 export interface ListPreDemandasParams {
   q?: string;
   statuses?: PreDemandaStatus[];
+  queueHealthLevels?: QueueHealthLevel[];
   dateFrom?: string;
   dateTo?: string;
   hasSei?: boolean;
