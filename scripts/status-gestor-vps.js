@@ -27,6 +27,8 @@ function buildRemoteScript(options) {
     `CONTAINER_NAME=${bashSingleQuote(options.containerName)}`,
     `HEALTH_URL=${bashSingleQuote(options.healthUrl)}`,
     `READY_URL=${bashSingleQuote(options.readyUrl)}`,
+    `BACKUP_DIR=${bashSingleQuote(options.backupDir)}`,
+    `SCHEMA_NAME=${bashSingleQuote(options.schemaName)}`,
     "",
     'echo "branch=$(git rev-parse --abbrev-ref HEAD)"',
     'echo "commit=$(git rev-parse HEAD)"',
@@ -43,6 +45,10 @@ function buildRemoteScript(options) {
     '  echo "smoke_user_configured=$(grep -q \'^SMOKE_TEST_EMAIL=\' .env && ! grep -q \'^SMOKE_TEST_EMAIL=$\' .env && grep -q \'^SMOKE_TEST_PASSWORD=\' .env && ! grep -q \'^SMOKE_TEST_PASSWORD=$\' .env && echo true || echo false)"',
     '  echo "smoke_admin_configured=$(grep -q \'^SMOKE_TEST_ADMIN_EMAIL=\' .env && ! grep -q \'^SMOKE_TEST_ADMIN_EMAIL=$\' .env && grep -q \'^SMOKE_TEST_ADMIN_PASSWORD=\' .env && ! grep -q \'^SMOKE_TEST_ADMIN_PASSWORD=$\' .env && echo true || echo false)"',
     'fi',
+    'if [ -d "$BACKUP_DIR" ]; then',
+    '  echo "latest_backups="',
+    '  find "$BACKUP_DIR" -maxdepth 1 -type f -name "gestor-${SCHEMA_NAME}-*.sql.gz" ! -size 0c -printf "%TY-%Tm-%Td %TH:%TM:%TS %s %p\n" | sort -r | head -n 5',
+    "fi",
     'echo "recent_images="',
     'docker images --format \'{{.Repository}}:{{.Tag}} {{.CreatedSince}}\' | grep "^${CONTAINER_NAME}:" | head -n 8',
   ].join("\n");
@@ -64,6 +70,8 @@ async function run() {
     containerName: process.env.JMU_CONTAINER_NAME || "gestor-jmu-web",
     healthUrl: process.env.JMU_HEALTH_URL || "http://127.0.0.1:3000/api/health",
     readyUrl: process.env.JMU_READY_URL || "http://127.0.0.1:3000/api/ready",
+    backupDir: process.env.JMU_BACKUP_DIR || "/home/johnsontn-app/backups/gestor-web",
+    schemaName: process.env.JMU_DATABASE_SCHEMA || "adminlog",
   };
 
   const remoteScript = buildRemoteScript(options);

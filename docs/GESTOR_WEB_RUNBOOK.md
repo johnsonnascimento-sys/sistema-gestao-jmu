@@ -61,9 +61,40 @@ O rollback recria o container com a imagem alvo, valida `GET /api/health`, `GET 
 - Rotacionar credenciais administrativas temporarias apos bootstrap.
 
 ## Backup e restore
-- Manter snapshot/export regular do schema `adminlog`.
-- Validar restore em ambiente separado antes de incidentes reais.
-- Confirmar que `adminlog.schema_migration`, `adminlog.app_user` e `adminlog.admin_user_audit` foram restaurados.
+### Backup remoto
+Use `npm run backup:vps` com:
+
+- `JMU_SSH_HOST`
+- `JMU_SSH_USER`
+- `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- opcionais: `JMU_REMOTE_APP_DIR`, `JMU_BACKUP_DIR`, `JMU_DATABASE_SCHEMA`, `JMU_PG_IMAGE`
+- opcionais: `JMU_BACKUP_LABEL` para identificar o dump
+- opcionais: `JMU_BACKUP_KEEP_LATEST` para retenção automática no diretório remoto
+
+O script lê a `DATABASE_URL` da `.env` remota, gera `pg_dump` comprimido do schema `adminlog` usando a imagem oficial do Postgres, valida o gzip e mostra checksum/arquivos recentes.
+
+### Restore remoto
+Use `npm run restore:vps` com:
+
+- `JMU_SSH_HOST`
+- `JMU_SSH_USER`
+- `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- `JMU_RESTORE_CONFIRM=ERASE_ADMINLOG`
+- `JMU_RESTORE_FILE=<arquivo>` ou `JMU_RESTORE_LATEST=true`
+- opcionais: `JMU_REMOTE_APP_DIR`, `JMU_BACKUP_DIR`, `JMU_DATABASE_SCHEMA`, `JMU_PG_IMAGE`
+- opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`
+- opcionais para exigir smoke autenticado: `JMU_SMOKE_TEST_REQUIRE_AUTH=true`
+- opcionais para smoke administrativo: `JMU_SMOKE_TEST_ADMIN_EMAIL`, `JMU_SMOKE_TEST_ADMIN_PASSWORD`
+- opcionais para exigir smoke administrativo: `JMU_SMOKE_TEST_REQUIRE_ADMIN=true`
+
+O restore cria antes um dump de seguranca `pre-restore`, para o container actual, restaura o schema `adminlog`, reaplica `db:migrate` dentro do container e executa `health`, `ready` e `smoke-test`.
+
+### Checklist pos-restore
+1. Confirmar `GET /api/health` e `GET /api/ready`.
+2. Executar `npm run smoke:test` ou validar o smoke automatico do `restore:vps`.
+3. Confirmar que `adminlog.schema_migration`, `adminlog.app_user`, `adminlog.admin_user_audit`, `adminlog.pre_demanda`, `adminlog.pre_to_sei_link` e `adminlog.pre_demanda_status_audit` foram restaurados.
+4. Validar login admin, listagem de pre-demandas e tela de operacoes.
+5. Registar o arquivo usado no restore e manter o dump `pre-restore` ate o encerramento do incidente.
 
 ## Investigacao de incidente
 1. Verificar `GET /api/health` e `GET /api/ready`.
