@@ -1,0 +1,12 @@
+.git
+.gitignore
+node_modules
+dist
+coverage
+.env
+.env.*
+tmp
+docs
+mcp
+scripts
+.vscode
