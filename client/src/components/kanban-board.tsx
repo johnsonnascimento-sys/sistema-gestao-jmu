@@ -14,9 +14,13 @@ const COLUMNS: Array<{ value: PreDemandaStatus; label: string; description: stri
 
 export function KanbanBoard({
   items,
+  sectorRiskById,
+  selectedSetorId,
   onQuickAction,
 }: {
   items: PreDemanda[];
+  sectorRiskById?: Record<string, "normal" | "attention" | "critical">;
+  selectedSetorId?: string;
   onQuickAction?: (item: PreDemanda, action: "aguardando" | "encerrar" | "reabrir") => void;
 }) {
   return (
@@ -37,7 +41,16 @@ export function KanbanBoard({
             <div className="grid gap-3">
               {columnItems.length ? (
                 columnItems.map((item) => (
-                  <article className="grid gap-4 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm" key={item.preId}>
+                  <article
+                    className={`grid gap-4 rounded-[24px] border bg-white p-4 shadow-sm ${
+                      item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] === "critical"
+                        ? "border-rose-200 bg-rose-50/50"
+                        : item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] === "attention"
+                          ? "border-amber-200 bg-amber-50/40"
+                          : "border-slate-200"
+                    } ${selectedSetorId && item.setorAtual?.id === selectedSetorId ? "ring-2 ring-sky-200" : ""}`}
+                    key={item.preId}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-[0.22em] text-rose-600">{item.preId}</p>
@@ -56,6 +69,16 @@ export function KanbanBoard({
                       <p>
                         <span className="font-medium text-slate-950">Setor:</span> {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}
                       </p>
+                      {item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] ? (
+                        <p>
+                          <span className="font-medium text-slate-950">Risco do setor:</span>{" "}
+                          {sectorRiskById[item.setorAtual.id] === "critical"
+                            ? "Critico"
+                            : sectorRiskById[item.setorAtual.id] === "attention"
+                              ? "Atencao"
+                              : "Controlado"}
+                        </p>
+                      ) : null}
                       <p>
                         <span className="font-medium text-slate-950">Data:</span> {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}
                       </p>

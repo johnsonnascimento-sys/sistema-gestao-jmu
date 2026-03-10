@@ -44,6 +44,20 @@ type QuickAction = {
   requireReason: boolean;
 };
 
+type SectorQueueSummary = {
+  setorId: string | null;
+  sigla: string;
+  nome: string;
+  total: number;
+  overdue: number;
+  dueSoon: number;
+  criticalQueue: number;
+  attentionQueue: number;
+  withoutInteressados: number;
+  riskLevel: "normal" | "attention" | "critical";
+  riskScore: number;
+};
+
 type ResolvedSearchState = {
   presetId: SavedViewId | null;
   q: string;
@@ -170,6 +184,18 @@ function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, 
   }
 
   return `/pre-demandas?${next.toString()}`;
+}
+
+function getSectorRiskLevel(score: number) {
+  if (score >= 8) {
+    return "critical" as const;
+  }
+
+  if (score >= 4) {
+    return "attention" as const;
+  }
+
+  return "normal" as const;
 }
 
 function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState {
@@ -368,6 +394,76 @@ export function PreDemandasPage() {
   const metrics = useMemo(() => counts, [counts]);
   const hiddenClosedCount = useMemo(() => (resolvedState.view === "kanban" ? items.filter((item) => item.status === "encerrada").length : 0), [items, resolvedState.view]);
   const selectedSetor = useMemo(() => setores.find((item) => item.id === resolvedState.setorAtualId) ?? null, [resolvedState.setorAtualId, setores]);
+  const sectorSummaries = useMemo<SectorQueueSummary[]>(() => {
+    const groups = new Map<string, SectorQueueSummary>();
+
+    for (const item of items) {
+      const key = item.setorAtual?.id ?? "__sem_setor__";
+      const current =
+        groups.get(key) ??
+        {
+          setorId: item.setorAtual?.id ?? null,
+          sigla: item.setorAtual?.sigla ?? "Sem setor",
+          nome: item.setorAtual?.nomeCompleto ?? "Demandas ainda sem setor definido.",
+          total: 0,
+          overdue: 0,
+          dueSoon: 0,
+          criticalQueue: 0,
+          attentionQueue: 0,
+          withoutInteressados: 0,
+          riskLevel: "normal",
+          riskScore: 0,
+        };
+
+      current.total += 1;
+
+      if (item.interessados.length === 0) {
+        current.withoutInteressados += 1;
+      }
+
+      if (item.prazoFinal) {
+        const dueDate = new Date(item.prazoFinal);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const dueDateOnly = new Date(dueDate);
+        dueDateOnly.setHours(0, 0, 0, 0);
+        const diffDays = Math.round((dueDateOnly.getTime() - startOfToday.getTime()) / 86400000);
+
+        if (diffDays < 0) {
+          current.overdue += 1;
+        } else if (diffDays <= 7) {
+          current.dueSoon += 1;
+        }
+      }
+
+      if (item.queueHealth.level === "critical") {
+        current.criticalQueue += 1;
+      } else if (item.queueHealth.level === "attention") {
+        current.attentionQueue += 1;
+      }
+
+      current.riskScore = current.overdue * 3 + current.criticalQueue * 2 + current.dueSoon + current.withoutInteressados;
+      current.riskLevel = getSectorRiskLevel(current.riskScore);
+      groups.set(key, current);
+    }
+
+    return Array.from(groups.values()).sort((left, right) => {
+      if (right.riskScore !== left.riskScore) {
+        return right.riskScore - left.riskScore;
+      }
+
+      return right.total - left.total;
+    });
+  }, [items]);
+  const sectorRiskById = useMemo<Record<string, "normal" | "attention" | "critical">>(() => {
+    return sectorSummaries.reduce<Record<string, "normal" | "attention" | "critical">>((acc, item) => {
+      if (item.setorId) {
+        acc[item.setorId] = item.riskLevel;
+      }
+
+      return acc;
+    }, {});
+  }, [sectorSummaries]);
   const firstVisibleItem = total === 0 ? 0 : (resolvedState.page - 1) * pageSize + 1;
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
@@ -407,6 +503,70 @@ export function PreDemandasPage() {
           <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
         ))}
       </div>
+
+      {sectorSummaries.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Setores em foco</CardTitle>
+            <CardDescription>Resumo dos setores mais pressionados dentro do recorte atual da fila, para trocar rapidamente de contexto sem voltar ao painel admin.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 xl:grid-cols-4">
+            {sectorSummaries.slice(0, 4).map((sector) => (
+              <article
+                className={`grid gap-3 rounded-[22px] border px-4 py-4 ${
+                  sector.riskLevel === "critical"
+                    ? "border-rose-200 bg-rose-50/80"
+                    : sector.riskLevel === "attention"
+                      ? "border-amber-200 bg-amber-50/80"
+                      : "border-slate-200 bg-slate-50/70"
+                }`}
+                key={sector.setorId ?? "sem-setor"}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{sector.sigla}</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">{sector.nome}</h3>
+                  </div>
+                  <span className="rounded-full border border-current/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]">
+                    {sector.riskLevel}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700">
+                  {sector.total} activas - {sector.overdue} vencidas - {sector.dueSoon} a vencer - {sector.withoutInteressados} sem envolvidos
+                </p>
+                {sector.setorId ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant={resolvedState.setorAtualId === sector.setorId ? "primary" : "secondary"}>
+                      <Link to={buildSectorQueueSearch(searchParams, sector.setorId, sector.overdue > 0 ? "overdue" : "")}>
+                        {sector.overdue > 0 ? "Abrir fila critica" : "Focar setor"}
+                      </Link>
+                    </Button>
+                    <Button asChild size="sm" variant="ghost">
+                      <Link to={buildSectorQueueSearch(searchParams, sector.setorId, "")}>Todas do setor</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="secondary">
+                      <Link
+                        to={`/pre-demandas?${new URLSearchParams({
+                          ...Object.fromEntries(searchParams),
+                          view: "table",
+                          page: "1",
+                          hasInteressados: "false",
+                          dueState: sector.overdue > 0 ? "overdue" : "",
+                        }).toString()}`}
+                      >
+                        Tratar sem setor
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </article>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {selectedSetor ? (
         <Card>
@@ -578,6 +738,8 @@ export function PreDemandasPage() {
       {resolvedState.view === "kanban" ? (
         <KanbanBoard
           items={items}
+          sectorRiskById={sectorRiskById}
+          selectedSetorId={resolvedState.setorAtualId}
           onQuickAction={(item, action) => {
             if (action === "aguardando") {
               setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false });
@@ -630,13 +792,31 @@ export function PreDemandasPage() {
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr className="border-t border-slate-200" key={item.preId}>
+                    <tr
+                      className={`border-t ${
+                        item.setorAtual?.id && sectorRiskById[item.setorAtual.id] === "critical"
+                          ? "border-rose-200 bg-rose-50/40"
+                          : item.setorAtual?.id && sectorRiskById[item.setorAtual.id] === "attention"
+                            ? "border-amber-200 bg-amber-50/40"
+                            : "border-slate-200"
+                      }`}
+                      key={item.preId}
+                    >
                       <td className="px-3 py-4 font-semibold text-slate-950">
                         <Link to={`/pre-demandas/${item.preId}`}>{item.preId}</Link>
                       </td>
                       <td className="px-3 py-4">{item.solicitante}</td>
                       <td className="px-3 py-4">{item.assunto}</td>
-                      <td className="px-3 py-4">{item.setorAtual ? item.setorAtual.sigla : "-"}</td>
+                      <td className="px-3 py-4">
+                        <div className="grid gap-1">
+                          <span>{item.setorAtual ? item.setorAtual.sigla : "-"}</span>
+                          {item.setorAtual?.id && sectorRiskById[item.setorAtual.id] !== "normal" ? (
+                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                              {sectorRiskById[item.setorAtual.id] === "critical" ? "Setor critico" : "Setor em atencao"}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
                       <td className="px-3 py-4">
                         <StatusPill status={item.status} />
                       </td>
