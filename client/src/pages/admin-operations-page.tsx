@@ -125,6 +125,26 @@ function buildSetorQueueHref(setorId: string, dueState: "" | "overdue" | "due_so
   return `/pre-demandas?${search.toString()}`;
 }
 
+function buildPriorityQueueHref(setorId: string | null, dueState: "" | "overdue" | "due_soon", riskLevel: "normal" | "attention" | "critical") {
+  if (!setorId) {
+    if (riskLevel === "critical") {
+      return "/pre-demandas?preset=criticas";
+    }
+
+    if (dueState === "overdue") {
+      return "/pre-demandas?preset=prazos-vencidos";
+    }
+
+    if (dueState === "due_soon") {
+      return "/pre-demandas?preset=vencem-na-semana";
+    }
+
+    return "/pre-demandas?preset=fila-operacional&view=table";
+  }
+
+  return buildSetorQueueHref(setorId, dueState);
+}
+
 export function AdminOperationsPage() {
   const { hasPermission } = useAuth();
   const [summary, setSummary] = useState<AdminOpsSummary | null>(null);
@@ -295,7 +315,9 @@ export function AdminOperationsPage() {
                     {item.setorId ? (
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Button asChild size="sm" variant="secondary">
-                          <Link to={buildSetorQueueHref(item.setorId, item.overdueTotal > 0 ? "overdue" : item.dueSoonTotal > 0 ? "due_soon" : "")}>Abrir fila critica</Link>
+                          <Link to={buildPriorityQueueHref(item.setorId, item.overdueTotal > 0 ? "overdue" : item.dueSoonTotal > 0 ? "due_soon" : "", item.riskLevel)}>
+                            Abrir fila critica
+                          </Link>
                         </Button>
                         <Button asChild size="sm" variant="ghost">
                           <Link to={buildSetorQueueHref(item.setorId, "")}>Ver todas do setor</Link>
