@@ -1,18 +1,26 @@
 import type {
   AdminUserAuditRecord,
   AdminUserSummary,
+  Andamento,
   AppUser,
+  DemandaInteressado,
+  DemandaVinculo,
+  DemandaInteressadoPapel,
+  Interessado,
   PreDemandaDashboardSummary,
-  PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDetail,
+  PreDemandaMetadata,
   QueueHealthLevel,
   QueueHealthConfig,
   PreDemandaSortBy,
   PreDemandaStatusAuditRecord,
   PreDemandaStatus,
+  Setor,
   SeiAssociation,
   SortOrder,
+  TarefaPendente,
+  TarefaPendenteTipo,
   TimelineEvent,
 } from "../domain/types";
 
@@ -45,6 +53,9 @@ export interface CreatePreDemandaInput {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
+  prazoFinal?: string | null;
+  numeroJudicial?: string | null;
+  metadata?: Partial<PreDemandaMetadata> | null;
   createdByUserId: number;
 }
 
@@ -79,6 +90,73 @@ export interface UpdatePreDemandaStatusResult {
   record: PreDemandaDetail;
 }
 
+export interface UpdatePreDemandaCaseDataInput {
+  preId: string;
+  assunto?: string;
+  descricao?: string | null;
+  fonte?: string | null;
+  observacoes?: string | null;
+  prazoFinal?: string | null;
+  numeroJudicial?: string | null;
+  metadata?: Partial<PreDemandaMetadata>;
+}
+
+export interface UpdatePreDemandaAnotacoesInput {
+  preId: string;
+  anotacoes: string | null;
+}
+
+export interface AddDemandaInteressadoInput {
+  preId: string;
+  interessadoId: string;
+  papel: DemandaInteressadoPapel;
+  changedByUserId: number;
+}
+
+export interface RemoveDemandaInteressadoInput {
+  preId: string;
+  interessadoId: string;
+  changedByUserId: number;
+}
+
+export interface AddDemandaVinculoInput {
+  preId: string;
+  destinoPreId: string;
+  changedByUserId: number;
+}
+
+export interface RemoveDemandaVinculoInput {
+  preId: string;
+  destinoPreId: string;
+  changedByUserId: number;
+}
+
+export interface TramitarPreDemandaInput {
+  preId: string;
+  setorDestinoId: string;
+  changedByUserId: number;
+}
+
+export interface AddAndamentoInput {
+  preId: string;
+  descricao: string;
+  dataHora?: string | null;
+  changedByUserId: number;
+}
+
+export interface CreateTarefaInput {
+  preId: string;
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  changedByUserId: number;
+}
+
+export interface ConcluirTarefaInput {
+  preId: string;
+  tarefaId: string;
+  changedByUserId: number;
+}
+
 export interface ListPreDemandasParams {
   q?: string;
   statuses?: PreDemandaStatus[];
@@ -95,6 +173,37 @@ export interface ListPreDemandasParams {
 export interface ListPreDemandasResult {
   items: PreDemandaDetail[];
   total: number;
+}
+
+export interface ListInteressadosParams {
+  q?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface ListInteressadosResult {
+  items: Interessado[];
+  total: number;
+}
+
+export interface CreateInteressadoInput {
+  nome: string;
+  matricula?: string | null;
+  cpf?: string | null;
+  dataNascimento?: string | null;
+}
+
+export interface UpdateInteressadoInput extends CreateInteressadoInput {
+  id: string;
+}
+
+export interface CreateSetorInput {
+  sigla: string;
+  nomeCompleto: string;
+}
+
+export interface UpdateSetorInput extends CreateSetorInput {
+  id: string;
 }
 
 export interface UserRepository {
@@ -118,11 +227,36 @@ export interface SettingsRepository {
   updateQueueHealthConfig(input: UpdateQueueHealthConfigInput): Promise<QueueHealthConfig>;
 }
 
+export interface InteressadoRepository {
+  list(params: ListInteressadosParams): Promise<ListInteressadosResult>;
+  getById(id: string): Promise<Interessado | null>;
+  create(input: CreateInteressadoInput): Promise<Interessado>;
+  update(input: UpdateInteressadoInput): Promise<Interessado>;
+}
+
+export interface SetorRepository {
+  list(): Promise<Setor[]>;
+  getById(id: string): Promise<Setor | null>;
+  create(input: CreateSetorInput): Promise<Setor>;
+  update(input: UpdateSetorInput): Promise<Setor>;
+}
+
 export interface PreDemandaRepository {
   create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult>;
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
   getStatusCounts(): Promise<Array<{ status: PreDemandaStatus; total: number }>>;
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
+  updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaDetail>;
+  updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaDetail>;
+  addInteressado(input: AddDemandaInteressadoInput): Promise<DemandaInteressado[]>;
+  removeInteressado(input: RemoveDemandaInteressadoInput): Promise<DemandaInteressado[]>;
+  addVinculo(input: AddDemandaVinculoInput): Promise<DemandaVinculo[]>;
+  removeVinculo(input: RemoveDemandaVinculoInput): Promise<DemandaVinculo[]>;
+  tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;
+  addAndamento(input: AddAndamentoInput): Promise<Andamento>;
+  listTarefas(preId: string): Promise<TarefaPendente[]>;
+  createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
+  concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;
   associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult>;
   updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult>;
   listAudit(preId: string): Promise<PreDemandaAuditRecord[]>;

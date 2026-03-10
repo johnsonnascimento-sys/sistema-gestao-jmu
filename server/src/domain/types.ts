@@ -3,9 +3,18 @@ export type AppPermission =
   | "dashboard.read"
   | "pre_demanda.read"
   | "pre_demanda.create"
+  | "pre_demanda.update"
   | "pre_demanda.update_status"
   | "pre_demanda.associate_sei"
   | "pre_demanda.read_timeline"
+  | "pre_demanda.manage_interessados"
+  | "pre_demanda.manage_vinculos"
+  | "pre_demanda.manage_tramitacao"
+  | "pre_demanda.manage_tarefas"
+  | "cadastro.interessado.read"
+  | "cadastro.interessado.write"
+  | "cadastro.setor.read"
+  | "cadastro.setor.write"
   | "admin.ops.read"
   | "admin.ops.update"
   | "admin.user.read"
@@ -80,9 +89,29 @@ export interface AdminUserAuditRecord {
 }
 
 export type PreDemandaStatus = "aberta" | "aguardando_sei" | "associada" | "encerrada";
-export type PreDemandaSortBy = "updatedAt" | "createdAt" | "dataReferencia" | "solicitante" | "status";
+export type PreDemandaSortBy =
+  | "updatedAt"
+  | "createdAt"
+  | "dataReferencia"
+  | "solicitante"
+  | "status"
+  | "prazoFinal"
+  | "numeroJudicial";
 export type SortOrder = "asc" | "desc";
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
+export type DemandaInteressadoPapel = "solicitante" | "interessado";
+export type TarefaPendenteTipo = "fixa" | "livre";
+export type AndamentoTipo =
+  | "manual"
+  | "tramitacao"
+  | "tarefa_concluida"
+  | "status"
+  | "sistema"
+  | "interessado_added"
+  | "interessado_removed"
+  | "vinculo_added"
+  | "vinculo_removed"
+  | "sei";
 
 export interface QueueHealth {
   level: QueueHealthLevel;
@@ -90,6 +119,75 @@ export interface QueueHealth {
   ageDays: number;
   attentionDays: number;
   criticalDays: number;
+}
+
+export interface Setor {
+  id: string;
+  sigla: string;
+  nomeCompleto: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Interessado {
+  id: string;
+  nome: string;
+  matricula: string | null;
+  cpf: string | null;
+  dataNascimento: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PreDemandaMetadata {
+  frequencia: string | null;
+  pagamentoEnvolvido: boolean | null;
+  audienciaData: string | null;
+  audienciaStatus: string | null;
+}
+
+export interface PreDemandaSummaryLinked {
+  id: number;
+  preId: string;
+  assunto: string;
+  status: PreDemandaStatus;
+  dataReferencia: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DemandaInteressado {
+  interessado: Interessado;
+  papel: DemandaInteressadoPapel;
+  linkedAt: string;
+  linkedBy: AuditActor | null;
+}
+
+export interface DemandaVinculo {
+  processo: PreDemandaSummaryLinked;
+  linkedAt: string;
+  linkedBy: AuditActor | null;
+}
+
+export interface Andamento {
+  id: string;
+  preId: string;
+  dataHora: string;
+  descricao: string;
+  tipo: AndamentoTipo;
+  createdBy: AuditActor | null;
+}
+
+export interface TarefaPendente {
+  id: string;
+  preId: string;
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  concluida: boolean;
+  concluidaEm: string | null;
+  concluidaPor: AuditActor | null;
+  createdAt: string;
+  createdBy: AuditActor | null;
 }
 
 export interface PreDemanda {
@@ -102,6 +200,12 @@ export interface PreDemanda {
   descricao: string | null;
   fonte: string | null;
   observacoes: string | null;
+  prazoFinal: string | null;
+  dataConclusao: string | null;
+  numeroJudicial: string | null;
+  anotacoes: string | null;
+  setorAtual: Setor | null;
+  metadata: PreDemandaMetadata;
   createdAt: string;
   updatedAt: string;
   createdBy: AuditActor | null;
@@ -120,6 +224,10 @@ export interface SeiAssociation {
 
 export interface PreDemandaDetail extends PreDemanda {
   currentAssociation: SeiAssociation | null;
+  interessados: DemandaInteressado[];
+  vinculos: DemandaVinculo[];
+  tarefasPendentes: TarefaPendente[];
+  recentAndamentos: Andamento[];
 }
 
 export interface PreDemandaAuditRecord {
@@ -261,7 +369,18 @@ export interface AdminOpsSummary {
   operationalEvents: OperationalEvent[];
 }
 
-export type TimelineEventType = "created" | "status_changed" | "sei_linked" | "sei_reassociated";
+export type TimelineEventType =
+  | "created"
+  | "status_changed"
+  | "sei_linked"
+  | "sei_reassociated"
+  | "andamento"
+  | "tramitation"
+  | "task_completed"
+  | "interessado_added"
+  | "interessado_removed"
+  | "vinculo_added"
+  | "vinculo_removed";
 
 export interface TimelineEvent {
   id: string;
@@ -271,6 +390,7 @@ export interface TimelineEvent {
   actor: AuditActor | null;
   motivo: string | null;
   observacoes: string | null;
+  descricao: string | null;
   statusAnterior: PreDemandaStatus | null;
   statusNovo: PreDemandaStatus | null;
   seiNumeroAnterior: string | null;

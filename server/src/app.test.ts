@@ -15,30 +15,55 @@ import type {
   AdminOpsSummary,
   AdminUserAuditRecord,
   AdminUserSummary,
+  Andamento,
   AppUser,
+  DemandaInteressado,
+  DemandaVinculo,
+  Interessado,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaDetail,
+  PreDemandaMetadata,
   PreDemandaStatus,
   PreDemandaStatusAuditRecord,
   QueueHealthConfig,
+  Setor,
   SeiAssociation,
+  TarefaPendente,
   TimelineEvent,
 } from "./domain/types";
 import type {
+  AddAndamentoInput,
+  AddDemandaInteressadoInput,
+  AddDemandaVinculoInput,
   AssociateSeiInput,
   AssociateSeiResult,
+  ConcluirTarefaInput,
   CreatePreDemandaInput,
   CreatePreDemandaResult,
+  CreateInteressadoInput,
+  CreateSetorInput,
+  CreateTarefaInput,
   CreateUserInput,
+  InteressadoRepository,
   ListPreDemandasParams,
   ListPreDemandasResult,
+  ListInteressadosParams,
+  ListInteressadosResult,
   PreDemandaRepository,
+  RemoveDemandaInteressadoInput,
+  RemoveDemandaVinculoInput,
   ResetUserPasswordInput,
+  SetorRepository,
   SettingsRepository,
+  TramitarPreDemandaInput,
+  UpdateInteressadoInput,
+  UpdatePreDemandaAnotacoesInput,
+  UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
   UpdateQueueHealthConfigInput,
+  UpdateSetorInput,
   UpdateUserInput,
   UserRepository,
 } from "./repositories/types";
@@ -223,16 +248,53 @@ class InMemoryUserRepository implements UserRepository {
   }
 }
 
+function defaultMetadata(metadata?: Partial<PreDemandaMetadata> | null): PreDemandaMetadata {
+  return {
+    frequencia: metadata?.frequencia ?? null,
+    pagamentoEnvolvido: metadata?.pagamentoEnvolvido ?? null,
+    audienciaData: metadata?.audienciaData ?? null,
+    audienciaStatus: metadata?.audienciaStatus ?? null,
+  };
+}
+
 class InMemoryPreDemandaRepository implements PreDemandaRepository {
   private records: PreDemandaDetail[] = [];
   private audit: PreDemandaAuditRecord[] = [];
   private statusAudit: PreDemandaStatusAuditRecord[] = [];
+  private andamentos: Andamento[] = [];
   private nextId = 1;
   private nextAuditId = 1;
   private readonly queueHealthThresholds: QueueHealthThresholds = {
     attentionDays: 2,
     criticalDays: 5,
   };
+
+  private touch(record: PreDemandaDetail) {
+    record.updatedAt = new Date().toISOString();
+    record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
+    record.allowedNextStatuses = getAllowedNextStatuses({ currentStatus: record.status, hasAssociation: record.currentAssociation !== null });
+    return record;
+  }
+
+  private addAndamentoRecord(
+    record: PreDemandaDetail,
+    descricao: string,
+    tipo: Andamento["tipo"],
+    occurredAt = new Date().toISOString(),
+  ) {
+    const andamento: Andamento = {
+      id: `and-${record.id}-${this.nextAuditId++}`,
+      preId: record.preId,
+      dataHora: occurredAt,
+      descricao,
+      tipo,
+      createdBy: null,
+    };
+
+    this.andamentos.unshift(andamento);
+    record.recentAndamentos = this.andamentos.filter((item) => item.preId === record.preId).slice(0, 8);
+    return andamento;
+  }
 
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const existing = this.records.find(
@@ -256,12 +318,22 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       descricao: input.descricao ?? null,
       fonte: input.fonte ?? null,
       observacoes: input.observacoes ?? null,
+      prazoFinal: input.prazoFinal ?? null,
+      dataConclusao: null,
+      numeroJudicial: input.numeroJudicial ?? null,
+      anotacoes: null,
+      setorAtual: null,
+      metadata: defaultMetadata(input.metadata),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       createdBy: null,
       currentAssociation: null,
       queueHealth: buildQueueHealth("aberta", new Date().toISOString(), input.dataReferencia, this.queueHealthThresholds),
       allowedNextStatuses: getAllowedNextStatuses({ currentStatus: "aberta", hasAssociation: false }),
+      interessados: [],
+      vinculos: [],
+      tarefasPendentes: [],
+      recentAndamentos: [],
     };
 
     this.nextId += 1;
@@ -330,6 +402,199 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return this.records.find((item) => item.preId === preId) ?? null;
   }
 
+  async updateCaseData(input: UpdatePreDemandaCaseDataInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    record.assunto = input.assunto ?? record.assunto;
+    if (input.descricao !== undefined) record.descricao = input.descricao;
+    if (input.fonte !== undefined) record.fonte = input.fonte;
+    if (input.observacoes !== undefined) record.observacoes = input.observacoes;
+    if (input.prazoFinal !== undefined) record.prazoFinal = input.prazoFinal;
+    if (input.numeroJudicial !== undefined) record.numeroJudicial = input.numeroJudicial;
+    if (input.metadata !== undefined) {
+      record.metadata = {
+        ...record.metadata,
+        ...defaultMetadata(input.metadata),
+      };
+    }
+
+    return this.touch(record);
+  }
+
+  async updateAnotacoes(input: UpdatePreDemandaAnotacoesInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    record.anotacoes = input.anotacoes;
+    return this.touch(record);
+  }
+
+  async addInteressado(input: AddDemandaInteressadoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    if (record.interessados.some((item) => item.interessado.id === input.interessadoId)) {
+      throw new Error("duplicate");
+    }
+
+    const interessado: Interessado = {
+      id: input.interessadoId,
+      nome: `Interessado ${input.interessadoId.slice(0, 4)}`,
+      matricula: null,
+      cpf: null,
+      dataNascimento: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    record.interessados.unshift({
+      interessado,
+      papel: input.papel,
+      linkedAt: new Date().toISOString(),
+      linkedBy: null,
+    });
+    this.addAndamentoRecord(record, `Interessado ${interessado.nome} vinculado ao processo como ${input.papel}.`, "interessado_added");
+    this.touch(record);
+    return record.interessados;
+  }
+
+  async removeInteressado(input: RemoveDemandaInteressadoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const current = record.interessados.find((item) => item.interessado.id === input.interessadoId);
+    record.interessados = record.interessados.filter((item) => item.interessado.id !== input.interessadoId);
+    if (current) {
+      this.addAndamentoRecord(record, `Interessado ${current.interessado.nome} removido do processo.`, "interessado_removed");
+    }
+    this.touch(record);
+    return record.interessados;
+  }
+
+  async addVinculo(input: AddDemandaVinculoInput) {
+    const origem = this.records.find((item) => item.preId === input.preId);
+    const destino = this.records.find((item) => item.preId === input.destinoPreId);
+    if (!origem || !destino) {
+      throw new Error("not found");
+    }
+
+    if (!origem.vinculos.some((item) => item.processo.preId === destino.preId)) {
+      const vinculo: DemandaVinculo = {
+        processo: {
+          id: destino.id,
+          preId: destino.preId,
+          assunto: destino.assunto,
+          status: destino.status,
+          dataReferencia: destino.dataReferencia,
+          createdAt: destino.createdAt,
+          updatedAt: destino.updatedAt,
+        },
+        linkedAt: new Date().toISOString(),
+        linkedBy: null,
+      };
+
+      origem.vinculos.unshift(vinculo);
+      this.addAndamentoRecord(origem, `Processo vinculado a ${destino.preId}.`, "vinculo_added");
+      this.touch(origem);
+    }
+
+    return origem.vinculos;
+  }
+
+  async removeVinculo(input: RemoveDemandaVinculoInput) {
+    const origem = this.records.find((item) => item.preId === input.preId);
+    if (!origem) {
+      throw new Error("not found");
+    }
+
+    origem.vinculos = origem.vinculos.filter((item) => item.processo.preId !== input.destinoPreId);
+    this.addAndamentoRecord(origem, `Vinculo com ${input.destinoPreId} removido.`, "vinculo_removed");
+    this.touch(origem);
+    return origem.vinculos;
+  }
+
+  async tramitar(input: TramitarPreDemandaInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    record.setorAtual = {
+      id: input.setorDestinoId,
+      sigla: "DIPES",
+      nomeCompleto: "Diretoria de Pessoal",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.addAndamentoRecord(record, `Processo remetido para ${record.setorAtual.sigla}.`, "tramitacao");
+    return this.touch(record);
+  }
+
+  async addAndamento(input: AddAndamentoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    return this.addAndamentoRecord(record, input.descricao, "manual", input.dataHora ?? new Date().toISOString());
+  }
+
+  async listTarefas(preId: string) {
+    return this.records.find((item) => item.preId === preId)?.tarefasPendentes ?? [];
+  }
+
+  async createTarefa(input: CreateTarefaInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const tarefa: TarefaPendente = {
+      id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
+      preId: record.preId,
+      descricao: input.descricao,
+      tipo: input.tipo,
+      concluida: false,
+      concluidaEm: null,
+      concluidaPor: null,
+      createdAt: new Date().toISOString(),
+      createdBy: null,
+    };
+
+    record.tarefasPendentes.unshift(tarefa);
+    return tarefa;
+  }
+
+  async concluirTarefa(input: ConcluirTarefaInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const tarefa = record.tarefasPendentes.find((item) => item.id === input.tarefaId);
+    if (!tarefa) {
+      throw new Error("not found");
+    }
+
+    if (tarefa.concluida) {
+      throw new Error("already-done");
+    }
+
+    tarefa.concluida = true;
+    tarefa.concluidaEm = new Date().toISOString();
+    this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
+    return tarefa;
+  }
+
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
     const record = this.records.find((item) => item.preId === input.preId);
 
@@ -378,9 +643,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       });
     }
     record.status = "associada";
-    record.updatedAt = now;
-    record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
-    record.allowedNextStatuses = getAllowedNextStatuses({ currentStatus: record.status, hasAssociation: true });
+    this.addAndamentoRecord(record, current ? `Numero SEI alterado de ${current.seiNumero} para ${input.seiNumero}.` : `Numero SEI associado: ${input.seiNumero}.`, "sei");
+    this.touch(record);
 
     return { association, audited };
   }
@@ -397,10 +661,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     const now = new Date().toISOString();
+    const previousStatus = record.status;
     this.statusAudit.unshift({
       id: this.nextAuditId++,
       preId: input.preId,
-      statusAnterior: record.status,
+      statusAnterior: previousStatus,
       statusNovo: input.status,
       motivo: input.motivo ?? null,
       observacoes: input.observacoes ?? null,
@@ -409,9 +674,17 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     });
 
     record.status = input.status;
-    record.updatedAt = now;
-    record.queueHealth = buildQueueHealth(record.status, record.updatedAt, record.dataReferencia, this.queueHealthThresholds);
-    record.allowedNextStatuses = getAllowedNextStatuses({ currentStatus: record.status, hasAssociation: record.currentAssociation !== null });
+    record.dataConclusao = input.status === "encerrada" ? now.slice(0, 10) : record.dataConclusao ? null : record.dataConclusao;
+    this.addAndamentoRecord(
+      record,
+      input.status === "encerrada"
+        ? `Processo encerrado. Motivo: ${input.motivo}.`
+        : previousStatus === "encerrada"
+          ? `Processo reaberto. Motivo: ${input.motivo}.`
+          : `Status alterado para ${input.status}.`,
+      "status",
+    );
+    this.touch(record);
 
     return { record };
   }
@@ -435,6 +708,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       actor: null,
       motivo: null,
       observacoes: record.observacoes,
+      descricao: `Demanda criada: ${record.assunto}`,
       statusAnterior: null,
       statusNovo: record.status,
       seiNumeroAnterior: null,
@@ -451,6 +725,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         actor: item.changedBy,
         motivo: item.motivo,
         observacoes: item.observacoes,
+        descricao: `Status alterado de ${item.statusAnterior} para ${item.statusNovo}.`,
         statusAnterior: item.statusAnterior,
         statusNovo: item.statusNovo,
         seiNumeroAnterior: null,
@@ -467,13 +742,46 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         actor: item.changedBy,
         motivo: item.motivo,
         observacoes: item.observacoes,
+        descricao: `Numero SEI alterado de ${item.seiNumeroAnterior} para ${item.seiNumeroNovo}.`,
         statusAnterior: null,
         statusNovo: null,
         seiNumeroAnterior: item.seiNumeroAnterior,
         seiNumeroNovo: item.seiNumeroNovo,
       }));
 
-    return [created, ...statusEvents, ...seiEvents];
+    const andamentoEvents = this.andamentos
+      .filter((item) => item.preId === preId)
+      .map<TimelineEvent>((item) => ({
+        id: item.id,
+        preId,
+        type:
+          item.tipo === "tramitacao"
+            ? "tramitation"
+            : item.tipo === "tarefa_concluida"
+              ? "task_completed"
+              : item.tipo === "interessado_added"
+                ? "interessado_added"
+                : item.tipo === "interessado_removed"
+                  ? "interessado_removed"
+                  : item.tipo === "vinculo_added"
+                    ? "vinculo_added"
+                    : item.tipo === "vinculo_removed"
+                      ? "vinculo_removed"
+                      : "andamento",
+        occurredAt: item.dataHora,
+        actor: item.createdBy,
+        motivo: null,
+        observacoes: null,
+        descricao: item.descricao,
+        statusAnterior: null,
+        statusNovo: null,
+        seiNumeroAnterior: null,
+        seiNumeroNovo: null,
+      }));
+
+    return [created, ...statusEvents, ...seiEvents, ...andamentoEvents].sort(
+      (left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime(),
+    );
   }
 
   async listRecentTimeline(limit = 8): Promise<TimelineEvent[]> {
@@ -506,6 +814,117 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       awaitingSeiItems,
       recentTimeline,
     };
+  }
+}
+
+class InMemoryInteressadoRepository implements InteressadoRepository {
+  private items = new Map<string, Interessado>();
+  private nextId = 1;
+
+  async list(params: ListInteressadosParams): Promise<ListInteressadosResult> {
+    let items = Array.from(this.items.values());
+    if (params.q) {
+      const q = params.q.toLowerCase();
+      items = items.filter((item) => [item.nome, item.matricula ?? "", item.cpf ?? ""].some((value) => value.toLowerCase().includes(q)));
+    }
+
+    const start = (params.page - 1) * params.pageSize;
+    return {
+      items: items.slice(start, start + params.pageSize),
+      total: items.length,
+    };
+  }
+
+  async getById(id: string) {
+    return this.items.get(id) ?? null;
+  }
+
+  async create(input: CreateInteressadoInput) {
+    const id = `123e4567-e89b-42d3-a456-${String(this.nextId++).padStart(12, "0")}`;
+    const record: Interessado = {
+      id,
+      nome: input.nome,
+      matricula: input.matricula ?? null,
+      cpf: input.cpf ?? null,
+      dataNascimento: input.dataNascimento ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.items.set(id, record);
+    return record;
+  }
+
+  async update(input: UpdateInteressadoInput) {
+    const current = this.items.get(input.id);
+    if (!current) {
+      throw new Error("not found");
+    }
+
+    const record: Interessado = {
+      ...current,
+      nome: input.nome,
+      matricula: input.matricula ?? null,
+      cpf: input.cpf ?? null,
+      dataNascimento: input.dataNascimento ?? null,
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.items.set(record.id, record);
+    return record;
+  }
+}
+
+class InMemorySetorRepository implements SetorRepository {
+  private items = new Map<string, Setor>([
+    [
+      "123e4567-e89b-42d3-a456-000000000001",
+      {
+        id: "123e4567-e89b-42d3-a456-000000000001",
+        sigla: "DIPES",
+        nomeCompleto: "Diretoria de Pessoal",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+  ]);
+  private nextId = 2;
+
+  async list() {
+    return Array.from(this.items.values()).sort((left, right) => left.sigla.localeCompare(right.sigla));
+  }
+
+  async getById(id: string) {
+    return this.items.get(id) ?? null;
+  }
+
+  async create(input: CreateSetorInput) {
+    const id = `123e4567-e89b-42d3-a456-${String(this.nextId++).padStart(12, "0")}`;
+    const record: Setor = {
+      id,
+      sigla: input.sigla.toUpperCase(),
+      nomeCompleto: input.nomeCompleto,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    this.items.set(id, record);
+    return record;
+  }
+
+  async update(input: UpdateSetorInput) {
+    const current = this.items.get(input.id);
+    if (!current) {
+      throw new Error("not found");
+    }
+
+    const record: Setor = {
+      ...current,
+      sigla: input.sigla.toUpperCase(),
+      nomeCompleto: input.nomeCompleto,
+      updatedAt: new Date().toISOString(),
+    };
+    this.items.set(record.id, record);
+    return record;
   }
 }
 
@@ -561,6 +980,8 @@ describe("Gestor JMU API", () => {
   const userRepository = new InMemoryUserRepository();
   const settingsRepository = new InMemorySettingsRepository();
   const preDemandaRepository = new InMemoryPreDemandaRepository();
+  const interessadoRepository = new InMemoryInteressadoRepository();
+  const setorRepository = new InMemorySetorRepository();
   const migration001Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "001_gestor_bootstrap.sql"), "utf8")).digest("hex");
   const migration002Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "002_admin_user_audit.sql"), "utf8")).digest("hex");
   const pool = {
@@ -624,6 +1045,8 @@ describe("Gestor JMU API", () => {
       userRepository,
       settingsRepository,
       preDemandaRepository,
+      interessadoRepository,
+      setorRepository,
     });
   });
 
@@ -872,6 +1295,140 @@ describe("Gestor JMU API", () => {
 
     expect(detail.statusCode).toBe(200);
     expect(detail.json().data.allowedNextStatuses).toContain("aberta");
+  });
+
+  it("supports cadastros base and nested case-management routes", async () => {
+    const adminLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const adminCookie = `${adminLogin.cookies[0]?.name}=${adminLogin.cookies[0]?.value}`;
+
+    const createdInteressado = await app.inject({
+      method: "POST",
+      url: "/api/interessados",
+      headers: { cookie: adminCookie },
+      payload: {
+        nome: "Jose da Silva",
+        cpf: "12345678900",
+      },
+    });
+
+    expect(createdInteressado.statusCode).toBe(201);
+    const interessadoId = createdInteressado.json().data.id as string;
+
+    const listedInteressados = await app.inject({
+      method: "GET",
+      url: "/api/interessados?q=Jose&page=1&pageSize=10",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(listedInteressados.statusCode).toBe(200);
+    expect(listedInteressados.json().data.total).toBeGreaterThanOrEqual(1);
+
+    const linkedInteressado = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/PRE-2026-001/interessados",
+      headers: { cookie: adminCookie },
+      payload: {
+        interessado_id: interessadoId,
+        papel: "interessado",
+      },
+    });
+
+    expect(linkedInteressado.statusCode).toBe(201);
+    expect(linkedInteressado.json().data[0].interessado.id).toBe(interessadoId);
+
+    const createdSetor = await app.inject({
+      method: "POST",
+      url: "/api/setores",
+      headers: { cookie: adminCookie },
+      payload: {
+        sigla: "GJMU",
+        nome_completo: "Gabinete JMU",
+      },
+    });
+
+    expect(createdSetor.statusCode).toBe(201);
+    const setorId = createdSetor.json().data.id as string;
+
+    const tramited = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/PRE-2026-001/tramitar",
+      headers: { cookie: adminCookie },
+      payload: {
+        setor_destino_id: setorId,
+      },
+    });
+
+    expect(tramited.statusCode).toBe(200);
+    expect(tramited.json().data.setorAtual.id).toBe(setorId);
+
+    const casePatch = await app.inject({
+      method: "PATCH",
+      url: "/api/pre-demandas/PRE-2026-001",
+      headers: { cookie: adminCookie },
+      payload: {
+        prazo_final: "2026-03-20",
+        numero_judicial: "0001234-56.2026.9.99.9999",
+        metadata: {
+          frequencia: "mensal",
+          pagamento_envolvido: true,
+        },
+      },
+    });
+
+    expect(casePatch.statusCode).toBe(200);
+    expect(casePatch.json().data.prazoFinal).toBe("2026-03-20");
+    expect(casePatch.json().data.metadata.pagamentoEnvolvido).toBe(true);
+
+    const tarefa = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/PRE-2026-001/tarefas",
+      headers: { cookie: adminCookie },
+      payload: {
+        descricao: "Aguardar assinatura",
+        tipo: "fixa",
+      },
+    });
+
+    expect(tarefa.statusCode).toBe(201);
+    const tarefaId = tarefa.json().data.id as string;
+
+    const concluida = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/PRE-2026-001/tarefas/${tarefaId}/concluir`,
+      headers: { cookie: adminCookie },
+    });
+
+    expect(concluida.statusCode).toBe(200);
+    expect(concluida.json().data.concluida).toBe(true);
+
+    const timeline = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/PRE-2026-001/timeline",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(timeline.statusCode).toBe(200);
+    expect(timeline.json().data.some((item: TimelineEvent) => item.type === "tramitation")).toBe(true);
+    expect(timeline.json().data.some((item: TimelineEvent) => item.type === "task_completed")).toBe(true);
+    expect(timeline.json().data.some((item: TimelineEvent) => item.type === "interessado_added")).toBe(true);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/PRE-2026-001",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json().data.interessados.length).toBeGreaterThanOrEqual(1);
+    expect(detail.json().data.tarefasPendentes.length).toBeGreaterThanOrEqual(1);
   });
 
   it("forbids operator admin access and allows admin user management", async () => {
