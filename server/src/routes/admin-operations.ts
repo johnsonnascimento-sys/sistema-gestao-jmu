@@ -129,6 +129,37 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
   const createdInPeriod = Number(reportRow?.created_in_period ?? 0);
   const closedInPeriod = Number(reportRow?.closed_in_period ?? 0);
   const tramitacoesInPeriod = Number(reportRow?.tramitacoes_in_period ?? 0);
+  const bySetor = bySetorResult.rows
+    .map((row) => {
+      const activeTotal = Number(row.active_total ?? 0);
+      const previousActiveTotal = Number(row.previous_active_total ?? 0);
+      const activeDelta = activeTotal - previousActiveTotal;
+      const overdueTotal = Number(row.overdue_total ?? 0);
+      const dueSoonTotal = Number(row.due_soon_total ?? 0);
+      const awaitingSeiTotal = Number(row.awaiting_sei_total ?? 0);
+      const risk = buildSetorRiskScore({
+        activeTotal,
+        activeDelta,
+        overdueTotal,
+        dueSoonTotal,
+        awaitingSeiTotal,
+      });
+
+      return {
+        setorId: row.setor_id ? String(row.setor_id) : null,
+        sigla: row.setor_sigla ? String(row.setor_sigla) : null,
+        nome: row.setor_nome ? String(row.setor_nome) : null,
+        activeTotal,
+        previousActiveTotal,
+        activeDelta,
+        overdueTotal,
+        dueSoonTotal,
+        awaitingSeiTotal,
+        riskScore: risk.score,
+        riskLevel: risk.level,
+      };
+    })
+    .sort((left, right) => right.riskScore - left.riskScore || right.activeTotal - left.activeTotal || (left.sigla ?? "ZZZ").localeCompare(right.sigla ?? "ZZZ"));
 
   return {
     periodDays,
@@ -149,22 +180,8 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
       closedInPeriod: closedInPeriod - previousClosedInPeriod,
       tramitacoesInPeriod: tramitacoesInPeriod - previousTramitacoesInPeriod,
     },
-    bySetor: bySetorResult.rows.map((row) => {
-      const activeTotal = Number(row.active_total ?? 0);
-      const previousActiveTotal = Number(row.previous_active_total ?? 0);
-
-      return {
-        setorId: row.setor_id ? String(row.setor_id) : null,
-        sigla: row.setor_sigla ? String(row.setor_sigla) : null,
-        nome: row.setor_nome ? String(row.setor_nome) : null,
-        activeTotal,
-        previousActiveTotal,
-        activeDelta: activeTotal - previousActiveTotal,
-        overdueTotal: Number(row.overdue_total ?? 0),
-        dueSoonTotal: Number(row.due_soon_total ?? 0),
-        awaitingSeiTotal: Number(row.awaiting_sei_total ?? 0),
-      };
-    }),
+    bySetor,
+    prioritySetores: bySetor.filter((item) => item.riskLevel !== "normal").slice(0, 3),
   };
 }
 
@@ -179,6 +196,31 @@ function escapeCsvValue(value: string | number | null) {
   }
 
   return `"${text.replaceAll('"', '""')}"`;
+}
+
+function buildSetorRiskScore(input: {
+  activeTotal: number;
+  activeDelta: number;
+  overdueTotal: number;
+  dueSoonTotal: number;
+  awaitingSeiTotal: number;
+}) {
+  const score =
+    input.overdueTotal * 5 +
+    input.dueSoonTotal * 3 +
+    input.awaitingSeiTotal * 2 +
+    Math.max(input.activeDelta, 0) * 2 +
+    input.activeTotal;
+
+  if (score >= 12 || input.overdueTotal >= 2) {
+    return { score, level: "critical" as const };
+  }
+
+  if (score >= 5 || input.dueSoonTotal >= 1 || input.activeDelta > 0) {
+    return { score, level: "attention" as const };
+  }
+
+  return { score, level: "normal" as const };
 }
 
 export async function registerAdminOperationsRoutes(
@@ -282,11 +324,13 @@ export async function registerAdminOperationsRoutes(
       ["resumo", "sem_setor", report.withoutSetorTotal],
       ["resumo", "sem_envolvidos", report.withoutInteressadosTotal],
       [],
-      ["setores", "sigla", "nome", "ativos", "ativos_janela_anterior", "ativos_delta", "vencidos", "vencem_em_7_dias", "aguardando_sei"],
+      ["setores", "sigla", "nome", "risco", "score_risco", "ativos", "ativos_janela_anterior", "ativos_delta", "vencidos", "vencem_em_7_dias", "aguardando_sei"],
       ...report.bySetor.map((item) => [
         "setores",
         item.sigla ?? "SEM_SETOR",
         item.nome ?? "Demandas sem setor definido",
+        item.riskLevel,
+        item.riskScore,
         item.activeTotal,
         item.previousActiveTotal,
         item.activeDelta,

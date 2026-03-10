@@ -376,6 +376,8 @@ export interface AdminOpsCaseSetorReportItem {
   overdueTotal: number;
   dueSoonTotal: number;
   awaitingSeiTotal: number;
+  riskScore: number;
+  riskLevel: "normal" | "attention" | "critical";
 }
 
 export interface AdminOpsCaseManagementReport {
@@ -398,6 +400,7 @@ export interface AdminOpsCaseManagementReport {
     tramitacoesInPeriod: number;
   };
   bySetor: AdminOpsCaseSetorReportItem[];
+  prioritySetores: AdminOpsCaseSetorReportItem[];
 }
 
 export interface AdminOpsSummary {

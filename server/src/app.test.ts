@@ -1578,6 +1578,8 @@ describe("Gestor JMU API", () => {
     expect(Array.isArray((ops.json().data as AdminOpsSummary).caseManagementReport.bySetor)).toBe(true);
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.bySetor[0]?.previousActiveTotal).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.bySetor[0]?.activeDelta).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.bySetor[0]?.riskScore).toBe("number");
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).caseManagementReport.prioritySetores)).toBe(true);
 
     const caseReportCsv = await app.inject({
       method: "GET",
@@ -1592,7 +1594,7 @@ describe("Gestor JMU API", () => {
     expect(caseReportCsv.body).toContain("resumo;periodo_dias;30");
     expect(caseReportCsv.body).toContain("resumo;casos_criados_janela_anterior;");
     expect(caseReportCsv.body).toContain("resumo;casos_criados_delta;");
-    expect(caseReportCsv.body).toContain("setores;sigla;nome;ativos;ativos_janela_anterior;ativos_delta;vencidos;vencem_em_7_dias;aguardando_sei");
+    expect(caseReportCsv.body).toContain("setores;sigla;nome;risco;score_risco;ativos;ativos_janela_anterior;ativos_delta;vencidos;vencem_em_7_dias;aguardando_sei");
 
     const updatedQueueConfig = await app.inject({
       method: "PATCH",

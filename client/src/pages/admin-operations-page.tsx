@@ -95,6 +95,18 @@ function deltaTone(value: number) {
   return "text-slate-500";
 }
 
+function riskTone(level: "normal" | "attention" | "critical") {
+  if (level === "critical") {
+    return "border-rose-200 bg-rose-50 text-rose-800";
+  }
+
+  if (level === "attention") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
 export function AdminOperationsPage() {
   const { hasPermission } = useAuth();
   const [summary, setSummary] = useState<AdminOpsSummary | null>(null);
@@ -243,6 +255,31 @@ export function AdminOperationsPage() {
             <MetricCard label="Sem envolvidos" value={summary.caseManagementReport.withoutInteressadosTotal} />
           </div>
 
+          {summary.caseManagementReport.prioritySetores.length ? (
+            <div className="grid gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Prioridade imediata</p>
+                <p className="mt-1 text-sm text-slate-600">Setores ordenados por risco operativo, combinando carga, vencidos, proximidade de prazo e agravamento da fila.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-3">
+                {summary.caseManagementReport.prioritySetores.map((item) => (
+                  <article className="rounded-[22px] border border-slate-200 bg-white px-4 py-4" key={`priority-${item.setorId ?? "sem-setor"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.sigla ?? "Sem setor"}</p>
+                        <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Demandas ainda sem destinacao formal."}</h3>
+                      </div>
+                      <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${riskTone(item.riskLevel)}`}>
+                        {item.riskLevel}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-700">Score {item.riskScore} · {item.activeTotal} activos · {item.overdueTotal} vencidos</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {summary.caseManagementReport.bySetor.length ? (
             <div className="grid gap-3">
               {summary.caseManagementReport.bySetor.map((item) => (
@@ -253,6 +290,9 @@ export function AdminOperationsPage() {
                       <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Demandas ainda nao encaminhadas para um setor."}</h3>
                     </div>
                     <div className="text-right">
+                      <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${riskTone(item.riskLevel)}`}>
+                        {item.riskLevel} · {item.riskScore}
+                      </span>
                       <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} activos</p>
                       <p className={`mt-1 text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(item.activeDelta)}`}>
                         {formatDelta(item.activeDelta)} vs janela anterior
