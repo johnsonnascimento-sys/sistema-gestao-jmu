@@ -12,6 +12,7 @@ import { NewPreDemandaPage } from "./pages/new-pre-demanda-page";
 import { NotFoundPage } from "./pages/not-found-page";
 import { PreDemandaDetailPage } from "./pages/pre-demanda-detail-page";
 import { PreDemandasPage } from "./pages/pre-demandas-page";
+import { SetoresPage } from "./pages/setores-page";
 
 export function App() {
   return (
@@ -34,6 +35,14 @@ export function App() {
                   </RequirePermission>
                 }
                 path="/interessados"
+              />
+              <Route
+                element={
+                  <RequirePermission permission="cadastro.setor.read">
+                    <SetoresPage />
+                  </RequirePermission>
+                }
+                path="/setores"
               />
               <Route
                 element={

@@ -268,45 +268,45 @@ export function PreDemandaDetailPage() {
       {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
       <Card className="overflow-hidden">
         <CardContent className="flex flex-wrap gap-3 p-4">
-          <Button onClick={() => setToolbarDialog("related")} type="button" variant="secondary">
+          <Button onClick={() => setToolbarDialog("related")} title="Iniciar processo relacionado" type="button" variant="secondary">
             <FilePlus2 className="h-4 w-4" />
             Relacionado
           </Button>
-          <Button onClick={() => setToolbarDialog("edit")} type="button" variant="secondary">
+          <Button onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" type="button" variant="secondary">
             <Edit className="h-4 w-4" />
             Alterar
           </Button>
-          <Button onClick={() => setToolbarDialog("send")} type="button" variant="secondary">
+          <Button onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" type="button" variant="secondary">
             <Send className="h-4 w-4" />
             Tramitar
           </Button>
-          <Button onClick={() => setToolbarDialog("link")} type="button" variant="secondary">
+          <Button onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" type="button" variant="secondary">
             <LinkIcon className="h-4 w-4" />
             Vincular
           </Button>
-          <Button onClick={() => setToolbarDialog("notes")} type="button" variant="secondary">
+          <Button onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" type="button" variant="secondary">
             <StickyNote className="h-4 w-4" />
             Anotacoes
           </Button>
-          <Button onClick={() => setToolbarDialog("deadline")} type="button" variant="secondary">
+          <Button onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" type="button" variant="secondary">
             <CalendarClock className="h-4 w-4" />
             Prazos
           </Button>
-          <Button onClick={() => setToolbarDialog("andamento")} type="button" variant="ghost">
+          <Button onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" type="button" variant="ghost">
             <Plus className="h-4 w-4" />
             Andamento
           </Button>
-          <Button onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} type="button" variant="ghost">
+          <Button onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" type="button" variant="ghost">
             <CheckCircle className="h-4 w-4" />
             Concluir
           </Button>
           {record.allowedNextStatuses.includes("aguardando_sei") ? (
-            <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} type="button" variant="ghost">
+            <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} title="Marcar processo como aguardando SEI" type="button" variant="ghost">
               Aguardar SEI
             </Button>
           ) : null}
           {record.status === "encerrada" && reopenStatus ? (
-            <Button onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} type="button" variant="ghost">
+            <Button onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" type="button" variant="ghost">
               Reabrir
             </Button>
           ) : null}
