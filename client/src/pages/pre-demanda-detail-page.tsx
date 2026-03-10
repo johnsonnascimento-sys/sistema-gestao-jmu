@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../auth-context";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
@@ -70,6 +71,7 @@ const FIXED_TASKS = [
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
   const [record, setRecord] = useState<PreDemanda | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
@@ -211,6 +213,16 @@ export function PreDemandaDetailPage() {
         return { title: "Preservar historico e reabrir apenas com motivo", description: "O caso esta fechado. Reabra so se houver fato novo, correcao processual ou impulso operacional real." };
     }
   }, [record]);
+  const taskShortcutOptions = useMemo(() => {
+    const items = [...FIXED_TASKS];
+    const interessadoShortcuts = (record?.interessados ?? []).slice(0, 6).map((item) => `Aguardando assinatura de ${item.interessado.nome}`);
+
+    if (record?.setorAtual) {
+      items.push(`Aguardando retorno do setor ${record.setorAtual.sigla}`);
+    }
+
+    return Array.from(new Set([...items, ...interessadoShortcuts]));
+  }, [record]);
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
     setIsSubmitting(true);
@@ -267,49 +279,30 @@ export function PreDemandaDetailPage() {
       {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
       {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
       <Card className="overflow-hidden">
-        <CardContent className="flex flex-wrap gap-3 p-4">
-          <Button onClick={() => setToolbarDialog("related")} title="Iniciar processo relacionado" type="button" variant="secondary">
-            <FilePlus2 className="h-4 w-4" />
-            Relacionado
-          </Button>
-          <Button onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" type="button" variant="secondary">
-            <Edit className="h-4 w-4" />
-            Alterar
-          </Button>
-          <Button onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" type="button" variant="secondary">
-            <Send className="h-4 w-4" />
-            Tramitar
-          </Button>
-          <Button onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" type="button" variant="secondary">
-            <LinkIcon className="h-4 w-4" />
-            Vincular
-          </Button>
-          <Button onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" type="button" variant="secondary">
-            <StickyNote className="h-4 w-4" />
-            Anotacoes
-          </Button>
-          <Button onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" type="button" variant="secondary">
-            <CalendarClock className="h-4 w-4" />
-            Prazos
-          </Button>
-          <Button onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" type="button" variant="ghost">
-            <Plus className="h-4 w-4" />
-            Andamento
-          </Button>
-          <Button onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" type="button" variant="ghost">
-            <CheckCircle className="h-4 w-4" />
-            Concluir
-          </Button>
-          {record.allowedNextStatuses.includes("aguardando_sei") ? (
-            <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} title="Marcar processo como aguardando SEI" type="button" variant="ghost">
-              Aguardar SEI
-            </Button>
-          ) : null}
-          {record.status === "encerrada" && reopenStatus ? (
-            <Button onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" type="button" variant="ghost">
-              Reabrir
-            </Button>
-          ) : null}
+        <CardContent className="grid gap-4 p-4">
+          <div className="flex flex-wrap gap-3">
+            <ToolbarActionButton icon={FilePlus2} label="Relacionar" onClick={() => setToolbarDialog("related")} title="Iniciar processo relacionado" />
+            <ToolbarActionButton icon={Edit} label="Alterar" onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" />
+            <ToolbarActionButton icon={Send} label="Tramitar" onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" />
+            <ToolbarActionButton icon={LinkIcon} label="Vincular" onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" />
+            <ToolbarActionButton icon={StickyNote} label="Anotacoes" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
+            <ToolbarActionButton icon={CalendarClock} label="Prazos" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
+            <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" variant="ghost" />
+            <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
+          </div>
+          <div className="flex flex-wrap gap-3 rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-3">
+            <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atalhos de status</span>
+            {record.allowedNextStatuses.includes("aguardando_sei") ? (
+              <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} title="Marcar processo como aguardando SEI" type="button" variant="ghost">
+                Aguardar SEI
+              </Button>
+            ) : null}
+            {record.status === "encerrada" && reopenStatus ? (
+              <Button onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" type="button" variant="ghost">
+                Reabrir
+              </Button>
+            ) : null}
+          </div>
         </CardContent>
       </Card>
 
@@ -466,8 +459,20 @@ export function PreDemandaDetailPage() {
                 </Button>
               </div>
 
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm({ descricao: event.target.value, tipo: "fixa" })} value="">
+                  <option value="">Atalhos de tarefas</option>
+                  {taskShortcutOptions.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 md:self-center">Os atalhos consideram envolvidos e setor atual.</p>
+              </div>
+
               <div className="flex flex-wrap gap-2">
-                {FIXED_TASKS.map((item) => (
+                {taskShortcutOptions.slice(0, 6).map((item) => (
                   <Button key={item} onClick={() => setTaskForm({ descricao: item, tipo: "fixa" })} size="sm" type="button" variant="outline">
                     {item}
                   </Button>
@@ -691,7 +696,17 @@ export function PreDemandaDetailPage() {
               ))}
             </select>
           </FormField>
+          {!setores.length && hasPermission("cadastro.setor.write") ? (
+            <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Nenhum setor cadastrado. Abra o cadastro de setores para habilitar a tramitacao.
+            </div>
+          ) : null}
           <DialogFooter>
+            {hasPermission("cadastro.setor.write") ? (
+              <Button onClick={() => navigate("/setores")} type="button" variant="secondary">
+                Abrir setores
+              </Button>
+            ) : null}
             <Button onClick={() => setToolbarDialog(null)} type="button" variant="ghost">
               Cancelar
             </Button>
@@ -869,5 +884,26 @@ function SummaryItem({ label, value, className }: { label: string; value: string
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className="mt-1 whitespace-pre-wrap text-slate-950">{value}</p>
     </div>
+  );
+}
+
+function ToolbarActionButton({
+  icon: Icon,
+  label,
+  title,
+  onClick,
+  variant = "secondary",
+}: {
+  icon: typeof FilePlus2;
+  label: string;
+  title: string;
+  onClick: () => void;
+  variant?: "secondary" | "ghost";
+}) {
+  return (
+    <Button className="h-auto min-w-[92px] flex-col rounded-[24px] px-4 py-3 text-xs" onClick={onClick} title={title} type="button" variant={variant}>
+      <Icon className="h-5 w-5" />
+      <span className="font-semibold">{label}</span>
+    </Button>
   );
 }
