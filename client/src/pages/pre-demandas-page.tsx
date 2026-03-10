@@ -186,6 +186,22 @@ function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, 
   return `/pre-demandas?${next.toString()}`;
 }
 
+function buildQueueSearch(current: URLSearchParams, overrides: Record<string, string | null>) {
+  const next = new URLSearchParams(current);
+
+  Object.entries(overrides).forEach(([key, value]) => {
+    if (value === null || value === "") {
+      next.delete(key);
+      return;
+    }
+
+    next.set(key, value);
+  });
+
+  next.set("page", "1");
+  return `/pre-demandas?${next.toString()}`;
+}
+
 function getSectorRiskLevel(score: number) {
   if (score >= 8) {
     return "critical" as const;
@@ -464,6 +480,77 @@ export function PreDemandasPage() {
       return acc;
     }, {});
   }, [sectorSummaries]);
+  const quickGroups = useMemo(
+    () => [
+      {
+        id: "criticas",
+        label: "Criticas",
+        description: "Fila com maior risco operativo e actualizacao mais antiga primeiro.",
+        value: items.filter((item) => item.queueHealth.level === "critical").length,
+        href: buildQueueSearch(searchParams, {
+          preset: null,
+          view: "table",
+          status: "aberta,aguardando_sei,associada",
+          queueHealth: "critical",
+          sortBy: "updatedAt",
+          sortOrder: "asc",
+        }),
+      },
+      {
+        id: "vencidas",
+        label: "Prazos vencidos",
+        description: "Demandas activas com prazo final ja ultrapassado.",
+        value: items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+        href: buildQueueSearch(searchParams, {
+          preset: null,
+          view: "table",
+          status: "aberta,aguardando_sei,associada",
+          dueState: "overdue",
+          sortBy: "prazoFinal",
+          sortOrder: "asc",
+        }),
+      },
+      {
+        id: "na-semana",
+        label: "Vencem na semana",
+        description: "Demandas activas que exigem seguimento antes do prazo final.",
+        value: items.filter((item) => {
+          if (!item.prazoFinal) {
+            return false;
+          }
+
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const dueDate = new Date(`${item.prazoFinal}T00:00:00`);
+          const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+          return diffDays >= 0 && diffDays <= 7;
+        }).length,
+        href: buildQueueSearch(searchParams, {
+          preset: null,
+          view: "table",
+          status: "aberta,aguardando_sei,associada",
+          dueState: "due_soon",
+          sortBy: "prazoFinal",
+          sortOrder: "asc",
+        }),
+      },
+      {
+        id: "sem-envolvidos",
+        label: "Sem envolvidos",
+        description: "Cases a completar antes de seguir o fluxo.",
+        value: items.filter((item) => item.interessados.length === 0).length,
+        href: buildQueueSearch(searchParams, {
+          preset: null,
+          view: "table",
+          status: "aberta,aguardando_sei,associada",
+          hasInteressados: "false",
+          sortBy: "updatedAt",
+          sortOrder: "asc",
+        }),
+      },
+    ],
+    [items, searchParams],
+  );
   const firstVisibleItem = total === 0 ? 0 : (resolvedState.page - 1) * pageSize + 1;
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
@@ -503,6 +590,29 @@ export function PreDemandasPage() {
           <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
         ))}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Grupos rapidos</CardTitle>
+          <CardDescription>Recortes operacionais prontos para accao imediata dentro da fila actual.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 xl:grid-cols-4">
+          {quickGroups.map((group) => (
+            <article className="grid gap-3 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4" key={group.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{group.label}</p>
+                  <h3 className="mt-2 text-3xl font-semibold text-slate-950">{group.value}</h3>
+                </div>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to={group.href}>Abrir</Link>
+                </Button>
+              </div>
+              <p className="text-sm text-slate-600">{group.description}</p>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
 
       {sectorSummaries.length ? (
         <Card>

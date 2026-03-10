@@ -56,6 +56,32 @@ export function DashboardPage() {
   }
 
   const staleItems = summary.staleItems;
+  const quickGroups = [
+    {
+      id: "criticas",
+      label: "Criticas",
+      value: summary.agingCriticalTotal,
+      href: "/pre-demandas?status=aberta,aguardando_sei,associada&queueHealth=critical&sortBy=updatedAt&sortOrder=asc&view=table",
+    },
+    {
+      id: "vencidas",
+      label: "Prazos vencidos",
+      value: summary.overdueTotal,
+      href: "/pre-demandas?status=aberta,aguardando_sei,associada&dueState=overdue&sortBy=prazoFinal&sortOrder=asc&view=table",
+    },
+    {
+      id: "sem-envolvidos",
+      label: "Sem envolvidos",
+      value: summary.withoutInteressadosTotal,
+      href: "/pre-demandas?status=aberta,aguardando_sei,associada&hasInteressados=false&sortBy=updatedAt&sortOrder=asc&view=table",
+    },
+    {
+      id: "aguardando-sei",
+      label: "Aguardando SEI",
+      value: summary.awaitingSeiItems.length,
+      href: "/pre-demandas?preset=aguardando-sei",
+    },
+  ];
 
   function formatPrazo(item: PreDemanda) {
     if (!item.prazoFinal) {
@@ -141,6 +167,28 @@ export function DashboardPage() {
         <MetricCard label="Reabertas 30d" value={summary.reopenedLast30Days} />
         <MetricCard label="Encerradas 30d" value={summary.closedLast30Days} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Grupos rapidos da operacao</CardTitle>
+          <CardDescription>Entradas directas para os recortes com maior urgencia operacional.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 xl:grid-cols-4">
+          {quickGroups.map((group) => (
+            <article className="grid gap-3 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4" key={group.id}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{group.label}</p>
+                  <h3 className="mt-2 text-3xl font-semibold text-slate-950">{group.value}</h3>
+                </div>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to={group.href}>Abrir</Link>
+                </Button>
+              </div>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
