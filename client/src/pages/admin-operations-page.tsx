@@ -81,6 +81,7 @@ export function AdminOperationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [periodDays, setPeriodDays] = useState("30");
   const [queueThresholds, setQueueThresholds] = useState({
     attentionDays: "2",
     criticalDays: "5",
@@ -91,7 +92,7 @@ export function AdminOperationsPage() {
     setLoading(true);
 
     try {
-      const nextSummary = await getAdminOpsSummary(12);
+      const nextSummary = await getAdminOpsSummary(12, Number(periodDays));
       setSummary(nextSummary);
       setQueueThresholds({
         attentionDays: String(nextSummary.queueHealthConfig.attentionDays),
@@ -107,7 +108,7 @@ export function AdminOperationsPage() {
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [periodDays]);
 
   if (loading) {
     return <LoadingState description="A consolidar runtime, contadores, migracoes e incidentes recentes." title="Carregando operacoes" />;
@@ -125,9 +126,23 @@ export function AdminOperationsPage() {
     <section className="grid gap-6">
       <PageHeader
         actions={
-          <Button onClick={() => void load()} type="button" variant="secondary">
-            Atualizar
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            <label className="grid gap-1 text-left text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+              Periodo
+              <select
+                className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium normal-case tracking-normal text-slate-900 shadow-sm"
+                onChange={(event) => setPeriodDays(event.target.value)}
+                value={periodDays}
+              >
+                <option value="7">7 dias</option>
+                <option value="30">30 dias</option>
+                <option value="90">90 dias</option>
+              </select>
+            </label>
+            <Button onClick={() => void load()} type="button" variant="secondary">
+              Atualizar
+            </Button>
+          </div>
         }
         description="Monitoramento minimo da aplicacao, com visao do runtime, do schema e dos incidentes desde o ultimo start."
         eyebrow="Operacoes"
@@ -151,6 +166,63 @@ export function AdminOperationsPage() {
         <MetricCard label="Ready falhou" value={summary.counters.readyChecksFailedTotal} />
         <MetricCard label="Unhandled" value={summary.counters.unhandledErrorsTotal} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Governanca de casos</CardTitle>
+          <CardDescription>Recorte operativo dos ultimos {summary.caseManagementReport.periodDays} dias, com foco em carga, prazo e distribuicao por setor.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Casos criados" value={summary.caseManagementReport.createdInPeriod} />
+            <MetricCard label="Casos encerrados" value={summary.caseManagementReport.closedInPeriod} />
+            <MetricCard label="Tramitacoes" value={summary.caseManagementReport.tramitacoesInPeriod} />
+            <MetricCard label="Vencidos" value={summary.caseManagementReport.overdueTotal} />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <MetricCard label="Vencem em 7 dias" value={summary.caseManagementReport.dueSoonTotal} />
+            <MetricCard label="Sem setor" value={summary.caseManagementReport.withoutSetorTotal} />
+            <MetricCard label="Sem envolvidos" value={summary.caseManagementReport.withoutInteressadosTotal} />
+          </div>
+
+          {summary.caseManagementReport.bySetor.length ? (
+            <div className="grid gap-3">
+              {summary.caseManagementReport.bySetor.map((item) => (
+                <article className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4" key={item.setorId ?? "sem-setor"}>
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.sigla ?? "Sem setor"}</p>
+                      <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Demandas ainda nao encaminhadas para um setor."}</h3>
+                    </div>
+                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} activos</p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                    <div className="rounded-[18px] border border-slate-200 bg-white px-3 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Activos</p>
+                      <p className="mt-2 text-lg font-semibold text-slate-950">{item.activeTotal}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-rose-200 bg-rose-50/70 px-3 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-rose-700">Vencidos</p>
+                      <p className="mt-2 text-lg font-semibold text-rose-950">{item.overdueTotal}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-amber-200 bg-amber-50/70 px-3 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Vencem em 7 dias</p>
+                      <p className="mt-2 text-lg font-semibold text-amber-950">{item.dueSoonTotal}</p>
+                    </div>
+                    <div className="rounded-[18px] border border-sky-200 bg-sky-50/70 px-3 py-3">
+                      <p className="text-xs uppercase tracking-[0.18em] text-sky-700">Aguardando SEI</p>
+                      <p className="mt-2 text-lg font-semibold text-sky-950">{item.awaitingSeiTotal}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState description="Assim que houver distribuicao de casos, a leitura por setor aparecera aqui." title="Sem dados por setor" />
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>

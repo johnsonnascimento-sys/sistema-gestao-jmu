@@ -371,6 +371,28 @@ export interface OperationalEvent {
   occurredAt: string;
 }
 
+export interface AdminOpsCaseSetorReportItem {
+  setorId: string | null;
+  sigla: string | null;
+  nome: string | null;
+  activeTotal: number;
+  overdueTotal: number;
+  dueSoonTotal: number;
+  awaitingSeiTotal: number;
+}
+
+export interface AdminOpsCaseManagementReport {
+  periodDays: number;
+  createdInPeriod: number;
+  closedInPeriod: number;
+  tramitacoesInPeriod: number;
+  overdueTotal: number;
+  dueSoonTotal: number;
+  withoutSetorTotal: number;
+  withoutInteressadosTotal: number;
+  bySetor: AdminOpsCaseSetorReportItem[];
+}
+
 export interface AdminOpsSummary {
   runtime: RuntimeStatus;
   counters: OperationsCounters;
@@ -379,4 +401,5 @@ export interface AdminOpsSummary {
   queueHealthConfig: QueueHealthConfig;
   backupStatus: BackupStatusSummary;
   operationalEvents: OperationalEvent[];
+  caseManagementReport: AdminOpsCaseManagementReport;
 }

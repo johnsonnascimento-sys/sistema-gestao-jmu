@@ -170,8 +170,8 @@ export function getRuntimeHealth() {
   return request<RuntimeStatus>("/api/health");
 }
 
-export function getAdminOpsSummary(limit = 12) {
-  return request<AdminOpsSummary>(`/api/admin/ops/resumo?limit=${limit}`);
+export function getAdminOpsSummary(limit = 12, days = 30) {
+  return request<AdminOpsSummary>(`/api/admin/ops/resumo?limit=${limit}&days=${days}`);
 }
 
 export function updateQueueHealthConfig(payload: { attentionDays: number; criticalDays: number }) {

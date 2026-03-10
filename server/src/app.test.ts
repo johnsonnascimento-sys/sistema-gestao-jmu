@@ -1558,7 +1558,7 @@ describe("Gestor JMU API", () => {
 
     const ops = await app.inject({
       method: "GET",
-      url: "/api/admin/ops/resumo?limit=5",
+      url: "/api/admin/ops/resumo?limit=5&days=30",
       headers: { cookie: adminCookie },
     });
 
@@ -1570,6 +1570,10 @@ describe("Gestor JMU API", () => {
     expect((ops.json().data as AdminOpsSummary).backupStatus.visible).toBe(true);
     expect((ops.json().data as AdminOpsSummary).backupStatus.lastBackup?.fileName).toContain("gestor-adminlog-");
     expect((ops.json().data as AdminOpsSummary).operationalEvents[0]?.kind).toBe("backup");
+    expect((ops.json().data as AdminOpsSummary).caseManagementReport.periodDays).toBe(30);
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.createdInPeriod).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.closedInPeriod).toBe("number");
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).caseManagementReport.bySetor)).toBe(true);
 
     const updatedQueueConfig = await app.inject({
       method: "PATCH",
@@ -1587,12 +1591,13 @@ describe("Gestor JMU API", () => {
 
     const opsAfterUpdate = await app.inject({
       method: "GET",
-      url: "/api/admin/ops/resumo?limit=5",
+      url: "/api/admin/ops/resumo?limit=5&days=7",
       headers: { cookie: adminCookie },
     });
 
     expect(opsAfterUpdate.statusCode).toBe(200);
     expect(opsAfterUpdate.json().data.queueHealthConfig.attentionDays).toBe(3);
     expect(opsAfterUpdate.json().data.queueHealthConfig.criticalDays).toBe(7);
+    expect(opsAfterUpdate.json().data.caseManagementReport.periodDays).toBe(7);
   });
 });
