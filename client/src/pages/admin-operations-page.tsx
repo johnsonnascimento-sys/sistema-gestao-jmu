@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
@@ -105,6 +106,23 @@ function riskTone(level: "normal" | "attention" | "critical") {
   }
 
   return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function buildSetorQueueHref(setorId: string, dueState: "" | "overdue" | "due_soon") {
+  const search = new URLSearchParams({
+    view: "table",
+    status: "aberta,aguardando_sei,associada",
+    setorAtualId: setorId,
+    sortBy: "updatedAt",
+    sortOrder: "asc",
+    page: "1",
+  });
+
+  if (dueState) {
+    search.set("dueState", dueState);
+  }
+
+  return `/pre-demandas?${search.toString()}`;
 }
 
 export function AdminOperationsPage() {
@@ -273,7 +291,19 @@ export function AdminOperationsPage() {
                         {item.riskLevel}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-slate-700">Score {item.riskScore} · {item.activeTotal} activos · {item.overdueTotal} vencidos</p>
+                    <p className="mt-3 text-sm text-slate-700">Score {item.riskScore} - {item.activeTotal} activos - {item.overdueTotal} vencidos</p>
+                    {item.setorId ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button asChild size="sm" variant="secondary">
+                          <Link to={buildSetorQueueHref(item.setorId, item.overdueTotal > 0 ? "overdue" : item.dueSoonTotal > 0 ? "due_soon" : "")}>Abrir fila critica</Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost">
+                          <Link to={buildSetorQueueHref(item.setorId, "")}>Ver todas do setor</Link>
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-xs text-slate-500">Use o filtro "Sem setor" no dashboard ou na fila para tratar estas demandas.</p>
+                    )}
                   </article>
                 ))}
               </div>
@@ -291,7 +321,7 @@ export function AdminOperationsPage() {
                     </div>
                     <div className="text-right">
                       <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${riskTone(item.riskLevel)}`}>
-                        {item.riskLevel} · {item.riskScore}
+                        {item.riskLevel} - {item.riskScore}
                       </span>
                       <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} activos</p>
                       <p className={`mt-1 text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(item.activeDelta)}`}>

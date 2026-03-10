@@ -12,11 +12,11 @@ import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { formatAppError, listPreDemandas, updatePreDemandaStatus } from "../lib/api";
+import { formatAppError, listPreDemandas, listSetores, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
-import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder, StatusCount } from "../types";
+import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, Setor, SortOrder, StatusCount } from "../types";
 
 const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
   { value: "aberta", label: "Aberta" },
@@ -52,6 +52,7 @@ type ResolvedSearchState = {
   dateFrom: string;
   dateTo: string;
   hasSei: "" | "true" | "false";
+  setorAtualId: string;
   dueState: "" | "overdue" | "due_soon" | "none";
   hasInteressados: "" | "true" | "false";
   sortBy: PreDemandaSortBy;
@@ -68,6 +69,7 @@ const SAVED_VIEWS: Array<{
     statuses?: string[];
     queueHealth?: QueueHealthLevel[];
     hasSei?: "" | "true" | "false";
+    setorAtualId?: string;
     dueState?: "" | "overdue" | "due_soon" | "none";
     hasInteressados?: "" | "true" | "false";
     sortBy: PreDemandaSortBy;
@@ -164,6 +166,7 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
+    setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
     dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
     hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
     sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
@@ -177,6 +180,7 @@ export function PreDemandasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<PreDemanda[]>([]);
   const [counts, setCounts] = useState<StatusCount[]>([]);
+  const [setores, setSetores] = useState<Setor[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -192,6 +196,7 @@ export function PreDemandasPage() {
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
+  const [setorAtualId, setSetorAtualId] = useState(resolvedState.setorAtualId);
   const [dueState, setDueState] = useState(resolvedState.dueState);
   const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
   const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
@@ -206,6 +211,7 @@ export function PreDemandasPage() {
     setDateFrom(resolvedState.dateFrom);
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
+    setSetorAtualId(resolvedState.setorAtualId);
     setDueState(resolvedState.dueState);
     setHasInteressados(resolvedState.hasInteressados);
     setSortBy(resolvedState.sortBy);
@@ -223,6 +229,7 @@ export function PreDemandasPage() {
         dateFrom: resolvedState.dateFrom || undefined,
         dateTo: resolvedState.dateTo || undefined,
         hasSei: resolvedState.hasSei ? resolvedState.hasSei === "true" : undefined,
+        setorAtualId: resolvedState.setorAtualId || undefined,
         dueState: resolvedState.dueState || undefined,
         hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
         sortBy: resolvedState.sortBy,
@@ -245,6 +252,18 @@ export function PreDemandasPage() {
   useEffect(() => {
     void load();
   }, [searchKey]);
+
+  useEffect(() => {
+    async function loadSetorOptions() {
+      try {
+        setSetores(await listSetores());
+      } catch {
+        setSetores([]);
+      }
+    }
+
+    void loadSetorOptions();
+  }, []);
 
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,6 +291,10 @@ export function PreDemandasPage() {
 
     if (hasSei) {
       next.set("hasSei", hasSei);
+    }
+
+    if (setorAtualId) {
+      next.set("setorAtualId", setorAtualId);
     }
 
     if (dueState) {
@@ -316,6 +339,7 @@ export function PreDemandasPage() {
     setDateFrom("");
     setDateTo("");
     setHasSei("");
+    setSetorAtualId("");
     setDueState("");
     setHasInteressados("");
     setSortBy("updatedAt");
@@ -434,6 +458,17 @@ export function PreDemandasPage() {
               <option value="">Todos</option>
               <option value="true">Com SEI</option>
               <option value="false">Sem SEI</option>
+            </select>
+          </FormField>
+
+          <FormField label="Setor actual">
+            <select className={selectClassName} onChange={(event) => setSetorAtualId(event.target.value)} value={setorAtualId}>
+              <option value="">Todos</option>
+              {setores.map((setor) => (
+                <option key={setor.id} value={setor.id}>
+                  {setor.sigla}
+                </option>
+              ))}
             </select>
           </FormField>
 
