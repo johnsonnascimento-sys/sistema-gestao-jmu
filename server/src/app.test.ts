@@ -1575,6 +1575,19 @@ describe("Gestor JMU API", () => {
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.closedInPeriod).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).caseManagementReport.bySetor)).toBe(true);
 
+    const caseReportCsv = await app.inject({
+      method: "GET",
+      url: "/api/admin/ops/case-report.csv?days=30",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(caseReportCsv.statusCode).toBe(200);
+    expect(caseReportCsv.headers["content-type"]).toContain("text/csv");
+    expect(caseReportCsv.headers["content-disposition"]).toContain("gestor-case-report-30d.csv");
+    expect(caseReportCsv.body).toContain("secao;campo;valor");
+    expect(caseReportCsv.body).toContain("resumo;periodo_dias;30");
+    expect(caseReportCsv.body).toContain("setores;sigla;nome;ativos;vencidos;vencem_em_7_dias;aguardando_sei");
+
     const updatedQueueConfig = await app.inject({
       method: "PATCH",
       url: "/api/admin/ops/queue-health-config",

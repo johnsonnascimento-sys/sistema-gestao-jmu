@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { formatAppError, getAdminOpsSummary, updateQueueHealthConfig } from "../lib/api";
+import { downloadAdminOpsCaseReportCsv, formatAppError, getAdminOpsSummary, updateQueueHealthConfig } from "../lib/api";
 import type { AdminOpsSummary, OperationalEvent, OperationsIncident } from "../types";
 
 function formatUptime(totalSeconds: number) {
@@ -87,6 +87,7 @@ export function AdminOperationsPage() {
     criticalDays: "5",
   });
   const [savingQueueThresholds, setSavingQueueThresholds] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -141,6 +142,27 @@ export function AdminOperationsPage() {
             </label>
             <Button onClick={() => void load()} type="button" variant="secondary">
               Atualizar
+            </Button>
+            <Button
+              disabled={exportingCsv}
+              onClick={async () => {
+                setExportingCsv(true);
+                setError("");
+                setMessage("");
+
+                try {
+                  await downloadAdminOpsCaseReportCsv(Number(periodDays));
+                  setMessage("Relatorio CSV gerado com sucesso.");
+                } catch (nextError) {
+                  setError(formatAppError(nextError, "Falha ao exportar relatorio CSV."));
+                } finally {
+                  setExportingCsv(false);
+                }
+              }}
+              type="button"
+              variant="secondary"
+            >
+              {exportingCsv ? "Exportando..." : "Exportar CSV"}
             </Button>
           </div>
         }

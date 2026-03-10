@@ -174,6 +174,31 @@ export function getAdminOpsSummary(limit = 12, days = 30) {
   return request<AdminOpsSummary>(`/api/admin/ops/resumo?limit=${limit}&days=${days}`);
 }
 
+export async function downloadAdminOpsCaseReportCsv(days = 30) {
+  const response = await fetch(`/api/admin/ops/case-report.csv?days=${days}`, {
+    credentials: "include",
+  });
+
+  const requestId = response.headers.get("x-request-id") ?? undefined;
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const body = contentType.includes("application/json") ? ((await response.json()) as ApiEnvelope<never>) : null;
+    throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "Falha ao exportar relatorio.", body?.error?.details, requestId);
+  }
+
+  const blob = await response.blob();
+  const fileName = `gestor-case-report-${days}d.csv`;
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export function updateQueueHealthConfig(payload: { attentionDays: number; criticalDays: number }) {
   return request<QueueHealthConfig>("/api/admin/ops/queue-health-config", {
     method: "PATCH",
