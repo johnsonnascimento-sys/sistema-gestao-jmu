@@ -1573,6 +1573,8 @@ describe("Gestor JMU API", () => {
     expect((ops.json().data as AdminOpsSummary).caseManagementReport.periodDays).toBe(30);
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.createdInPeriod).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.closedInPeriod).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.previousPeriod.createdInPeriod).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.deltas.createdInPeriod).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).caseManagementReport.bySetor)).toBe(true);
 
     const caseReportCsv = await app.inject({
@@ -1586,6 +1588,8 @@ describe("Gestor JMU API", () => {
     expect(caseReportCsv.headers["content-disposition"]).toContain("gestor-case-report-30d.csv");
     expect(caseReportCsv.body).toContain("secao;campo;valor");
     expect(caseReportCsv.body).toContain("resumo;periodo_dias;30");
+    expect(caseReportCsv.body).toContain("resumo;casos_criados_janela_anterior;");
+    expect(caseReportCsv.body).toContain("resumo;casos_criados_delta;");
     expect(caseReportCsv.body).toContain("setores;sigla;nome;ativos;vencidos;vencem_em_7_dias;aguardando_sei");
 
     const updatedQueueConfig = await app.inject({

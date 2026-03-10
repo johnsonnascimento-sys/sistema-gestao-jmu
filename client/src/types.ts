@@ -390,6 +390,16 @@ export interface AdminOpsCaseManagementReport {
   dueSoonTotal: number;
   withoutSetorTotal: number;
   withoutInteressadosTotal: number;
+  previousPeriod: {
+    createdInPeriod: number;
+    closedInPeriod: number;
+    tramitacoesInPeriod: number;
+  };
+  deltas: {
+    createdInPeriod: number;
+    closedInPeriod: number;
+    tramitacoesInPeriod: number;
+  };
   bySetor: AdminOpsCaseSetorReportItem[];
 }
 

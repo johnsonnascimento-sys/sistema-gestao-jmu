@@ -29,6 +29,9 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
     created_in_period: string;
     closed_in_period: string;
     tramitacoes_in_period: string;
+    previous_created_in_period: string;
+    previous_closed_in_period: string;
+    previous_tramitacoes_in_period: string;
     overdue_total: string;
     due_soon_total: string;
     without_setor_total: string;
@@ -44,6 +47,22 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
           where andamento.tipo = 'tramitacao'
             and andamento.data_hora >= now() - make_interval(days => $1::int)
         )::int as tramitacoes_in_period,
+        count(*) filter (
+          where pd.created_at >= now() - make_interval(days => ($1::int * 2))
+            and pd.created_at < now() - make_interval(days => $1::int)
+        )::int as previous_created_in_period,
+        count(*) filter (
+          where pd.data_conclusao is not null
+            and pd.data_conclusao >= current_date - ($1::int * 2)
+            and pd.data_conclusao < current_date - $1::int
+        )::int as previous_closed_in_period,
+        (
+          select count(*)
+          from adminlog.andamentos andamento
+          where andamento.tipo = 'tramitacao'
+            and andamento.data_hora >= now() - make_interval(days => ($1::int * 2))
+            and andamento.data_hora < now() - make_interval(days => $1::int)
+        )::int as previous_tramitacoes_in_period,
         count(*) filter (where pd.status <> 'encerrada' and pd.prazo_final is not null and pd.prazo_final < current_date)::int as overdue_total,
         count(*) filter (where pd.status <> 'encerrada' and pd.prazo_final is not null and pd.prazo_final between current_date and current_date + interval '7 days')::int as due_soon_total,
         count(*) filter (where pd.status <> 'encerrada' and pd.setor_atual_id is null)::int as without_setor_total,
@@ -94,16 +113,32 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
   );
 
   const reportRow = reportResult.rows[0];
+  const previousCreatedInPeriod = Number(reportRow?.previous_created_in_period ?? 0);
+  const previousClosedInPeriod = Number(reportRow?.previous_closed_in_period ?? 0);
+  const previousTramitacoesInPeriod = Number(reportRow?.previous_tramitacoes_in_period ?? 0);
+  const createdInPeriod = Number(reportRow?.created_in_period ?? 0);
+  const closedInPeriod = Number(reportRow?.closed_in_period ?? 0);
+  const tramitacoesInPeriod = Number(reportRow?.tramitacoes_in_period ?? 0);
 
   return {
     periodDays,
-    createdInPeriod: Number(reportRow?.created_in_period ?? 0),
-    closedInPeriod: Number(reportRow?.closed_in_period ?? 0),
-    tramitacoesInPeriod: Number(reportRow?.tramitacoes_in_period ?? 0),
+    createdInPeriod,
+    closedInPeriod,
+    tramitacoesInPeriod,
     overdueTotal: Number(reportRow?.overdue_total ?? 0),
     dueSoonTotal: Number(reportRow?.due_soon_total ?? 0),
     withoutSetorTotal: Number(reportRow?.without_setor_total ?? 0),
     withoutInteressadosTotal: Number(reportRow?.without_interessados_total ?? 0),
+    previousPeriod: {
+      createdInPeriod: previousCreatedInPeriod,
+      closedInPeriod: previousClosedInPeriod,
+      tramitacoesInPeriod: previousTramitacoesInPeriod,
+    },
+    deltas: {
+      createdInPeriod: createdInPeriod - previousCreatedInPeriod,
+      closedInPeriod: closedInPeriod - previousClosedInPeriod,
+      tramitacoesInPeriod: tramitacoesInPeriod - previousTramitacoesInPeriod,
+    },
     bySetor: bySetorResult.rows.map((row) => ({
       setorId: row.setor_id ? String(row.setor_id) : null,
       sigla: row.setor_sigla ? String(row.setor_sigla) : null,
@@ -217,8 +252,14 @@ export async function registerAdminOperationsRoutes(
       ["resumo", "periodo_dias", report.periodDays],
       ["resumo", "gerado_em", generatedAt],
       ["resumo", "casos_criados", report.createdInPeriod],
+      ["resumo", "casos_criados_janela_anterior", report.previousPeriod.createdInPeriod],
+      ["resumo", "casos_criados_delta", report.deltas.createdInPeriod],
       ["resumo", "casos_encerrados", report.closedInPeriod],
+      ["resumo", "casos_encerrados_janela_anterior", report.previousPeriod.closedInPeriod],
+      ["resumo", "casos_encerrados_delta", report.deltas.closedInPeriod],
       ["resumo", "tramitacoes", report.tramitacoesInPeriod],
+      ["resumo", "tramitacoes_janela_anterior", report.previousPeriod.tramitacoesInPeriod],
+      ["resumo", "tramitacoes_delta", report.deltas.tramitacoesInPeriod],
       ["resumo", "vencidos", report.overdueTotal],
       ["resumo", "vencem_em_7_dias", report.dueSoonTotal],
       ["resumo", "sem_setor", report.withoutSetorTotal],

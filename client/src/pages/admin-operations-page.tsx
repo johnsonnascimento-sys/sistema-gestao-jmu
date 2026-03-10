@@ -75,6 +75,26 @@ function formatBytes(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function formatDelta(value: number) {
+  if (value > 0) {
+    return `+${value}`;
+  }
+
+  return String(value);
+}
+
+function deltaTone(value: number) {
+  if (value > 0) {
+    return "text-emerald-700";
+  }
+
+  if (value < 0) {
+    return "text-rose-700";
+  }
+
+  return "text-slate-500";
+}
+
 export function AdminOperationsPage() {
   const { hasPermission } = useAuth();
   const [summary, setSummary] = useState<AdminOpsSummary | null>(null);
@@ -196,9 +216,24 @@ export function AdminOperationsPage() {
         </CardHeader>
         <CardContent className="grid gap-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Casos criados" value={summary.caseManagementReport.createdInPeriod} />
-            <MetricCard label="Casos encerrados" value={summary.caseManagementReport.closedInPeriod} />
-            <MetricCard label="Tramitacoes" value={summary.caseManagementReport.tramitacoesInPeriod} />
+            <div className="grid gap-2">
+              <MetricCard label="Casos criados" value={summary.caseManagementReport.createdInPeriod} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.createdInPeriod)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.createdInPeriod)} vs janela anterior
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <MetricCard label="Casos encerrados" value={summary.caseManagementReport.closedInPeriod} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.closedInPeriod)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.closedInPeriod)} vs janela anterior
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <MetricCard label="Tramitacoes" value={summary.caseManagementReport.tramitacoesInPeriod} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.tramitacoesInPeriod)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.tramitacoesInPeriod)} vs janela anterior
+              </p>
+            </div>
             <MetricCard label="Vencidos" value={summary.caseManagementReport.overdueTotal} />
           </div>
 
