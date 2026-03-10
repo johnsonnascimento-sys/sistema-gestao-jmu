@@ -139,7 +139,7 @@ function buildPriorityQueueHref(setorId: string | null, dueState: "" | "overdue"
       return "/pre-demandas?preset=vencem-na-semana";
     }
 
-    return "/pre-demandas?preset=fila-operacional&view=table";
+    return "/pre-demandas?preset=sem-setor";
   }
 
   return buildSetorQueueHref(setorId, dueState);

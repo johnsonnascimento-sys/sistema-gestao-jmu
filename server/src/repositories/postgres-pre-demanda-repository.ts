@@ -373,6 +373,14 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
     clauses.push(`pd.setor_atual_id = $${values.length}::uuid`);
   }
 
+  if (params.withoutSetor === true) {
+    clauses.push("pd.setor_atual_id is null");
+  }
+
+  if (params.withoutSetor === false) {
+    clauses.push("pd.setor_atual_id is not null");
+  }
+
   const hasInteressados = normalizeBool(params.hasInteressados);
   if (hasInteressados === true) {
     clauses.push("exists (select 1 from adminlog.demanda_interessados di where di.pre_demanda_id = pd.id)");

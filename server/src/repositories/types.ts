@@ -165,6 +165,7 @@ export interface ListPreDemandasParams {
   dateTo?: string;
   hasSei?: boolean;
   setorAtualId?: string;
+  withoutSetor?: boolean;
   dueState?: "overdue" | "due_soon" | "none";
   hasInteressados?: boolean;
   sortBy?: PreDemandaSortBy;

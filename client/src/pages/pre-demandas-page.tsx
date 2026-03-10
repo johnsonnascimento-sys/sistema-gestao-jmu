@@ -44,6 +44,7 @@ type SavedViewId =
   | "prazos-vencidos"
   | "vencem-na-semana"
   | "sem-envolvidos"
+  | "sem-setor"
   | "com-sei"
   | "ultimas-encerradas";
 
@@ -77,6 +78,7 @@ type ResolvedSearchState = {
   dateTo: string;
   hasSei: "" | "true" | "false";
   setorAtualId: string;
+  withoutSetor: "" | "true" | "false";
   dueState: "" | "overdue" | "due_soon" | "none";
   hasInteressados: "" | "true" | "false";
   sortBy: PreDemandaSortBy;
@@ -94,6 +96,7 @@ const SAVED_VIEWS: Array<{
     queueHealth?: QueueHealthLevel[];
     hasSei?: "" | "true" | "false";
     setorAtualId?: string;
+    withoutSetor?: "" | "true" | "false";
     dueState?: "" | "overdue" | "due_soon" | "none";
     hasInteressados?: "" | "true" | "false";
     sortBy: PreDemandaSortBy;
@@ -196,6 +199,18 @@ const SAVED_VIEWS: Array<{
     },
   },
   {
+    id: "sem-setor",
+    label: "Sem setor",
+    description: "Casos activos ainda sem setor formalmente definido.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      withoutSetor: "true",
+      sortBy: "updatedAt",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
     id: "com-sei",
     label: "Com SEI",
     description: "Demandas que ja possuem vinculacao valida.",
@@ -284,6 +299,7 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     dateTo: searchParams.get("dateTo") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
     setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
+    withoutSetor: searchParams.has("withoutSetor") ? ((searchParams.get("withoutSetor") as "true" | "false") ?? "") : preset?.defaults.withoutSetor ?? "",
     dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
     hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
     sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
@@ -314,6 +330,7 @@ export function PreDemandasPage() {
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
   const [setorAtualId, setSetorAtualId] = useState(resolvedState.setorAtualId);
+  const [withoutSetor, setWithoutSetor] = useState(resolvedState.withoutSetor);
   const [dueState, setDueState] = useState(resolvedState.dueState);
   const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
   const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
@@ -329,6 +346,7 @@ export function PreDemandasPage() {
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
     setSetorAtualId(resolvedState.setorAtualId);
+    setWithoutSetor(resolvedState.withoutSetor);
     setDueState(resolvedState.dueState);
     setHasInteressados(resolvedState.hasInteressados);
     setSortBy(resolvedState.sortBy);
@@ -347,6 +365,7 @@ export function PreDemandasPage() {
         dateTo: resolvedState.dateTo || undefined,
         hasSei: resolvedState.hasSei ? resolvedState.hasSei === "true" : undefined,
         setorAtualId: resolvedState.setorAtualId || undefined,
+        withoutSetor: resolvedState.withoutSetor ? resolvedState.withoutSetor === "true" : undefined,
         dueState: resolvedState.dueState || undefined,
         hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
         sortBy: resolvedState.sortBy,
@@ -414,6 +433,10 @@ export function PreDemandasPage() {
       next.set("setorAtualId", setorAtualId);
     }
 
+    if (withoutSetor) {
+      next.set("withoutSetor", withoutSetor);
+    }
+
     if (dueState) {
       next.set("dueState", dueState);
     }
@@ -457,6 +480,7 @@ export function PreDemandasPage() {
     setDateTo("");
     setHasSei("");
     setSetorAtualId("");
+    setWithoutSetor("");
     setDueState("");
     setHasInteressados("");
     setSortBy("updatedAt");
@@ -578,6 +602,13 @@ export function PreDemandasPage() {
         value: items.filter((item) => item.interessados.length === 0).length,
         href: "/pre-demandas?preset=sem-envolvidos",
       },
+      {
+        id: "sem-setor",
+        label: "Sem setor",
+        description: "Cases ainda sem destinacao formal.",
+        value: items.filter((item) => !item.setorAtual).length,
+        href: "/pre-demandas?preset=sem-setor",
+      },
     ],
     [items],
   );
@@ -626,7 +657,7 @@ export function PreDemandasPage() {
           <CardTitle>Grupos rapidos</CardTitle>
           <CardDescription>Recortes operacionais prontos para accao imediata dentro da fila actual.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-4">
+        <CardContent className="grid gap-3 xl:grid-cols-5">
           {quickGroups.map((group) => (
             <article className="grid gap-3 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4" key={group.id}>
               <div className="flex items-start justify-between gap-3">
@@ -760,7 +791,7 @@ export function PreDemandasPage() {
       </Card>
 
       <form onSubmit={handleFilterSubmit}>
-        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
             <Input onChange={(event) => setQuery(event.target.value)} placeholder="PRE, solicitante ou assunto" value={query} />
           </FormField>
@@ -814,6 +845,14 @@ export function PreDemandasPage() {
                   {setor.sigla}
                 </option>
               ))}
+            </select>
+          </FormField>
+
+          <FormField label="Sem setor">
+            <select className={selectClassName} onChange={(event) => setWithoutSetor(event.target.value as "" | "true" | "false")} value={withoutSetor}>
+              <option value="">Todos</option>
+              <option value="true">Apenas sem setor</option>
+              <option value="false">Apenas com setor</option>
             </select>
           </FormField>
 

@@ -277,7 +277,7 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-950">Sem setor atual</p>
                   <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=fila-operacional&sortBy=updatedAt&sortOrder=asc&view=table">Ver fila</Link>
+                    <Link to="/pre-demandas?preset=sem-setor">Ver fila</Link>
                   </Button>
                 </div>
                 {summary.withoutSetorItems.length === 0 ? (
@@ -326,6 +326,9 @@ export function DashboardPage() {
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=ultimas-encerradas">Ultimas encerradas</Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/pre-demandas?preset=sem-setor">Sem setor</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=fila-operacional">Fila operacional</Link>

@@ -374,6 +374,49 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => item.currentAssociation === null);
     }
 
+    if (params.setorAtualId) {
+      items = items.filter((item) => item.setorAtual?.id === params.setorAtualId);
+    }
+
+    if (params.withoutSetor === true) {
+      items = items.filter((item) => item.setorAtual === null);
+    }
+
+    if (params.withoutSetor === false) {
+      items = items.filter((item) => item.setorAtual !== null);
+    }
+
+    if (params.dueState === "overdue") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      items = items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < today.getTime());
+    }
+
+    if (params.dueState === "due_soon") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      items = items.filter((item) => {
+        if (!item.prazoFinal) {
+          return false;
+        }
+
+        const diffDays = Math.round((new Date(`${item.prazoFinal}T00:00:00`).getTime() - today.getTime()) / 86400000);
+        return diffDays >= 0 && diffDays <= 7;
+      });
+    }
+
+    if (params.dueState === "none") {
+      items = items.filter((item) => item.prazoFinal === null);
+    }
+
+    if (params.hasInteressados === true) {
+      items = items.filter((item) => item.interessados.length > 0);
+    }
+
+    if (params.hasInteressados === false) {
+      items = items.filter((item) => item.interessados.length === 0);
+    }
+
     const start = (params.page - 1) * params.pageSize;
     const paged = items.slice(start, start + params.pageSize);
 
@@ -1433,6 +1476,24 @@ describe("Gestor JMU API", () => {
     expect(timeline.json().data.some((item: TimelineEvent) => item.type === "tramitation")).toBe(true);
     expect(timeline.json().data.some((item: TimelineEvent) => item.type === "task_completed")).toBe(true);
     expect(timeline.json().data.some((item: TimelineEvent) => item.type === "interessado_added")).toBe(true);
+
+    const withoutSetor = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas?withoutSetor=true",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(withoutSetor.statusCode).toBe(200);
+    expect(withoutSetor.json().data.total).toBe(0);
+
+    const withSetor = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas?withoutSetor=false",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(withSetor.statusCode).toBe(200);
+    expect(withSetor.json().data.total).toBeGreaterThanOrEqual(1);
 
     const detail = await app.inject({
       method: "GET",
