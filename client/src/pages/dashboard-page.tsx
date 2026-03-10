@@ -61,25 +61,25 @@ export function DashboardPage() {
       id: "criticas",
       label: "Criticas",
       value: summary.agingCriticalTotal,
-      href: "/pre-demandas?status=aberta,aguardando_sei,associada&queueHealth=critical&sortBy=updatedAt&sortOrder=asc&view=table",
+      href: "/pre-demandas?preset=criticas",
     },
     {
       id: "vencidas",
       label: "Prazos vencidos",
       value: summary.overdueTotal,
-      href: "/pre-demandas?status=aberta,aguardando_sei,associada&dueState=overdue&sortBy=prazoFinal&sortOrder=asc&view=table",
+      href: "/pre-demandas?preset=prazos-vencidos",
+    },
+    {
+      id: "na-semana",
+      label: "Vencem na semana",
+      value: summary.dueSoonTotal,
+      href: "/pre-demandas?preset=vencem-na-semana",
     },
     {
       id: "sem-envolvidos",
       label: "Sem envolvidos",
       value: summary.withoutInteressadosTotal,
-      href: "/pre-demandas?status=aberta,aguardando_sei,associada&hasInteressados=false&sortBy=updatedAt&sortOrder=asc&view=table",
-    },
-    {
-      id: "aguardando-sei",
-      label: "Aguardando SEI",
-      value: summary.awaitingSeiItems.length,
-      href: "/pre-demandas?preset=aguardando-sei",
+      href: "/pre-demandas?preset=sem-envolvidos",
     },
   ];
 
@@ -263,7 +263,7 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-950">Prazos na semana</p>
                   <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=fila-operacional&dueState=due_soon&sortBy=prazoFinal&sortOrder=asc&view=table">Abrir fila</Link>
+                    <Link to="/pre-demandas?preset=vencem-na-semana">Abrir fila</Link>
                   </Button>
                 </div>
                 {summary.dueSoonItems.length === 0 ? (
@@ -291,7 +291,7 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-950">Sem envolvidos</p>
                   <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=fila-operacional&hasInteressados=false&sortBy=updatedAt&sortOrder=asc&view=table">Ver fila</Link>
+                    <Link to="/pre-demandas?preset=sem-envolvidos">Ver fila</Link>
                   </Button>
                 </div>
                 {summary.withoutInteressadosItems.length === 0 ? (
@@ -317,6 +317,12 @@ export function DashboardPage() {
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=fila-parada">Fila parada</Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/pre-demandas?preset=criticas">Fila critica</Link>
+              </Button>
+              <Button asChild variant="secondary">
+                <Link to="/pre-demandas?preset=prazos-vencidos">Prazos vencidos</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=ultimas-encerradas">Ultimas encerradas</Link>

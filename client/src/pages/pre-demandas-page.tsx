@@ -35,7 +35,17 @@ const selectClassName =
   "h-11 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-amber-200/50";
 
 type BoardView = "kanban" | "table";
-type SavedViewId = "fila-operacional" | "triagem-abertas" | "aguardando-sei" | "fila-parada" | "com-sei" | "ultimas-encerradas";
+type SavedViewId =
+  | "fila-operacional"
+  | "triagem-abertas"
+  | "aguardando-sei"
+  | "fila-parada"
+  | "criticas"
+  | "prazos-vencidos"
+  | "vencem-na-semana"
+  | "sem-envolvidos"
+  | "com-sei"
+  | "ultimas-encerradas";
 
 type QuickAction = {
   item: PreDemanda;
@@ -132,6 +142,54 @@ const SAVED_VIEWS: Array<{
     defaults: {
       statuses: ["aberta", "aguardando_sei", "associada"],
       queueHealth: ["attention", "critical"],
+      sortBy: "updatedAt",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "criticas",
+    label: "Criticas",
+    description: "Demandas activas em risco maximo de fila, ordenadas pela actualizacao mais antiga.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      queueHealth: ["critical"],
+      sortBy: "updatedAt",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "prazos-vencidos",
+    label: "Prazos vencidos",
+    description: "Casos activos com prazo final ja ultrapassado.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      dueState: "overdue",
+      sortBy: "prazoFinal",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "vencem-na-semana",
+    label: "Vencem na semana",
+    description: "Demandas activas com prazo nos proximos 7 dias.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      dueState: "due_soon",
+      sortBy: "prazoFinal",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "sem-envolvidos",
+    label: "Sem envolvidos",
+    description: "Casos activos que ainda precisam de envolvidos vinculados.",
+    defaults: {
+      statuses: ["aberta", "aguardando_sei", "associada"],
+      hasInteressados: "false",
       sortBy: "updatedAt",
       sortOrder: "asc",
       view: "table",
@@ -487,28 +545,14 @@ export function PreDemandasPage() {
         label: "Criticas",
         description: "Fila com maior risco operativo e actualizacao mais antiga primeiro.",
         value: items.filter((item) => item.queueHealth.level === "critical").length,
-        href: buildQueueSearch(searchParams, {
-          preset: null,
-          view: "table",
-          status: "aberta,aguardando_sei,associada",
-          queueHealth: "critical",
-          sortBy: "updatedAt",
-          sortOrder: "asc",
-        }),
+        href: "/pre-demandas?preset=criticas",
       },
       {
         id: "vencidas",
         label: "Prazos vencidos",
         description: "Demandas activas com prazo final ja ultrapassado.",
         value: items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-        href: buildQueueSearch(searchParams, {
-          preset: null,
-          view: "table",
-          status: "aberta,aguardando_sei,associada",
-          dueState: "overdue",
-          sortBy: "prazoFinal",
-          sortOrder: "asc",
-        }),
+        href: "/pre-demandas?preset=prazos-vencidos",
       },
       {
         id: "na-semana",
@@ -525,31 +569,17 @@ export function PreDemandasPage() {
           const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
           return diffDays >= 0 && diffDays <= 7;
         }).length,
-        href: buildQueueSearch(searchParams, {
-          preset: null,
-          view: "table",
-          status: "aberta,aguardando_sei,associada",
-          dueState: "due_soon",
-          sortBy: "prazoFinal",
-          sortOrder: "asc",
-        }),
+        href: "/pre-demandas?preset=vencem-na-semana",
       },
       {
         id: "sem-envolvidos",
         label: "Sem envolvidos",
         description: "Cases a completar antes de seguir o fluxo.",
         value: items.filter((item) => item.interessados.length === 0).length,
-        href: buildQueueSearch(searchParams, {
-          preset: null,
-          view: "table",
-          status: "aberta,aguardando_sei,associada",
-          hasInteressados: "false",
-          sortBy: "updatedAt",
-          sortOrder: "asc",
-        }),
+        href: "/pre-demandas?preset=sem-envolvidos",
       },
     ],
-    [items, searchParams],
+    [items],
   );
   const firstVisibleItem = total === 0 ? 0 : (resolvedState.page - 1) * pageSize + 1;
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
