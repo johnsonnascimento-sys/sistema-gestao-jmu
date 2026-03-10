@@ -215,7 +215,7 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-950">Prazos na semana</p>
                   <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=fila-operacional&sortBy=prazoFinal&sortOrder=asc&view=table">Abrir fila</Link>
+                    <Link to="/pre-demandas?preset=fila-operacional&dueState=due_soon&sortBy=prazoFinal&sortOrder=asc&view=table">Abrir fila</Link>
                   </Button>
                 </div>
                 {summary.dueSoonItems.length === 0 ? (
@@ -243,7 +243,7 @@ export function DashboardPage() {
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-slate-950">Sem envolvidos</p>
                   <Button asChild size="sm" variant="ghost">
-                    <Link to="/interessados">Abrir cadastro</Link>
+                    <Link to="/pre-demandas?preset=fila-operacional&hasInteressados=false&sortBy=updatedAt&sortOrder=asc&view=table">Ver fila</Link>
                   </Button>
                 </div>
                 {summary.withoutInteressadosItems.length === 0 ? (

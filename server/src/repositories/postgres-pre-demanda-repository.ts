@@ -368,6 +368,29 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
     clauses.push("pts.pre_id is null");
   }
 
+  if (params.setorAtualId) {
+    values.push(params.setorAtualId);
+    clauses.push(`pd.setor_atual_id = $${values.length}::uuid`);
+  }
+
+  const hasInteressados = normalizeBool(params.hasInteressados);
+  if (hasInteressados === true) {
+    clauses.push("exists (select 1 from adminlog.demanda_interessados di where di.pre_demanda_id = pd.id)");
+  }
+  if (hasInteressados === false) {
+    clauses.push("not exists (select 1 from adminlog.demanda_interessados di where di.pre_demanda_id = pd.id)");
+  }
+
+  if (params.dueState === "overdue") {
+    clauses.push("pd.prazo_final is not null and pd.prazo_final < current_date");
+  }
+  if (params.dueState === "due_soon") {
+    clauses.push("pd.prazo_final is not null and pd.prazo_final between current_date and current_date + interval '7 days'");
+  }
+  if (params.dueState === "none") {
+    clauses.push("pd.prazo_final is null");
+  }
+
   return {
     where: clauses.length ? `where ${clauses.join(" and ")}` : "",
     values,

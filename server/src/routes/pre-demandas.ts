@@ -8,6 +8,7 @@ const STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoFinal", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
+const DUE_STATES = ["overdue", "due_soon", "none"] as const;
 const SEI_REGEX = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
 
 const metadataSchema = z
@@ -40,6 +41,9 @@ const listSchema = z.object({
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   hasSei: z.enum(["true", "false"]).optional(),
+  setorAtualId: z.string().uuid().optional(),
+  dueState: z.enum(DUE_STATES).optional(),
+  hasInteressados: z.enum(["true", "false"]).optional(),
   sortBy: z.enum(SORT_FIELDS).optional(),
   sortOrder: z.enum(SORT_ORDERS).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -203,6 +207,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
         hasSei: query.hasSei ? query.hasSei === "true" : undefined,
+        setorAtualId: query.setorAtualId,
+        dueState: query.dueState,
+        hasInteressados: query.hasInteressados ? query.hasInteressados === "true" : undefined,
         sortBy: query.sortBy,
         sortOrder: query.sortOrder,
         page: query.page,

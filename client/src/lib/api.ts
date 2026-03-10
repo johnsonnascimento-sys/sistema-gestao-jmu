@@ -102,6 +102,9 @@ export interface ListPreDemandasParams {
   dateFrom?: string;
   dateTo?: string;
   hasSei?: boolean;
+  setorAtualId?: string;
+  dueState?: "overdue" | "due_soon" | "none";
+  hasInteressados?: boolean;
   sortBy?: PreDemandaSortBy;
   sortOrder?: SortOrder;
   page?: number;
@@ -187,6 +190,9 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.hasSei !== undefined) searchParams.set("hasSei", String(params.hasSei));
+  if (params.setorAtualId) searchParams.set("setorAtualId", params.setorAtualId);
+  if (params.dueState) searchParams.set("dueState", params.dueState);
+  if (params.hasInteressados !== undefined) searchParams.set("hasInteressados", String(params.hasInteressados));
   if (params.sortBy) searchParams.set("sortBy", params.sortBy);
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
 

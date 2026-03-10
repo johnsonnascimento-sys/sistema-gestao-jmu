@@ -164,6 +164,9 @@ export interface ListPreDemandasParams {
   dateFrom?: string;
   dateTo?: string;
   hasSei?: boolean;
+  setorAtualId?: string;
+  dueState?: "overdue" | "due_soon" | "none";
+  hasInteressados?: boolean;
   sortBy?: PreDemandaSortBy;
   sortOrder?: SortOrder;
   page: number;

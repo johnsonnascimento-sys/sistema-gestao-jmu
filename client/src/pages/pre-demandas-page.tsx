@@ -52,6 +52,8 @@ type ResolvedSearchState = {
   dateFrom: string;
   dateTo: string;
   hasSei: "" | "true" | "false";
+  dueState: "" | "overdue" | "due_soon" | "none";
+  hasInteressados: "" | "true" | "false";
   sortBy: PreDemandaSortBy;
   sortOrder: SortOrder;
   page: number;
@@ -66,6 +68,8 @@ const SAVED_VIEWS: Array<{
     statuses?: string[];
     queueHealth?: QueueHealthLevel[];
     hasSei?: "" | "true" | "false";
+    dueState?: "" | "overdue" | "due_soon" | "none";
+    hasInteressados?: "" | "true" | "false";
     sortBy: PreDemandaSortBy;
     sortOrder: SortOrder;
     view: BoardView;
@@ -77,6 +81,7 @@ const SAVED_VIEWS: Array<{
     description: "Abertas, aguardando SEI e associadas no quadro principal.",
     defaults: {
       statuses: ["aberta", "aguardando_sei", "associada"],
+      hasInteressados: "true",
       sortBy: "updatedAt",
       sortOrder: "desc",
       view: "kanban",
@@ -159,6 +164,8 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
+    dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
+    hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
     sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
     sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? preset?.defaults.sortOrder ?? "desc",
     page: Number(searchParams.get("page") ?? "1"),
@@ -185,6 +192,8 @@ export function PreDemandasPage() {
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
+  const [dueState, setDueState] = useState(resolvedState.dueState);
+  const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
   const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
   const [sortOrder, setSortOrder] = useState<SortOrder>(resolvedState.sortOrder);
 
@@ -197,6 +206,8 @@ export function PreDemandasPage() {
     setDateFrom(resolvedState.dateFrom);
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
+    setDueState(resolvedState.dueState);
+    setHasInteressados(resolvedState.hasInteressados);
     setSortBy(resolvedState.sortBy);
     setSortOrder(resolvedState.sortOrder);
   }, [searchKey, resolvedState]);
@@ -212,6 +223,8 @@ export function PreDemandasPage() {
         dateFrom: resolvedState.dateFrom || undefined,
         dateTo: resolvedState.dateTo || undefined,
         hasSei: resolvedState.hasSei ? resolvedState.hasSei === "true" : undefined,
+        dueState: resolvedState.dueState || undefined,
+        hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
         sortBy: resolvedState.sortBy,
         sortOrder: resolvedState.sortOrder,
         page: resolvedState.page,
@@ -261,6 +274,14 @@ export function PreDemandasPage() {
       next.set("hasSei", hasSei);
     }
 
+    if (dueState) {
+      next.set("dueState", dueState);
+    }
+
+    if (hasInteressados) {
+      next.set("hasInteressados", hasInteressados);
+    }
+
     next.set("sortBy", sortBy);
     next.set("sortOrder", sortOrder);
     next.set("view", resolvedState.view);
@@ -295,6 +316,8 @@ export function PreDemandasPage() {
     setDateFrom("");
     setDateTo("");
     setHasSei("");
+    setDueState("");
+    setHasInteressados("");
     setSortBy("updatedAt");
     setSortOrder("desc");
     setSearchParams(new URLSearchParams({ view: resolvedState.view, page: "1", sortBy: "updatedAt", sortOrder: "desc" }));
@@ -368,7 +391,7 @@ export function PreDemandasPage() {
       </Card>
 
       <form onSubmit={handleFilterSubmit}>
-        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
             <Input onChange={(event) => setQuery(event.target.value)} placeholder="PRE, solicitante ou assunto" value={query} />
           </FormField>
@@ -411,6 +434,23 @@ export function PreDemandasPage() {
               <option value="">Todos</option>
               <option value="true">Com SEI</option>
               <option value="false">Sem SEI</option>
+            </select>
+          </FormField>
+
+          <FormField label="Prazo">
+            <select className={selectClassName} onChange={(event) => setDueState(event.target.value as "" | "overdue" | "due_soon" | "none")} value={dueState}>
+              <option value="">Todos</option>
+              <option value="overdue">Vencido</option>
+              <option value="due_soon">Na semana</option>
+              <option value="none">Sem prazo</option>
+            </select>
+          </FormField>
+
+          <FormField label="Envolvidos">
+            <select className={selectClassName} onChange={(event) => setHasInteressados(event.target.value as "" | "true" | "false")} value={hasInteressados}>
+              <option value="">Todos</option>
+              <option value="true">Com envolvidos</option>
+              <option value="false">Sem envolvidos</option>
             </select>
           </FormField>
 
