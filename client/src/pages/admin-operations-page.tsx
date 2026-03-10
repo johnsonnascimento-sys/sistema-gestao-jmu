@@ -125,21 +125,41 @@ function buildSetorQueueHref(setorId: string, dueState: "" | "overdue" | "due_so
   return `/pre-demandas?${search.toString()}`;
 }
 
+function buildWithoutSetorQueueHref(dueState: "" | "overdue" | "due_soon", hasInteressados: "" | "true" | "false" = "") {
+  const search = new URLSearchParams({
+    preset: "sem-setor",
+    view: "table",
+    sortBy: dueState ? "prazoFinal" : "updatedAt",
+    sortOrder: dueState === "overdue" ? "asc" : "desc",
+    page: "1",
+  });
+
+  if (dueState) {
+    search.set("dueState", dueState);
+  }
+
+  if (hasInteressados) {
+    search.set("hasInteressados", hasInteressados);
+  }
+
+  return `/pre-demandas?${search.toString()}`;
+}
+
 function buildPriorityQueueHref(setorId: string | null, dueState: "" | "overdue" | "due_soon", riskLevel: "normal" | "attention" | "critical") {
   if (!setorId) {
     if (riskLevel === "critical") {
-      return "/pre-demandas?preset=criticas";
+      return buildWithoutSetorQueueHref(dueState, "");
     }
 
     if (dueState === "overdue") {
-      return "/pre-demandas?preset=prazos-vencidos";
+      return buildWithoutSetorQueueHref("overdue", "");
     }
 
     if (dueState === "due_soon") {
-      return "/pre-demandas?preset=vencem-na-semana";
+      return buildWithoutSetorQueueHref("due_soon", "");
     }
 
-    return "/pre-demandas?preset=sem-setor";
+    return buildWithoutSetorQueueHref("", "");
   }
 
   return buildSetorQueueHref(setorId, dueState);
@@ -312,20 +332,23 @@ export function AdminOperationsPage() {
                       </span>
                     </div>
                     <p className="mt-3 text-sm text-slate-700">Score {item.riskScore} - {item.activeTotal} activos - {item.overdueTotal} vencidos</p>
-                    {item.setorId ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="secondary">
-                          <Link to={buildPriorityQueueHref(item.setorId, item.overdueTotal > 0 ? "overdue" : item.dueSoonTotal > 0 ? "due_soon" : "", item.riskLevel)}>
-                            Abrir fila critica
-                          </Link>
-                        </Button>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="secondary">
+                        <Link to={buildPriorityQueueHref(item.setorId, item.overdueTotal > 0 ? "overdue" : item.dueSoonTotal > 0 ? "due_soon" : "", item.riskLevel)}>
+                          Abrir fila critica
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="ghost">
+                        <Link to={item.setorId ? buildSetorQueueHref(item.setorId, "") : buildWithoutSetorQueueHref("", "")}>
+                          {item.setorId ? "Ver todas do setor" : "Ver todas sem setor"}
+                        </Link>
+                      </Button>
+                      {!item.setorId ? (
                         <Button asChild size="sm" variant="ghost">
-                          <Link to={buildSetorQueueHref(item.setorId, "")}>Ver todas do setor</Link>
+                          <Link to={buildWithoutSetorQueueHref("", "false")}>Sem envolvidos</Link>
                         </Button>
-                      </div>
-                    ) : (
-                      <p className="mt-4 text-xs text-slate-500">Use o filtro "Sem setor" no dashboard ou na fila para tratar estas demandas.</p>
-                    )}
+                      ) : null}
+                    </div>
                   </article>
                 ))}
               </div>

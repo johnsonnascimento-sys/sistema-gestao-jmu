@@ -245,6 +245,7 @@ function getSavedView(presetId: string | null) {
 function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, dueState: "" | "overdue" | "due_soon" | "none") {
   const next = new URLSearchParams(current);
   next.set("setorAtualId", setorAtualId);
+  next.delete("withoutSetor");
   next.set("view", "table");
   next.set("page", "1");
   next.set("sortBy", "updatedAt");
@@ -254,6 +255,34 @@ function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, 
     next.set("dueState", dueState);
   } else {
     next.delete("dueState");
+  }
+
+  return `/pre-demandas?${next.toString()}`;
+}
+
+function buildWithoutSetorQueueSearch(
+  current: URLSearchParams,
+  dueState: "" | "overdue" | "due_soon" | "none",
+  hasInteressados: "" | "true" | "false" = "",
+) {
+  const next = new URLSearchParams(current);
+  next.delete("setorAtualId");
+  next.set("withoutSetor", "true");
+  next.set("view", "table");
+  next.set("page", "1");
+  next.set("sortBy", dueState ? "prazoFinal" : "updatedAt");
+  next.set("sortOrder", dueState === "overdue" ? "asc" : "desc");
+
+  if (dueState) {
+    next.set("dueState", dueState);
+  } else {
+    next.delete("dueState");
+  }
+
+  if (hasInteressados) {
+    next.set("hasInteressados", hasInteressados);
+  } else {
+    next.delete("hasInteressados");
   }
 
   return `/pre-demandas?${next.toString()}`;
@@ -492,6 +521,7 @@ export function PreDemandasPage() {
   const metrics = useMemo(() => counts, [counts]);
   const hiddenClosedCount = useMemo(() => (resolvedState.view === "kanban" ? items.filter((item) => item.status === "encerrada").length : 0), [items, resolvedState.view]);
   const selectedSetor = useMemo(() => setores.find((item) => item.id === resolvedState.setorAtualId) ?? null, [resolvedState.setorAtualId, setores]);
+  const isWithoutSetorFocused = resolvedState.withoutSetor === "true" && !resolvedState.setorAtualId;
   const sectorSummaries = useMemo<SectorQueueSummary[]>(() => {
     const groups = new Map<string, SectorQueueSummary>();
 
@@ -719,15 +749,7 @@ export function PreDemandasPage() {
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="secondary">
-                      <Link
-                        to={`/pre-demandas?${new URLSearchParams({
-                          ...Object.fromEntries(searchParams),
-                          view: "table",
-                          page: "1",
-                          hasInteressados: "false",
-                          dueState: sector.overdue > 0 ? "overdue" : "",
-                        }).toString()}`}
-                      >
+                      <Link to={buildWithoutSetorQueueSearch(searchParams, sector.overdue > 0 ? "overdue" : "", "")}>
                         Tratar sem setor
                       </Link>
                     </Button>
@@ -761,6 +783,29 @@ export function PreDemandasPage() {
               <Link to={`/pre-demandas?${new URLSearchParams({ ...Object.fromEntries(searchParams), setorAtualId: selectedSetor.id, hasInteressados: "false", view: "table", page: "1" }).toString()}`}>
                 Sem envolvidos
               </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {isWithoutSetorFocused ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Contexto operativo</CardTitle>
+            <CardDescription>A fila esta focada em demandas ainda sem setor. Use os atalhos para distribuir primeiro os casos vencidos, proximos do prazo ou ainda sem envolvidos.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button asChild size="sm" variant={resolvedState.dueState === "" && resolvedState.hasInteressados !== "false" ? "primary" : "secondary"}>
+              <Link to={buildWithoutSetorQueueSearch(searchParams, "", "")}>Todas sem setor</Link>
+            </Button>
+            <Button asChild size="sm" variant={resolvedState.dueState === "overdue" ? "primary" : "secondary"}>
+              <Link to={buildWithoutSetorQueueSearch(searchParams, "overdue", "")}>So vencidas</Link>
+            </Button>
+            <Button asChild size="sm" variant={resolvedState.dueState === "due_soon" ? "primary" : "secondary"}>
+              <Link to={buildWithoutSetorQueueSearch(searchParams, "due_soon", "")}>Vencem em 7 dias</Link>
+            </Button>
+            <Button asChild size="sm" variant={resolvedState.hasInteressados === "false" ? "outline" : "ghost"}>
+              <Link to={buildWithoutSetorQueueSearch(searchParams, "", "false")}>Sem envolvidos</Link>
             </Button>
           </CardContent>
         </Card>
