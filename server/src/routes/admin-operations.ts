@@ -84,6 +84,7 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
     setor_sigla: string | null;
     setor_nome: string | null;
     active_total: string;
+    previous_active_total: string;
     overdue_total: string;
     due_soon_total: string;
     awaiting_sei_total: string;
@@ -94,6 +95,14 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
         setor.sigla as setor_sigla,
         setor.nome_completo as setor_nome,
         count(*) filter (where pd.status <> 'encerrada')::int as active_total,
+        count(*) filter (
+          where pd.status <> 'encerrada'
+            and pd.created_at < now() - make_interval(days => $1::int)
+            and (
+              pd.data_conclusao is null
+              or pd.data_conclusao >= current_date - $1::int
+            )
+        )::int as previous_active_total,
         count(*) filter (where pd.status <> 'encerrada' and pd.prazo_final is not null and pd.prazo_final < current_date)::int as overdue_total,
         count(*) filter (
           where pd.status <> 'encerrada'
@@ -105,11 +114,12 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
       left join adminlog.setores setor on setor.id = pd.setor_atual_id
       group by setor.id, setor.sigla, setor.nome_completo
       having count(*) filter (where pd.status <> 'encerrada') > 0 or setor.id is null
-      order by
-        case when setor.sigla is null then 1 else 0 end,
-        count(*) filter (where pd.status <> 'encerrada') desc,
-        setor.sigla asc nulls last
+        order by
+          case when setor.sigla is null then 1 else 0 end,
+          count(*) filter (where pd.status <> 'encerrada') desc,
+          setor.sigla asc nulls last
     `,
+    [periodDays],
   );
 
   const reportRow = reportResult.rows[0];
@@ -139,15 +149,22 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
       closedInPeriod: closedInPeriod - previousClosedInPeriod,
       tramitacoesInPeriod: tramitacoesInPeriod - previousTramitacoesInPeriod,
     },
-    bySetor: bySetorResult.rows.map((row) => ({
-      setorId: row.setor_id ? String(row.setor_id) : null,
-      sigla: row.setor_sigla ? String(row.setor_sigla) : null,
-      nome: row.setor_nome ? String(row.setor_nome) : null,
-      activeTotal: Number(row.active_total ?? 0),
-      overdueTotal: Number(row.overdue_total ?? 0),
-      dueSoonTotal: Number(row.due_soon_total ?? 0),
-      awaitingSeiTotal: Number(row.awaiting_sei_total ?? 0),
-    })),
+    bySetor: bySetorResult.rows.map((row) => {
+      const activeTotal = Number(row.active_total ?? 0);
+      const previousActiveTotal = Number(row.previous_active_total ?? 0);
+
+      return {
+        setorId: row.setor_id ? String(row.setor_id) : null,
+        sigla: row.setor_sigla ? String(row.setor_sigla) : null,
+        nome: row.setor_nome ? String(row.setor_nome) : null,
+        activeTotal,
+        previousActiveTotal,
+        activeDelta: activeTotal - previousActiveTotal,
+        overdueTotal: Number(row.overdue_total ?? 0),
+        dueSoonTotal: Number(row.due_soon_total ?? 0),
+        awaitingSeiTotal: Number(row.awaiting_sei_total ?? 0),
+      };
+    }),
   };
 }
 
@@ -265,12 +282,14 @@ export async function registerAdminOperationsRoutes(
       ["resumo", "sem_setor", report.withoutSetorTotal],
       ["resumo", "sem_envolvidos", report.withoutInteressadosTotal],
       [],
-      ["setores", "sigla", "nome", "ativos", "vencidos", "vencem_em_7_dias", "aguardando_sei"],
+      ["setores", "sigla", "nome", "ativos", "ativos_janela_anterior", "ativos_delta", "vencidos", "vencem_em_7_dias", "aguardando_sei"],
       ...report.bySetor.map((item) => [
         "setores",
         item.sigla ?? "SEM_SETOR",
         item.nome ?? "Demandas sem setor definido",
         item.activeTotal,
+        item.previousActiveTotal,
+        item.activeDelta,
         item.overdueTotal,
         item.dueSoonTotal,
         item.awaitingSeiTotal,

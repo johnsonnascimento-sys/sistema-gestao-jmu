@@ -371,6 +371,8 @@ export interface AdminOpsCaseSetorReportItem {
   sigla: string | null;
   nome: string | null;
   activeTotal: number;
+  previousActiveTotal: number;
+  activeDelta: number;
   overdueTotal: number;
   dueSoonTotal: number;
   awaitingSeiTotal: number;

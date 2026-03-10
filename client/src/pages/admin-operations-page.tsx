@@ -252,12 +252,18 @@ export function AdminOperationsPage() {
                       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.sigla ?? "Sem setor"}</p>
                       <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Demandas ainda nao encaminhadas para um setor."}</h3>
                     </div>
-                    <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} activos</p>
+                    <div className="text-right">
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} activos</p>
+                      <p className={`mt-1 text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(item.activeDelta)}`}>
+                        {formatDelta(item.activeDelta)} vs janela anterior
+                      </p>
+                    </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
                     <div className="rounded-[18px] border border-slate-200 bg-white px-3 py-3">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Activos</p>
                       <p className="mt-2 text-lg font-semibold text-slate-950">{item.activeTotal}</p>
+                      <p className="mt-1 text-xs text-slate-500">Antes: {item.previousActiveTotal}</p>
                     </div>
                     <div className="rounded-[18px] border border-rose-200 bg-rose-50/70 px-3 py-3">
                       <p className="text-xs uppercase tracking-[0.18em] text-rose-700">Vencidos</p>
