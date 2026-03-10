@@ -810,8 +810,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       closedLast30Days: this.statusAudit.filter((item) => item.statusNovo === "encerrada").length,
       agingAttentionTotal: this.records.filter((item) => item.queueHealth.level === "attention").length,
       agingCriticalTotal: this.records.filter((item) => item.queueHealth.level === "critical").length,
+      dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal !== null).length,
+      overdueTotal: 0,
+      withoutSetorTotal: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).length,
+      withoutInteressadosTotal: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).length,
       staleItems,
       awaitingSeiItems,
+      dueSoonItems: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal !== null).slice(0, 5),
+      withoutSetorItems: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).slice(0, 5),
+      withoutInteressadosItems: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).slice(0, 5),
       recentTimeline,
     };
   }
@@ -1285,7 +1292,14 @@ describe("Gestor JMU API", () => {
     expect(typeof dashboardSummary.json().data.closedLast30Days).toBe("number");
     expect(typeof dashboardSummary.json().data.agingAttentionTotal).toBe("number");
     expect(typeof dashboardSummary.json().data.agingCriticalTotal).toBe("number");
+    expect(typeof dashboardSummary.json().data.dueSoonTotal).toBe("number");
+    expect(typeof dashboardSummary.json().data.overdueTotal).toBe("number");
+    expect(typeof dashboardSummary.json().data.withoutSetorTotal).toBe("number");
+    expect(typeof dashboardSummary.json().data.withoutInteressadosTotal).toBe("number");
     expect(Array.isArray(dashboardSummary.json().data.staleItems)).toBe(true);
+    expect(Array.isArray(dashboardSummary.json().data.dueSoonItems)).toBe(true);
+    expect(Array.isArray(dashboardSummary.json().data.withoutSetorItems)).toBe(true);
+    expect(Array.isArray(dashboardSummary.json().data.withoutInteressadosItems)).toBe(true);
 
     const detail = await app.inject({
       method: "GET",

@@ -54,7 +54,16 @@ export function KanbanBoard({
                         <span className="font-medium text-slate-950">Solicitante:</span> {item.solicitante}
                       </p>
                       <p>
+                        <span className="font-medium text-slate-950">Setor:</span> {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}
+                      </p>
+                      <p>
                         <span className="font-medium text-slate-950">Data:</span> {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}
+                      </p>
+                      <p>
+                        <span className="font-medium text-slate-950">Prazo:</span> {item.prazoFinal ? new Date(item.prazoFinal).toLocaleDateString("pt-BR") : "Nao definido"}
+                      </p>
+                      <p>
+                        <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">SEI:</span> {item.currentAssociation?.seiNumero ?? "Nao associado"}

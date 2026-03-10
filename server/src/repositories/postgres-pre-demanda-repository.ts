@@ -1604,7 +1604,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -1655,6 +1655,66 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `,
         [queueHealthThresholds.attentionDays, queueHealthThresholds.criticalDays],
       ),
+      this.pool.query(
+        `
+          select
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_final is not null
+                and pd.prazo_final < current_date
+            )::int as overdue_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_final is not null
+                and pd.prazo_final between current_date and current_date + interval '7 days'
+            )::int as due_soon_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.setor_atual_id is null
+            )::int as without_setor_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and not exists (
+                  select 1
+                  from adminlog.demanda_interessados di
+                  where di.pre_demanda_id = pd.id
+                )
+            )::int as without_interessados_total
+          from adminlog.pre_demanda pd
+        `,
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
+          where pd.status <> 'encerrada'
+            and pd.prazo_final is not null
+            and pd.prazo_final between current_date and current_date + interval '7 days'
+          order by pd.prazo_final asc, pd.updated_at asc, pd.id asc
+          limit 5
+        `,
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
+          where pd.status <> 'encerrada'
+            and pd.setor_atual_id is null
+          order by pd.updated_at asc, pd.data_referencia asc, pd.id asc
+          limit 5
+        `,
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
+          where pd.status <> 'encerrada'
+            and not exists (
+              select 1
+              from adminlog.demanda_interessados di
+              where di.pre_demanda_id = pd.id
+            )
+          order by pd.updated_at asc, pd.data_referencia asc, pd.id asc
+          limit 5
+        `,
+      ),
       this.listRecentTimeline(8),
     ]);
 
@@ -1664,8 +1724,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
       agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),
       agingCriticalTotal: Number(agingMetricsResult.rows[0]?.aging_critical_total ?? 0),
+      dueSoonTotal: Number(caseSignalsResult.rows[0]?.due_soon_total ?? 0),
+      overdueTotal: Number(caseSignalsResult.rows[0]?.overdue_total ?? 0),
+      withoutSetorTotal: Number(caseSignalsResult.rows[0]?.without_setor_total ?? 0),
+      withoutInteressadosTotal: Number(caseSignalsResult.rows[0]?.without_interessados_total ?? 0),
       staleItems: staleItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       awaitingSeiItems: awaitingSeiResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
+      dueSoonItems: dueSoonItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
+      withoutSetorItems: withoutSetorItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
+      withoutInteressadosItems: withoutInteressadosItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       recentTimeline,
     };
   }

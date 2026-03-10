@@ -263,8 +263,15 @@ export interface PreDemandaDashboardSummary {
   closedLast30Days: number;
   agingAttentionTotal: number;
   agingCriticalTotal: number;
+  dueSoonTotal: number;
+  overdueTotal: number;
+  withoutSetorTotal: number;
+  withoutInteressadosTotal: number;
   staleItems: PreDemanda[];
   awaitingSeiItems: PreDemanda[];
+  dueSoonItems: PreDemanda[];
+  withoutSetorItems: PreDemanda[];
+  withoutInteressadosItems: PreDemanda[];
   recentTimeline: TimelineEvent[];
 }
 

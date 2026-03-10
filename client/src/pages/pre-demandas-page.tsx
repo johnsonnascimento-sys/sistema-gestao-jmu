@@ -421,6 +421,8 @@ export function PreDemandasPage() {
               <option value="dataReferencia">Data de referencia</option>
               <option value="solicitante">Solicitante</option>
               <option value="status">Status</option>
+              <option value="prazoFinal">Prazo final</option>
+              <option value="numeroJudicial">Numero judicial</option>
             </select>
           </FormField>
 
@@ -496,9 +498,12 @@ export function PreDemandasPage() {
                   <th className="px-3 py-3">PRE</th>
                   <th className="px-3 py-3">Solicitante</th>
                   <th className="px-3 py-3">Assunto</th>
+                  <th className="px-3 py-3">Setor</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Fila</th>
+                  <th className="px-3 py-3">Prazo</th>
                   <th className="px-3 py-3">SEI</th>
+                  <th className="px-3 py-3">Envolvidos</th>
                   <th className="px-3 py-3">Data</th>
                   <th className="px-3 py-3">Acoes</th>
                 </tr>
@@ -511,6 +516,7 @@ export function PreDemandasPage() {
                       </td>
                       <td className="px-3 py-4">{item.solicitante}</td>
                       <td className="px-3 py-4">{item.assunto}</td>
+                      <td className="px-3 py-4">{item.setorAtual ? item.setorAtual.sigla : "-"}</td>
                       <td className="px-3 py-4">
                         <StatusPill status={item.status} />
                       </td>
@@ -520,7 +526,9 @@ export function PreDemandasPage() {
                           <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
                         </div>
                       </td>
+                      <td className="px-3 py-4">{item.prazoFinal ? new Date(item.prazoFinal).toLocaleDateString("pt-BR") : "-"}</td>
                       <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
+                      <td className="px-3 py-4">{item.interessados.length}</td>
                       <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
                       <td className="px-3 py-4">
                         <div className="flex flex-wrap gap-2">

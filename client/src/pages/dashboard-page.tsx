@@ -57,6 +57,27 @@ export function DashboardPage() {
 
   const staleItems = summary.staleItems;
 
+  function formatPrazo(item: PreDemanda) {
+    if (!item.prazoFinal) {
+      return "Sem prazo definido";
+    }
+
+    const dueDate = new Date(`${item.prazoFinal}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+
+    if (diffDays < 0) {
+      return `Prazo vencido ha ${Math.abs(diffDays)}d`;
+    }
+
+    if (diffDays === 0) {
+      return "Prazo vence hoje";
+    }
+
+    return `Prazo em ${diffDays}d`;
+  }
+
   function renderQueueItem(item: PreDemanda) {
     const queueHealth = getQueueHealth(item);
 
@@ -78,6 +99,9 @@ export function DashboardPage() {
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
           <p>{item.solicitante}</p>
+          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}</p>
+          <p>Envolvidos: {item.interessados.length}</p>
+          <p>{formatPrazo(item)}</p>
           <p>Referencia: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
           <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
           <p>{queueHealth.detail}</p>
@@ -110,6 +134,10 @@ export function DashboardPage() {
         ))}
         <MetricCard label="Paradas 2d+" value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
         <MetricCard label="Criticas 5d+" value={summary.agingCriticalTotal} />
+        <MetricCard label="Prazos na semana" value={summary.dueSoonTotal} />
+        <MetricCard label="Prazos vencidos" value={summary.overdueTotal} />
+        <MetricCard label="Sem setor" value={summary.withoutSetorTotal} />
+        <MetricCard label="Sem envolvidos" value={summary.withoutInteressadosTotal} />
         <MetricCard label="Reabertas 30d" value={summary.reopenedLast30Days} />
         <MetricCard label="Encerradas 30d" value={summary.closedLast30Days} />
       </div>
@@ -174,6 +202,56 @@ export function DashboardPage() {
               ) : (
                 summary.awaitingSeiItems.map(renderQueueItem)
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Prazos e pendencias estruturais</CardTitle>
+              <CardDescription>Casos que pedem enriquecimento de case management antes de seguir o fluxo.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950">Prazos na semana</p>
+                  <Button asChild size="sm" variant="ghost">
+                    <Link to="/pre-demandas?preset=fila-operacional&sortBy=prazoFinal&sortOrder=asc&view=table">Abrir fila</Link>
+                  </Button>
+                </div>
+                {summary.dueSoonItems.length === 0 ? (
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum prazo iminente registado.</p>
+                ) : (
+                  summary.dueSoonItems.map(renderQueueItem)
+                )}
+              </div>
+
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950">Sem setor atual</p>
+                  <Button asChild size="sm" variant="ghost">
+                    <Link to="/pre-demandas?preset=fila-operacional&sortBy=updatedAt&sortOrder=asc&view=table">Ver fila</Link>
+                  </Button>
+                </div>
+                {summary.withoutSetorItems.length === 0 ? (
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os casos ativos ja possuem setor.</p>
+                ) : (
+                  summary.withoutSetorItems.map(renderQueueItem)
+                )}
+              </div>
+
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950">Sem envolvidos</p>
+                  <Button asChild size="sm" variant="ghost">
+                    <Link to="/interessados">Abrir cadastro</Link>
+                  </Button>
+                </div>
+                {summary.withoutInteressadosItems.length === 0 ? (
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os casos ativos ja possuem envolvidos vinculados.</p>
+                ) : (
+                  summary.withoutInteressadosItems.map(renderQueueItem)
+                )}
+              </div>
             </CardContent>
           </Card>
 
