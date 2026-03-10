@@ -36,6 +36,10 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
     due_soon_total: string;
     without_setor_total: string;
     without_interessados_total: string;
+    previous_overdue_total: string;
+    previous_due_soon_total: string;
+    previous_without_setor_total: string;
+    previous_without_interessados_total: string;
   }>(
     `
       select
@@ -73,7 +77,49 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
               from adminlog.demanda_interessados di
               where di.pre_demanda_id = pd.id
             )
-        )::int as without_interessados_total
+        )::int as without_interessados_total,
+        count(*) filter (
+          where pd.created_at < now() - make_interval(days => $1::int)
+            and pd.status <> 'encerrada'
+            and pd.prazo_final is not null
+            and pd.prazo_final < current_date - $1::int
+            and (
+              pd.data_conclusao is null
+              or pd.data_conclusao >= current_date - $1::int
+            )
+        )::int as previous_overdue_total,
+        count(*) filter (
+          where pd.created_at < now() - make_interval(days => $1::int)
+            and pd.status <> 'encerrada'
+            and pd.prazo_final is not null
+            and pd.prazo_final between current_date - $1::int and current_date
+            and (
+              pd.data_conclusao is null
+              or pd.data_conclusao >= current_date - $1::int
+            )
+        )::int as previous_due_soon_total,
+        count(*) filter (
+          where pd.created_at < now() - make_interval(days => $1::int)
+            and pd.status <> 'encerrada'
+            and pd.setor_atual_id is null
+            and (
+              pd.data_conclusao is null
+              or pd.data_conclusao >= current_date - $1::int
+            )
+        )::int as previous_without_setor_total,
+        count(*) filter (
+          where pd.created_at < now() - make_interval(days => $1::int)
+            and pd.status <> 'encerrada'
+            and not exists (
+              select 1
+              from adminlog.demanda_interessados di
+              where di.pre_demanda_id = pd.id
+            )
+            and (
+              pd.data_conclusao is null
+              or pd.data_conclusao >= current_date - $1::int
+            )
+        )::int as previous_without_interessados_total
       from adminlog.pre_demanda pd
     `,
     [periodDays],
@@ -126,9 +172,17 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
   const previousCreatedInPeriod = Number(reportRow?.previous_created_in_period ?? 0);
   const previousClosedInPeriod = Number(reportRow?.previous_closed_in_period ?? 0);
   const previousTramitacoesInPeriod = Number(reportRow?.previous_tramitacoes_in_period ?? 0);
+  const previousOverdueTotal = Number(reportRow?.previous_overdue_total ?? 0);
+  const previousDueSoonTotal = Number(reportRow?.previous_due_soon_total ?? 0);
+  const previousWithoutSetorTotal = Number(reportRow?.previous_without_setor_total ?? 0);
+  const previousWithoutInteressadosTotal = Number(reportRow?.previous_without_interessados_total ?? 0);
   const createdInPeriod = Number(reportRow?.created_in_period ?? 0);
   const closedInPeriod = Number(reportRow?.closed_in_period ?? 0);
   const tramitacoesInPeriod = Number(reportRow?.tramitacoes_in_period ?? 0);
+  const overdueTotal = Number(reportRow?.overdue_total ?? 0);
+  const dueSoonTotal = Number(reportRow?.due_soon_total ?? 0);
+  const withoutSetorTotal = Number(reportRow?.without_setor_total ?? 0);
+  const withoutInteressadosTotal = Number(reportRow?.without_interessados_total ?? 0);
   const bySetor = bySetorResult.rows
     .map((row) => {
       const activeTotal = Number(row.active_total ?? 0);
@@ -166,19 +220,27 @@ async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
     createdInPeriod,
     closedInPeriod,
     tramitacoesInPeriod,
-    overdueTotal: Number(reportRow?.overdue_total ?? 0),
-    dueSoonTotal: Number(reportRow?.due_soon_total ?? 0),
-    withoutSetorTotal: Number(reportRow?.without_setor_total ?? 0),
-    withoutInteressadosTotal: Number(reportRow?.without_interessados_total ?? 0),
+    overdueTotal,
+    dueSoonTotal,
+    withoutSetorTotal,
+    withoutInteressadosTotal,
     previousPeriod: {
       createdInPeriod: previousCreatedInPeriod,
       closedInPeriod: previousClosedInPeriod,
       tramitacoesInPeriod: previousTramitacoesInPeriod,
+      overdueTotal: previousOverdueTotal,
+      dueSoonTotal: previousDueSoonTotal,
+      withoutSetorTotal: previousWithoutSetorTotal,
+      withoutInteressadosTotal: previousWithoutInteressadosTotal,
     },
     deltas: {
       createdInPeriod: createdInPeriod - previousCreatedInPeriod,
       closedInPeriod: closedInPeriod - previousClosedInPeriod,
       tramitacoesInPeriod: tramitacoesInPeriod - previousTramitacoesInPeriod,
+      overdueTotal: overdueTotal - previousOverdueTotal,
+      dueSoonTotal: dueSoonTotal - previousDueSoonTotal,
+      withoutSetorTotal: withoutSetorTotal - previousWithoutSetorTotal,
+      withoutInteressadosTotal: withoutInteressadosTotal - previousWithoutInteressadosTotal,
     },
     bySetor,
     prioritySetores: bySetor.filter((item) => item.riskLevel !== "normal").slice(0, 3),
@@ -320,9 +382,17 @@ export async function registerAdminOperationsRoutes(
       ["resumo", "tramitacoes_janela_anterior", report.previousPeriod.tramitacoesInPeriod],
       ["resumo", "tramitacoes_delta", report.deltas.tramitacoesInPeriod],
       ["resumo", "vencidos", report.overdueTotal],
+      ["resumo", "vencidos_janela_anterior", report.previousPeriod.overdueTotal],
+      ["resumo", "vencidos_delta", report.deltas.overdueTotal],
       ["resumo", "vencem_em_7_dias", report.dueSoonTotal],
+      ["resumo", "vencem_em_7_dias_janela_anterior", report.previousPeriod.dueSoonTotal],
+      ["resumo", "vencem_em_7_dias_delta", report.deltas.dueSoonTotal],
       ["resumo", "sem_setor", report.withoutSetorTotal],
+      ["resumo", "sem_setor_janela_anterior", report.previousPeriod.withoutSetorTotal],
+      ["resumo", "sem_setor_delta", report.deltas.withoutSetorTotal],
       ["resumo", "sem_envolvidos", report.withoutInteressadosTotal],
+      ["resumo", "sem_envolvidos_janela_anterior", report.previousPeriod.withoutInteressadosTotal],
+      ["resumo", "sem_envolvidos_delta", report.deltas.withoutInteressadosTotal],
       [],
       ["setores", "sigla", "nome", "risco", "score_risco", "ativos", "ativos_janela_anterior", "ativos_delta", "vencidos", "vencem_em_7_dias", "aguardando_sei"],
       ...report.bySetor.map((item) => [

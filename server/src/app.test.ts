@@ -1636,6 +1636,14 @@ describe("Gestor JMU API", () => {
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.closedInPeriod).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.previousPeriod.createdInPeriod).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.deltas.createdInPeriod).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.previousPeriod.overdueTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.previousPeriod.dueSoonTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.previousPeriod.withoutSetorTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.previousPeriod.withoutInteressadosTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.deltas.overdueTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.deltas.dueSoonTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.deltas.withoutSetorTotal).toBe("number");
+    expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.deltas.withoutInteressadosTotal).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).caseManagementReport.bySetor)).toBe(true);
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.bySetor[0]?.previousActiveTotal).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.bySetor[0]?.activeDelta).toBe("number");
@@ -1655,6 +1663,8 @@ describe("Gestor JMU API", () => {
     expect(caseReportCsv.body).toContain("resumo;periodo_dias;30");
     expect(caseReportCsv.body).toContain("resumo;casos_criados_janela_anterior;");
     expect(caseReportCsv.body).toContain("resumo;casos_criados_delta;");
+    expect(caseReportCsv.body).toContain("resumo;vencidos_janela_anterior;");
+    expect(caseReportCsv.body).toContain("resumo;sem_setor_delta;");
     expect(caseReportCsv.body).toContain("setores;sigla;nome;risco;score_risco;ativos;ativos_janela_anterior;ativos_delta;vencidos;vencem_em_7_dias;aguardando_sei");
 
     const updatedQueueConfig = await app.inject({

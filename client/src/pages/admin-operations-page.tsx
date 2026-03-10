@@ -304,13 +304,33 @@ export function AdminOperationsPage() {
                 {formatDelta(summary.caseManagementReport.deltas.tramitacoesInPeriod)} vs janela anterior
               </p>
             </div>
-            <MetricCard label="Vencidos" value={summary.caseManagementReport.overdueTotal} />
+            <div className="grid gap-2">
+              <MetricCard label="Vencidos" value={summary.caseManagementReport.overdueTotal} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.overdueTotal)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.overdueTotal)} vs janela anterior
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <MetricCard label="Vencem em 7 dias" value={summary.caseManagementReport.dueSoonTotal} />
-            <MetricCard label="Sem setor" value={summary.caseManagementReport.withoutSetorTotal} />
-            <MetricCard label="Sem envolvidos" value={summary.caseManagementReport.withoutInteressadosTotal} />
+            <div className="grid gap-2">
+              <MetricCard label="Vencem em 7 dias" value={summary.caseManagementReport.dueSoonTotal} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.dueSoonTotal)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.dueSoonTotal)} vs janela anterior
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <MetricCard label="Sem setor" value={summary.caseManagementReport.withoutSetorTotal} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.withoutSetorTotal)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.withoutSetorTotal)} vs janela anterior
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <MetricCard label="Sem envolvidos" value={summary.caseManagementReport.withoutInteressadosTotal} />
+              <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.withoutInteressadosTotal)}`}>
+                {formatDelta(summary.caseManagementReport.deltas.withoutInteressadosTotal)} vs janela anterior
+              </p>
+            </div>
           </div>
 
           {summary.caseManagementReport.prioritySetores.length ? (
