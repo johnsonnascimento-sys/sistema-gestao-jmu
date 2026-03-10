@@ -2,17 +2,26 @@ import type {
   AdminOpsSummary,
   AdminUserAuditRecord,
   AdminUserSummary,
+  Andamento,
   AuthUser,
+  DemandaInteressado,
+  DemandaInteressadoPapel,
+  DemandaVinculo,
+  Interessado,
   PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
+  PreDemandaMetadata,
   QueueHealthConfig,
   QueueHealthLevel,
   PreDemandaSortBy,
   PreDemandaStatus,
   RuntimeStatus,
+  Setor,
   SortOrder,
   StatusCount,
+  TarefaPendente,
+  TarefaPendenteTipo,
   TimelineEvent,
 } from "../types";
 
@@ -86,6 +95,57 @@ export function formatAppError(error: unknown, fallback: string) {
   return fallback;
 }
 
+export interface ListPreDemandasParams {
+  q?: string;
+  status?: string[];
+  queueHealth?: QueueHealthLevel[];
+  dateFrom?: string;
+  dateTo?: string;
+  hasSei?: boolean;
+  sortBy?: PreDemandaSortBy;
+  sortOrder?: SortOrder;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CreatePreDemandaPayload {
+  solicitante: string;
+  assunto: string;
+  data_referencia: string;
+  descricao?: string;
+  fonte?: string;
+  observacoes?: string;
+  prazo_final?: string | null;
+  numero_judicial?: string | null;
+  metadata?: {
+    frequencia?: string | null;
+    pagamento_envolvido?: boolean | null;
+    audiencia_data?: string | null;
+    audiencia_status?: string | null;
+  } | null;
+}
+
+export interface UpdatePreDemandaCasePayload {
+  assunto?: string;
+  descricao?: string | null;
+  fonte?: string | null;
+  observacoes?: string | null;
+  prazo_final?: string | null;
+  numero_judicial?: string | null;
+  metadata?: {
+    frequencia?: string | null;
+    pagamento_envolvido?: boolean | null;
+    audiencia_data?: string | null;
+    audiencia_status?: string | null;
+  };
+}
+
+export interface ListInteressadosParams {
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export function login(email: string, password: string) {
   return request<AuthUser>("/api/auth/login", {
     method: "POST",
@@ -118,53 +178,17 @@ export function updateQueueHealthConfig(payload: { attentionDays: number; critic
   });
 }
 
-export interface ListPreDemandasParams {
-  q?: string;
-  status?: string[];
-  queueHealth?: QueueHealthLevel[];
-  dateFrom?: string;
-  dateTo?: string;
-  hasSei?: boolean;
-  sortBy?: PreDemandaSortBy;
-  sortOrder?: SortOrder;
-  page?: number;
-  pageSize?: number;
-}
-
 export function listPreDemandas(params: ListPreDemandasParams = {}) {
   const searchParams = new URLSearchParams();
 
-  if (params.q) {
-    searchParams.set("q", params.q);
-  }
-
-  if (params.status?.length) {
-    searchParams.set("status", params.status.join(","));
-  }
-
-  if (params.queueHealth?.length) {
-    searchParams.set("queueHealth", params.queueHealth.join(","));
-  }
-
-  if (params.dateFrom) {
-    searchParams.set("dateFrom", params.dateFrom);
-  }
-
-  if (params.dateTo) {
-    searchParams.set("dateTo", params.dateTo);
-  }
-
-  if (params.hasSei !== undefined) {
-    searchParams.set("hasSei", String(params.hasSei));
-  }
-
-  if (params.sortBy) {
-    searchParams.set("sortBy", params.sortBy);
-  }
-
-  if (params.sortOrder) {
-    searchParams.set("sortOrder", params.sortOrder);
-  }
+  if (params.q) searchParams.set("q", params.q);
+  if (params.status?.length) searchParams.set("status", params.status.join(","));
+  if (params.queueHealth?.length) searchParams.set("queueHealth", params.queueHealth.join(","));
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.hasSei !== undefined) searchParams.set("hasSei", String(params.hasSei));
+  if (params.sortBy) searchParams.set("sortBy", params.sortBy);
+  if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
 
   searchParams.set("page", String(params.page ?? 1));
   searchParams.set("pageSize", String(params.pageSize ?? 10));
@@ -181,14 +205,7 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   }>(path);
 }
 
-export function createPreDemanda(payload: {
-  solicitante: string;
-  assunto: string;
-  data_referencia: string;
-  descricao?: string;
-  fonte?: string;
-  observacoes?: string;
-}) {
+export function createPreDemanda(payload: CreatePreDemandaPayload) {
   return request<PreDemanda & { idempotent: boolean; existingPreId: string | null }>("/api/pre-demandas", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -197,6 +214,20 @@ export function createPreDemanda(payload: {
 
 export function getPreDemanda(preId: string) {
   return request<PreDemanda>(`/api/pre-demandas/${preId}`);
+}
+
+export function updatePreDemandaCase(preId: string, payload: UpdatePreDemandaCasePayload) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePreDemandaAnotacoes(preId: string, anotacoes: string | null) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/anotacoes`, {
+    method: "PATCH",
+    body: JSON.stringify({ anotacoes }),
+  });
 }
 
 export function updatePreDemandaStatus(preId: string, payload: { status: PreDemandaStatus; motivo?: string; observacoes?: string }) {
@@ -216,6 +247,63 @@ export function associateSei(preId: string, payload: { sei_numero: string; motiv
   });
 }
 
+export function addPreDemandaInteressado(preId: string, payload: { interessado_id: string; papel: DemandaInteressadoPapel }) {
+  return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removePreDemandaInteressado(preId: string, interessadoId: string) {
+  return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados/${interessadoId}`, {
+    method: "DELETE",
+  });
+}
+
+export function addPreDemandaVinculo(preId: string, destinoPreId: string) {
+  return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos`, {
+    method: "POST",
+    body: JSON.stringify({ destino_pre_id: destinoPreId }),
+  });
+}
+
+export function removePreDemandaVinculo(preId: string, destinoPreId: string) {
+  return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos/${destinoPreId}`, {
+    method: "DELETE",
+  });
+}
+
+export function tramitarPreDemanda(preId: string, setorDestinoId: string) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/tramitar`, {
+    method: "POST",
+    body: JSON.stringify({ setor_destino_id: setorDestinoId }),
+  });
+}
+
+export function addPreDemandaAndamento(preId: string, payload: { descricao: string; data_hora?: string | null }) {
+  return request<Andamento>(`/api/pre-demandas/${preId}/andamentos`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listPreDemandaTarefas(preId: string) {
+  return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas`);
+}
+
+export function createPreDemandaTarefa(preId: string, payload: { descricao: string; tipo: TarefaPendenteTipo }) {
+  return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function concluirPreDemandaTarefa(preId: string, tarefaId: string) {
+  return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`, {
+    method: "PATCH",
+  });
+}
+
 export function getAudit(preId: string) {
   return request<PreDemandaAuditRecord[]>(`/api/pre-demandas/${preId}/auditoria`);
 }
@@ -230,6 +318,46 @@ export function getRecentTimeline(limit = 8) {
 
 export function getDashboardSummary() {
   return request<PreDemandaDashboardSummary>("/api/pre-demandas/dashboard/resumo");
+}
+
+export function listInteressados(params: ListInteressadosParams = {}) {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  search.set("page", String(params.page ?? 1));
+  search.set("pageSize", String(params.pageSize ?? 10));
+  return request<{ items: Interessado[]; total: number; page: number; pageSize: number }>(`/api/interessados?${search.toString()}`);
+}
+
+export function createInteressado(payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+  return request<Interessado>("/api/interessados", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateInteressado(id: string, payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+  return request<Interessado>(`/api/interessados/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listSetores() {
+  return request<Setor[]>("/api/setores");
+}
+
+export function createSetor(payload: { sigla: string; nome_completo: string }) {
+  return request<Setor>("/api/setores", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateSetor(id: string, payload: { sigla: string; nome_completo: string }) {
+  return request<Setor>(`/api/setores/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function listAdminUsers() {

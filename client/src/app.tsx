@@ -6,6 +6,7 @@ import { RequirePermission } from "./components/require-permission";
 import { AdminOperationsPage } from "./pages/admin-operations-page";
 import { AdminUsersPage } from "./pages/admin-users-page";
 import { DashboardPage } from "./pages/dashboard-page";
+import { InteressadosPage } from "./pages/interessados-page";
 import { LoginPage } from "./pages/login-page";
 import { NewPreDemandaPage } from "./pages/new-pre-demanda-page";
 import { NotFoundPage } from "./pages/not-found-page";
@@ -26,6 +27,14 @@ export function App() {
               <Route element={<PreDemandasPage />} path="/pre-demandas" />
               <Route element={<NewPreDemandaPage />} path="/pre-demandas/nova" />
               <Route element={<PreDemandaDetailPage />} path="/pre-demandas/:preId" />
+              <Route
+                element={
+                  <RequirePermission permission="cadastro.interessado.read">
+                    <InteressadosPage />
+                  </RequirePermission>
+                }
+                path="/interessados"
+              />
               <Route
                 element={
                   <RequirePermission permission="admin.user.read">

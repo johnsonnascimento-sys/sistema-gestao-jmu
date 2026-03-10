@@ -11,6 +11,20 @@ function getEventLabel(event: TimelineEvent) {
       return "Associacao inicial ao SEI";
     case "sei_reassociated":
       return "SEI reassociado";
+    case "tramitation":
+      return "Tramitacao";
+    case "task_completed":
+      return "Tarefa concluida";
+    case "interessado_added":
+      return "Interessado vinculado";
+    case "interessado_removed":
+      return "Interessado removido";
+    case "vinculo_added":
+      return "Processo relacionado";
+    case "vinculo_removed":
+      return "Vinculo removido";
+    case "andamento":
+      return "Andamento";
     default:
       return "Evento";
   }
@@ -24,6 +38,16 @@ function getEventTone(event: TimelineEvent) {
       return "success" as const;
     case "status_changed":
       return event.statusNovo === "encerrada" ? ("destructive" as const) : ("outline" as const);
+    case "tramitation":
+      return "outline" as const;
+    case "task_completed":
+      return "success" as const;
+    case "interessado_added":
+    case "vinculo_added":
+      return "success" as const;
+    case "interessado_removed":
+    case "vinculo_removed":
+      return "warning" as const;
     default:
       return "outline" as const;
   }
@@ -42,6 +66,7 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
                 <span className="text-sm text-slate-500">{new Date(event.occurredAt).toLocaleString("pt-BR")}</span>
               </div>
               <p className="text-sm font-medium text-slate-950">{event.actor ? `${event.actor.name} (${event.actor.email})` : "Autor nao informado"}</p>
+              {event.descricao ? <p className="text-sm text-slate-700">{event.descricao}</p> : null}
             </div>
             {event.motivo ? <p className="max-w-lg text-sm text-slate-500">{event.motivo}</p> : null}
           </div>

@@ -25,6 +25,10 @@ export function NewPreDemandaPage() {
     descricao: "",
     fonte: "",
     observacoes: "",
+    prazo_final: "",
+    numero_judicial: "",
+    pagamento_envolvido: false,
+    frequencia: "",
   });
   const [error, setError] = useState("");
   const [conflictPreId, setConflictPreId] = useState<string | null>(null);
@@ -39,7 +43,20 @@ export function NewPreDemandaPage() {
     setResult(null);
 
     try {
-      const created = await createPreDemanda(form);
+      const created = await createPreDemanda({
+        solicitante: form.solicitante,
+        assunto: form.assunto,
+        data_referencia: form.data_referencia,
+        descricao: form.descricao || undefined,
+        fonte: form.fonte || undefined,
+        observacoes: form.observacoes || undefined,
+        prazo_final: form.prazo_final || null,
+        numero_judicial: form.numero_judicial || null,
+        metadata: {
+          frequencia: form.frequencia || null,
+          pagamento_envolvido: form.pagamento_envolvido,
+        },
+      });
       setResult({
         preId: created.existingPreId ?? created.preId,
         idempotent: created.idempotent,
@@ -90,6 +107,47 @@ export function NewPreDemandaPage() {
             <FormField className="md:col-span-2" label="Observacoes">
               <Textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
             </FormField>
+
+            <details className="md:col-span-2 rounded-[24px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-slate-950">
+                Campos avancados
+                <span className="ml-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">prazo, pagamento e judicial</span>
+              </summary>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <FormField label="Prazo final">
+                  <Input onChange={(event) => setForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={form.prazo_final} />
+                </FormField>
+
+                <FormField label="Numero judicial">
+                  <Input
+                    onChange={(event) => setForm((current) => ({ ...current, numero_judicial: event.target.value }))}
+                    placeholder="0001234-56.2026.9.99.9999"
+                    value={form.numero_judicial}
+                  />
+                </FormField>
+
+                <FormField className="md:col-span-2" label="Frequencia">
+                  <Input
+                    onChange={(event) => setForm((current) => ({ ...current, frequencia: event.target.value }))}
+                    placeholder="Mensal, eventual, diaria..."
+                    value={form.frequencia}
+                  />
+                </FormField>
+
+                <label className="md:col-span-2 flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm">
+                  <div>
+                    <p className="font-semibold text-slate-950">Envolve pagamento</p>
+                    <p className="text-slate-500">Guarda o sinalizador operacional no metadata do caso.</p>
+                  </div>
+                  <input
+                    checked={form.pagamento_envolvido}
+                    className="h-5 w-5 accent-slate-950"
+                    onChange={(event) => setForm((current) => ({ ...current, pagamento_envolvido: event.target.checked }))}
+                    type="checkbox"
+                  />
+                </label>
+              </div>
+            </details>
 
             {error ? (
               <div className="md:col-span-2 rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
