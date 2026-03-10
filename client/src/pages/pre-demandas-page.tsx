@@ -155,6 +155,23 @@ function getSavedView(presetId: string | null) {
   return SAVED_VIEWS.find((item) => item.id === presetId) ?? null;
 }
 
+function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, dueState: "" | "overdue" | "due_soon" | "none") {
+  const next = new URLSearchParams(current);
+  next.set("setorAtualId", setorAtualId);
+  next.set("view", "table");
+  next.set("page", "1");
+  next.set("sortBy", "updatedAt");
+  next.set("sortOrder", dueState === "overdue" ? "asc" : "desc");
+
+  if (dueState) {
+    next.set("dueState", dueState);
+  } else {
+    next.delete("dueState");
+  }
+
+  return `/pre-demandas?${next.toString()}`;
+}
+
 function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState {
   const preset = getSavedView(searchParams.get("preset"));
 
@@ -350,6 +367,7 @@ export function PreDemandasPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const metrics = useMemo(() => counts, [counts]);
   const hiddenClosedCount = useMemo(() => (resolvedState.view === "kanban" ? items.filter((item) => item.status === "encerrada").length : 0), [items, resolvedState.view]);
+  const selectedSetor = useMemo(() => setores.find((item) => item.id === resolvedState.setorAtualId) ?? null, [resolvedState.setorAtualId, setores]);
   const firstVisibleItem = total === 0 ? 0 : (resolvedState.page - 1) * pageSize + 1;
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
@@ -389,6 +407,33 @@ export function PreDemandasPage() {
           <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
         ))}
       </div>
+
+      {selectedSetor ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Contexto operativo</CardTitle>
+            <CardDescription>
+              A fila esta focada no setor {selectedSetor.sigla}. Use os atalhos para alternar rapidamente entre todos os itens, vencidos e proximos do prazo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button asChild size="sm" variant={resolvedState.dueState === "" ? "primary" : "secondary"}>
+              <Link to={buildSectorQueueSearch(searchParams, selectedSetor.id, "")}>Todas do setor</Link>
+            </Button>
+            <Button asChild size="sm" variant={resolvedState.dueState === "overdue" ? "primary" : "secondary"}>
+              <Link to={buildSectorQueueSearch(searchParams, selectedSetor.id, "overdue")}>So vencidas</Link>
+            </Button>
+            <Button asChild size="sm" variant={resolvedState.dueState === "due_soon" ? "primary" : "secondary"}>
+              <Link to={buildSectorQueueSearch(searchParams, selectedSetor.id, "due_soon")}>Vencem em 7 dias</Link>
+            </Button>
+            <Button asChild size="sm" variant={resolvedState.hasInteressados === "false" ? "outline" : "ghost"}>
+              <Link to={`/pre-demandas?${new URLSearchParams({ ...Object.fromEntries(searchParams), setorAtualId: selectedSetor.id, hasInteressados: "false", view: "table", page: "1" }).toString()}`}>
+                Sem envolvidos
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
