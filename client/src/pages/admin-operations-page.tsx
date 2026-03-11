@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { MetricCard } from "../components/metric-card";
@@ -237,6 +237,80 @@ export function AdminOperationsPage() {
     return <ErrorState description="Resumo operacional indisponivel." />;
   }
 
+  const attentionItems = useMemo(() => {
+    const items: Array<{ title: string; description: string; tone: "critical" | "attention"; href?: string; cta?: string }> = [];
+
+    if (summary.operationalSummary.backupFreshness === "critical" || summary.operationalSummary.backupFreshness === "attention") {
+      items.push({
+        title: "Backup fora do ritmo esperado",
+        description:
+          summary.operationalSummary.backupAgeHours === null
+            ? "Nenhum backup confirmado aparece no painel operacional."
+            : `O ultimo backup confirmado tem ${summary.operationalSummary.backupAgeHours} h.`,
+        tone: summary.operationalSummary.backupFreshness === "critical" ? "critical" : "attention",
+      });
+    }
+
+    if ((summary.migrations?.driftedCount ?? 0) > 0 || (summary.migrations?.pendingCount ?? 0) > 0) {
+      items.push({
+        title: (summary.migrations?.driftedCount ?? 0) > 0 ? "Drift de schema detectado" : "Migracoes pendentes",
+        description:
+          (summary.migrations?.driftedCount ?? 0) > 0
+            ? `${summary.migrations?.driftedCount ?? 0} migration(s) em drift exigem revisao.`
+            : `${summary.migrations?.pendingCount ?? 0} migration(s) ainda nao aplicadas.`,
+        tone: (summary.migrations?.driftedCount ?? 0) > 0 ? "critical" : "attention",
+      });
+    }
+
+    if (summary.operationalSummary.failureCount24h > 0) {
+      items.push({
+        title: "Falhas operacionais nas ultimas 24h",
+        description: `${summary.operationalSummary.failureCount24h} falha(s) operacional(is) recente(s) foram registadas fora do processo da aplicacao.`,
+        tone: "attention",
+      });
+    }
+
+    if (summary.incidentSummary.errorTotal > 0) {
+      items.push({
+        title: "Incidentes de erro activos no processo",
+        description: `${summary.incidentSummary.errorTotal} incidente(s) de nivel error foram registados desde o ultimo arranque.`,
+        tone: "critical",
+      });
+    }
+
+    if (summary.caseManagementReport.overdueTotal > 0) {
+      items.push({
+        title: "Casos vencidos na fila",
+        description: `${summary.caseManagementReport.overdueTotal} demanda(s) activa(s) estao com prazo vencido.`,
+        tone: "critical",
+        href: "/pre-demandas?preset=prazos-vencidos",
+        cta: "Abrir vencidos",
+      });
+    }
+
+    if (summary.caseManagementReport.withoutSetorTotal > 0) {
+      items.push({
+        title: "Demandas sem setor",
+        description: `${summary.caseManagementReport.withoutSetorTotal} caso(s) activo(s) ainda nao foram tramitados para um setor.`,
+        tone: "attention",
+        href: "/pre-demandas?preset=sem-setor",
+        cta: "Abrir sem setor",
+      });
+    }
+
+    if (summary.caseManagementReport.withoutInteressadosTotal > 0) {
+      items.push({
+        title: "Demandas sem envolvidos",
+        description: `${summary.caseManagementReport.withoutInteressadosTotal} caso(s) activo(s) ainda nao possuem envolvidos vinculados.`,
+        tone: "attention",
+        href: "/pre-demandas?preset=sem-envolvidos",
+        cta: "Abrir sem envolvidos",
+      });
+    }
+
+    return items.slice(0, 6);
+  }, [summary]);
+
   return (
     <section className="grid gap-6">
       <PageHeader
@@ -287,6 +361,38 @@ export function AdminOperationsPage() {
 
       {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
       {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
+
+      {attentionItems.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Atencao imediata</CardTitle>
+            <CardDescription>Itens que exigem accao mais rapida com base na saude da aplicacao, operacao e fila actual.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 xl:grid-cols-3">
+            {attentionItems.map((item) => (
+              <article
+                className={`grid gap-3 rounded-[24px] border px-4 py-4 ${
+                  item.tone === "critical" ? "border-rose-200 bg-rose-50/80" : "border-amber-200 bg-amber-50/80"
+                }`}
+                key={`${item.title}-${item.description}`}
+              >
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.tone === "critical" ? "Critico" : "Atencao"}</p>
+                  <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.title}</h3>
+                </div>
+                <p className="text-sm text-slate-700">{item.description}</p>
+                {item.href && item.cta ? (
+                  <div>
+                    <Button asChild size="sm" variant="secondary">
+                      <Link to={item.href}>{item.cta}</Link>
+                    </Button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Requests" value={summary.counters.requestsTotal} />
