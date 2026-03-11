@@ -468,6 +468,7 @@ export function AdminOperationsPage() {
           title: "Abrir incidente recorrente antes dos demais alertas",
           description:
             "A anomalia principal e a recorrencia actual apontam para o mesmo eixo de incidente. Vale atacar primeiro o cluster repetido para cortar ruido e impacto mais rapido.",
+          confidence: "Alta",
           href: recurrencePathItems[0].href,
           cta: recurrencePathItems[0].cta,
         }
@@ -476,6 +477,7 @@ export function AdminOperationsPage() {
             title: "Investigar falha operacional repetida antes da fila",
             description:
               "O topo da triagem e a repeticao recente estao concentrados em operacoes. A melhor resposta imediata e estabilizar esse cluster antes de tratar efeitos secundarios.",
+            confidence: "Alta",
             href: recurrencePathItems[0].href,
             cta: recurrencePathItems[0].cta,
           }
@@ -483,6 +485,7 @@ export function AdminOperationsPage() {
           ? {
               title: "Seguir a maior anomalia do momento",
               description: "Nao ha convergencia forte por repeticao nesta janela. O melhor proximo passo continua a ser a anomalia principal destacada acima.",
+              confidence: "Media",
               href: primaryAttentionItem.href,
               cta: primaryAttentionItem.cta,
             }
@@ -729,7 +732,12 @@ export function AdminOperationsPage() {
           </CardHeader>
           <CardContent className="grid gap-3 rounded-[24px] border border-sky-200 bg-sky-50/70 px-4 py-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Proximo passo recomendado</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Proximo passo recomendado</p>
+                <span className="rounded-full border border-sky-200 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Confianca {suggestedDecision.confidence}
+                </span>
+              </div>
               <h3 className="mt-1 text-base font-semibold text-slate-950">{suggestedDecision.title}</h3>
             </div>
             <p className="text-sm text-slate-700">{suggestedDecision.description}</p>
