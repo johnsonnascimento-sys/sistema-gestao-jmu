@@ -376,6 +376,11 @@ export interface AdminOpsOperationalSummary {
   lastSuccessfulRollbackAt: string | null;
   lastFailedMonitorAt: string | null;
   lastFailedMonitorMessage: string | null;
+  failureCount24h: number;
+  failuresByKind24h: Array<{
+    kind: OperationalEventKind;
+    total: number;
+  }>;
 }
 
 export interface AdminOpsCaseSetorReportItem {

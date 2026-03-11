@@ -1634,6 +1634,8 @@ describe("Gestor JMU API", () => {
     expect(typeof (ops.json().data as AdminOpsSummary).operationalSummary.backupFreshness).toBe("string");
     expect((ops.json().data as AdminOpsSummary).operationalSummary.lastSuccessfulBackupAt).not.toBeUndefined();
     expect((ops.json().data as AdminOpsSummary).operationalSummary.lastSuccessfulDeployAt).not.toBeUndefined();
+    expect(typeof (ops.json().data as AdminOpsSummary).operationalSummary.failureCount24h).toBe("number");
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).operationalSummary.failuresByKind24h)).toBe(true);
     expect((ops.json().data as AdminOpsSummary).caseManagementReport.periodDays).toBe(30);
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.createdInPeriod).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.closedInPeriod).toBe("number");

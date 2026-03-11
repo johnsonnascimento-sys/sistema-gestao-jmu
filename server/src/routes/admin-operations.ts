@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config";
 import type { DatabasePool } from "../db";
+import type { OperationalEventKind } from "../domain/types";
 import { describeMigrations } from "../migrations/describe-migrations";
 import type { OperationsStore } from "../observability/operations-store";
 import { describeBackupStatus } from "../operations/backup-status";
@@ -32,6 +33,13 @@ function buildOperationalSummary(
   backupStatus: Awaited<ReturnType<typeof describeBackupStatus>>,
   operationalEvents: Awaited<ReturnType<typeof listOperationalEvents>>,
 ) {
+  const last24hBoundary = Date.now() - 24 * 60 * 60 * 1000;
+  const failuresByKind24h = operationalEvents
+    .filter((event) => event.status === "failure" && new Date(event.occurredAt).getTime() >= last24hBoundary)
+    .reduce<Map<string, number>>((acc, event) => {
+      acc.set(event.kind, (acc.get(event.kind) ?? 0) + 1);
+      return acc;
+    }, new Map());
   const lastSuccessfulBackupAt = backupStatus.lastBackup?.modifiedAt ?? findLatestEvent(operationalEvents, "backup", "success")?.occurredAt ?? null;
   const backupAgeHours =
     lastSuccessfulBackupAt === null ? null : Number((((Date.now() - new Date(lastSuccessfulBackupAt).getTime()) / 3_600_000)).toFixed(1));
@@ -54,6 +62,10 @@ function buildOperationalSummary(
     lastSuccessfulRollbackAt: findLatestEvent(operationalEvents, "rollback", "success")?.occurredAt ?? null,
     lastFailedMonitorAt: findLatestEvent(operationalEvents, "monitor", "failure")?.occurredAt ?? null,
     lastFailedMonitorMessage: findLatestEvent(operationalEvents, "monitor", "failure")?.message ?? null,
+    failureCount24h: Array.from(failuresByKind24h.values()).reduce((total, current) => total + current, 0),
+    failuresByKind24h: Array.from(failuresByKind24h.entries())
+      .map(([kind, total]) => ({ kind: kind as OperationalEventKind, total }))
+      .sort((left, right) => right.total - left.total || left.kind.localeCompare(right.kind)),
   };
 }
 

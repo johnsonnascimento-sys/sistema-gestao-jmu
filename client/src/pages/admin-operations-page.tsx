@@ -714,6 +714,31 @@ export function AdminOperationsPage() {
               </p>
               {summary.operationalSummary.lastFailedMonitorMessage ? <p className="mt-1 text-xs">{summary.operationalSummary.lastFailedMonitorMessage}</p> : null}
             </div>
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50/70 px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Falhas operacionais 24h</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">{summary.operationalSummary.failureCount24h}</p>
+              {summary.operationalSummary.failuresByKind24h.length ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {summary.operationalSummary.failuresByKind24h.map((item) => (
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700" key={`failure-kind-${item.kind}`}>
+                      {describeOperationalEvent({
+                        id: item.kind,
+                        kind: item.kind,
+                        status: "failure",
+                        source: "",
+                        message: "",
+                        reference: null,
+                        occurredAt: new Date().toISOString(),
+                      })}
+                      {" "}
+                      {item.total}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500">Nenhuma falha operacional registada nas ultimas 24 horas.</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
