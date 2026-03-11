@@ -138,9 +138,9 @@ export function SetoresPage() {
           <Input className="md:max-w-sm" onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por sigla ou nome" value={search} />
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-[24px] border border-slate-200">
+          <div className="overflow-hidden rounded-[28px] border border-white/70 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+              <thead className="bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(240,246,249,0.92))] text-left text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Sigla</th>
                   <th className="px-4 py-3">Nome completo</th>
@@ -148,7 +148,7 @@ export function SetoresPage() {
                   <th className="px-4 py-3 text-right">Acoes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
+              <tbody className="divide-y divide-slate-100 bg-white/95">
                 {filteredItems.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={4}>

@@ -109,7 +109,7 @@ export function DashboardPage() {
 
     return (
       <Link
-        className="grid gap-2 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 transition hover:border-slate-300 hover:bg-white"
+        className="grid gap-2 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.8))] p-4 shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)]"
         key={item.preId}
         to={`/pre-demandas/${item.preId}`}
       >
@@ -175,7 +175,7 @@ export function DashboardPage() {
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-4">
           {quickGroups.map((group) => (
-            <article className="grid gap-3 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4" key={group.id}>
+            <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={group.id}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{group.label}</p>
@@ -202,7 +202,7 @@ export function DashboardPage() {
             ) : (
               summary.recentTimeline.map((event) => (
                 <Link
-                  className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 transition hover:border-slate-300 hover:bg-white"
+                  className="flex flex-col gap-3 rounded-[28px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] p-4 shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)]"
                   key={event.id}
                   to={`/pre-demandas/${event.preId}`}
                 >

@@ -32,7 +32,7 @@ const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: string }> = 
 ];
 
 const selectClassName =
-  "h-11 w-full rounded-2xl border border-slate-200 bg-white/90 px-4 text-sm text-slate-950 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-amber-200/50";
+  "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
 
 type BoardView = "kanban" | "table";
 type SavedViewId =
@@ -821,8 +821,8 @@ export function PreDemandasPage() {
             <button
               className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
                 resolvedState.presetId === preset.id
-                  ? "border-amber-300 bg-amber-50 text-amber-950 shadow-[0_12px_30px_rgba(217,119,6,0.12)]"
-                  : "border-slate-200 bg-slate-50/70 text-slate-700 hover:border-slate-300 hover:bg-white"
+                  ? "border-sky-300 bg-[linear-gradient(180deg,rgba(219,234,254,0.95),rgba(240,249,255,0.92))] text-sky-950 shadow-[0_14px_32px_rgba(14,165,233,0.12)]"
+                  : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,241,233,0.78))] text-slate-700 shadow-[0_12px_24px_rgba(20,33,61,0.05)] hover:border-sky-200 hover:bg-white"
               }`}
               key={preset.id}
               onClick={() => applyPreset(preset.id)}
@@ -949,7 +949,7 @@ export function PreDemandasPage() {
       </form>
 
       {hiddenClosedCount > 0 ? (
-        <div className="flex flex-col items-start justify-between gap-3 rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900 md:flex-row md:items-center">
+        <div className="flex flex-col items-start justify-between gap-3 rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.92))] px-4 py-4 text-sm text-amber-900 md:flex-row md:items-center">
           <p>
             {hiddenClosedCount} demanda{hiddenClosedCount > 1 ? "s" : ""} encerrada{hiddenClosedCount > 1 ? "s" : ""} corresponde{hiddenClosedCount > 1 ? "m" : ""} aos filtros, mas aparece{hiddenClosedCount > 1 ? "m" : ""} apenas na tabela analitica.
           </p>
@@ -1101,7 +1101,7 @@ export function PreDemandasPage() {
         </Card>
       )}
 
-      <div className="flex flex-col items-center justify-between gap-3 rounded-[24px] border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-600 sm:flex-row">
+      <div className="flex flex-col items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-4 py-3 text-sm text-slate-600 shadow-[0_12px_24px_rgba(20,33,61,0.05)] sm:flex-row">
         <span>
           Pagina {resolvedState.page} de {totalPages} - {firstVisibleItem} a {lastVisibleItem} de {total}
         </span>

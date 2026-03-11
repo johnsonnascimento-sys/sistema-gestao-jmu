@@ -29,7 +29,10 @@ export function KanbanBoard({
         const columnItems = items.filter((item) => item.status === column.value);
 
         return (
-          <section className="grid gap-4 rounded-[28px] border border-slate-200/80 bg-white/75 p-4 shadow-[0_24px_60px_rgba(20,33,61,0.08)] backdrop-blur" key={column.value}>
+          <section
+            className="panel-noise grid gap-4 rounded-[32px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(244,248,251,0.88))] p-5 shadow-[0_26px_70px_rgba(20,33,61,0.08)] backdrop-blur-xl"
+            key={column.value}
+          >
             <header className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h3 className="text-lg font-semibold text-slate-950">{column.label}</h3>
@@ -42,13 +45,13 @@ export function KanbanBoard({
               {columnItems.length ? (
                 columnItems.map((item) => (
                   <article
-                    className={`grid gap-4 rounded-[24px] border bg-white p-4 shadow-sm ${
+                    className={`grid gap-4 rounded-[28px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(247,241,233,0.76))] p-5 shadow-[0_14px_34px_rgba(20,33,61,0.08)] ${
                       item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] === "critical"
-                        ? "border-rose-200 bg-rose-50/50"
+                        ? "border-rose-200 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,247,247,0.88))]"
                         : item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] === "attention"
-                          ? "border-amber-200 bg-amber-50/40"
-                          : "border-slate-200"
-                    } ${selectedSetorId && item.setorAtual?.id === selectedSetorId ? "ring-2 ring-sky-200" : ""}`}
+                          ? "border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.88))]"
+                          : "border-white/80"
+                    } ${selectedSetorId && item.setorAtual?.id === selectedSetorId ? "ring-2 ring-sky-300/70" : ""}`}
                     key={item.preId}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -119,7 +122,7 @@ export function KanbanBoard({
                   </article>
                 ))
               ) : (
-                <div className="rounded-[24px] border border-dashed border-slate-300 bg-white/70 px-4 py-10 text-center text-sm text-slate-500">
+                <div className="rounded-[28px] border border-dashed border-slate-300/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.8),rgba(247,241,233,0.72))] px-4 py-10 text-center text-sm text-slate-500">
                   Nenhuma demanda nesta coluna.
                 </div>
               )}

@@ -9,8 +9,10 @@ import { Button } from "./ui/button";
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition",
-    isActive ? "bg-amber-200/70 text-slate-950" : "text-slate-200 hover:bg-white/8 hover:text-white",
+    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all duration-200",
+    isActive
+      ? "bg-white/14 text-white shadow-[0_12px_30px_rgba(15,23,42,0.22)] ring-1 ring-white/14"
+      : "text-slate-200/90 hover:bg-white/8 hover:text-white",
   );
 
 export function AppShell() {
@@ -67,16 +69,27 @@ export function AppShell() {
   }
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-[300px_1fr]">
-      <aside className="flex flex-col justify-between bg-[linear-gradient(180deg,rgba(13,27,42,0.97),rgba(20,33,61,0.98)),linear-gradient(135deg,rgba(249,164,96,0.28),transparent_50%)] p-6 text-white">
-        <div className="space-y-8">
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-200">Gestor JMU</p>
-            <h1 className='font-["IBM_Plex_Serif",Georgia,serif] text-3xl leading-tight'>Painel operacional</h1>
-            <p className="text-sm text-slate-300">Fluxo pre-SEI/SEI consolidado num unico lugar.</p>
-          </div>
+    <div className="min-h-screen lg:grid lg:grid-cols-[320px_1fr]">
+      <aside className="relative overflow-hidden border-b border-white/10 bg-[linear-gradient(160deg,#0f2b46_0%,#173858_48%,#0f2a44_100%)] px-5 py-5 text-white lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-white/10 lg:px-6 lg:py-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,191,105,0.22),transparent_28%),linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:auto,48px_48px,48px_48px] opacity-80" />
+        <div className="relative flex h-full flex-col justify-between gap-8">
+          <div className="space-y-8">
+            <div className="rounded-[30px] border border-white/10 bg-white/7 p-5 backdrop-blur-xl">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-200">Gestor JMU</p>
+              <h1 className='mt-3 font-["IBM_Plex_Serif",Georgia,serif] text-3xl leading-tight'>
+                Centro de casos
+                <span className="block text-slate-200">e tramitacao</span>
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-slate-200/85">
+                Operacao inspirada numa linguagem institucional clara, com fluxo, auditoria e governanca num unico painel.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">Pre-SEI</span>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-100">Case management</span>
+              </div>
+            </div>
 
-          <nav className="grid gap-2">
+            <nav className="grid gap-2">
             <NavLink className={navLinkClassName} to="/dashboard">
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
@@ -113,35 +126,37 @@ export function AppShell() {
                 Operacoes
               </NavLink>
             ) : null}
-          </nav>
-        </div>
-
-        <div className="space-y-4 rounded-[28px] border border-white/10 bg-white/8 p-4">
-          <div>
-            <p className="font-semibold">{user?.name}</p>
-            <p className="text-sm text-slate-300">{user?.email}</p>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-amber-200">{user?.role}</p>
+            </nav>
           </div>
-          {runtime ? (
-            <div className="rounded-[22px] border border-white/10 bg-slate-950/20 px-3 py-3 text-xs text-slate-300">
-              <p className="font-bold uppercase tracking-[0.22em] text-amber-200">Runtime</p>
-              <p className="mt-2 text-sm font-semibold text-white">
-                v{runtime.version}
-                {runtime.commitSha ? ` - ${runtime.commitSha.slice(0, 7)}` : ""}
-              </p>
-              <p className="mt-1">
-                {runtime.environment} - no ar ha {formatUptime(runtime.uptimeSeconds)}
-              </p>
+
+          <div className="space-y-4 rounded-[30px] border border-white/12 bg-white/7 p-4 backdrop-blur-xl">
+            <div>
+              <p className="font-semibold">{user?.name}</p>
+              <p className="text-sm text-slate-300">{user?.email}</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-amber-200">{user?.role}</p>
             </div>
-          ) : null}
-          <Button className="w-full" onClick={handleLogout} type="button" variant="secondary">
-            <LogOut className="h-4 w-4" />
-            Sair
-          </Button>
+            {runtime ? (
+              <div className="rounded-[24px] border border-white/10 bg-slate-950/20 px-4 py-4 text-xs text-slate-300">
+                <p className="font-bold uppercase tracking-[0.22em] text-amber-200">Runtime</p>
+                <p className="mt-2 text-sm font-semibold text-white">
+                  v{runtime.version}
+                  {runtime.commitSha ? ` - ${runtime.commitSha.slice(0, 7)}` : ""}
+                </p>
+                <p className="mt-1">
+                  {runtime.environment} - no ar ha {formatUptime(runtime.uptimeSeconds)}
+                </p>
+              </div>
+            ) : null}
+            <Button className="w-full bg-white text-slate-950 hover:bg-slate-50" onClick={handleLogout} type="button" variant="secondary">
+              <LogOut className="h-4 w-4" />
+              Sair
+            </Button>
+          </div>
         </div>
       </aside>
 
-      <main className="p-4 sm:p-6 xl:p-8">
+      <main className="relative min-w-0 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 rounded-b-[60px] bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(255,191,105,0.24),transparent_28%)]" />
         <Outlet />
       </main>
     </div>

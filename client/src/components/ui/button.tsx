@@ -4,15 +4,20 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-full text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 rounded-2xl text-sm font-semibold transition-all duration-200 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        primary: "bg-slate-950 text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800",
-        secondary: "bg-white/80 text-slate-900 ring-1 ring-slate-200 hover:bg-white",
-        ghost: "bg-transparent text-slate-700 hover:bg-slate-950/5",
-        outline: "bg-transparent text-slate-900 ring-1 ring-slate-300 hover:bg-white/70",
-        destructive: "bg-rose-600 text-white shadow-lg shadow-rose-600/20 hover:bg-rose-500",
+        primary:
+          "bg-gradient-to-r from-blue-800 via-blue-700 to-teal-600 text-white shadow-[0_18px_40px_rgba(29,78,216,0.24)] hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(13,110,253,0.28)]",
+        secondary:
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(243,247,250,0.92))] text-slate-900 ring-1 ring-slate-200/80 shadow-[0_10px_24px_rgba(20,33,61,0.08)] hover:bg-white hover:ring-slate-300/80",
+        ghost:
+          "bg-transparent text-slate-700 hover:bg-sky-950/5 hover:text-slate-950",
+        outline:
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(247,241,233,0.88))] text-slate-900 ring-1 ring-sky-200/90 hover:ring-sky-300",
+        destructive:
+          "bg-gradient-to-r from-rose-700 to-rose-600 text-white shadow-[0_16px_36px_rgba(190,24,93,0.22)] hover:-translate-y-0.5 hover:shadow-[0_20px_44px_rgba(190,24,93,0.26)]",
       },
       size: {
         sm: "h-9 px-4",

@@ -10,16 +10,16 @@ export const DialogClose = DialogPrimitive.Close;
 export function DialogContent({ className, children, ...props }: DialogPrimitive.DialogContentProps) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/42 backdrop-blur-md" />
       <DialogPrimitive.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-[min(92vw,42rem)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl outline-none",
+          "fixed left-1/2 top-1/2 z-50 w-[min(92vw,42rem)] -translate-x-1/2 -translate-y-1/2 rounded-[32px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(243,247,250,0.95))] p-6 shadow-[0_30px_90px_rgba(20,33,61,0.2)] outline-none",
           className,
         )}
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950">
+        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 text-slate-500 transition hover:bg-sky-50 hover:text-slate-950">
           <X className="h-4 w-4" />
         </DialogPrimitive.Close>
       </DialogPrimitive.Content>
@@ -28,7 +28,7 @@ export function DialogContent({ className, children, ...props }: DialogPrimitive
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("mb-4 flex flex-col gap-2", className)} {...props} />;
+  return <div className={cn("mb-4 flex flex-col gap-3", className)} {...props} />;
 }
 
 export function DialogTitle({ className, ...props }: DialogPrimitive.DialogTitleProps) {
@@ -36,7 +36,7 @@ export function DialogTitle({ className, ...props }: DialogPrimitive.DialogTitle
 }
 
 export function DialogDescription({ className, ...props }: DialogPrimitive.DialogDescriptionProps) {
-  return <DialogPrimitive.Description className={cn("text-sm text-slate-500", className)} {...props} />;
+  return <DialogPrimitive.Description className={cn("text-sm leading-6 text-slate-500", className)} {...props} />;
 }
 
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

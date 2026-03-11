@@ -21,6 +21,9 @@ const WEEKDAY_OPTIONS = [
   { value: "dom", label: "Dom" },
 ] as const;
 
+const selectClassName =
+  "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
+
 function getConflictPreId(details: unknown) {
   if (!details || typeof details !== "object") {
     return null;
@@ -157,7 +160,7 @@ export function NewPreDemandaPage() {
               <Input onChange={(event) => setForm((current) => ({ ...current, solicitante: event.target.value }))} value={form.solicitante} />
             </FormField>
 
-            <div className="md:col-span-2 grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+            <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <p className="text-sm font-semibold text-slate-950">Tipo de Entrada</p>
               <div className="grid gap-3 md:grid-cols-3">
                 <EntryOption
@@ -217,7 +220,7 @@ export function NewPreDemandaPage() {
               </>
             ) : null}
 
-            <div className="md:col-span-2 rounded-[24px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+            <div className="md:col-span-2 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-slate-950">Campos avancados</p>
@@ -237,7 +240,7 @@ export function NewPreDemandaPage() {
                 </FormField>
 
                 <FormField className="md:col-span-2" label="Frequencia">
-                  <select className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => updateFrequencia(event.target.value)} value={form.frequencia}>
+                  <select className={selectClassName} onChange={(event) => updateFrequencia(event.target.value)} value={form.frequencia}>
                     <option value="">Selecione a frequencia</option>
                     <option value="Diaria">Diaria</option>
                     <option value="Semanal">Semanal</option>
@@ -252,7 +255,7 @@ export function NewPreDemandaPage() {
                     <div className="flex flex-wrap gap-2">
                       {WEEKDAY_OPTIONS.map((item) => (
                         <Button
-                          className={form.frequencia_dias_semana.includes(item.label) ? "border-slate-950 bg-slate-950 text-white" : ""}
+                          className={form.frequencia_dias_semana.includes(item.label) ? "border-transparent bg-gradient-to-r from-blue-800 to-teal-600 text-white ring-0" : ""}
                           key={item.value}
                           onClick={() => toggleWeekday(item.label)}
                           size="sm"
@@ -274,7 +277,7 @@ export function NewPreDemandaPage() {
 
                 {frequenciaHint ? <p className="md:col-span-2 text-sm text-slate-500">{frequenciaHint}</p> : null}
 
-                <label className="md:col-span-2 flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm">
+                <label className="md:col-span-2 flex items-center justify-between rounded-[24px] border border-sky-100/90 bg-white/90 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(20,33,61,0.04)]">
                   <div>
                     <p className="font-semibold text-slate-950">Envolve pagamento</p>
                     <p className="text-slate-500">Guarda o sinalizador operacional no metadata do caso.</p>
@@ -334,7 +337,13 @@ function EntryOption({
   onChange: () => void;
 }) {
   return (
-    <label className={`grid gap-2 rounded-[20px] border px-4 py-4 text-sm ${checked ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950"}`}>
+    <label
+      className={`grid gap-2 rounded-[24px] border px-4 py-4 text-sm shadow-[0_12px_26px_rgba(20,33,61,0.04)] ${
+        checked
+          ? "border-transparent bg-[linear-gradient(145deg,#0f2b46,#1d4ed8_55%,#0f766e)] text-white"
+          : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] text-slate-950"
+      }`}
+    >
       <input checked={checked} className="sr-only" name="entry-type" onChange={onChange} type="radio" />
       <span className="font-semibold">{label}</span>
       <span className={checked ? "text-slate-200" : "text-slate-500"}>{description}</span>

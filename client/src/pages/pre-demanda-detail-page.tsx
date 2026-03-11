@@ -74,6 +74,8 @@ const FIXED_TASKS = [
 ];
 
 const WEEKDAY_OPTIONS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
+const selectClassName =
+  "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
@@ -352,7 +354,7 @@ export function PreDemandaDetailPage() {
             <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" variant="ghost" />
             <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
           </div>
-          <div className="flex flex-wrap gap-3 rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-3">
+          <div className="flex flex-wrap gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] px-4 py-3 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
             <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atalhos de status</span>
             {record.allowedNextStatuses.includes("aguardando_sei") ? (
               <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} title="Marcar processo como aguardando SEI" type="button" variant="ghost">
@@ -404,7 +406,7 @@ export function PreDemandaDetailPage() {
             <CardContent className="grid gap-4">
               <div className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
                 <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar interessado..." value={interessadoSearch} />
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setInteressadoRole(event.target.value as "solicitante" | "interessado")} value={interessadoRole}>
+                <select className={selectClassName} onChange={(event) => setInteressadoRole(event.target.value as "solicitante" | "interessado")} value={interessadoRole}>
                   <option value="interessado">Interessado</option>
                   <option value="solicitante">Solicitante</option>
                 </select>
@@ -800,7 +802,7 @@ export function PreDemandaDetailPage() {
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={editForm.prazo_final} />
               </FormField>
               <FormField label="Frequencia">
-                <select className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => updateEditFrequencia(event.target.value)} value={editForm.frequencia}>
+                <select className={selectClassName} onChange={(event) => updateEditFrequencia(event.target.value)} value={editForm.frequencia}>
                   <option value="">Selecione a frequencia</option>
                   <option value="Diaria">Diaria</option>
                   <option value="Semanal">Semanal</option>
@@ -815,7 +817,7 @@ export function PreDemandaDetailPage() {
                 <div className="flex flex-wrap gap-2">
                   {WEEKDAY_OPTIONS.map((item) => (
                     <Button
-                      className={editForm.frequencia_dias_semana.includes(item) ? "border-slate-950 bg-slate-950 text-white" : ""}
+                      className={editForm.frequencia_dias_semana.includes(item) ? "border-transparent bg-gradient-to-r from-blue-800 to-teal-600 text-white ring-0" : ""}
                       key={item}
                       onClick={() => toggleEditWeekday(item)}
                       size="sm"
@@ -841,7 +843,7 @@ export function PreDemandaDetailPage() {
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, audiencia_status: event.target.value }))} value={editForm.audiencia_status} />
               </FormField>
             </div>
-            <label className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <label className="flex items-center justify-between rounded-[24px] border border-sky-100/90 bg-white/90 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(20,33,61,0.04)]">
               <span>
                 <span className="block font-semibold text-slate-950">Pagamento envolvido</span>
                 <span className="text-slate-500">Sinalizador rapido para o caso.</span>
@@ -899,7 +901,7 @@ export function PreDemandaDetailPage() {
               {setores.map((item) => {
                 const checked = tramitarSetorIds.includes(item.id);
                 return (
-                  <label className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm" key={item.id}>
+                  <label className="flex items-center justify-between rounded-[24px] border border-sky-100/90 bg-white/90 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(20,33,61,0.04)]" key={item.id}>
                     <span>{item.sigla} - {item.nomeCompleto}</span>
                     <input
                       checked={checked}
@@ -1155,7 +1157,13 @@ function ToolbarActionButton({
   variant?: "secondary" | "ghost";
 }) {
   return (
-    <Button className="h-auto min-w-[92px] flex-col rounded-[24px] px-4 py-3 text-xs" onClick={onClick} title={title} type="button" variant={variant}>
+    <Button
+      className="h-auto min-w-[92px] flex-col rounded-[24px] border border-white/10 px-4 py-3 text-xs shadow-[0_12px_26px_rgba(20,33,61,0.12)]"
+      onClick={onClick}
+      title={title}
+      type="button"
+      variant={variant}
+    >
       <Icon className="h-5 w-5" />
       <span className="font-semibold">{label}</span>
     </Button>

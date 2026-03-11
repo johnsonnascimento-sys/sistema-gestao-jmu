@@ -39,20 +39,23 @@ export function LoginPage() {
   return (
     <div className="grid min-h-screen place-items-center px-4 py-8">
       <div className="grid w-full max-w-6xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-[36px] border border-slate-200/70 bg-[linear-gradient(135deg,rgba(13,27,42,0.94),rgba(20,33,61,0.94)),linear-gradient(135deg,rgba(244,162,97,0.22),transparent_50%)] p-8 text-white shadow-[0_28px_80px_rgba(20,33,61,0.2)]">
+        <section className="panel-noise relative overflow-hidden rounded-[40px] border border-white/10 bg-[linear-gradient(145deg,rgba(15,43,70,0.98),rgba(23,56,88,0.96))] p-8 text-white shadow-[0_32px_90px_rgba(20,33,61,0.24)]">
           <p className="text-xs font-bold uppercase tracking-[0.32em] text-amber-200">Gestor JMU</p>
-          <h1 className='mt-4 max-w-xl font-["IBM_Plex_Serif",Georgia,serif] text-4xl leading-tight sm:text-5xl'>Operacao pre-SEI e SEI sem dependencia externa.</h1>
-          <p className="mt-4 max-w-xl text-base text-slate-300">
-            Acompanhe demandas, associe processos, audite mudancas e administre o fluxo num unico painel interno.
+          <h1 className='mt-4 max-w-xl font-["IBM_Plex_Serif",Georgia,serif] text-4xl leading-tight sm:text-5xl'>
+            Centro de casos com
+            <span className="brand-text-gradient block"> linguagem institucional clara.</span>
+          </h1>
+          <p className="mt-4 max-w-xl text-base leading-7 text-slate-200/90">
+            Acompanhe processos, tramitacoes, interessados, documentos e governanca operacional num unico ambiente interno.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
             {[
-              "Kanban operacional por status",
-              "Timeline unificada com auditoria",
-              "Gestao de utilizadores e permissoes",
+              "Fila operacional com sinais de risco",
+              "Workbench processual inspirada no SEI",
+              "Governanca admin com triagem e resposta",
             ].map((item) => (
-              <div className="rounded-[24px] border border-white/10 bg-white/8 px-4 py-5 text-sm text-slate-200" key={item}>
+              <div className="rounded-[24px] border border-white/10 bg-white/8 px-4 py-5 text-sm text-slate-200 backdrop-blur-sm" key={item}>
                 {item}
               </div>
             ))}
@@ -61,7 +64,7 @@ export function LoginPage() {
 
         <Card className="self-center">
           <CardHeader>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-rose-600">Acesso interno</p>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-amber-700">Acesso interno</p>
             <CardTitle>Entrar no Gestor Web</CardTitle>
             <CardDescription>Use as credenciais do modulo administrativo para continuar.</CardDescription>
           </CardHeader>
