@@ -462,6 +462,31 @@ export function AdminOperationsPage() {
   ]
     .sort((left, right) => right.total - left.total)
     .slice(0, 3);
+  const suggestedDecision =
+    primaryAttentionItem && recurrencePathItems[0] && primaryAttentionItem.area === "Incidentes"
+      ? {
+          title: "Abrir incidente recorrente antes dos demais alertas",
+          description:
+            "A anomalia principal e a recorrencia actual apontam para o mesmo eixo de incidente. Vale atacar primeiro o cluster repetido para cortar ruido e impacto mais rapido.",
+          href: recurrencePathItems[0].href,
+          cta: recurrencePathItems[0].cta,
+        }
+      : primaryAttentionItem && recurrencePathItems[0] && primaryAttentionItem.area === "Operacoes"
+        ? {
+            title: "Investigar falha operacional repetida antes da fila",
+            description:
+              "O topo da triagem e a repeticao recente estao concentrados em operacoes. A melhor resposta imediata e estabilizar esse cluster antes de tratar efeitos secundarios.",
+            href: recurrencePathItems[0].href,
+            cta: recurrencePathItems[0].cta,
+          }
+        : primaryAttentionItem
+          ? {
+              title: "Seguir a maior anomalia do momento",
+              description: "Nao ha convergencia forte por repeticao nesta janela. O melhor proximo passo continua a ser a anomalia principal destacada acima.",
+              href: primaryAttentionItem.href,
+              cta: primaryAttentionItem.cta,
+            }
+          : null;
 
   return (
     <section className="grid gap-6">
@@ -692,6 +717,29 @@ export function AdminOperationsPage() {
                 </div>
               </article>
             ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {suggestedDecision ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Decisao sugerida</CardTitle>
+            <CardDescription>Sintese curta do que parece render a melhor resposta imediata nesta janela.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 rounded-[24px] border border-sky-200 bg-sky-50/70 px-4 py-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Proximo passo recomendado</p>
+              <h3 className="mt-1 text-base font-semibold text-slate-950">{suggestedDecision.title}</h3>
+            </div>
+            <p className="text-sm text-slate-700">{suggestedDecision.description}</p>
+            {suggestedDecision.href && suggestedDecision.cta ? (
+              <div>
+                <Button asChild variant="secondary">
+                  <Link to={suggestedDecision.href}>{suggestedDecision.cta}</Link>
+                </Button>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
