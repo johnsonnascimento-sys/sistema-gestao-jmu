@@ -1,4 +1,4 @@
-import { Activity, BookText, Building2, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Users } from "lucide-react";
+import { Activity, BookText, Building2, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth-context";
@@ -118,6 +118,12 @@ export function AppShell() {
               <NavLink className={navLinkClassName} to="/normas">
                 <BookText className="h-4 w-4" />
                 Normas
+              </NavLink>
+            ) : null}
+            {hasPermission("cadastro.assunto.read") ? (
+              <NavLink className={navLinkClassName} to="/assuntos">
+                <Tag className="h-4 w-4" />
+                Assuntos
               </NavLink>
             ) : null}
             {hasPermission("admin.user.read") ? (

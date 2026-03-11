@@ -16,6 +16,7 @@ import type {
   AdminUserAuditRecord,
   AdminUserSummary,
   Andamento,
+  Assunto,
   AppUser,
   DemandaComentario,
   DemandaDocumento,
@@ -38,6 +39,7 @@ import type {
 } from "./domain/types";
 import type {
   AddAndamentoInput,
+  AddDemandaAssuntoInput,
   AddDemandaInteressadoInput,
   AddDemandaVinculoInput,
   AddNumeroJudicialInput,
@@ -50,17 +52,20 @@ import type {
   CreatePreDemandaInput,
   CreatePreDemandaResult,
   CreateInteressadoInput,
+  CreateAssuntoInput,
   CreateNormaInput,
   CreateSetorInput,
   CreateTarefaInput,
   CreateUserInput,
   InteressadoRepository,
+  AssuntoRepository,
   ListPreDemandasParams,
   ListPreDemandasResult,
   ListInteressadosParams,
   ListInteressadosResult,
   PreDemandaRepository,
   RemoveDocumentoInput,
+  RemoveDemandaAssuntoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
   RemoveNumeroJudicialInput,
@@ -71,6 +76,7 @@ import type {
   TramitarPreDemandaInput,
   UpdateComentarioInput,
   UpdateInteressadoInput,
+  UpdateAssuntoInput,
   UpdateNormaInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
@@ -273,6 +279,36 @@ function defaultMetadata(metadata?: Partial<PreDemandaMetadata> | null): PreDema
   };
 }
 
+function buildAssuntoStub(id: string, withSetor = false): Assunto {
+  const now = new Date().toISOString();
+  return {
+    id,
+    nome: `Assunto ${id.slice(0, 4)}`,
+    descricao: null,
+    createdAt: now,
+    updatedAt: now,
+    normas: [],
+    procedimentos: [
+      {
+        id: `proc-${id}-1`,
+        ordem: 1,
+        descricao: "Passo padrao",
+        setorDestino: withSetor
+          ? {
+              id: "123e4567-e89b-42d3-a456-000000000001",
+              sigla: "DIPES",
+              nomeCompleto: "Diretoria de Pessoal",
+              createdAt: now,
+              updatedAt: now,
+            }
+          : null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  };
+}
+
 class InMemoryPreDemandaRepository implements PreDemandaRepository {
   private records: PreDemandaDetail[] = [];
   private audit: PreDemandaAuditRecord[] = [];
@@ -394,6 +430,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             },
           ]
         : [],
+      assuntos: (input.assuntoIds ?? []).map((assuntoId) => ({
+        assunto: buildAssuntoStub(assuntoId),
+        linkedAt: now,
+        linkedBy: null,
+      })),
       numerosJudiciais: input.numeroJudicial ? [{ numero: input.numeroJudicial, principal: true, createdAt: now }] : [],
       queueHealth: buildQueueHealth(initialStatus, now, input.dataReferencia, this.queueHealthThresholds),
       allowedNextStatuses: getAllowedNextStatuses({ currentStatus: initialStatus, hasAssociation: Boolean(input.seiNumero) }),
@@ -436,7 +477,21 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       ],
       documentos: [],
       comentarios: [],
-      tarefasPendentes: [],
+      tarefasPendentes: (input.assuntoIds ?? []).map((assuntoId, index) => ({
+        id: `123e4567-e89b-42d3-a456-${String(index + 1).padStart(12, "0")}`,
+        preId,
+        descricao: `[${buildAssuntoStub(assuntoId).nome}] 1. Passo padrao`,
+        tipo: "fixa",
+        assuntoId,
+        procedimentoId: `proc-${assuntoId}-1`,
+        setorDestino: null,
+        geradaAutomaticamente: true,
+        concluida: false,
+        concluidaEm: null,
+        concluidaPor: null,
+        createdAt: now,
+        createdBy: null,
+      })),
       recentAndamentos: [],
     };
 
@@ -584,6 +639,55 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     record.anotacoes = input.anotacoes;
+    return this.touch(record);
+  }
+
+  async addAssunto(input: AddDemandaAssuntoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    if (record.assuntos.some((item) => item.assunto.id === input.assuntoId)) {
+      throw new Error("duplicate");
+    }
+    const assunto = buildAssuntoStub(input.assuntoId, true);
+    const procedimento = assunto.procedimentos[0]!;
+    record.assuntos.unshift({
+      assunto,
+      linkedAt: new Date().toISOString(),
+      linkedBy: null,
+    });
+    record.tarefasPendentes.unshift({
+      id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
+      preId: record.preId,
+      descricao: `[${assunto.nome}] 1. ${procedimento.descricao}`,
+      tipo: "fixa",
+      assuntoId: assunto.id,
+      procedimentoId: procedimento.id,
+      setorDestino: procedimento.setorDestino,
+      geradaAutomaticamente: true,
+      concluida: false,
+      concluidaEm: null,
+      concluidaPor: null,
+      createdAt: new Date().toISOString(),
+      createdBy: null,
+    });
+    this.addAndamentoRecord(record, `Assunto vinculado ao processo: ${assunto.nome}.`, "sistema");
+    return this.touch(record);
+  }
+
+  async removeAssunto(input: RemoveDemandaAssuntoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    const current = record.assuntos.find((item) => item.assunto.id === input.assuntoId);
+    if (!current) {
+      throw new Error("not found");
+    }
+    record.assuntos = record.assuntos.filter((item) => item.assunto.id !== input.assuntoId);
+    record.tarefasPendentes = record.tarefasPendentes.filter((item) => item.assuntoId !== input.assuntoId || item.concluida);
+    this.addAndamentoRecord(record, `Assunto removido do processo: ${current.assunto.nome}.`, "sistema");
     return this.touch(record);
   }
 
@@ -778,6 +882,18 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       preId: record.preId,
       descricao: input.descricao,
       tipo: input.tipo,
+      assuntoId: input.assuntoId ?? null,
+      procedimentoId: input.procedimentoId ?? null,
+      setorDestino: input.setorDestinoId
+        ? {
+            id: input.setorDestinoId,
+            sigla: "DIPES",
+            nomeCompleto: "Diretoria de Pessoal",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        : null,
+      geradaAutomaticamente: input.geradaAutomaticamente ?? false,
       concluida: false,
       concluidaEm: null,
       concluidaPor: null,
@@ -806,6 +922,23 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     tarefa.concluida = true;
     tarefa.concluidaEm = new Date().toISOString();
+    if (tarefa.setorDestino) {
+      record.setorAtual = tarefa.setorDestino;
+      if (!record.setoresAtivos.some((item) => item.setor.id === tarefa.setorDestino!.id)) {
+        record.setoresAtivos.unshift({
+          id: `fluxo-${record.id}-${Date.now()}`,
+          status: "ativo",
+          observacoes: "Tramitacao gerada automaticamente por conclusao de procedimento.",
+          createdAt: new Date().toISOString(),
+          createdBy: null,
+          concluidaEm: null,
+          concluidaPor: null,
+          setor: tarefa.setorDestino,
+          origemSetor: record.setorAtual,
+        });
+      }
+      this.addAndamentoRecord(record, `Processo remetido para ${tarefa.setorDestino.sigla}.`, "tramitacao");
+    }
     this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
     return tarefa;
   }
@@ -1237,6 +1370,97 @@ class InMemoryNormaRepository implements NormaRepository {
   }
 }
 
+class InMemoryAssuntoRepository implements AssuntoRepository {
+  private items = new Map<string, Assunto>();
+  private nextId = 1;
+
+  async list() {
+    return Array.from(this.items.values()).sort((left, right) => left.nome.localeCompare(right.nome));
+  }
+
+  async getById(id: string) {
+    return this.items.get(id) ?? null;
+  }
+
+  async create(input: CreateAssuntoInput) {
+    const id = `123e4567-e89b-42d3-a456-${String(this.nextId++).padStart(12, "0")}`;
+    const now = new Date().toISOString();
+    const record: Assunto = {
+      id,
+      nome: input.nome,
+      descricao: input.descricao ?? null,
+      createdAt: now,
+      updatedAt: now,
+      normas: (input.normaIds ?? []).map((normaId, index) => ({
+        id: normaId,
+        numero: `NORMA-${index + 1}`,
+        dataNorma: "2026-03-11",
+        origem: "Teste",
+        createdAt: now,
+        updatedAt: now,
+      })),
+      procedimentos: (input.procedimentos ?? []).map((item, index) => ({
+        id: `proc-${this.nextId}-${index + 1}`,
+        ordem: item.ordem ?? index + 1,
+        descricao: item.descricao,
+        setorDestino: item.setorDestinoId
+          ? {
+              id: item.setorDestinoId,
+              sigla: "DIPES",
+              nomeCompleto: "Diretoria de Pessoal",
+              createdAt: now,
+              updatedAt: now,
+            }
+          : null,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    };
+    this.items.set(id, record);
+    return record;
+  }
+
+  async update(input: UpdateAssuntoInput) {
+    const current = this.items.get(input.id);
+    if (!current) {
+      throw new Error("not found");
+    }
+    const now = new Date().toISOString();
+    const next: Assunto = {
+      ...current,
+      nome: input.nome,
+      descricao: input.descricao ?? null,
+      updatedAt: now,
+      normas: (input.normaIds ?? []).map((normaId, index) => ({
+        id: normaId,
+        numero: `NORMA-${index + 1}`,
+        dataNorma: "2026-03-11",
+        origem: "Teste",
+        createdAt: now,
+        updatedAt: now,
+      })),
+      procedimentos: (input.procedimentos ?? []).map((item, index) => ({
+        id: `proc-${input.id}-${index + 1}`,
+        ordem: item.ordem ?? index + 1,
+        descricao: item.descricao,
+        setorDestino: item.setorDestinoId
+          ? {
+              id: item.setorDestinoId,
+              sigla: "DIPES",
+              nomeCompleto: "Diretoria de Pessoal",
+              createdAt: now,
+              updatedAt: now,
+            }
+          : null,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    };
+    this.items.set(input.id, next);
+    return next;
+  }
+}
+
 class InMemorySetorRepository implements SetorRepository {
   private items = new Map<string, Setor>([
     [
@@ -1345,6 +1569,7 @@ describe("Gestor JMU API", () => {
   const interessadoRepository = new InMemoryInteressadoRepository();
   const setorRepository = new InMemorySetorRepository();
   const normaRepository = new InMemoryNormaRepository();
+  const assuntoRepository = new InMemoryAssuntoRepository();
   const migration001Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "001_gestor_bootstrap.sql"), "utf8")).digest("hex");
   const migration002Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "002_admin_user_audit.sql"), "utf8")).digest("hex");
   const pool = {
@@ -1409,6 +1634,7 @@ describe("Gestor JMU API", () => {
       settingsRepository,
       preDemandaRepository,
       interessadoRepository,
+      assuntoRepository,
       setorRepository,
       normaRepository,
     });

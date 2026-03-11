@@ -1,7 +1,9 @@
 import type { PoolClient, QueryResultRow } from "pg";
 import type {
+  Assunto,
   Andamento,
   AuditActor,
+  DemandaAssunto,
   DemandaComentario,
   DemandaDocumento,
   DemandaInteressado,
@@ -27,6 +29,7 @@ import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-he
 import { AppError } from "../errors";
 import type {
   AddAndamentoInput,
+  AddDemandaAssuntoInput,
   AddDemandaInteressadoInput,
   AddDemandaVinculoInput,
   AddNumeroJudicialInput,
@@ -44,6 +47,7 @@ import type {
   ListPreDemandasResult,
   PreDemandaRepository,
   RemoveDocumentoInput,
+  RemoveDemandaAssuntoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
   RemoveNumeroJudicialInput,
@@ -254,6 +258,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     queueHealth: buildQueueHealth(status, row.updated_at, row.data_referencia, queueHealthThresholds),
     allowedNextStatuses: getAllowedNextStatuses({ currentStatus: status, hasAssociation: currentAssociation !== null }),
     currentAssociation,
+    assuntos: [],
     seiAssociations: currentAssociation ? [currentAssociation] : [],
     numerosJudiciais: numeroJudicial
       ? [{ numero: numeroJudicial, principal: true, createdAt: new Date(row.updated_at ?? row.created_at).toISOString() }]
@@ -358,11 +363,27 @@ function mapTarefa(row: QueryResultRow): TarefaPendente {
     preId: String(row.pre_id),
     descricao: String(row.descricao),
     tipo: row.tipo as TarefaPendente["tipo"],
+    assuntoId: row.assunto_id ? String(row.assunto_id) : null,
+    procedimentoId: row.procedimento_id ? String(row.procedimento_id) : null,
+    setorDestino: mapSetor(row, "setor_destino"),
+    geradaAutomaticamente: Boolean(row.gerada_automaticamente),
     concluida: Boolean(row.concluida),
     concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
     concluidaPor: mapActor(row, "concluida_por"),
     createdAt: new Date(row.created_at).toISOString(),
     createdBy: mapActor(row, "created_by"),
+  };
+}
+
+function mapAssunto(row: QueryResultRow): Assunto {
+  return {
+    id: String(row.assunto_id),
+    nome: String(row.assunto_nome),
+    descricao: row.assunto_descricao ? String(row.assunto_descricao) : null,
+    createdAt: new Date(row.assunto_created_at).toISOString(),
+    updatedAt: new Date(row.assunto_updated_at).toISOString(),
+    normas: [],
+    procedimentos: [],
   };
 }
 
@@ -635,6 +656,105 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return result.rows.map(mapDemandaInteressado);
   }
 
+  private async loadAssuntos(queryable: Queryable, preDemandaId: number): Promise<DemandaAssunto[]> {
+    const links = await queryable.query(
+      `
+        select
+          da.created_at,
+          assunto.id as assunto_id,
+          assunto.nome as assunto_nome,
+          assunto.descricao as assunto_descricao,
+          assunto.created_at as assunto_created_at,
+          assunto.updated_at as assunto_updated_at,
+          linked_by.id as linked_by_id,
+          linked_by.email as linked_by_email,
+          linked_by.name as linked_by_name,
+          linked_by.role as linked_by_role
+        from adminlog.demanda_assuntos da
+        inner join adminlog.assuntos assunto on assunto.id = da.assunto_id
+        left join adminlog.app_user linked_by on linked_by.id = da.created_by_user_id
+        where da.pre_demanda_id = $1
+        order by da.created_at desc, assunto.nome asc
+      `,
+      [preDemandaId],
+    );
+
+    if (!links.rows.length) {
+      return [];
+    }
+
+    const assuntoIds = links.rows.map((row) => String(row.assunto_id));
+    const [normasResult, procedimentosResult] = await Promise.all([
+      queryable.query(
+        `
+          select
+            assunto_norma.assunto_id,
+            norma.*
+          from adminlog.assunto_normas assunto_norma
+          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
+          where assunto_norma.assunto_id = any($1::uuid[])
+          order by norma.data_norma desc, norma.numero asc
+        `,
+        [assuntoIds],
+      ),
+      queryable.query(
+        `
+          select
+            procedimento.*,
+            setor.id as setor_id,
+            setor.sigla as setor_sigla,
+            setor.nome_completo as setor_nome_completo,
+            setor.created_at as setor_created_at,
+            setor.updated_at as setor_updated_at
+          from adminlog.assunto_procedimentos procedimento
+          left join adminlog.setores setor on setor.id = procedimento.setor_destino_id
+          where procedimento.assunto_id = any($1::uuid[])
+          order by procedimento.ordem asc, procedimento.created_at asc
+        `,
+        [assuntoIds],
+      ),
+    ]);
+
+    const normasByAssunto = new Map<string, Assunto["normas"]>();
+    for (const row of normasResult.rows) {
+      const list = normasByAssunto.get(String(row.assunto_id)) ?? [];
+      list.push({
+        id: String(row.id),
+        numero: String(row.numero),
+        dataNorma: new Date(row.data_norma).toISOString().slice(0, 10),
+        origem: String(row.origem),
+        createdAt: new Date(row.created_at).toISOString(),
+        updatedAt: new Date(row.updated_at).toISOString(),
+      });
+      normasByAssunto.set(String(row.assunto_id), list);
+    }
+
+    const procedimentosByAssunto = new Map<string, Assunto["procedimentos"]>();
+    for (const row of procedimentosResult.rows) {
+      const list = procedimentosByAssunto.get(String(row.assunto_id)) ?? [];
+      list.push({
+        id: String(row.id),
+        ordem: Number(row.ordem),
+        descricao: String(row.descricao),
+        setorDestino: mapSetor(row, "setor"),
+        createdAt: new Date(row.created_at).toISOString(),
+        updatedAt: new Date(row.updated_at).toISOString(),
+      });
+      procedimentosByAssunto.set(String(row.assunto_id), list);
+    }
+
+    return links.rows.map((row) => {
+      const assunto = mapAssunto(row);
+      assunto.normas = normasByAssunto.get(assunto.id) ?? [];
+      assunto.procedimentos = procedimentosByAssunto.get(assunto.id) ?? [];
+      return {
+        assunto,
+        linkedAt: new Date(row.created_at).toISOString(),
+        linkedBy: mapActor(row, "linked_by"),
+      };
+    });
+  }
+
   private async loadSeiAssociations(queryable: Queryable, preDemandaId: number, preId: string) {
     const result = await queryable.query(
       `
@@ -859,6 +979,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           $2::text as pre_id,
           tarefa.descricao,
           tarefa.tipo,
+          tarefa.assunto_id,
+          tarefa.procedimento_id,
+          tarefa.gerada_automaticamente,
           tarefa.concluida,
           tarefa.concluida_em,
           tarefa.created_at,
@@ -869,10 +992,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           created_by.id as created_by_id,
           created_by.email as created_by_email,
           created_by.name as created_by_name,
-          created_by.role as created_by_role
+          created_by.role as created_by_role,
+          setor_destino.id as setor_destino_id,
+          setor_destino.sigla as setor_destino_sigla,
+          setor_destino.nome_completo as setor_destino_nome_completo,
+          setor_destino.created_at as setor_destino_created_at,
+          setor_destino.updated_at as setor_destino_updated_at
         from adminlog.tarefas_pendentes tarefa
         left join adminlog.app_user concluida_por on concluida_por.id = tarefa.concluida_por_user_id
         left join adminlog.app_user created_by on created_by.id = tarefa.created_by_user_id
+        left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
         where tarefa.pre_demanda_id = $1
         order by tarefa.concluida asc, tarefa.created_at desc, tarefa.id desc
       `,
@@ -884,7 +1013,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
+    const [assuntos, interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
+      this.loadAssuntos(queryable, detail.id),
       this.loadInteressados(queryable, detail.id),
       this.loadVinculos(queryable, detail.id),
       this.loadSetoresAtivos(queryable, detail.id),
@@ -896,6 +1026,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.loadNumerosJudiciais(queryable, detail.id),
     ]);
 
+    detail.assuntos = assuntos;
     detail.interessados = interessados;
     detail.vinculos = vinculos;
     detail.setoresAtivos = setoresAtivos;
@@ -963,6 +1094,126 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     );
 
     return mapAndamento(result.rows[0]);
+  }
+
+  private async syncAssuntoProcedimentoTarefas(
+    queryable: Queryable,
+    input: { preDemandaId: number; preId: string; assuntoId: string; changedByUserId: number },
+  ) {
+    const assuntoResult = await queryable.query(
+      `
+        select id, nome
+        from adminlog.assuntos
+        where id = $1::uuid
+        limit 1
+      `,
+      [input.assuntoId],
+    );
+
+    if (!assuntoResult.rows[0]) {
+      throw new AppError(404, "ASSUNTO_NOT_FOUND", "Assunto nao encontrado.");
+    }
+
+    const procedimentos = await queryable.query(
+      `
+        select procedimento.id, procedimento.ordem, procedimento.descricao, procedimento.setor_destino_id
+        from adminlog.assunto_procedimentos procedimento
+        where procedimento.assunto_id = $1::uuid
+        order by procedimento.ordem asc, procedimento.created_at asc
+      `,
+      [input.assuntoId],
+    );
+
+    for (const procedimento of procedimentos.rows) {
+      await queryable.query(
+        `
+          insert into adminlog.tarefas_pendentes (
+            pre_demanda_id,
+            descricao,
+            tipo,
+            assunto_id,
+            procedimento_id,
+            setor_destino_id,
+            gerada_automaticamente,
+            created_by_user_id
+          )
+          values ($1, $2, 'fixa', $3::uuid, $4::uuid, $5::uuid, true, $6)
+          on conflict (pre_demanda_id, procedimento_id) where procedimento_id is not null do nothing
+        `,
+        [
+          input.preDemandaId,
+          `[${String(assuntoResult.rows[0].nome)}] ${Number(procedimento.ordem)}. ${String(procedimento.descricao)}`,
+          input.assuntoId,
+          String(procedimento.id),
+          procedimento.setor_destino_id ? String(procedimento.setor_destino_id) : null,
+          input.changedByUserId,
+        ],
+      );
+    }
+  }
+
+  private async activateSetorFromTarefa(
+    queryable: Queryable,
+    input: { preDemandaId: number; preId: string; setorDestinoId: string; changedByUserId: number },
+  ) {
+    const row = await getPreDemandaRowByPreId(queryable, input.preId);
+    if (!row) {
+      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+    }
+
+    const setorResult = await queryable.query(
+      "select id, sigla from adminlog.setores where id = $1::uuid limit 1",
+      [input.setorDestinoId],
+    );
+    if (!setorResult.rows[0]) {
+      throw new AppError(404, "SETOR_NOT_FOUND", "Setor destino nao encontrado.");
+    }
+
+    const active = await queryable.query(
+      `
+        select id
+        from adminlog.demanda_setores_fluxo
+        where pre_demanda_id = $1
+          and setor_id = $2::uuid
+          and status = 'ativo'
+        limit 1
+      `,
+      [input.preDemandaId, input.setorDestinoId],
+    );
+
+    if (!active.rows[0]) {
+      await queryable.query(
+        `
+          insert into adminlog.demanda_setores_fluxo (
+            pre_demanda_id,
+            setor_id,
+            status,
+            origem_setor_id,
+            observacoes,
+            created_by_user_id
+          )
+          values ($1, $2::uuid, 'ativo', $3::uuid, $4, $5)
+        `,
+        [
+          input.preDemandaId,
+          input.setorDestinoId,
+          row.setor_id ?? null,
+          "Tramitacao gerada automaticamente por conclusao de procedimento.",
+          input.changedByUserId,
+        ],
+      );
+    }
+
+    await queryable.query("update adminlog.pre_demanda set setor_atual_id = $2::uuid where pre_id = $1", [input.preId, input.setorDestinoId]);
+    const origemSigla = row.setor_sigla ? String(row.setor_sigla) : null;
+    const destinoSigla = String(setorResult.rows[0].sigla);
+    await this.insertAndamento(queryable, {
+      preDemandaId: input.preDemandaId,
+      preId: input.preId,
+      descricao: origemSigla ? `Processo remetido de ${origemSigla} para ${destinoSigla}.` : `Processo remetido para ${destinoSigla}.`,
+      tipo: "tramitacao",
+      createdByUserId: input.changedByUserId,
+    });
   }
 
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
@@ -1130,6 +1381,23 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             `,
             [preDemandaId, input.numeroJudicial, input.createdByUserId],
           );
+        }
+
+        for (const assuntoId of Array.from(new Set(input.assuntoIds ?? []))) {
+          await client.query(
+            `
+              insert into adminlog.demanda_assuntos (pre_demanda_id, assunto_id, created_by_user_id)
+              values ($1, $2::uuid, $3)
+              on conflict do nothing
+            `,
+            [preDemandaId, assuntoId, input.createdByUserId],
+          );
+          await this.syncAssuntoProcedimentoTarefas(client, {
+            preDemandaId,
+            preId: nextPreId,
+            assuntoId,
+            changedByUserId: input.createdByUserId,
+          });
         }
 
         return nextPreId;
@@ -1339,6 +1607,91 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     }
 
     return record;
+  }
+
+  async addAssunto(input: AddDemandaAssuntoInput) {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      try {
+        await client.query(
+          `
+            insert into adminlog.demanda_assuntos (pre_demanda_id, assunto_id, created_by_user_id)
+            values ($1, $2::uuid, $3)
+          `,
+          [demanda.id, input.assuntoId, input.changedByUserId],
+        );
+      } catch (error) {
+        const pgError = error as { code?: string };
+        if (pgError.code === "23505") {
+          throw new AppError(409, "DEMANDA_ASSUNTO_DUPLICATE", "O assunto ja esta vinculado a esta demanda.");
+        }
+        throw error;
+      }
+
+      await this.syncAssuntoProcedimentoTarefas(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        assuntoId: input.assuntoId,
+        changedByUserId: input.changedByUserId,
+      });
+
+      const assunto = await this.loadAssuntos(client, demanda.id);
+      const linked = assunto.find((item) => item.assunto.id === input.assuntoId);
+      if (linked) {
+        await this.insertAndamento(client, {
+          preDemandaId: demanda.id,
+          preId: demanda.preId,
+          descricao: `Assunto vinculado ao processo: ${linked.assunto.nome}.`,
+          tipo: "sistema",
+          createdByUserId: input.changedByUserId,
+        });
+      }
+
+      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
+      if (!record) {
+        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
+      }
+      return record;
+    });
+  }
+
+  async removeAssunto(input: RemoveDemandaAssuntoInput) {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const current = await this.loadAssuntos(client, demanda.id);
+      const linked = current.find((item) => item.assunto.id === input.assuntoId);
+      if (!linked) {
+        throw new AppError(404, "DEMANDA_ASSUNTO_NOT_FOUND", "Assunto nao vinculado a esta demanda.");
+      }
+
+      await client.query("delete from adminlog.demanda_assuntos where pre_demanda_id = $1 and assunto_id = $2::uuid", [demanda.id, input.assuntoId]);
+      await client.query(
+        `
+          delete from adminlog.tarefas_pendentes
+          where pre_demanda_id = $1
+            and assunto_id = $2::uuid
+            and gerada_automaticamente = true
+            and concluida = false
+        `,
+        [demanda.id, input.assuntoId],
+      );
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Assunto removido do processo: ${linked.assunto.nome}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
+      if (!record) {
+        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
+      }
+      return record;
+    });
   }
 
   async addNumeroJudicial(input: AddNumeroJudicialInput) {
@@ -1693,11 +2046,29 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       const demanda = await getResolvedPreDemanda(client, input.preId);
       const inserted = await client.query(
         `
-          insert into adminlog.tarefas_pendentes (pre_demanda_id, descricao, tipo, created_by_user_id)
-          values ($1, $2, $3, $4)
+          insert into adminlog.tarefas_pendentes (
+            pre_demanda_id,
+            descricao,
+            tipo,
+            assunto_id,
+            procedimento_id,
+            setor_destino_id,
+            gerada_automaticamente,
+            created_by_user_id
+          )
+          values ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7, $8)
           returning id
         `,
-        [demanda.id, input.descricao, input.tipo, input.changedByUserId],
+        [
+          demanda.id,
+          input.descricao,
+          input.tipo,
+          input.assuntoId ?? null,
+          input.procedimentoId ?? null,
+          input.setorDestinoId ?? null,
+          input.geradaAutomaticamente ?? false,
+          input.changedByUserId,
+        ],
       );
 
       const result = await client.query(
@@ -1707,6 +2078,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             $2::text as pre_id,
             tarefa.descricao,
             tarefa.tipo,
+            tarefa.assunto_id,
+            tarefa.procedimento_id,
+            tarefa.gerada_automaticamente,
             tarefa.concluida,
             tarefa.concluida_em,
             tarefa.created_at,
@@ -1717,10 +2091,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             created_by.id as created_by_id,
             created_by.email as created_by_email,
             created_by.name as created_by_name,
-            created_by.role as created_by_role
+            created_by.role as created_by_role,
+            setor_destino.id as setor_destino_id,
+            setor_destino.sigla as setor_destino_sigla,
+            setor_destino.nome_completo as setor_destino_nome_completo,
+            setor_destino.created_at as setor_destino_created_at,
+            setor_destino.updated_at as setor_destino_updated_at
           from adminlog.tarefas_pendentes tarefa
           left join adminlog.app_user concluida_por on concluida_por.id = tarefa.concluida_por_user_id
           left join adminlog.app_user created_by on created_by.id = tarefa.created_by_user_id
+          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
           where tarefa.id = $1::uuid
           limit 1
         `,
@@ -1737,6 +2117,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       const current = await client.query(
         `
           select id, descricao, concluida
+               , setor_destino_id
           from adminlog.tarefas_pendentes
           where id = $1::uuid and pre_demanda_id = $2
           limit 1
@@ -1761,6 +2142,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `,
         [input.tarefaId, demanda.id, input.changedByUserId],
       );
+
+      if (current.rows[0].setor_destino_id) {
+        await this.activateSetorFromTarefa(client, {
+          preDemandaId: demanda.id,
+          preId: demanda.preId,
+          setorDestinoId: String(current.rows[0].setor_destino_id),
+          changedByUserId: input.changedByUserId,
+        });
+      }
 
       await this.insertAndamento(client, {
         preDemandaId: demanda.id,

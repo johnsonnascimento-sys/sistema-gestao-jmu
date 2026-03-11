@@ -35,6 +35,7 @@ const createSchema = z.object({
   prazo_final: z.string().date().optional().nullable(),
   sei_numero: z.string().trim().regex(SEI_REGEX, "Numero SEI invalido.").optional().nullable(),
   numero_judicial: z.string().trim().max(100).optional().nullable(),
+  assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
 })
   .refine((value) => Boolean(value.pessoa_solicitante_id) || Boolean(value.solicitante?.trim()), {
@@ -106,6 +107,10 @@ const anotacoesSchema = z.object({
 const interessadoSchema = z.object({
   interessado_id: z.string().uuid(),
   papel: z.enum(["solicitante", "interessado"]),
+});
+
+const assuntoLinkSchema = z.object({
+  assunto_id: z.string().uuid(),
 });
 
 const vinculoSchema = z.object({
@@ -215,6 +220,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       prazoFinal: payload.prazo_final ?? null,
       seiNumero: emptyToNull(payload.sei_numero),
       numeroJudicial: emptyToNull(payload.numero_judicial),
+      assuntoIds: payload.assunto_ids,
       metadata: normalizeMetadata(payload.metadata) ?? null,
       createdByUserId: request.user!.id,
     });
@@ -345,6 +351,29 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       data: record,
       error: null,
     });
+  });
+
+  app.post("/api/pre-demandas/:preId/assuntos", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const payload = assuntoLinkSchema.parse(request.body);
+    const data = await preDemandaRepository.addAssunto({
+      preId: params.preId,
+      assuntoId: payload.assunto_id,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.status(201).send({ ok: true, data, error: null });
+  });
+
+  app.delete("/api/pre-demandas/:preId/assuntos/:assuntoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), assuntoId: z.string().uuid() }).parse(request.params);
+    const data = await preDemandaRepository.removeAssunto({
+      preId: params.preId,
+      assuntoId: params.assuntoId,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({ ok: true, data, error: null });
   });
 
   app.post("/api/pre-demandas/:preId/interessados", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_interessados")] }, async (request, reply) => {

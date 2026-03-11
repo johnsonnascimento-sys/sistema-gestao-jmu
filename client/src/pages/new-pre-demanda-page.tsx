@@ -6,8 +6,8 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { ApiError, appendRequestReference, createPreDemanda, formatAppError, listPessoas } from "../lib/api";
-import type { Pessoa } from "../types";
+import { ApiError, appendRequestReference, createPreDemanda, formatAppError, listAssuntos, listPessoas } from "../lib/api";
+import type { Assunto, Pessoa } from "../types";
 import { formatSeiInput, isValidSei } from "../lib/sei";
 
 type EntryType = "existing" | "eventual" | "continuous";
@@ -58,6 +58,8 @@ export function NewPreDemandaPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pessoaSearch, setPessoaSearch] = useState("");
   const [pessoaResults, setPessoaResults] = useState<Pessoa[]>([]);
+  const [assuntos, setAssuntos] = useState<Assunto[]>([]);
+  const [selectedAssuntoIds, setSelectedAssuntoIds] = useState<string[]>([]);
   const isSeiValid = !form.sei_numero || isValidSei(form.sei_numero);
   const isContinuous = entryType === "continuous";
   const showNumbers = entryType === "existing";
@@ -66,6 +68,14 @@ export function NewPreDemandaPage() {
   const requiresPrazo = !hasContinuousFrequency;
   const isSubmitBlocked =
     isSubmitting || !form.pessoa_solicitante_id || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim()) || (requiresPrazo && !form.prazo_final);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setAssuntos(await listAssuntos());
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     if (pessoaSearch.trim().length < 2) {
@@ -151,6 +161,7 @@ export function NewPreDemandaPage() {
         sei_numero: showNumbers ? form.sei_numero || null : null,
         prazo_final: form.prazo_final || null,
         numero_judicial: showNumbers ? form.numero_judicial || null : null,
+        assunto_ids: selectedAssuntoIds,
         metadata: {
           frequencia: form.frequencia || null,
           frequencia_dias_semana: form.frequencia === "Semanal" ? form.frequencia_dias_semana : null,
@@ -243,6 +254,32 @@ export function NewPreDemandaPage() {
             <FormField label="Assunto">
               <Input onChange={(event) => setForm((current) => ({ ...current, assunto: event.target.value }))} value={form.assunto} />
             </FormField>
+
+            <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">cada assunto gera checklist a partir do fluxo cadastrado</p>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                {assuntos.map((assunto) => (
+                  <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm" key={assunto.id}>
+                    <input
+                      checked={selectedAssuntoIds.includes(assunto.id)}
+                      onChange={(event) =>
+                        setSelectedAssuntoIds((current) =>
+                          event.target.checked ? [...current, assunto.id] : current.filter((item) => item !== assunto.id),
+                        )
+                      }
+                      type="checkbox"
+                    />
+                    <span>
+                      <span className="block font-semibold text-slate-950">{assunto.nome}</span>
+                      <span className="block text-slate-500">{assunto.procedimentos.length} passos • {assunto.normas.length} normas</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
 
             <FormField label="Data de referencia">
               <Input onChange={(event) => setForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={form.data_referencia} />

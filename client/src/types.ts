@@ -18,6 +18,8 @@ export type AppPermission =
   | "cadastro.setor.write"
   | "cadastro.norma.read"
   | "cadastro.norma.write"
+  | "cadastro.assunto.read"
+  | "cadastro.assunto.write"
   | "admin.ops.read"
   | "admin.ops.update"
   | "admin.user.read"
@@ -94,6 +96,25 @@ export interface Norma {
   numero: string;
   dataNorma: string;
   origem: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssuntoProcedimento {
+  id: string;
+  ordem: number;
+  descricao: string;
+  setorDestino: Setor | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Assunto {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  normas: Norma[];
+  procedimentos: AssuntoProcedimento[];
   createdAt: string;
   updatedAt: string;
 }
@@ -194,11 +215,21 @@ export interface TarefaPendente {
   preId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  assuntoId: string | null;
+  procedimentoId: string | null;
+  setorDestino: Setor | null;
+  geradaAutomaticamente: boolean;
   concluida: boolean;
   concluidaEm: string | null;
   concluidaPor: AuditActor | null;
   createdAt: string;
   createdBy: AuditActor | null;
+}
+
+export interface DemandaAssunto {
+  assunto: Assunto;
+  linkedAt: string;
+  linkedBy: AuditActor | null;
 }
 
 export interface AuthUser {
@@ -282,6 +313,7 @@ export interface PreDemanda {
   updatedAt: string;
   createdBy: AuditActor | null;
   currentAssociation: SeiAssociation | null;
+  assuntos: DemandaAssunto[];
   seiAssociations: SeiAssociation[];
   numerosJudiciais: DemandaNumeroJudicial[];
   queueHealth: QueueHealth;

@@ -3,6 +3,7 @@ import type {
   AdminUserAuditRecord,
   AdminUserSummary,
   Andamento,
+  Assunto,
   AuthUser,
   DemandaComentario,
   DemandaInteressado,
@@ -128,6 +129,7 @@ export interface CreatePreDemandaPayload {
   prazo_final?: string | null;
   sei_numero?: string | null;
   numero_judicial?: string | null;
+  assunto_ids?: string[];
   metadata?: {
     frequencia?: string | null;
     frequencia_dias_semana?: string[] | null;
@@ -255,6 +257,19 @@ export function createPreDemanda(payload: CreatePreDemandaPayload) {
   return request<PreDemanda & { idempotent: boolean; existingPreId: string | null }>("/api/pre-demandas", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function addPreDemandaAssunto(preId: string, assuntoId: string) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/assuntos`, {
+    method: "POST",
+    body: JSON.stringify({ assunto_id: assuntoId }),
+  });
+}
+
+export function removePreDemandaAssunto(preId: string, assuntoId: string) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/assuntos/${assuntoId}`, {
+    method: "DELETE",
   });
 }
 
@@ -507,6 +522,37 @@ export function createNorma(payload: { numero: string; data_norma: string; orige
 
 export function updateNorma(id: string, payload: { numero: string; data_norma: string; origem: string }) {
   return request<Norma>(`/api/normas/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listAssuntos() {
+  return request<Assunto[]>("/api/assuntos");
+}
+
+export function createAssunto(payload: {
+  nome: string;
+  descricao?: string | null;
+  norma_ids?: string[];
+  procedimentos?: Array<{ ordem?: number; descricao: string; setor_destino_id?: string | null }>;
+}) {
+  return request<Assunto>("/api/assuntos", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAssunto(
+  id: string,
+  payload: {
+    nome: string;
+    descricao?: string | null;
+    norma_ids?: string[];
+    procedimentos?: Array<{ ordem?: number; descricao: string; setor_destino_id?: string | null }>;
+  },
+) {
+  return request<Assunto>(`/api/assuntos/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

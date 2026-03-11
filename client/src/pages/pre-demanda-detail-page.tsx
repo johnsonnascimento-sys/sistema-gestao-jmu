@@ -27,6 +27,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import {
   addPreDemandaAndamento,
+  addPreDemandaAssunto,
   addPreDemandaInteressado,
   addPreDemandaVinculo,
   associateSei,
@@ -41,10 +42,12 @@ import {
   formatAppError,
   getPreDemanda,
   getTimeline,
+  listAssuntos,
   listPessoas,
   listPreDemandas,
   listSetores,
   removePreDemandaDocumento,
+  removePreDemandaAssunto,
   removePreDemandaInteressado,
   removePreDemandaVinculo,
   tramitarPreDemandaMultiplos,
@@ -56,7 +59,7 @@ import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { Interessado, PreDemanda, PreDemandaStatus, Setor, TimelineEvent } from "../types";
+import type { Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TimelineEvent } from "../types";
 
 type ToolbarDialog = null | "related" | "edit" | "send" | "link" | "notes" | "deadline" | "andamento";
 
@@ -84,6 +87,7 @@ export function PreDemandaDetailPage() {
   const [record, setRecord] = useState<PreDemanda | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
+  const [assuntosCatalogo, setAssuntosCatalogo] = useState<Assunto[]>([]);
   const [interessadoResults, setInteressadoResults] = useState<Interessado[]>([]);
   const [linkedProcessResults, setLinkedProcessResults] = useState<PreDemanda[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,10 +133,11 @@ export function PreDemandaDetailPage() {
   async function load() {
     setLoading(true);
     try {
-      const [nextRecord, nextTimeline, nextSetores] = await Promise.all([getPreDemanda(preId), getTimeline(preId), listSetores()]);
+      const [nextRecord, nextTimeline, nextSetores, nextAssuntos] = await Promise.all([getPreDemanda(preId), getTimeline(preId), listSetores(), listAssuntos()]);
       setRecord(nextRecord);
       setTimeline(nextTimeline);
       setSetores(nextSetores);
+      setAssuntosCatalogo(nextAssuntos);
       setAssociationForm((current) => ({
         ...current,
         sei_numero: nextRecord.currentAssociation?.seiNumero ?? normalizeSeiValue(current.sei_numero),
@@ -238,6 +243,10 @@ export function PreDemandaDetailPage() {
 
     return Array.from(new Set([...items, ...interessadoShortcuts]));
   }, [record]);
+  const availableAssuntos = useMemo(
+    () => assuntosCatalogo.filter((item) => !record?.assuntos.some((linked) => linked.assunto.id === item.id)),
+    [assuntosCatalogo, record],
+  );
   const frequencySummary = useMemo(() => {
     if (!record?.metadata.frequencia) return "-";
     if (record.metadata.frequencia === "Semanal" && record.metadata.frequenciaDiasSemana?.length) {
@@ -534,6 +543,78 @@ export function PreDemandaDetailPage() {
               <CardDescription>Concluir uma tarefa baixa automaticamente para o historico processual.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+              <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
+                    <p className="text-xs text-slate-500">Cada assunto transforma o fluxo cadastrado em checklist automático.</p>
+                  </div>
+                </div>
+                <div className="grid gap-3">
+                  {record.assuntos.length ? (
+                    record.assuntos.map((item) => (
+                      <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.assunto.id}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-slate-950">{item.assunto.nome}</p>
+                            <p className="text-sm text-slate-500">{item.assunto.procedimentos.length} passos • {item.assunto.normas.length} normas</p>
+                            {item.assunto.normas.length ? (
+                              <p className="mt-1 text-xs text-slate-500">Normas: {item.assunto.normas.map((norma) => norma.numero).join(", ")}</p>
+                            ) : null}
+                          </div>
+                          <Button
+                            onClick={() =>
+                              void runMutation(
+                                () => removePreDemandaAssunto(preId, item.assunto.id).then((next) => setRecord(next)),
+                                "Assunto removido e tarefas automáticas abertas foram revistas.",
+                              )
+                            }
+                            size="sm"
+                            type="button"
+                            variant="ghost"
+                          >
+                            Remover
+                          </Button>
+                        </div>
+                        {item.assunto.procedimentos.length ? (
+                          <ol className="mt-3 grid gap-2 text-sm text-slate-600">
+                            {item.assunto.procedimentos.map((procedimento) => (
+                              <li className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2" key={procedimento.id}>
+                                <span className="font-semibold">{procedimento.ordem}. </span>
+                                {procedimento.descricao}
+                                {procedimento.setorDestino ? <span className="ml-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">→ {procedimento.setorDestino.sigla}</span> : null}
+                              </li>
+                            ))}
+                          </ol>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto vinculado.</p>
+                  )}
+                </div>
+                {availableAssuntos.length ? (
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {availableAssuntos.map((assunto) => (
+                      <button
+                        className="rounded-[20px] border border-dashed border-slate-300 bg-white px-4 py-3 text-left text-sm hover:border-slate-400"
+                        key={assunto.id}
+                        onClick={() =>
+                          void runMutation(
+                            () => addPreDemandaAssunto(preId, assunto.id).then((next) => setRecord(next)),
+                            `Assunto ${assunto.nome} vinculado e checklist gerado.`,
+                          )
+                        }
+                        type="button"
+                      >
+                        <span className="block font-semibold text-slate-950">{assunto.nome}</span>
+                        <span className="block text-slate-500">{assunto.procedimentos.length} passos • {assunto.normas.length} normas</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
               <div className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
                 <Input onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descreva a proxima tarefa" value={taskForm.descricao} />
                 <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, tipo: event.target.value as "fixa" | "livre" }))} value={taskForm.tipo}>
@@ -589,6 +670,7 @@ export function PreDemandaDetailPage() {
                         <span>
                           <span className="block font-semibold text-slate-950">{task.descricao}</span>
                           <span className="text-sm text-slate-500">{task.tipo}</span>
+                          {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
                         </span>
                       </label>
                     ))

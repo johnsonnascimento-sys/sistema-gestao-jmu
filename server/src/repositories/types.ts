@@ -12,6 +12,7 @@ import type {
   DemandaInteressadoPapel,
   DemandaComentarioFormato,
   Interessado,
+  Assunto,
   Norma,
   PreDemandaDashboardSummary,
   PreDemandaAuditRecord,
@@ -63,6 +64,7 @@ export interface CreatePreDemandaInput {
   prazoFinal?: string | null;
   seiNumero?: string | null;
   numeroJudicial?: string | null;
+  assuntoIds?: string[];
   metadata?: Partial<PreDemandaMetadata> | null;
   createdByUserId: number;
 }
@@ -176,6 +178,22 @@ export interface CreateTarefaInput {
   preId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  assuntoId?: string | null;
+  procedimentoId?: string | null;
+  setorDestinoId?: string | null;
+  geradaAutomaticamente?: boolean;
+  changedByUserId: number;
+}
+
+export interface AddDemandaAssuntoInput {
+  preId: string;
+  assuntoId: string;
+  changedByUserId: number;
+}
+
+export interface RemoveDemandaAssuntoInput {
+  preId: string;
+  assuntoId: string;
   changedByUserId: number;
 }
 
@@ -283,6 +301,23 @@ export interface UpdateNormaInput extends CreateNormaInput {
   id: string;
 }
 
+export interface CreateAssuntoProcedimentoInput {
+  ordem?: number;
+  descricao: string;
+  setorDestinoId?: string | null;
+}
+
+export interface CreateAssuntoInput {
+  nome: string;
+  descricao?: string | null;
+  normaIds?: string[];
+  procedimentos?: CreateAssuntoProcedimentoInput[];
+}
+
+export interface UpdateAssuntoInput extends CreateAssuntoInput {
+  id: string;
+}
+
 export interface UserRepository {
   findByEmail(email: string): Promise<AppUser | null>;
   findById(id: number): Promise<AppUser | null>;
@@ -325,6 +360,13 @@ export interface NormaRepository {
   update(input: UpdateNormaInput): Promise<Norma>;
 }
 
+export interface AssuntoRepository {
+  list(): Promise<Assunto[]>;
+  getById(id: string): Promise<Assunto | null>;
+  create(input: CreateAssuntoInput): Promise<Assunto>;
+  update(input: UpdateAssuntoInput): Promise<Assunto>;
+}
+
 export interface PreDemandaRepository {
   create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult>;
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
@@ -332,6 +374,8 @@ export interface PreDemandaRepository {
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
   updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaDetail>;
   updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaDetail>;
+  addAssunto(input: AddDemandaAssuntoInput): Promise<PreDemandaDetail>;
+  removeAssunto(input: RemoveDemandaAssuntoInput): Promise<PreDemandaDetail>;
   addInteressado(input: AddDemandaInteressadoInput): Promise<DemandaInteressado[]>;
   removeInteressado(input: RemoveDemandaInteressadoInput): Promise<DemandaInteressado[]>;
   addVinculo(input: AddDemandaVinculoInput): Promise<DemandaVinculo[]>;
