@@ -425,6 +425,43 @@ export function AdminOperationsPage() {
   const responsePathItems = attentionItems.slice(0, 3);
   const topIncidentCluster = summary.incidentSummary.clusters[0] ?? null;
   const topFailureCluster = summary.operationalSummary.failureClusters24h[0] ?? null;
+  const recurrencePathItems = [
+    ...summary.incidentSummary.clusters
+      .filter((cluster) => cluster.total >= 2)
+      .map((cluster) => ({
+        key: `incident-${cluster.key}`,
+        title: describeIncident({
+          id: cluster.key,
+          kind: cluster.kind,
+          level: cluster.level,
+          message: "",
+          occurredAt: cluster.lastOccurredAt,
+          requestId: null,
+          userId: null,
+          method: null,
+          path: cluster.path,
+          statusCode: null,
+        }),
+        description: cluster.path ? `Cluster repetido na rota ${cluster.path}.` : "Cluster repetido sem rota dominante associada.",
+        total: cluster.total,
+        tone: cluster.level === "error" ? "critical" : ("attention" as const),
+        href: "#incidentes-recentes",
+        cta: "Abrir incidentes",
+      })),
+    ...summary.operationalSummary.failureClusters24h
+      .filter((cluster) => cluster.total >= 2)
+      .map((cluster) => ({
+        key: `failure-${cluster.key}`,
+        title: describeOperationalEventKind(cluster.kind),
+        description: `Recorrencia em ${cluster.source}${cluster.reference ? ` - ref ${cluster.reference}` : ""}.`,
+        total: cluster.total,
+        tone: "attention" as const,
+        href: "#operacoes-recentes",
+        cta: "Abrir operacoes",
+      })),
+  ]
+    .sort((left, right) => right.total - left.total)
+    .slice(0, 3);
 
   return (
     <section className="grid gap-6">
@@ -620,6 +657,41 @@ export function AdminOperationsPage() {
                 </div>
               </article>
             ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {recurrencePathItems.length ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ataque por repeticao</CardTitle>
+            <CardDescription>Clusters que ja repetiram o suficiente para justificar investigacao directa.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 xl:grid-cols-3">
+            {recurrencePathItems.map((item, index) => (
+              <article
+                className={`grid gap-3 rounded-[24px] border px-4 py-4 ${
+                  item.tone === "critical" ? "border-rose-200 bg-rose-50/80" : "border-amber-200 bg-amber-50/80"
+                }`}
+                key={item.key}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Foco {index + 1}</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.title}</h3>
+                  </div>
+                  <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                    {item.total}x
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700">{item.description}</p>
+                <div>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to={item.href}>{item.cta}</Link>
+                  </Button>
+                </div>
+              </article>
+            ))}
           </CardContent>
         </Card>
       ) : null}
