@@ -469,6 +469,7 @@ export function AdminOperationsPage() {
           description:
             "A anomalia principal e a recorrencia actual apontam para o mesmo eixo de incidente. Vale atacar primeiro o cluster repetido para cortar ruido e impacto mais rapido.",
           confidence: "Alta",
+          urgencyReason: "Ha convergencia entre prioridade actual e repeticao recente.",
           href: recurrencePathItems[0].href,
           cta: recurrencePathItems[0].cta,
         }
@@ -478,6 +479,7 @@ export function AdminOperationsPage() {
             description:
               "O topo da triagem e a repeticao recente estao concentrados em operacoes. A melhor resposta imediata e estabilizar esse cluster antes de tratar efeitos secundarios.",
             confidence: "Alta",
+            urgencyReason: "A instabilidade operacional ja esta a repetir e tende a contaminar outras leituras.",
             href: recurrencePathItems[0].href,
             cta: recurrencePathItems[0].cta,
           }
@@ -486,6 +488,7 @@ export function AdminOperationsPage() {
               title: "Seguir a maior anomalia do momento",
               description: "Nao ha convergencia forte por repeticao nesta janela. O melhor proximo passo continua a ser a anomalia principal destacada acima.",
               confidence: "Media",
+              urgencyReason: "Nao surgiu um cluster repetido mais forte do que a anomalia principal.",
               href: primaryAttentionItem.href,
               cta: primaryAttentionItem.cta,
             }
@@ -741,6 +744,7 @@ export function AdminOperationsPage() {
               <h3 className="mt-1 text-base font-semibold text-slate-950">{suggestedDecision.title}</h3>
             </div>
             <p className="text-sm text-slate-700">{suggestedDecision.description}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Porque agora: {suggestedDecision.urgencyReason}</p>
             {suggestedDecision.href && suggestedDecision.cta ? (
               <div>
                 <Button asChild variant="secondary">
