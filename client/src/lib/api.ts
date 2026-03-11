@@ -54,10 +54,11 @@ export class ApiError extends Error {
 }
 
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
+  const hasJsonBody = init?.body !== undefined && !(init.body instanceof FormData);
   const response = await fetch(input, {
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -351,6 +352,7 @@ export function createPreDemandaTarefa(preId: string, payload: { descricao: stri
 export function concluirPreDemandaTarefa(preId: string, tarefaId: string) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`, {
     method: "PATCH",
+    body: JSON.stringify({}),
   });
 }
 

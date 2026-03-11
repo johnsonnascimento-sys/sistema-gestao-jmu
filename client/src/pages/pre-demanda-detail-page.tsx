@@ -249,7 +249,7 @@ export function PreDemandaDetailPage() {
   async function handleAssociation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isSeiValid) {
-      setError("Informe um numero SEI no formato 0000000-00.0000.0.00.0000.");
+      setError("Informe um numero SEI no formato 000181/26-02.227.");
       return;
     }
     await runMutation(
@@ -631,8 +631,8 @@ export function PreDemandaDetailPage() {
             </CardHeader>
             <CardContent>
               <form className="grid gap-4" onSubmit={handleAssociation}>
-                <FormField hint={<code>0000000-00.0000.0.00.0000</code>} label="Numero SEI">
-                  <Input onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="0000000-00.0000.0.00.0000" value={associationForm.sei_numero} />
+                <FormField hint={<code>000181/26-02.227</code>} label="Numero SEI">
+                  <Input onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={associationForm.sei_numero} />
                 </FormField>
                 <FormField label="Motivo">
                   <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, motivo: event.target.value }))} rows={3} value={associationForm.motivo} />

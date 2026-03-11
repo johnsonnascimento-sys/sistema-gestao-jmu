@@ -9,7 +9,7 @@ const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoFinal", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
 const DUE_STATES = ["overdue", "due_soon", "none"] as const;
-const SEI_REGEX = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
+const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
 
 const metadataSchema = z
   .object({
