@@ -143,6 +143,8 @@ export interface Interessado {
 
 export interface PreDemandaMetadata {
   frequencia: string | null;
+  frequenciaDiasSemana: string[] | null;
+  frequenciaDiaMes: number | null;
   pagamentoEnvolvido: boolean | null;
   audienciaData: string | null;
   audienciaStatus: string | null;

@@ -3,7 +3,7 @@ import type { PreDemanda, PreDemandaStatus } from "../types";
 const STATUS_LABELS: Record<PreDemandaStatus, string> = {
   aberta: "Aberta",
   aguardando_sei: "Aguardando SEI",
-  associada: "Associada",
+  associada: "Em Andamento / Associada",
   encerrada: "Encerrada",
 };
 

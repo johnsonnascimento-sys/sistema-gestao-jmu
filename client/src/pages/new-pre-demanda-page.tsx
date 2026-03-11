@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
@@ -7,6 +7,19 @@ import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { ApiError, appendRequestReference, createPreDemanda, formatAppError } from "../lib/api";
+import { formatSeiInput, isValidSei } from "../lib/sei";
+
+type EntryType = "existing" | "eventual" | "continuous";
+
+const WEEKDAY_OPTIONS = [
+  { value: "seg", label: "Seg" },
+  { value: "ter", label: "Ter" },
+  { value: "qua", label: "Qua" },
+  { value: "qui", label: "Qui" },
+  { value: "sex", label: "Sex" },
+  { value: "sab", label: "Sab" },
+  { value: "dom", label: "Dom" },
+] as const;
 
 function getConflictPreId(details: unknown) {
   if (!details || typeof details !== "object") {
@@ -18,6 +31,8 @@ function getConflictPreId(details: unknown) {
 }
 
 export function NewPreDemandaPage() {
+  const [entryType, setEntryType] = useState<EntryType>("eventual");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [form, setForm] = useState({
     solicitante: "",
     assunto: "",
@@ -25,15 +40,66 @@ export function NewPreDemandaPage() {
     descricao: "",
     fonte: "",
     observacoes: "",
+    sei_numero: "",
     prazo_final: "",
     numero_judicial: "",
     pagamento_envolvido: false,
     frequencia: "",
+    frequencia_dias_semana: [] as string[],
+    frequencia_dia_mes: "",
   });
   const [error, setError] = useState("");
   const [conflictPreId, setConflictPreId] = useState<string | null>(null);
   const [result, setResult] = useState<{ preId: string; idempotent: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSeiValid = !form.sei_numero || isValidSei(form.sei_numero);
+  const isContinuous = entryType === "continuous";
+  const showNumbers = entryType === "existing";
+  const showAdvanced = advancedOpen || isContinuous;
+  const isSubmitBlocked = isSubmitting || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim());
+
+  const frequenciaHint = useMemo(() => {
+    if (form.frequencia === "Semanal" && form.frequencia_dias_semana.length) {
+      return `Dias: ${form.frequencia_dias_semana.join(", ")}`;
+    }
+
+    if (form.frequencia === "Mensal" && form.frequencia_dia_mes) {
+      return `Dia do mes: ${form.frequencia_dia_mes}`;
+    }
+
+    return "";
+  }, [form.frequencia, form.frequencia_dia_mes, form.frequencia_dias_semana]);
+
+  function updateEntryType(nextType: EntryType) {
+    setEntryType(nextType);
+    setAdvancedOpen(nextType === "continuous");
+    setForm((current) => ({
+      ...current,
+      sei_numero: nextType === "existing" ? current.sei_numero : "",
+      numero_judicial: nextType === "existing" ? current.numero_judicial : "",
+      frequencia: nextType === "continuous" ? current.frequencia : current.frequencia,
+      frequencia_dias_semana: nextType === "continuous" ? current.frequencia_dias_semana : [],
+      frequencia_dia_mes: nextType === "continuous" ? current.frequencia_dia_mes : "",
+    }));
+  }
+
+  function updateFrequencia(nextValue: string) {
+    setForm((current) => ({
+      ...current,
+      frequencia: nextValue,
+      frequencia_dias_semana: nextValue === "Semanal" ? current.frequencia_dias_semana : [],
+      frequencia_dia_mes: nextValue === "Mensal" ? current.frequencia_dia_mes : "",
+    }));
+  }
+
+  function toggleWeekday(day: string) {
+    setForm((current) => ({
+      ...current,
+      frequencia_dias_semana: current.frequencia_dias_semana.includes(day)
+        ? current.frequencia_dias_semana.filter((item) => item !== day)
+        : [...current.frequencia_dias_semana, day],
+    }));
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,10 +116,13 @@ export function NewPreDemandaPage() {
         descricao: form.descricao || undefined,
         fonte: form.fonte || undefined,
         observacoes: form.observacoes || undefined,
+        sei_numero: showNumbers ? form.sei_numero || null : null,
         prazo_final: form.prazo_final || null,
-        numero_judicial: form.numero_judicial || null,
+        numero_judicial: showNumbers ? form.numero_judicial || null : null,
         metadata: {
           frequencia: form.frequencia || null,
+          frequencia_dias_semana: form.frequencia === "Semanal" ? form.frequencia_dias_semana : null,
+          frequencia_dia_mes: form.frequencia === "Mensal" && form.frequencia_dia_mes ? Number(form.frequencia_dia_mes) : null,
           pagamento_envolvido: form.pagamento_envolvido,
         },
       });
@@ -76,9 +145,9 @@ export function NewPreDemandaPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Registe a demanda informal com dados suficientes para triagem, deduplicacao e acompanhamento posterior."
+        description="Via rapida para processo externo com numero, demanda eventual ou rotina administrativa continua."
         eyebrow="Cadastro"
-        title="Nova pre-demanda"
+        title="Novo Processo / Demanda"
       />
 
       <Card>
@@ -87,6 +156,30 @@ export function NewPreDemandaPage() {
             <FormField label="Solicitante">
               <Input onChange={(event) => setForm((current) => ({ ...current, solicitante: event.target.value }))} value={form.solicitante} />
             </FormField>
+
+            <div className="md:col-span-2 grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+              <p className="text-sm font-semibold text-slate-950">Tipo de Entrada</p>
+              <div className="grid gap-3 md:grid-cols-3">
+                <EntryOption
+                  checked={entryType === "existing"}
+                  description="Ja chega com numeracao de origem."
+                  label="Processo Existente (Com Numero)"
+                  onChange={() => updateEntryType("existing")}
+                />
+                <EntryOption
+                  checked={entryType === "eventual"}
+                  description="Fluxo normal aguardando numeracao."
+                  label="Demanda Eventual (Aguardara SEI)"
+                  onChange={() => updateEntryType("eventual")}
+                />
+                <EntryOption
+                  checked={entryType === "continuous"}
+                  description="Rotina continua sem numero imediato."
+                  label="Rotina Administrativa Continua"
+                  onChange={() => updateEntryType("continuous")}
+                />
+              </div>
+            </div>
 
             <FormField label="Assunto">
               <Input onChange={(event) => setForm((current) => ({ ...current, assunto: event.target.value }))} value={form.assunto} />
@@ -108,14 +201,10 @@ export function NewPreDemandaPage() {
               <Textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
             </FormField>
 
-            <details className="md:col-span-2 rounded-[24px] border border-slate-200 bg-slate-50/80 px-5 py-4">
-              <summary className="cursor-pointer list-none text-sm font-semibold text-slate-950">
-                Campos avancados
-                <span className="ml-2 text-xs font-medium uppercase tracking-[0.2em] text-slate-500">prazo, pagamento e judicial</span>
-              </summary>
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <FormField label="Prazo final">
-                  <Input onChange={(event) => setForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={form.prazo_final} />
+            {showNumbers ? (
+              <>
+                <FormField label="Numero SEI" hint={<code>000181/26-02.227</code>}>
+                  <Input onChange={(event) => setForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={form.sei_numero} />
                 </FormField>
 
                 <FormField label="Numero judicial">
@@ -125,14 +214,65 @@ export function NewPreDemandaPage() {
                     value={form.numero_judicial}
                   />
                 </FormField>
+              </>
+            ) : null}
+
+            <div className="md:col-span-2 rounded-[24px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">Campos avancados</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">prazo, pagamento e frequencia</p>
+                </div>
+                {!isContinuous ? (
+                  <Button onClick={() => setAdvancedOpen((current) => !current)} size="sm" type="button" variant="ghost">
+                    {showAdvanced ? "Ocultar" : "Mostrar"}
+                  </Button>
+                ) : (
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Obrigatorio</span>
+                )}
+              </div>
+              {showAdvanced ? <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <FormField label="Prazo final">
+                  <Input onChange={(event) => setForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={form.prazo_final} />
+                </FormField>
 
                 <FormField className="md:col-span-2" label="Frequencia">
-                  <Input
-                    onChange={(event) => setForm((current) => ({ ...current, frequencia: event.target.value }))}
-                    placeholder="Mensal, eventual, diaria..."
-                    value={form.frequencia}
-                  />
+                  <select className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => updateFrequencia(event.target.value)} value={form.frequencia}>
+                    <option value="">Selecione a frequencia</option>
+                    <option value="Diaria">Diaria</option>
+                    <option value="Semanal">Semanal</option>
+                    <option value="Mensal">Mensal</option>
+                    <option value="Eventual">Eventual</option>
+                  </select>
                 </FormField>
+
+                {form.frequencia === "Semanal" ? (
+                  <div className="md:col-span-2 grid gap-3">
+                    <p className="text-sm font-medium text-slate-950">Dias da semana</p>
+                    <div className="flex flex-wrap gap-2">
+                      {WEEKDAY_OPTIONS.map((item) => (
+                        <Button
+                          className={form.frequencia_dias_semana.includes(item.label) ? "border-slate-950 bg-slate-950 text-white" : ""}
+                          key={item.value}
+                          onClick={() => toggleWeekday(item.label)}
+                          size="sm"
+                          type="button"
+                          variant="outline"
+                        >
+                          {item.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {form.frequencia === "Mensal" ? (
+                  <FormField className="md:col-span-2" label="Dia do mes (1-31)">
+                    <Input max="31" min="1" onChange={(event) => setForm((current) => ({ ...current, frequencia_dia_mes: event.target.value }))} type="number" value={form.frequencia_dia_mes} />
+                  </FormField>
+                ) : null}
+
+                {frequenciaHint ? <p className="md:col-span-2 text-sm text-slate-500">{frequenciaHint}</p> : null}
 
                 <label className="md:col-span-2 flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm">
                   <div>
@@ -146,12 +286,18 @@ export function NewPreDemandaPage() {
                     type="checkbox"
                   />
                 </label>
-              </div>
-            </details>
+              </div> : null}
+            </div>
 
             {error ? (
               <div className="md:col-span-2 rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
                 {error} {conflictPreId ? <Link className="underline" to={`/pre-demandas/${conflictPreId}`}>Abrir demanda existente</Link> : null}
+              </div>
+            ) : null}
+
+            {showNumbers && !isSeiValid ? (
+              <div className="md:col-span-2 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+                Informe um numero SEI valido no formato <code>000181/26-02.227</code>.
               </div>
             ) : null}
 
@@ -165,7 +311,7 @@ export function NewPreDemandaPage() {
             ) : null}
 
             <div className="md:col-span-2 flex justify-end">
-              <Button disabled={isSubmitting} type="submit">
+              <Button disabled={isSubmitBlocked} type="submit">
                 {isSubmitting ? "Salvando..." : "Salvar demanda"}
               </Button>
             </div>
@@ -173,5 +319,25 @@ export function NewPreDemandaPage() {
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+function EntryOption({
+  checked,
+  label,
+  description,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  description: string;
+  onChange: () => void;
+}) {
+  return (
+    <label className={`grid gap-2 rounded-[20px] border px-4 py-4 text-sm ${checked ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950"}`}>
+      <input checked={checked} className="sr-only" name="entry-type" onChange={onChange} type="radio" />
+      <span className="font-semibold">{label}</span>
+      <span className={checked ? "text-slate-200" : "text-slate-500"}>{description}</span>
+    </label>
   );
 }

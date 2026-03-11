@@ -132,6 +132,8 @@ function mapMetadata(raw: unknown): PreDemandaMetadata {
   const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return {
     frequencia: typeof value.frequencia === "string" ? value.frequencia : null,
+    frequenciaDiasSemana: Array.isArray(value.frequencia_dias_semana) ? value.frequencia_dias_semana.filter((item): item is string => typeof item === "string") : null,
+    frequenciaDiaMes: typeof value.frequencia_dia_mes === "number" ? value.frequencia_dia_mes : null,
     pagamentoEnvolvido: typeof value.pagamento_envolvido === "boolean" ? value.pagamento_envolvido : null,
     audienciaData: typeof value.audiencia_data === "string" ? value.audiencia_data : null,
     audienciaStatus: typeof value.audiencia_status === "string" ? value.audiencia_status : null,
@@ -351,6 +353,8 @@ function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | u
 
   return {
     frequencia: metadata.frequencia ?? null,
+    frequencia_dias_semana: metadata.frequenciaDiasSemana ?? null,
+    frequencia_dia_mes: metadata.frequenciaDiaMes ?? null,
     pagamento_envolvido: metadata.pagamentoEnvolvido ?? null,
     audiencia_data: metadata.audienciaData ?? null,
     audiencia_status: metadata.audienciaStatus ?? null,
@@ -824,55 +828,92 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const dbMetadata = normalizeMetadataForDb(input.metadata ?? null);
+    const hasContinuousFrequency = Boolean(
+      input.metadata?.frequencia ||
+        (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length) ||
+        input.metadata?.frequenciaDiaMes,
+    );
+    const initialStatus: PreDemandaStatus = input.seiNumero || hasContinuousFrequency ? "associada" : "aberta";
 
     try {
-      const result = await this.pool.query(
-        `
-          insert into adminlog.pre_demanda (
-            pre_id,
-            solicitante,
-            assunto,
-            data_referencia,
-            status,
-            descricao,
-            fonte,
-            observacoes,
-            prazo_final,
-            numero_judicial,
-            metadata,
-            created_by_user_id
-          )
-          values (
-            adminlog.fn_generate_pre_id($1::date),
-            $2,
-            $3,
-            $1::date,
-            'aberta',
-            $4,
-            $5,
-            $6,
-            $7::date,
-            $8,
-            coalesce($9::jsonb, '{}'::jsonb),
-            $10
-          )
-          returning pre_id
-        `,
-        [
-          input.dataReferencia,
-          input.solicitante,
-          input.assunto,
-          input.descricao ?? null,
-          input.fonte ?? null,
-          input.observacoes ?? null,
-          input.prazoFinal ?? null,
-          input.numeroJudicial ?? null,
-          dbMetadata ? JSON.stringify(dbMetadata) : null,
-          input.createdByUserId,
-        ],
-      );
+      const preId = await inTransaction(this.pool, async (client) => {
+        const result = await client.query(
+          `
+            insert into adminlog.pre_demanda (
+              pre_id,
+              solicitante,
+              assunto,
+              data_referencia,
+              status,
+              descricao,
+              fonte,
+              observacoes,
+              prazo_final,
+              numero_judicial,
+              metadata,
+              created_by_user_id
+            )
+            values (
+              adminlog.fn_generate_pre_id($1::date),
+              $2,
+              $3,
+              $1::date,
+              $4,
+              $5,
+              $6,
+              $7,
+              $8::date,
+              $9,
+              coalesce($10::jsonb, '{}'::jsonb),
+              $11
+            )
+            returning pre_id
+          `,
+          [
+            input.dataReferencia,
+            input.solicitante,
+            input.assunto,
+            initialStatus,
+            input.descricao ?? null,
+            input.fonte ?? null,
+            input.observacoes ?? null,
+            input.prazoFinal ?? null,
+            input.numeroJudicial ?? null,
+            dbMetadata ? JSON.stringify(dbMetadata) : null,
+            input.createdByUserId,
+          ],
+        );
 
-      const record = await this.getDetailByPreId(this.pool, String(result.rows[0].pre_id), queueHealthThresholds);
+        const nextPreId = String(result.rows[0].pre_id);
+
+        if (input.seiNumero) {
+          await client.query(
+            `
+              insert into adminlog.pre_to_sei_link (pre_id, sei_numero, sei_numero_inicial, observacoes, linked_by_user_id)
+              values ($1, $2, $2, $3, $4)
+            `,
+            [nextPreId, input.seiNumero, "Processo registado ja com numeracao de origem.", input.createdByUserId],
+          );
+
+          await client.query(
+            `
+              insert into adminlog.pre_to_sei_link_audit (pre_id, sei_numero_anterior, sei_numero_novo, motivo, observacoes, changed_by_user_id)
+              values ($1, $2, $2, $3, $4, $5)
+            `,
+            [
+              nextPreId,
+              input.seiNumero,
+              "Processo registado ja com numeracao de origem",
+              "Associacao inicial criada na abertura do processo.",
+              input.createdByUserId,
+            ],
+          );
+        }
+
+        return nextPreId;
+      });
+
+      const record = await this.getDetailByPreId(this.pool, preId, queueHealthThresholds);
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
       }

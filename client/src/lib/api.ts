@@ -124,9 +124,12 @@ export interface CreatePreDemandaPayload {
   fonte?: string;
   observacoes?: string;
   prazo_final?: string | null;
+  sei_numero?: string | null;
   numero_judicial?: string | null;
   metadata?: {
     frequencia?: string | null;
+    frequencia_dias_semana?: string[] | null;
+    frequencia_dia_mes?: number | null;
     pagamento_envolvido?: boolean | null;
     audiencia_data?: string | null;
     audiencia_status?: string | null;
@@ -142,6 +145,8 @@ export interface UpdatePreDemandaCasePayload {
   numero_judicial?: string | null;
   metadata?: {
     frequencia?: string | null;
+    frequencia_dias_semana?: string[] | null;
+    frequencia_dia_mes?: number | null;
     pagamento_envolvido?: boolean | null;
     audiencia_data?: string | null;
     audiencia_status?: string | null;

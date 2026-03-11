@@ -73,6 +73,8 @@ const FIXED_TASKS = [
   "Aguardando definicao de audiencia",
 ];
 
+const WEEKDAY_OPTIONS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
+
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
   const navigate = useNavigate();
@@ -97,6 +99,8 @@ export function PreDemandaDetailPage() {
     numero_judicial: "",
     prazo_final: "",
     frequencia: "",
+    frequencia_dias_semana: [] as string[],
+    frequencia_dia_mes: "",
     pagamento_envolvido: false,
     audiencia_data: "",
     audiencia_status: "",
@@ -139,6 +143,8 @@ export function PreDemandaDetailPage() {
         numero_judicial: nextRecord.numeroJudicial ?? "",
         prazo_final: nextRecord.prazoFinal ?? "",
         frequencia: nextRecord.metadata.frequencia ?? "",
+        frequencia_dias_semana: nextRecord.metadata.frequenciaDiasSemana ?? [],
+        frequencia_dia_mes: nextRecord.metadata.frequenciaDiaMes ? String(nextRecord.metadata.frequenciaDiaMes) : "",
         pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
         audiencia_data: nextRecord.metadata.audienciaData ?? "",
         audiencia_status: nextRecord.metadata.audienciaStatus ?? "",
@@ -230,6 +236,34 @@ export function PreDemandaDetailPage() {
 
     return Array.from(new Set([...items, ...interessadoShortcuts]));
   }, [record]);
+  const frequencySummary = useMemo(() => {
+    if (!record?.metadata.frequencia) return "-";
+    if (record.metadata.frequencia === "Semanal" && record.metadata.frequenciaDiasSemana?.length) {
+      return `Semanal (${record.metadata.frequenciaDiasSemana.join(", ")})`;
+    }
+    if (record.metadata.frequencia === "Mensal" && record.metadata.frequenciaDiaMes) {
+      return `Mensal (dia ${record.metadata.frequenciaDiaMes})`;
+    }
+    return record.metadata.frequencia;
+  }, [record]);
+
+  function updateEditFrequencia(nextValue: string) {
+    setEditForm((current) => ({
+      ...current,
+      frequencia: nextValue,
+      frequencia_dias_semana: nextValue === "Semanal" ? current.frequencia_dias_semana : [],
+      frequencia_dia_mes: nextValue === "Mensal" ? current.frequencia_dia_mes : "",
+    }));
+  }
+
+  function toggleEditWeekday(day: string) {
+    setEditForm((current) => ({
+      ...current,
+      frequencia_dias_semana: current.frequencia_dias_semana.includes(day)
+        ? current.frequencia_dias_semana.filter((item) => item !== day)
+        : [...current.frequencia_dias_semana, day],
+    }));
+  }
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
     setIsSubmitting(true);
@@ -355,7 +389,7 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Prazo final" value={record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Numero judicial" value={record.numeroJudicial ?? "-"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
-              <SummaryItem label="Frequencia" value={record.metadata.frequencia ?? "-"} />
+              <SummaryItem label="Frequencia" value={frequencySummary} />
               <SummaryItem label="Data da audiencia" value={record.metadata.audienciaData ? new Date(record.metadata.audienciaData).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
               <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
@@ -766,9 +800,39 @@ export function PreDemandaDetailPage() {
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={editForm.prazo_final} />
               </FormField>
               <FormField label="Frequencia">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, frequencia: event.target.value }))} value={editForm.frequencia} />
+                <select className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => updateEditFrequencia(event.target.value)} value={editForm.frequencia}>
+                  <option value="">Selecione a frequencia</option>
+                  <option value="Diaria">Diaria</option>
+                  <option value="Semanal">Semanal</option>
+                  <option value="Mensal">Mensal</option>
+                  <option value="Eventual">Eventual</option>
+                </select>
               </FormField>
             </div>
+            {editForm.frequencia === "Semanal" ? (
+              <div className="grid gap-3">
+                <p className="text-sm font-medium text-slate-950">Dias da semana</p>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAY_OPTIONS.map((item) => (
+                    <Button
+                      className={editForm.frequencia_dias_semana.includes(item) ? "border-slate-950 bg-slate-950 text-white" : ""}
+                      key={item}
+                      onClick={() => toggleEditWeekday(item)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {item}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {editForm.frequencia === "Mensal" ? (
+              <FormField label="Dia do mes (1-31)">
+                <Input max="31" min="1" onChange={(event) => setEditForm((current) => ({ ...current, frequencia_dia_mes: event.target.value }))} type="number" value={editForm.frequencia_dia_mes} />
+              </FormField>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Data da audiencia">
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, audiencia_data: event.target.value }))} type="date" value={editForm.audiencia_data} />
@@ -806,6 +870,8 @@ export function PreDemandaDetailPage() {
                       numero_judicial: editForm.numero_judicial || null,
                       metadata: {
                         frequencia: editForm.frequencia || null,
+                        frequencia_dias_semana: editForm.frequencia === "Semanal" ? editForm.frequencia_dias_semana : null,
+                        frequencia_dia_mes: editForm.frequencia === "Mensal" && editForm.frequencia_dia_mes ? Number(editForm.frequencia_dia_mes) : null,
                         pagamento_envolvido: editForm.pagamento_envolvido,
                         audiencia_data: editForm.audiencia_data || null,
                         audiencia_status: editForm.audiencia_status || null,

@@ -14,6 +14,8 @@ const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.
 const metadataSchema = z
   .object({
     frequencia: z.string().trim().max(120).optional().nullable(),
+    frequencia_dias_semana: z.array(z.string().trim().min(3).max(16)).max(7).optional().nullable(),
+    frequencia_dia_mes: z.number().int().min(1).max(31).optional().nullable(),
     pagamento_envolvido: z.boolean().optional().nullable(),
     audiencia_data: z.string().date().optional().nullable(),
     audiencia_status: z.string().trim().max(120).optional().nullable(),
@@ -30,6 +32,7 @@ const createSchema = z.object({
   fonte: z.string().trim().max(120).optional().nullable(),
   observacoes: z.string().trim().max(4000).optional().nullable(),
   prazo_final: z.string().date().optional().nullable(),
+  sei_numero: z.string().trim().regex(SEI_REGEX, "Numero SEI invalido.").optional().nullable(),
   numero_judicial: z.string().trim().max(100).optional().nullable(),
   metadata: metadataSchema,
 });
@@ -137,6 +140,8 @@ function normalizeMetadata(payload: z.infer<typeof metadataSchema>) {
 
   return {
     frequencia: emptyToNull(payload.frequencia),
+    frequenciaDiasSemana: payload.frequencia_dias_semana?.length ? payload.frequencia_dias_semana : null,
+    frequenciaDiaMes: payload.frequencia_dia_mes ?? null,
     pagamentoEnvolvido: payload.pagamento_envolvido ?? null,
     audienciaData: payload.audiencia_data ?? null,
     audienciaStatus: emptyToNull(payload.audiencia_status),
@@ -190,6 +195,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       fonte: emptyToNull(payload.fonte),
       observacoes: emptyToNull(payload.observacoes),
       prazoFinal: payload.prazo_final ?? null,
+      seiNumero: emptyToNull(payload.sei_numero),
       numeroJudicial: emptyToNull(payload.numero_judicial),
       metadata: normalizeMetadata(payload.metadata) ?? null,
       createdByUserId: request.user!.id,

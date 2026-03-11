@@ -58,6 +58,7 @@ export interface CreatePreDemandaInput {
   fonte?: string | null;
   observacoes?: string | null;
   prazoFinal?: string | null;
+  seiNumero?: string | null;
   numeroJudicial?: string | null;
   metadata?: Partial<PreDemandaMetadata> | null;
   createdByUserId: number;

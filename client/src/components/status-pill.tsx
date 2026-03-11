@@ -4,7 +4,7 @@ import { cn } from "../lib/utils";
 const labels: Record<PreDemandaStatus, string> = {
   aberta: "Aberta",
   aguardando_sei: "Aguardando SEI",
-  associada: "Associada",
+  associada: "Em Andamento / Associada",
   encerrada: "Encerrada",
 };
 

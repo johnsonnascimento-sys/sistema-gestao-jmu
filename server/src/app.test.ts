@@ -259,6 +259,8 @@ class InMemoryUserRepository implements UserRepository {
 function defaultMetadata(metadata?: Partial<PreDemandaMetadata> | null): PreDemandaMetadata {
   return {
     frequencia: metadata?.frequencia ?? null,
+    frequenciaDiasSemana: metadata?.frequenciaDiasSemana ?? null,
+    frequenciaDiaMes: metadata?.frequenciaDiaMes ?? null,
     pagamentoEnvolvido: metadata?.pagamentoEnvolvido ?? null,
     audienciaData: metadata?.audienciaData ?? null,
     audienciaStatus: metadata?.audienciaStatus ?? null,
@@ -316,13 +318,20 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       return { record: existing, idempotent: true, existingPreId: existing.preId };
     }
 
+    const hasContinuousFrequency = Boolean(
+      input.metadata?.frequencia ||
+        (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length) ||
+        input.metadata?.frequenciaDiaMes,
+    );
+    const initialStatus: PreDemandaStatus = input.seiNumero || hasContinuousFrequency ? "associada" : "aberta";
+    const now = new Date().toISOString();
     const record: PreDemandaDetail = {
       id: this.nextId,
       preId: `PRE-2026-${String(this.nextId).padStart(3, "0")}`,
       solicitante: input.solicitante,
       assunto: input.assunto,
       dataReferencia: input.dataReferencia,
-      status: "aberta",
+      status: initialStatus,
       descricao: input.descricao ?? null,
       fonte: input.fonte ?? null,
       observacoes: input.observacoes ?? null,
@@ -332,12 +341,21 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       anotacoes: null,
       setorAtual: null,
       metadata: defaultMetadata(input.metadata),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
       createdBy: null,
-      currentAssociation: null,
-      queueHealth: buildQueueHealth("aberta", new Date().toISOString(), input.dataReferencia, this.queueHealthThresholds),
-      allowedNextStatuses: getAllowedNextStatuses({ currentStatus: "aberta", hasAssociation: false }),
+      currentAssociation: input.seiNumero
+        ? {
+            preId: `PRE-2026-${String(this.nextId).padStart(3, "0")}`,
+            seiNumero: input.seiNumero,
+            linkedAt: now,
+            updatedAt: now,
+            observacoes: "Processo registado ja com numeracao de origem.",
+            linkedBy: null,
+          }
+        : null,
+      queueHealth: buildQueueHealth(initialStatus, now, input.dataReferencia, this.queueHealthThresholds),
+      allowedNextStatuses: getAllowedNextStatuses({ currentStatus: initialStatus, hasAssociation: Boolean(input.seiNumero) }),
       interessados: [],
       vinculos: [],
       setoresAtivos: [],
