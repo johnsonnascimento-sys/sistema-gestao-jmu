@@ -34,12 +34,63 @@ function buildOperationalSummary(
   operationalEvents: Awaited<ReturnType<typeof listOperationalEvents>>,
 ) {
   const last24hBoundary = Date.now() - 24 * 60 * 60 * 1000;
-  const failuresByKind24h = operationalEvents
-    .filter((event) => event.status === "failure" && new Date(event.occurredAt).getTime() >= last24hBoundary)
+  const failureEvents24h = operationalEvents.filter((event) => event.status === "failure" && new Date(event.occurredAt).getTime() >= last24hBoundary);
+  const failuresByKind24h = failureEvents24h
     .reduce<Map<string, number>>((acc, event) => {
       acc.set(event.kind, (acc.get(event.kind) ?? 0) + 1);
       return acc;
     }, new Map());
+  const failureClusters24h = Array.from(
+    failureEvents24h.reduce<
+      Map<
+        string,
+        {
+          key: string;
+          kind: OperationalEventKind;
+          source: string;
+          reference: string | null;
+          total: number;
+          firstOccurredAt: string;
+          lastOccurredAt: string;
+          lastMessage: string;
+        }
+      >
+    >((acc, event) => {
+      const key = `${event.kind}::${event.source}::${event.reference ?? "-"}`;
+      const current = acc.get(key);
+
+      if (!current) {
+        acc.set(key, {
+          key,
+          kind: event.kind,
+          source: event.source,
+          reference: event.reference,
+          total: 1,
+          firstOccurredAt: event.occurredAt,
+          lastOccurredAt: event.occurredAt,
+          lastMessage: event.message,
+        });
+        return acc;
+      }
+
+      current.total += 1;
+      if (new Date(event.occurredAt).getTime() < new Date(current.firstOccurredAt).getTime()) {
+        current.firstOccurredAt = event.occurredAt;
+      }
+      if (new Date(event.occurredAt).getTime() >= new Date(current.lastOccurredAt).getTime()) {
+        current.lastOccurredAt = event.occurredAt;
+        current.lastMessage = event.message;
+      }
+      return acc;
+    }, new Map()).values(),
+  ).sort((left, right) => {
+    const totalDiff = right.total - left.total;
+    if (totalDiff !== 0) {
+      return totalDiff;
+    }
+
+    return new Date(right.lastOccurredAt).getTime() - new Date(left.lastOccurredAt).getTime();
+  });
   const lastSuccessfulBackupAt = backupStatus.lastBackup?.modifiedAt ?? findLatestEvent(operationalEvents, "backup", "success")?.occurredAt ?? null;
   const backupAgeHours =
     lastSuccessfulBackupAt === null ? null : Number((((Date.now() - new Date(lastSuccessfulBackupAt).getTime()) / 3_600_000)).toFixed(1));
@@ -66,6 +117,7 @@ function buildOperationalSummary(
     failuresByKind24h: Array.from(failuresByKind24h.entries())
       .map(([kind, total]) => ({ kind: kind as OperationalEventKind, total }))
       .sort((left, right) => right.total - left.total || left.kind.localeCompare(right.kind)),
+    failureClusters24h: failureClusters24h.slice(0, 5),
   };
 }
 
@@ -82,6 +134,54 @@ function buildIncidentSummary(incidents: Awaited<ReturnType<OperationsStore["get
     acc.set(incident.path, (acc.get(incident.path) ?? 0) + 1);
     return acc;
   }, new Map());
+  const clusters = Array.from(
+    incidents.reduce<
+      Map<
+        string,
+        {
+          key: string;
+          kind: OperationsIncidentKind;
+          level: "warn" | "error";
+          path: string | null;
+          total: number;
+          firstOccurredAt: string;
+          lastOccurredAt: string;
+        }
+      >
+    >((acc, incident) => {
+      const key = `${incident.kind}::${incident.level}::${incident.path ?? "-"}`;
+      const current = acc.get(key);
+
+      if (!current) {
+        acc.set(key, {
+          key,
+          kind: incident.kind,
+          level: incident.level,
+          path: incident.path,
+          total: 1,
+          firstOccurredAt: incident.occurredAt,
+          lastOccurredAt: incident.occurredAt,
+        });
+        return acc;
+      }
+
+      current.total += 1;
+      if (new Date(incident.occurredAt).getTime() < new Date(current.firstOccurredAt).getTime()) {
+        current.firstOccurredAt = incident.occurredAt;
+      }
+      if (new Date(incident.occurredAt).getTime() >= new Date(current.lastOccurredAt).getTime()) {
+        current.lastOccurredAt = incident.occurredAt;
+      }
+      return acc;
+    }, new Map()).values(),
+  ).sort((left, right) => {
+    const totalDiff = right.total - left.total;
+    if (totalDiff !== 0) {
+      return totalDiff;
+    }
+
+    return new Date(right.lastOccurredAt).getTime() - new Date(left.lastOccurredAt).getTime();
+  });
 
   return {
     total: incidents.length,
@@ -95,6 +195,7 @@ function buildIncidentSummary(incidents: Awaited<ReturnType<OperationsStore["get
       .map(([path, total]) => ({ path, total }))
       .sort((left, right) => right.total - left.total || left.path.localeCompare(right.path))
       .slice(0, 5),
+    clusters: clusters.slice(0, 5),
   };
 }
 

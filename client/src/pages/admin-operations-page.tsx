@@ -64,6 +64,18 @@ function describeOperationalEvent(event: OperationalEvent) {
   }
 }
 
+function describeOperationalEventKind(kind: OperationalEvent["kind"]) {
+  return describeOperationalEvent({
+    id: kind,
+    kind,
+    status: "success",
+    source: "",
+    message: "",
+    reference: null,
+    occurredAt: new Date().toISOString(),
+  });
+}
+
 function formatBytes(sizeBytes: number) {
   if (sizeBytes < 1024) {
     return `${sizeBytes} B`;
@@ -1058,6 +1070,30 @@ export function AdminOperationsPage() {
                 <p className="mt-2 text-xs text-slate-500">Nenhuma falha operacional registada nas ultimas 24 horas.</p>
               )}
             </div>
+            {summary.operationalSummary.failureClusters24h.length ? (
+              <div className="grid gap-3">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Falhas agrupadas</p>
+                <div className="grid gap-3">
+                  {summary.operationalSummary.failureClusters24h.map((cluster) => (
+                    <article className="rounded-[20px] border border-slate-200 bg-slate-50/70 px-4 py-3" key={cluster.key}>
+                      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-950">{describeOperationalEventKind(cluster.kind)}</p>
+                          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                            {cluster.total} ocorrencia(s) - origem {cluster.source}
+                            {cluster.reference ? ` - ref ${cluster.reference}` : ""}
+                          </p>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {new Date(cluster.firstOccurredAt).toLocaleString("pt-BR")} ate {new Date(cluster.lastOccurredAt).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-700">{cluster.lastMessage}</p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
@@ -1116,6 +1152,47 @@ export function AdminOperationsPage() {
                   <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700" key={`incident-path-${item.path}`}>
                     {item.path} {item.total}
                   </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {summary.incidentSummary.clusters.length ? (
+            <div className="grid gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Incidentes agrupados</p>
+              <div className="grid gap-3">
+                {summary.incidentSummary.clusters.map((cluster) => (
+                  <article
+                    className={`rounded-[20px] border px-4 py-3 ${
+                      cluster.level === "error" ? "border-rose-200 bg-rose-50/70" : "border-amber-200 bg-amber-50/70"
+                    }`}
+                    key={cluster.key}
+                  >
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">
+                          {describeIncident({
+                            id: cluster.key,
+                            kind: cluster.kind,
+                            level: cluster.level,
+                            message: "",
+                            occurredAt: cluster.lastOccurredAt,
+                            requestId: null,
+                            userId: null,
+                            method: null,
+                            path: cluster.path,
+                            statusCode: null,
+                          })}
+                        </p>
+                        <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500">
+                          {cluster.total} ocorrencia(s)
+                          {cluster.path ? ` - ${cluster.path}` : " - sem rota associada"}
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {new Date(cluster.firstOccurredAt).toLocaleString("pt-BR")} ate {new Date(cluster.lastOccurredAt).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                  </article>
                 ))}
               </div>
             </div>

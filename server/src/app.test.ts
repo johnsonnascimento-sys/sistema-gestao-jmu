@@ -1630,6 +1630,7 @@ describe("Gestor JMU API", () => {
     expect(typeof (ops.json().data as AdminOpsSummary).incidentSummary.total).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).incidentSummary.byKind)).toBe(true);
     expect(Array.isArray((ops.json().data as AdminOpsSummary).incidentSummary.topPaths)).toBe(true);
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).incidentSummary.clusters)).toBe(true);
     expect((ops.json().data as AdminOpsSummary).migrations?.totalFiles).toBeGreaterThanOrEqual(2);
     expect((ops.json().data as AdminOpsSummary).backupStatus.visible).toBe(true);
     expect((ops.json().data as AdminOpsSummary).backupStatus.lastBackup?.fileName).toContain("gestor-adminlog-");
@@ -1639,6 +1640,7 @@ describe("Gestor JMU API", () => {
     expect((ops.json().data as AdminOpsSummary).operationalSummary.lastSuccessfulDeployAt).not.toBeUndefined();
     expect(typeof (ops.json().data as AdminOpsSummary).operationalSummary.failureCount24h).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).operationalSummary.failuresByKind24h)).toBe(true);
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).operationalSummary.failureClusters24h)).toBe(true);
     expect((ops.json().data as AdminOpsSummary).caseManagementReport.periodDays).toBe(30);
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.createdInPeriod).toBe("number");
     expect(typeof (ops.json().data as AdminOpsSummary).caseManagementReport.closedInPeriod).toBe("number");

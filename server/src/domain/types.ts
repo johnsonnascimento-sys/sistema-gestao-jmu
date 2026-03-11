@@ -323,6 +323,15 @@ export interface AdminOpsIncidentSummary {
     path: string;
     total: number;
   }>;
+  clusters: Array<{
+    key: string;
+    kind: OperationsIncidentKind;
+    level: OperationsIncidentLevel;
+    path: string | null;
+    total: number;
+    firstOccurredAt: string;
+    lastOccurredAt: string;
+  }>;
 }
 
 export interface OperationsCounters {
@@ -395,6 +404,16 @@ export interface AdminOpsOperationalSummary {
   failuresByKind24h: Array<{
     kind: OperationalEventKind;
     total: number;
+  }>;
+  failureClusters24h: Array<{
+    key: string;
+    kind: OperationalEventKind;
+    source: string;
+    reference: string | null;
+    total: number;
+    firstOccurredAt: string;
+    lastOccurredAt: string;
+    lastMessage: string;
   }>;
 }
 
