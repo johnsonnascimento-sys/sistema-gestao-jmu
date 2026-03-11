@@ -22,7 +22,7 @@ function emptyToNull(value: string | null | undefined) {
 export async function registerInteressadoRoutes(app: FastifyInstance, options: { interessadoRepository: InteressadoRepository }) {
   const { interessadoRepository } = options;
 
-  app.get("/api/interessados", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.read")] }, async (request, reply) => {
+  const listHandler = async (request: { query: unknown }, reply: { send: (payload: unknown) => unknown }) => {
     const query = listSchema.parse(request.query);
     const result = await interessadoRepository.list({
       q: query.q,
@@ -39,9 +39,9 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
       },
       error: null,
     });
-  });
+  };
 
-  app.post("/api/interessados", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, async (request, reply) => {
+  const createHandler = async (request: { body: unknown }, reply: { status: (code: number) => { send: (payload: unknown) => unknown } }) => {
     const payload = interessadoSchema.parse(request.body);
     const record = await interessadoRepository.create({
       nome: payload.nome,
@@ -55,9 +55,9 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
       data: record,
       error: null,
     });
-  });
+  };
 
-  app.patch("/api/interessados/:id", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, async (request, reply) => {
+  const updateHandler = async (request: { params: unknown; body: unknown }, reply: { send: (payload: unknown) => unknown }) => {
     const params = z.object({ id: z.string().uuid() }).parse(request.params);
     const payload = interessadoSchema.parse(request.body);
     const record = await interessadoRepository.update({
@@ -73,5 +73,12 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
       data: record,
       error: null,
     });
-  });
+  };
+
+  app.get("/api/interessados", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.read")] }, listHandler);
+  app.get("/api/pessoas", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.read")] }, listHandler);
+  app.post("/api/interessados", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, createHandler);
+  app.post("/api/pessoas", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, createHandler);
+  app.patch("/api/interessados/:id", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, updateHandler);
+  app.patch("/api/pessoas/:id", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, updateHandler);
 }

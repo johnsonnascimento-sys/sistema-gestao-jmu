@@ -6,6 +6,7 @@ import type {
   DemandaComentario,
   DemandaInteressado,
   DemandaDocumento,
+  DemandaNumeroJudicial,
   DemandaSetorFluxo,
   DemandaVinculo,
   DemandaInteressadoPapel,
@@ -51,7 +52,8 @@ export interface ResetUserPasswordInput {
 }
 
 export interface CreatePreDemandaInput {
-  solicitante: string;
+  solicitante?: string;
+  pessoaSolicitanteId?: string | null;
   assunto: string;
   dataReferencia: string;
   descricao?: string | null;
@@ -109,6 +111,18 @@ export interface UpdatePreDemandaCaseDataInput {
 export interface UpdatePreDemandaAnotacoesInput {
   preId: string;
   anotacoes: string | null;
+}
+
+export interface AddNumeroJudicialInput {
+  preId: string;
+  numeroJudicial: string;
+  changedByUserId: number;
+}
+
+export interface RemoveNumeroJudicialInput {
+  preId: string;
+  numeroJudicial: string;
+  changedByUserId: number;
 }
 
 export interface AddDemandaInteressadoInput {
@@ -304,6 +318,8 @@ export interface PreDemandaRepository {
   removeInteressado(input: RemoveDemandaInteressadoInput): Promise<DemandaInteressado[]>;
   addVinculo(input: AddDemandaVinculoInput): Promise<DemandaVinculo[]>;
   removeVinculo(input: RemoveDemandaVinculoInput): Promise<DemandaVinculo[]>;
+  addNumeroJudicial(input: AddNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
+  removeNumeroJudicial(input: RemoveNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
   tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;
   concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput): Promise<PreDemandaDetail>;
   addAndamento(input: AddAndamentoInput): Promise<Andamento>;

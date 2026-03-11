@@ -34,8 +34,9 @@ export function App() {
                     <InteressadosPage />
                   </RequirePermission>
                 }
-                path="/interessados"
+                path="/pessoas"
               />
+              <Route element={<Navigate replace to="/pessoas" />} path="/interessados" />
               <Route
                 element={
                   <RequirePermission permission="cadastro.setor.read">

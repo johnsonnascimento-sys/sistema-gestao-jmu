@@ -85,6 +85,8 @@ export interface Interessado {
   updatedAt: string;
 }
 
+export type Pessoa = Interessado;
+
 export interface DemandaInteressado {
   interessado: Interessado;
   papel: DemandaInteressadoPapel;
@@ -99,6 +101,12 @@ export interface PreDemandaMetadata {
   pagamentoEnvolvido: boolean | null;
   audienciaData: string | null;
   audienciaStatus: string | null;
+}
+
+export interface DemandaNumeroJudicial {
+  numero: string;
+  principal: boolean;
+  createdAt: string;
 }
 
 export interface PreDemandaSummaryLinked {
@@ -233,6 +241,7 @@ export interface AdminUserAuditRecord {
 export interface SeiAssociation {
   preId: string;
   seiNumero: string;
+  principal: boolean;
   linkedAt: string;
   updatedAt: string;
   observacoes: string | null;
@@ -243,6 +252,9 @@ export interface PreDemanda {
   id: number;
   preId: string;
   solicitante: string;
+  pessoaPrincipal: Pessoa | null;
+  principalNumero: string;
+  principalTipo: "demanda" | "sei";
   assunto: string;
   dataReferencia: string;
   status: PreDemandaStatus;
@@ -259,6 +271,8 @@ export interface PreDemanda {
   updatedAt: string;
   createdBy: AuditActor | null;
   currentAssociation: SeiAssociation | null;
+  seiAssociations: SeiAssociation[];
+  numerosJudiciais: DemandaNumeroJudicial[];
   queueHealth: QueueHealth;
   allowedNextStatuses: PreDemandaStatus[];
   interessados: DemandaInteressado[];
@@ -307,6 +321,7 @@ export interface PreDemandaDashboardSummary {
   closedLast30Days: number;
   agingAttentionTotal: number;
   agingCriticalTotal: number;
+  dueTodayTotal: number;
   dueSoonTotal: number;
   overdueTotal: number;
   withoutSetorTotal: number;

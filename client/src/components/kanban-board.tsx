@@ -56,7 +56,7 @@ export function KanbanBoard({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-rose-600">{item.preId}</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-rose-600">{item.principalNumero}</p>
                         <h4 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h4>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
@@ -67,7 +67,7 @@ export function KanbanBoard({
 
                     <div className="grid gap-2 text-sm text-slate-600">
                       <p>
-                        <span className="font-medium text-slate-950">Solicitante:</span> {item.solicitante}
+                        <span className="font-medium text-slate-950">Pessoa:</span> {item.pessoaPrincipal?.nome ?? item.solicitante}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Setor:</span> {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}
@@ -92,7 +92,7 @@ export function KanbanBoard({
                         <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">SEI:</span> {item.currentAssociation?.seiNumero ?? "Nao associado"}
+                        <span className="font-medium text-slate-950">Demanda:</span> {item.preId}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Fila:</span> {getQueueHealth(item).detail}

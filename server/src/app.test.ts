@@ -39,6 +39,7 @@ import type {
   AddAndamentoInput,
   AddDemandaInteressadoInput,
   AddDemandaVinculoInput,
+  AddNumeroJudicialInput,
   AssociateSeiInput,
   AssociateSeiResult,
   ConcluirTramitacaoSetorInput,
@@ -60,6 +61,7 @@ import type {
   RemoveDocumentoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
+  RemoveNumeroJudicialInput,
   ResetUserPasswordInput,
   SetorRepository,
   SettingsRepository,
@@ -306,10 +308,23 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return andamento;
   }
 
+  private buildDefaultPessoa(id: string, nome?: string): Interessado {
+    return {
+      id,
+      nome: nome ?? `Pessoa ${id.slice(0, 4)}`,
+      matricula: null,
+      cpf: null,
+      dataNascimento: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
+    const resolvedSolicitante = input.solicitante ?? (input.pessoaSolicitanteId ? `Pessoa ${input.pessoaSolicitanteId.slice(0, 4)}` : "");
     const existing = this.records.find(
       (item) =>
-        item.solicitante.trim().toLowerCase() === input.solicitante.trim().toLowerCase() &&
+        item.solicitante.trim().toLowerCase() === resolvedSolicitante.trim().toLowerCase() &&
         item.assunto.trim().toLowerCase() === input.assunto.trim().toLowerCase() &&
         item.dataReferencia === input.dataReferencia,
     );
@@ -323,12 +338,20 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length) ||
         input.metadata?.frequenciaDiaMes,
     );
+    if (!hasContinuousFrequency && !input.prazoFinal) {
+      throw new Error("prazo required");
+    }
     const initialStatus: PreDemandaStatus = input.seiNumero || hasContinuousFrequency ? "associada" : "aberta";
     const now = new Date().toISOString();
+    const preId = `PRE-2026-${String(this.nextId).padStart(3, "0")}`;
+    const pessoaPrincipal = input.pessoaSolicitanteId ? this.buildDefaultPessoa(input.pessoaSolicitanteId, resolvedSolicitante) : null;
     const record: PreDemandaDetail = {
       id: this.nextId,
-      preId: `PRE-2026-${String(this.nextId).padStart(3, "0")}`,
-      solicitante: input.solicitante,
+      preId,
+      solicitante: resolvedSolicitante,
+      pessoaPrincipal,
+      principalNumero: input.seiNumero ?? preId,
+      principalTipo: input.seiNumero ? "sei" : "demanda",
       assunto: input.assunto,
       dataReferencia: input.dataReferencia,
       status: initialStatus,
@@ -339,26 +362,74 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       dataConclusao: null,
       numeroJudicial: input.numeroJudicial ?? null,
       anotacoes: null,
-      setorAtual: null,
       metadata: defaultMetadata(input.metadata),
       createdAt: now,
       updatedAt: now,
       createdBy: null,
       currentAssociation: input.seiNumero
         ? {
-            preId: `PRE-2026-${String(this.nextId).padStart(3, "0")}`,
+            preId,
             seiNumero: input.seiNumero,
+            principal: true,
             linkedAt: now,
             updatedAt: now,
             observacoes: "Processo registado ja com numeracao de origem.",
             linkedBy: null,
           }
         : null,
+      seiAssociations: input.seiNumero
+        ? [
+            {
+              preId,
+              seiNumero: input.seiNumero,
+              principal: true,
+              linkedAt: now,
+              updatedAt: now,
+              observacoes: "Processo registado ja com numeracao de origem.",
+              linkedBy: null,
+            },
+          ]
+        : [],
+      numerosJudiciais: input.numeroJudicial ? [{ numero: input.numeroJudicial, principal: true, createdAt: now }] : [],
       queueHealth: buildQueueHealth(initialStatus, now, input.dataReferencia, this.queueHealthThresholds),
       allowedNextStatuses: getAllowedNextStatuses({ currentStatus: initialStatus, hasAssociation: Boolean(input.seiNumero) }),
-      interessados: [],
+      interessados: pessoaPrincipal
+        ? [
+            {
+              interessado: pessoaPrincipal,
+              papel: "solicitante",
+              linkedAt: now,
+              linkedBy: null,
+            },
+          ]
+        : [],
       vinculos: [],
-      setoresAtivos: [],
+      setorAtual: {
+        id: "setad2a2cjm",
+        sigla: "SETAD2A2CJM",
+        nomeCompleto: "Setor Administrativo 2A2 CJM",
+        createdAt: now,
+        updatedAt: now,
+      },
+      setoresAtivos: [
+        {
+          id: `fluxo-${this.nextId}`,
+          status: "ativo",
+          observacoes: "Setor inicial da demanda.",
+          createdAt: now,
+          createdBy: null,
+          concluidaEm: null,
+          concluidaPor: null,
+          setor: {
+            id: "setad2a2cjm",
+            sigla: "SETAD2A2CJM",
+            nomeCompleto: "Setor Administrativo 2A2 CJM",
+            createdAt: now,
+            updatedAt: now,
+          },
+          origemSetor: null,
+        },
+      ],
       documentos: [],
       comentarios: [],
       tarefasPendentes: [],
@@ -376,7 +447,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     if (params.q) {
       const q = params.q.toLowerCase();
-      items = items.filter((item) => [item.preId, item.solicitante, item.assunto].some((value) => value.toLowerCase().includes(q)));
+      items = items.filter((item) => [item.preId, item.principalNumero, item.solicitante, item.assunto].some((value) => value.toLowerCase().includes(q)));
     }
 
     if (params.statuses?.length) {
@@ -486,6 +557,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (input.observacoes !== undefined) record.observacoes = input.observacoes;
     if (input.prazoFinal !== undefined) record.prazoFinal = input.prazoFinal;
     if (input.numeroJudicial !== undefined) record.numeroJudicial = input.numeroJudicial;
+    if (input.numeroJudicial) {
+      record.numerosJudiciais = [
+        { numero: input.numeroJudicial, principal: true, createdAt: new Date().toISOString() },
+        ...record.numerosJudiciais.filter((item) => item.numero !== input.numeroJudicial).map((item) => ({ ...item, principal: false })),
+      ];
+    }
     if (input.metadata !== undefined) {
       record.metadata = {
         ...record.metadata,
@@ -504,6 +581,37 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     record.anotacoes = input.anotacoes;
     return this.touch(record);
+  }
+
+  async addNumeroJudicial(input: AddNumeroJudicialInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    const now = new Date().toISOString();
+    record.numerosJudiciais = [
+      { numero: input.numeroJudicial, principal: true, createdAt: now },
+      ...record.numerosJudiciais.filter((item) => item.numero !== input.numeroJudicial).map((item) => ({ ...item, principal: false })),
+    ];
+    record.numeroJudicial = input.numeroJudicial;
+    this.touch(record);
+    return record.numerosJudiciais;
+  }
+
+  async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    record.numerosJudiciais = record.numerosJudiciais.filter((item) => item.numero !== input.numeroJudicial);
+    if (record.numerosJudiciais[0]) {
+      record.numerosJudiciais[0].principal = true;
+      record.numeroJudicial = record.numerosJudiciais[0].numero;
+    } else {
+      record.numeroJudicial = null;
+    }
+    this.touch(record);
+    return record.numerosJudiciais;
   }
 
   async addInteressado(input: AddDemandaInteressadoInput) {
@@ -532,6 +640,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       linkedAt: new Date().toISOString(),
       linkedBy: null,
     });
+    if (input.papel === "solicitante") {
+      record.pessoaPrincipal = interessado;
+      record.solicitante = interessado.nome;
+    }
     this.addAndamentoRecord(record, `Interessado ${interessado.nome} vinculado ao processo como ${input.papel}.`, "interessado_added");
     this.touch(record);
     return record.interessados;
@@ -810,6 +922,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const association: SeiAssociation = {
       preId: input.preId,
       seiNumero: input.seiNumero,
+      principal: true,
       linkedAt: current?.linkedAt ?? now,
       updatedAt: now,
       observacoes: input.observacoes ?? null,
@@ -817,6 +930,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
 
     record.currentAssociation = association;
+    record.seiAssociations = [
+      association,
+      ...record.seiAssociations.filter((item) => item.seiNumero !== input.seiNumero).map((item) => ({ ...item, principal: false })),
+    ];
+    record.principalNumero = input.seiNumero;
+    record.principalTipo = "sei";
     if (record.status !== "associada") {
       this.statusAudit.unshift({
         id: this.nextAuditId++,
@@ -997,6 +1116,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       closedLast30Days: this.statusAudit.filter((item) => item.statusNovo === "encerrada").length,
       agingAttentionTotal: this.records.filter((item) => item.queueHealth.level === "attention").length,
       agingCriticalTotal: this.records.filter((item) => item.queueHealth.level === "critical").length,
+      dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal === new Date().toISOString().slice(0, 10)).length,
       dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal !== null).length,
       overdueTotal: 0,
       withoutSetorTotal: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).length,
@@ -1326,6 +1446,7 @@ describe("Gestor JMU API", () => {
         solicitante: "Maria Silva",
         assunto: "Abertura de procedimento",
         data_referencia: "2026-03-09",
+        prazo_final: "2026-03-20",
         descricao: "Registro inicial",
         fonte: "whatsapp",
       },
@@ -1343,6 +1464,7 @@ describe("Gestor JMU API", () => {
         solicitante: "Maria Silva",
         assunto: "Abertura de procedimento",
         data_referencia: "2026-03-09",
+        prazo_final: "2026-03-20",
       },
     });
 

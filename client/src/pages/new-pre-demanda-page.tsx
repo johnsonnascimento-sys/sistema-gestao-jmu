@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
@@ -6,7 +6,8 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { ApiError, appendRequestReference, createPreDemanda, formatAppError } from "../lib/api";
+import { ApiError, appendRequestReference, createPreDemanda, formatAppError, listPessoas } from "../lib/api";
+import type { Pessoa } from "../types";
 import { formatSeiInput, isValidSei } from "../lib/sei";
 
 type EntryType = "existing" | "eventual" | "continuous";
@@ -37,7 +38,7 @@ export function NewPreDemandaPage() {
   const [entryType, setEntryType] = useState<EntryType>("eventual");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [form, setForm] = useState({
-    solicitante: "",
+    pessoa_solicitante_id: "",
     assunto: "",
     data_referencia: new Date().toISOString().slice(0, 10),
     descricao: "",
@@ -55,11 +56,39 @@ export function NewPreDemandaPage() {
   const [conflictPreId, setConflictPreId] = useState<string | null>(null);
   const [result, setResult] = useState<{ preId: string; idempotent: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pessoaSearch, setPessoaSearch] = useState("");
+  const [pessoaResults, setPessoaResults] = useState<Pessoa[]>([]);
   const isSeiValid = !form.sei_numero || isValidSei(form.sei_numero);
   const isContinuous = entryType === "continuous";
   const showNumbers = entryType === "existing";
   const showAdvanced = advancedOpen || isContinuous;
-  const isSubmitBlocked = isSubmitting || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim());
+  const hasContinuousFrequency = Boolean(form.frequencia.trim());
+  const requiresPrazo = !hasContinuousFrequency;
+  const isSubmitBlocked =
+    isSubmitting || !form.pessoa_solicitante_id || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim()) || (requiresPrazo && !form.prazo_final);
+
+  useEffect(() => {
+    if (pessoaSearch.trim().length < 2) {
+      setPessoaResults([]);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const result = await listPessoas({ q: pessoaSearch, page: 1, pageSize: 8 });
+        if (active) {
+          setPessoaResults(result.items);
+        }
+      } catch {
+        if (active) {
+          setPessoaResults([]);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pessoaSearch]);
 
   const frequenciaHint = useMemo(() => {
     if (form.frequencia === "Semanal" && form.frequencia_dias_semana.length) {
@@ -113,7 +142,7 @@ export function NewPreDemandaPage() {
 
     try {
       const created = await createPreDemanda({
-        solicitante: form.solicitante,
+        pessoa_solicitante_id: form.pessoa_solicitante_id,
         assunto: form.assunto,
         data_referencia: form.data_referencia,
         descricao: form.descricao || undefined,
@@ -148,7 +177,7 @@ export function NewPreDemandaPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Via rapida para processo externo com numero, demanda eventual ou rotina administrativa continua."
+        description="Via rapida para processo externo, demanda pre-processo ou demanda sem numero."
         eyebrow="Cadastro"
         title="Novo Processo / Demanda"
       />
@@ -156,9 +185,36 @@ export function NewPreDemandaPage() {
       <Card>
         <CardContent className="p-6">
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-            <FormField label="Solicitante">
-              <Input onChange={(event) => setForm((current) => ({ ...current, solicitante: event.target.value }))} value={form.solicitante} />
-            </FormField>
+            <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
+              <FormField label="Pessoa principal">
+                <Input onChange={(event) => setPessoaSearch(event.target.value)} placeholder="Buscar pessoa por nome, matricula ou CPF" value={pessoaSearch} />
+              </FormField>
+              {form.pessoa_solicitante_id ? (
+                <p className="text-sm font-medium text-emerald-700">
+                  Pessoa selecionada: {pessoaResults.find((item) => item.id === form.pessoa_solicitante_id)?.nome ?? "Vinculada"}
+                </p>
+              ) : null}
+              {pessoaResults.length > 0 ? (
+                <div className="grid gap-2">
+                  {pessoaResults.map((item) => (
+                    <button
+                      className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm ${
+                        form.pessoa_solicitante_id === item.id ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                      key={item.id}
+                      onClick={() => setForm((current) => ({ ...current, pessoa_solicitante_id: item.id }))}
+                      type="button"
+                    >
+                      <span>
+                        <span className="block font-semibold text-slate-950">{item.nome}</span>
+                        <span className="block text-slate-500">{item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Usar</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
 
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <p className="text-sm font-semibold text-slate-950">Tipo de Entrada</p>
@@ -166,19 +222,19 @@ export function NewPreDemandaPage() {
                 <EntryOption
                   checked={entryType === "existing"}
                   description="Ja chega com numeracao de origem."
-                  label="Processo Existente (Com Numero)"
+                  label="Processo Existente (Com Número)"
                   onChange={() => updateEntryType("existing")}
                 />
                 <EntryOption
                   checked={entryType === "eventual"}
                   description="Fluxo normal aguardando numeracao."
-                  label="Demanda Eventual (Aguardara SEI)"
+                  label="Demanda Pré-Processo (Aguardará SEI)"
                   onChange={() => updateEntryType("eventual")}
                 />
                 <EntryOption
                   checked={entryType === "continuous"}
-                  description="Rotina continua sem numero imediato."
-                  label="Rotina Administrativa Continua"
+                  description="Fluxo sem numero principal na abertura."
+                  label="Demanda Sem Número"
                   onChange={() => updateEntryType("continuous")}
                 />
               </div>
@@ -235,7 +291,7 @@ export function NewPreDemandaPage() {
                 )}
               </div>
               {showAdvanced ? <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <FormField label="Prazo final">
+                <FormField label={`Prazo final${requiresPrazo ? " *" : ""}`}>
                   <Input onChange={(event) => setForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={form.prazo_final} />
                 </FormField>
 

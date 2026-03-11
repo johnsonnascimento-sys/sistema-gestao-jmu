@@ -838,7 +838,7 @@ export function PreDemandasPage() {
       <form onSubmit={handleFilterSubmit}>
         <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
-            <Input onChange={(event) => setQuery(event.target.value)} placeholder="PRE, solicitante ou assunto" value={query} />
+            <Input onChange={(event) => setQuery(event.target.value)} placeholder="DEMANDA, SEI, pessoa ou assunto" value={query} />
           </FormField>
 
           <FormField hint="Multiplos estados." label="Status">
@@ -923,7 +923,7 @@ export function PreDemandasPage() {
               <option value="updatedAt">Actualizacao</option>
               <option value="createdAt">Criacao</option>
               <option value="dataReferencia">Data de referencia</option>
-              <option value="solicitante">Solicitante</option>
+              <option value="solicitante">Pessoa principal</option>
               <option value="status">Status</option>
               <option value="prazoFinal">Prazo final</option>
               <option value="numeroJudicial">Numero judicial</option>
@@ -1001,8 +1001,8 @@ export function PreDemandasPage() {
               <table className="min-w-full text-left text-sm">
                 <thead className="text-slate-500">
                 <tr>
-                  <th className="px-3 py-3">PRE</th>
-                  <th className="px-3 py-3">Solicitante</th>
+                  <th className="px-3 py-3">Principal</th>
+                  <th className="px-3 py-3">Pessoa</th>
                   <th className="px-3 py-3">Assunto</th>
                   <th className="px-3 py-3">Setor</th>
                   <th className="px-3 py-3">Status</th>
@@ -1027,9 +1027,10 @@ export function PreDemandasPage() {
                       key={item.preId}
                     >
                       <td className="px-3 py-4 font-semibold text-slate-950">
-                        <Link to={`/pre-demandas/${item.preId}`}>{item.preId}</Link>
+                        <Link to={`/pre-demandas/${item.preId}`}>{item.principalNumero}</Link>
+                        <div className="text-xs font-medium text-slate-500">{item.preId}</div>
                       </td>
-                      <td className="px-3 py-4">{item.solicitante}</td>
+                      <td className="px-3 py-4">{item.pessoaPrincipal?.nome ?? item.solicitante}</td>
                       <td className="px-3 py-4">{item.assunto}</td>
                       <td className="px-3 py-4">
                         <div className="grid gap-1">

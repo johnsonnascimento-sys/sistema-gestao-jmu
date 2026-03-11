@@ -16,9 +16,9 @@ function getEventLabel(event: TimelineEvent) {
     case "task_completed":
       return "Tarefa concluida";
     case "interessado_added":
-      return "Interessado vinculado";
+      return "Pessoa vinculada";
     case "interessado_removed":
-      return "Interessado removido";
+      return "Pessoa removida";
     case "vinculo_added":
       return "Processo relacionado";
     case "vinculo_removed":

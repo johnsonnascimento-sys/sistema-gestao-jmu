@@ -117,7 +117,8 @@ export interface ListPreDemandasParams {
 }
 
 export interface CreatePreDemandaPayload {
-  solicitante: string;
+  solicitante?: string;
+  pessoa_solicitante_id?: string | null;
   assunto: string;
   data_referencia: string;
   descricao?: string;
@@ -158,6 +159,8 @@ export interface ListInteressadosParams {
   page?: number;
   pageSize?: number;
 }
+
+export type ListPessoasParams = ListInteressadosParams;
 
 export function login(email: string, password: string) {
   return request<AuthUser>("/api/auth/login", {
@@ -450,6 +453,14 @@ export function listInteressados(params: ListInteressadosParams = {}) {
   return request<{ items: Interessado[]; total: number; page: number; pageSize: number }>(`/api/interessados?${search.toString()}`);
 }
 
+export function listPessoas(params: ListPessoasParams = {}) {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  search.set("page", String(params.page ?? 1));
+  search.set("pageSize", String(params.pageSize ?? 10));
+  return request<{ items: Interessado[]; total: number; page: number; pageSize: number }>(`/api/pessoas?${search.toString()}`);
+}
+
 export function createInteressado(payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
   return request<Interessado>("/api/interessados", {
     method: "POST",
@@ -457,8 +468,22 @@ export function createInteressado(payload: { nome: string; matricula?: string | 
   });
 }
 
+export function createPessoa(payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+  return request<Interessado>("/api/pessoas", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function updateInteressado(id: string, payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
   return request<Interessado>(`/api/interessados/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePessoa(id: string, payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+  return request<Interessado>(`/api/pessoas/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

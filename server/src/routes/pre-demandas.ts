@@ -25,7 +25,8 @@ const metadataSchema = z
   .nullable();
 
 const createSchema = z.object({
-  solicitante: z.string().trim().min(3),
+  solicitante: z.string().trim().min(3).optional(),
+  pessoa_solicitante_id: z.string().uuid().optional().nullable(),
   assunto: z.string().trim().min(3),
   data_referencia: z.string().date(),
   descricao: z.string().trim().max(4000).optional().nullable(),
@@ -35,7 +36,23 @@ const createSchema = z.object({
   sei_numero: z.string().trim().regex(SEI_REGEX, "Numero SEI invalido.").optional().nullable(),
   numero_judicial: z.string().trim().max(100).optional().nullable(),
   metadata: metadataSchema,
-});
+})
+  .refine((value) => Boolean(value.pessoa_solicitante_id) || Boolean(value.solicitante?.trim()), {
+    message: "Informe a pessoa principal da demanda.",
+    path: ["pessoa_solicitante_id"],
+  })
+  .refine((value) => {
+    const hasContinuousFrequency = Boolean(
+      value.metadata?.frequencia ||
+        (value.metadata?.frequencia_dias_semana && value.metadata.frequencia_dias_semana.length) ||
+        value.metadata?.frequencia_dia_mes,
+    );
+
+    return hasContinuousFrequency || Boolean(value.prazo_final);
+  }, {
+    message: "Prazo final e obrigatorio quando a demanda nao possui frequencia continua.",
+    path: ["prazo_final"],
+  });
 
 const listSchema = z.object({
   q: z.string().trim().optional(),
@@ -188,7 +205,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.post("/api/pre-demandas", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (request, reply) => {
     const payload = createSchema.parse(request.body);
     const result = await preDemandaRepository.create({
-      solicitante: payload.solicitante,
+      solicitante: emptyToNull(payload.solicitante) ?? undefined,
+      pessoaSolicitanteId: payload.pessoa_solicitante_id ?? null,
       assunto: payload.assunto,
       dataReferencia: payload.data_referencia,
       descricao: emptyToNull(payload.descricao),

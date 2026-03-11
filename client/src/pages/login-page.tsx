@@ -46,7 +46,7 @@ export function LoginPage() {
             <span className="brand-text-gradient block"> linguagem institucional clara.</span>
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-200/90">
-            Acompanhe processos, tramitacoes, interessados, documentos e governanca operacional num unico ambiente interno.
+            Acompanhe processos, tramitacoes, pessoas, documentos e governanca operacional num unico ambiente interno.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">

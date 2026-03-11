@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { createInteressado, formatAppError, listInteressados, updateInteressado } from "../lib/api";
+import { createPessoa, formatAppError, listPessoas, updatePessoa } from "../lib/api";
 import type { Interessado } from "../types";
 
 type InteressadoFormState = {
@@ -46,11 +46,11 @@ export function InteressadosPage() {
     setLoading(true);
 
     try {
-      const result = await listInteressados({ q: query, page: 1, pageSize: 50 });
+      const result = await listPessoas({ q: query, page: 1, pageSize: 50 });
       setItems(result.items);
       setError("");
     } catch (nextError) {
-      setError(formatAppError(nextError, "Falha ao carregar interessados."));
+      setError(formatAppError(nextError, "Falha ao carregar pessoas."));
     } finally {
       setLoading(false);
     }
@@ -84,9 +84,9 @@ export function InteressadosPage() {
 
     try {
       if (editing) {
-        await updateInteressado(editing.id, normalizePayload(form));
+        await updatePessoa(editing.id, normalizePayload(form));
       } else {
-        await createInteressado(normalizePayload(form));
+        await createPessoa(normalizePayload(form));
       }
 
       setDialogOpen(false);
@@ -94,14 +94,14 @@ export function InteressadosPage() {
       setEditing(null);
       await load();
     } catch (nextError) {
-      setError(formatAppError(nextError, "Falha ao guardar interessado."));
+      setError(formatAppError(nextError, "Falha ao guardar pessoa."));
     } finally {
       setIsSaving(false);
     }
   }
 
   if (loading) {
-    return <LoadingState title="Carregando interessados" description="Preparando o cadastro base para vinculos processuais." />;
+    return <LoadingState title="Carregando pessoas" description="Preparando o cadastro base para vinculos processuais." />;
   }
 
   if (error && items.length === 0) {
@@ -112,11 +112,11 @@ export function InteressadosPage() {
     <section className="grid gap-6">
       <PageHeader
         eyebrow="Cadastro base"
-        title="Interessados"
-        description="Mantenha os envolvidos reutilizaveis para vincular rapidamente aos processos."
+        title="Pessoas"
+        description="Mantenha as pessoas reutilizaveis para vincular rapidamente aos processos."
         actions={
           <Button onClick={openCreateDialog} type="button">
-            Adicionar interessado
+            Adicionar pessoa
           </Button>
         }
       />
@@ -159,7 +159,7 @@ export function InteressadosPage() {
                 {items.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={6}>
-                      Nenhum interessado encontrado.
+                      Nenhuma pessoa encontrada.
                     </td>
                   </tr>
                 ) : (
@@ -187,7 +187,7 @@ export function InteressadosPage() {
       <Dialog onOpenChange={setDialogOpen} open={dialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing ? "Editar interessado" : "Novo interessado"}</DialogTitle>
+            <DialogTitle>{editing ? "Editar pessoa" : "Nova pessoa"}</DialogTitle>
             <DialogDescription>Este cadastro sera reutilizado no painel de envolvidos e nos atalhos processuais.</DialogDescription>
           </DialogHeader>
           <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -210,7 +210,7 @@ export function InteressadosPage() {
                 Cancelar
               </Button>
               <Button disabled={isSaving || form.nome.trim().length < 3} type="submit">
-                {isSaving ? "Salvando..." : editing ? "Salvar alteracoes" : "Criar interessado"}
+                {isSaving ? "Salvando..." : editing ? "Salvar alteracoes" : "Criar pessoa"}
               </Button>
             </DialogFooter>
           </form>

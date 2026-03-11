@@ -29,6 +29,7 @@ import type {
   AddAndamentoInput,
   AddDemandaInteressadoInput,
   AddDemandaVinculoInput,
+  AddNumeroJudicialInput,
   AssociateSeiInput,
   AssociateSeiResult,
   ConcluirTramitacaoSetorInput,
@@ -45,6 +46,7 @@ import type {
   RemoveDocumentoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
+  RemoveNumeroJudicialInput,
   SettingsRepository,
   TramitarPreDemandaInput,
   UpdateComentarioInput,
@@ -79,6 +81,13 @@ const BASE_SELECT = `
     created_by.email as created_by_email,
     created_by.name as created_by_name,
     created_by.role as created_by_role,
+    pessoa_principal.pessoa_principal_id,
+    pessoa_principal.pessoa_principal_nome,
+    pessoa_principal.pessoa_principal_matricula,
+    pessoa_principal.pessoa_principal_cpf,
+    pessoa_principal.pessoa_principal_data_nascimento,
+    pessoa_principal.pessoa_principal_created_at,
+    pessoa_principal.pessoa_principal_updated_at,
     setor.id as setor_id,
     setor.sigla as setor_sigla,
     setor.nome_completo as setor_nome_completo,
@@ -99,6 +108,21 @@ const BASE_SELECT = `
   left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
   left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
   left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
+  left join lateral (
+    select
+      pessoa.id as pessoa_principal_id,
+      pessoa.nome as pessoa_principal_nome,
+      pessoa.matricula as pessoa_principal_matricula,
+      pessoa.cpf as pessoa_principal_cpf,
+      pessoa.data_nascimento as pessoa_principal_data_nascimento,
+      pessoa.created_at as pessoa_principal_created_at,
+      pessoa.updated_at as pessoa_principal_updated_at
+    from adminlog.demanda_interessados di
+    inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
+    where di.pre_demanda_id = pd.id
+    order by case when di.papel = 'solicitante' then 0 else 1 end, di.created_at desc, pessoa.nome asc
+    limit 1
+  ) pessoa_principal on true
   left join adminlog.setores setor on setor.id = pd.setor_atual_id
 `;
 
@@ -114,6 +138,7 @@ const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
 
 const ALL_STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "encerrada"];
 const FILTERABLE_QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
+const DEFAULT_INITIAL_SETOR_SIGLA = "SETAD2A2CJM";
 
 function mapActor(row: QueryResultRow, prefix: string): AuditActor | null {
   if (row[`${prefix}_id`] === null || row[`${prefix}_id`] === undefined) {
@@ -158,6 +183,7 @@ function mapAssociation(row: QueryResultRow): SeiAssociation {
   return {
     preId: String(row.pre_id),
     seiNumero: String(row.sei_numero),
+    principal: true,
     linkedAt: new Date(row.linked_at).toISOString(),
     updatedAt: new Date(row.link_updated_at ?? row.updated_at).toISOString(),
     observacoes: row.link_observacoes ? String(row.link_observacoes) : null,
@@ -165,14 +191,51 @@ function mapAssociation(row: QueryResultRow): SeiAssociation {
   };
 }
 
+function mapSeiAssociationRow(row: QueryResultRow, preId: string): SeiAssociation {
+  return {
+    preId,
+    seiNumero: String(row.sei_numero),
+    principal: Boolean(row.principal),
+    linkedAt: new Date(row.created_at ?? row.linked_at).toISOString(),
+    updatedAt: new Date(row.updated_at ?? row.created_at ?? row.linked_at).toISOString(),
+    observacoes: row.observacoes ? String(row.observacoes) : null,
+    linkedBy: mapActor(row, "linked_by"),
+  };
+}
+
+function mapNumeroJudicialRow(row: QueryResultRow) {
+  return {
+    numero: String(row.numero_judicial),
+    principal: Boolean(row.principal),
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+
 function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds): PreDemandaDetail {
   const currentAssociation = row.sei_link_id === null || row.sei_link_id === undefined ? null : mapAssociation(row);
   const status = row.status as PreDemandaStatus;
+  const pessoaPrincipal =
+    row.pessoa_principal_id === null || row.pessoa_principal_id === undefined
+      ? null
+      : {
+          id: String(row.pessoa_principal_id),
+          nome: String(row.pessoa_principal_nome),
+          matricula: row.pessoa_principal_matricula ? String(row.pessoa_principal_matricula) : null,
+          cpf: row.pessoa_principal_cpf ? String(row.pessoa_principal_cpf) : null,
+          dataNascimento: row.pessoa_principal_data_nascimento ? new Date(row.pessoa_principal_data_nascimento).toISOString().slice(0, 10) : null,
+          createdAt: new Date(row.pessoa_principal_created_at).toISOString(),
+          updatedAt: new Date(row.pessoa_principal_updated_at).toISOString(),
+        };
+  const solicitante = pessoaPrincipal?.nome ?? String(row.solicitante);
+  const numeroJudicial = row.numero_judicial ? String(row.numero_judicial) : null;
 
   return {
     id: Number(row.id),
     preId: String(row.pre_id),
-    solicitante: String(row.solicitante),
+    solicitante,
+    pessoaPrincipal,
+    principalNumero: currentAssociation?.seiNumero ?? String(row.pre_id),
+    principalTipo: currentAssociation ? "sei" : "demanda",
     assunto: String(row.assunto),
     dataReferencia: new Date(row.data_referencia).toISOString().slice(0, 10),
     status,
@@ -181,7 +244,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     observacoes: row.observacoes ? String(row.observacoes) : null,
     prazoFinal: row.prazo_final ? new Date(row.prazo_final).toISOString().slice(0, 10) : null,
     dataConclusao: row.data_conclusao ? new Date(row.data_conclusao).toISOString().slice(0, 10) : null,
-    numeroJudicial: row.numero_judicial ? String(row.numero_judicial) : null,
+    numeroJudicial,
     anotacoes: row.anotacoes ? String(row.anotacoes) : null,
     setorAtual: mapSetor(row),
     metadata: mapMetadata(row.metadata),
@@ -191,6 +254,10 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     queueHealth: buildQueueHealth(status, row.updated_at, row.data_referencia, queueHealthThresholds),
     allowedNextStatuses: getAllowedNextStatuses({ currentStatus: status, hasAssociation: currentAssociation !== null }),
     currentAssociation,
+    seiAssociations: currentAssociation ? [currentAssociation] : [],
+    numerosJudiciais: numeroJudicial
+      ? [{ numero: numeroJudicial, principal: true, createdAt: new Date(row.updated_at ?? row.created_at).toISOString() }]
+      : [],
     interessados: [],
     vinculos: [],
     setoresAtivos: [],
@@ -568,6 +635,67 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return result.rows.map(mapDemandaInteressado);
   }
 
+  private async loadSeiAssociations(queryable: Queryable, preDemandaId: number, preId: string) {
+    const result = await queryable.query(
+      `
+        select
+          vinculo.sei_numero,
+          vinculo.principal,
+          vinculo.observacoes,
+          vinculo.created_at,
+          vinculo.created_by_user_id as linked_by_id,
+          linked_by.email as linked_by_email,
+          linked_by.name as linked_by_name,
+          linked_by.role as linked_by_role
+        from adminlog.demanda_sei_vinculos vinculo
+        left join adminlog.app_user linked_by on linked_by.id = vinculo.created_by_user_id
+        where vinculo.pre_demanda_id = $1
+        order by vinculo.principal desc, vinculo.created_at desc, vinculo.sei_numero asc
+      `,
+      [preDemandaId],
+    );
+
+    return result.rows.map((row) => mapSeiAssociationRow(row, preId));
+  }
+
+  private async loadNumerosJudiciais(queryable: Queryable, preDemandaId: number) {
+    const result = await queryable.query(
+      `
+        select numero_judicial, principal, created_at
+        from adminlog.demanda_numeros_judiciais
+        where pre_demanda_id = $1
+        order by principal desc, created_at desc, numero_judicial asc
+      `,
+      [preDemandaId],
+    );
+
+    return result.rows.map(mapNumeroJudicialRow);
+  }
+
+  private async resolveDefaultInitialSetor(queryable: Queryable) {
+    const result = await queryable.query(
+      `
+        select id, sigla, nome_completo, created_at, updated_at
+        from adminlog.setores
+        where sigla = $1
+        limit 1
+      `,
+      [DEFAULT_INITIAL_SETOR_SIGLA],
+    );
+
+    if (!result.rows[0]) {
+      return null;
+    }
+
+    return {
+      id: String(result.rows[0].id),
+      sigla: String(result.rows[0].sigla),
+      nomeCompleto: String(result.rows[0].nome_completo),
+      createdAt: new Date(result.rows[0].created_at).toISOString(),
+      updatedAt: new Date(result.rows[0].updated_at).toISOString(),
+    };
+  }
+
   private async loadVinculos(queryable: Queryable, preDemandaId: number) {
     const result = await queryable.query(
       `
@@ -756,7 +884,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, recentAndamentos] = await Promise.all([
+    const [interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
       this.loadInteressados(queryable, detail.id),
       this.loadVinculos(queryable, detail.id),
       this.loadSetoresAtivos(queryable, detail.id),
@@ -764,6 +892,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.loadComentarios(queryable, detail.id, detail.preId),
       this.loadTarefas(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 8),
+      this.loadSeiAssociations(queryable, detail.id, detail.preId),
+      this.loadNumerosJudiciais(queryable, detail.id),
     ]);
 
     detail.interessados = interessados;
@@ -773,6 +903,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.comentarios = comentarios;
     detail.tarefasPendentes = tarefasPendentes;
     detail.recentAndamentos = recentAndamentos;
+    detail.seiAssociations = seiAssociations;
+    detail.currentAssociation = seiAssociations.find((item) => item.principal) ?? detail.currentAssociation;
+    detail.numerosJudiciais = numerosJudiciais;
+    detail.numeroJudicial = numerosJudiciais.find((item) => item.principal)?.numero ?? detail.numeroJudicial;
+    detail.principalNumero = detail.currentAssociation?.seiNumero ?? detail.preId;
+    detail.principalTipo = detail.currentAssociation ? "sei" : "demanda";
+    detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.interessados.find((item) => item.papel === "solicitante")?.interessado.nome ?? detail.solicitante;
+    if (!detail.pessoaPrincipal) {
+      detail.pessoaPrincipal = detail.interessados.find((item) => item.papel === "solicitante")?.interessado ?? detail.interessados[0]?.interessado ?? null;
+    }
 
     return detail;
   }
@@ -837,6 +977,34 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     try {
       const preId = await inTransaction(this.pool, async (client) => {
+        const hasExplicitContinuousFrequency = Boolean(
+          input.metadata?.frequencia ||
+            (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length > 0) ||
+            input.metadata?.frequenciaDiaMes,
+        );
+
+        if (!hasExplicitContinuousFrequency && !input.prazoFinal) {
+          throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo final e obrigatorio quando nao ha frequencia continua configurada.");
+        }
+
+        let resolvedSolicitante = input.solicitante?.trim() ?? "";
+        if (input.pessoaSolicitanteId) {
+          const pessoaResult = await client.query("select nome from adminlog.interessados where id = $1::uuid limit 1", [input.pessoaSolicitanteId]);
+          if (!pessoaResult.rows[0]) {
+            throw new AppError(404, "PESSOA_NOT_FOUND", "Pessoa nao encontrada.");
+          }
+          resolvedSolicitante = String(pessoaResult.rows[0].nome);
+        }
+
+        if (!resolvedSolicitante) {
+          throw new AppError(400, "PESSOA_REQUIRED", "Selecione uma pessoa principal para a demanda.");
+        }
+
+        const defaultSetor = await this.resolveDefaultInitialSetor(client);
+        if (!defaultSetor) {
+          throw new AppError(500, "DEFAULT_SETOR_NOT_FOUND", `Setor inicial ${DEFAULT_INITIAL_SETOR_SIGLA} nao encontrado.`);
+        }
+
         const result = await client.query(
           `
             insert into adminlog.pre_demanda (
@@ -850,6 +1018,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               observacoes,
               prazo_final,
               numero_judicial,
+              setor_atual_id,
               metadata,
               created_by_user_id
             )
@@ -864,14 +1033,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               $7,
               $8::date,
               $9,
-              coalesce($10::jsonb, '{}'::jsonb),
-              $11
+              $10::uuid,
+              coalesce($11::jsonb, '{}'::jsonb),
+              $12
             )
-            returning pre_id
+            returning id, pre_id
           `,
           [
             input.dataReferencia,
-            input.solicitante,
+            resolvedSolicitante,
             input.assunto,
             initialStatus,
             input.descricao ?? null,
@@ -879,12 +1049,41 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             input.observacoes ?? null,
             input.prazoFinal ?? null,
             input.numeroJudicial ?? null,
+            defaultSetor.id,
             dbMetadata ? JSON.stringify(dbMetadata) : null,
             input.createdByUserId,
           ],
         );
 
         const nextPreId = String(result.rows[0].pre_id);
+        const preDemandaId = Number(result.rows[0].id);
+
+        await client.query(
+          `
+            insert into adminlog.demanda_setores_fluxo (
+              pre_demanda_id,
+              setor_id,
+              origem_setor_id,
+              status,
+              observacoes,
+              created_by_user_id
+            )
+            values ($1, $2::uuid, null, 'ativo', 'Setor inicial da demanda.', $3)
+            on conflict do nothing
+          `,
+          [preDemandaId, defaultSetor.id, input.createdByUserId],
+        );
+
+        if (input.pessoaSolicitanteId) {
+          await client.query(
+            `
+              insert into adminlog.demanda_interessados (pre_demanda_id, interessado_id, papel, created_by_user_id)
+              values ($1, $2::uuid, 'solicitante', $3)
+              on conflict (pre_demanda_id, interessado_id) do nothing
+            `,
+            [preDemandaId, input.pessoaSolicitanteId, input.createdByUserId],
+          );
+        }
 
         if (input.seiNumero) {
           await client.query(
@@ -907,6 +1106,29 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               "Associacao inicial criada na abertura do processo.",
               input.createdByUserId,
             ],
+          );
+
+          await client.query(
+            `
+              insert into adminlog.demanda_sei_vinculos (pre_demanda_id, sei_numero, principal, observacoes, created_by_user_id)
+              values ($1, $2, true, $3, $4)
+              on conflict (pre_demanda_id, sei_numero) do update
+              set principal = true,
+                  observacoes = excluded.observacoes
+            `,
+            [preDemandaId, input.seiNumero, "Processo registado ja com numeracao de origem.", input.createdByUserId],
+          );
+        }
+
+        if (input.numeroJudicial) {
+          await client.query(
+            `
+              insert into adminlog.demanda_numeros_judiciais (pre_demanda_id, numero_judicial, principal, created_by_user_id)
+              values ($1, $2, true, $3)
+              on conflict (pre_demanda_id, numero_judicial) do update
+              set principal = true
+            `,
+            [preDemandaId, input.numeroJudicial, input.createdByUserId],
           );
         }
 
@@ -937,7 +1159,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             and pd.data_referencia = $3::date
           limit 1
         `,
-        [input.solicitante, input.assunto, input.dataReferencia],
+        [input.solicitante ?? "", input.assunto, input.dataReferencia],
       );
 
       if (!duplicate.rows[0]) {
@@ -1014,48 +1236,85 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async updateCaseData(input: UpdatePreDemandaCaseDataInput) {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const metadata = input.metadata === undefined ? undefined : normalizeMetadataForDb(input.metadata);
-    const result = await this.pool.query(
-      `
-        update adminlog.pre_demanda
-        set
-          assunto = coalesce($2, assunto),
-          descricao = case when $3::boolean then $4 else descricao end,
-          fonte = case when $5::boolean then $6 else fonte end,
-          observacoes = case when $7::boolean then $8 else observacoes end,
-          prazo_final = case when $9::boolean then $10::date else prazo_final end,
-          numero_judicial = case when $11::boolean then $12 else numero_judicial end,
-          metadata = case when $13::boolean then coalesce(metadata, '{}'::jsonb) || coalesce($14::jsonb, '{}'::jsonb) else metadata end
-        where pre_id = $1
-        returning pre_id
-      `,
-      [
-        input.preId,
-        input.assunto ?? null,
-        input.descricao !== undefined,
-        input.descricao ?? null,
-        input.fonte !== undefined,
-        input.fonte ?? null,
-        input.observacoes !== undefined,
-        input.observacoes ?? null,
-        input.prazoFinal !== undefined,
-        input.prazoFinal ?? null,
-        input.numeroJudicial !== undefined,
-        input.numeroJudicial ?? null,
-        input.metadata !== undefined,
-        metadata ? JSON.stringify(metadata) : null,
-      ],
-    );
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
+      if (!demanda) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
 
-    if (!result.rows[0]) {
-      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
-    }
+      const hasContinuousFrequency =
+        input.metadata === undefined
+          ? Boolean(
+              demanda.metadata.frequencia ||
+                (demanda.metadata.frequenciaDiasSemana && demanda.metadata.frequenciaDiasSemana.length > 0) ||
+                demanda.metadata.frequenciaDiaMes,
+            )
+          : Boolean(
+              input.metadata.frequencia ||
+                (input.metadata.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length > 0) ||
+                input.metadata.frequenciaDiaMes,
+            );
 
-    const record = await this.getDetailByPreId(this.pool, input.preId, queueHealthThresholds);
-    if (!record) {
-      throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
-    }
+      const effectivePrazoFinal = input.prazoFinal !== undefined ? input.prazoFinal : demanda.prazoFinal;
+      if (!hasContinuousFrequency && !effectivePrazoFinal) {
+        throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo final e obrigatorio quando nao ha frequencia continua configurada.");
+      }
 
-    return record;
+      await client.query(
+        `
+          update adminlog.pre_demanda
+          set
+            assunto = coalesce($2, assunto),
+            descricao = case when $3::boolean then $4 else descricao end,
+            fonte = case when $5::boolean then $6 else fonte end,
+            observacoes = case when $7::boolean then $8 else observacoes end,
+            prazo_final = case when $9::boolean then $10::date else prazo_final end,
+            numero_judicial = case when $11::boolean then $12 else numero_judicial end,
+            metadata = case when $13::boolean then coalesce(metadata, '{}'::jsonb) || coalesce($14::jsonb, '{}'::jsonb) else metadata end
+          where pre_id = $1
+        `,
+        [
+          input.preId,
+          input.assunto ?? null,
+          input.descricao !== undefined,
+          input.descricao ?? null,
+          input.fonte !== undefined,
+          input.fonte ?? null,
+          input.observacoes !== undefined,
+          input.observacoes ?? null,
+          input.prazoFinal !== undefined,
+          input.prazoFinal ?? null,
+          input.numeroJudicial !== undefined,
+          input.numeroJudicial ?? null,
+          input.metadata !== undefined,
+          metadata ? JSON.stringify(metadata) : null,
+        ],
+      );
+
+      if (input.numeroJudicial !== undefined) {
+        if (input.numeroJudicial) {
+          await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
+          await client.query(
+            `
+              insert into adminlog.demanda_numeros_judiciais (pre_demanda_id, numero_judicial, principal, created_by_user_id)
+              values ($1, $2, true, null)
+              on conflict (pre_demanda_id, numero_judicial) do update
+              set principal = true
+            `,
+            [demanda.id, input.numeroJudicial],
+          );
+        } else {
+          await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
+        }
+      }
+
+      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
+      if (!record) {
+        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
+      }
+
+      return record;
+    });
   }
 
   async updateAnotacoes(input: UpdatePreDemandaAnotacoesInput) {
@@ -1080,6 +1339,50 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     }
 
     return record;
+  }
+
+  async addNumeroJudicial(input: AddNumeroJudicialInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
+      await client.query(
+        `
+          insert into adminlog.demanda_numeros_judiciais (pre_demanda_id, numero_judicial, principal, created_by_user_id)
+          values ($1, $2, true, $3)
+          on conflict (pre_demanda_id, numero_judicial) do update
+          set principal = true
+        `,
+        [demanda.id, input.numeroJudicial, input.changedByUserId],
+      );
+      await client.query("update adminlog.pre_demanda set numero_judicial = $2 where id = $1", [demanda.id, input.numeroJudicial]);
+      return this.loadNumerosJudiciais(client, demanda.id);
+    });
+  }
+
+  async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      await client.query(
+        `
+          delete from adminlog.demanda_numeros_judiciais
+          where pre_demanda_id = $1
+            and numero_judicial = $2
+        `,
+        [demanda.id, input.numeroJudicial],
+      );
+
+      const numeros = await this.loadNumerosJudiciais(client, demanda.id);
+      const principal = numeros[0] ?? null;
+      await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
+      if (principal) {
+        await client.query(
+          "update adminlog.demanda_numeros_judiciais set principal = true where pre_demanda_id = $1 and numero_judicial = $2",
+          [demanda.id, principal.numero],
+        );
+      }
+      await client.query("update adminlog.pre_demanda set numero_judicial = $2 where id = $1", [demanda.id, principal?.numero ?? null]);
+      return this.loadNumerosJudiciais(client, demanda.id);
+    });
   }
 
   async addInteressado(input: AddDemandaInteressadoInput) {
@@ -1780,6 +2083,18 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         );
       }
 
+      await client.query("update adminlog.demanda_sei_vinculos set principal = false where pre_demanda_id = $1", [Number(demanda.rows[0].id)]);
+      await client.query(
+        `
+          insert into adminlog.demanda_sei_vinculos (pre_demanda_id, sei_numero, principal, observacoes, created_by_user_id)
+          values ($1, $2, true, $3, $4)
+          on conflict (pre_demanda_id, sei_numero) do update
+          set principal = true,
+              observacoes = excluded.observacoes
+        `,
+        [Number(demanda.rows[0].id), input.seiNumero, input.observacoes ?? null, input.changedByUserId],
+      );
+
       const currentStatus = demanda.rows[0].status as PreDemandaStatus;
       if (currentStatus !== "associada") {
         await client.query("update adminlog.pre_demanda set status = 'associada' where pre_id = $1", [input.preId]);
@@ -2281,6 +2596,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             )::int as overdue_total,
             count(*) filter (
               where pd.status <> 'encerrada'
+                and pd.prazo_final = current_date
+            )::int as due_today_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
                 and pd.prazo_final is not null
                 and pd.prazo_final between current_date and current_date + interval '7 days'
             )::int as due_soon_total,
@@ -2340,6 +2659,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
       agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),
       agingCriticalTotal: Number(agingMetricsResult.rows[0]?.aging_critical_total ?? 0),
+      dueTodayTotal: Number(caseSignalsResult.rows[0]?.due_today_total ?? 0),
       dueSoonTotal: Number(caseSignalsResult.rows[0]?.due_soon_total ?? 0),
       overdueTotal: Number(caseSignalsResult.rows[0]?.overdue_total ?? 0),
       withoutSetorTotal: Number(caseSignalsResult.rows[0]?.without_setor_total ?? 0),

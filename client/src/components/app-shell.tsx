@@ -103,9 +103,9 @@ export function AppShell() {
               Nova demanda
             </NavLink>
             {hasPermission("cadastro.interessado.read") ? (
-              <NavLink className={navLinkClassName} to="/interessados">
+              <NavLink className={navLinkClassName} to="/pessoas">
                 <Users className="h-4 w-4" />
-                Interessados
+                Pessoas
               </NavLink>
             ) : null}
             {hasPermission("cadastro.setor.read") ? (

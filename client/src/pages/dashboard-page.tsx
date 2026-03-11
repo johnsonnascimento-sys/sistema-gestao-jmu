@@ -70,6 +70,12 @@ export function DashboardPage() {
       href: "/pre-demandas?preset=prazos-vencidos",
     },
     {
+      id: "vence-hoje",
+      label: "Vence hoje",
+      value: summary.dueTodayTotal,
+      href: "/pre-demandas?dueState=due_soon&view=table",
+    },
+    {
       id: "na-semana",
       label: "Vencem na semana",
       value: summary.dueSoonTotal,
@@ -115,7 +121,7 @@ export function DashboardPage() {
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-600">{item.preId}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-600">{item.principalNumero}</p>
             <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
@@ -124,7 +130,7 @@ export function DashboardPage() {
           </div>
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
-          <p>{item.solicitante}</p>
+          <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
           <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}</p>
           <p>Envolvidos: {item.interessados.length}</p>
           <p>{formatPrazo(item)}</p>
@@ -160,6 +166,7 @@ export function DashboardPage() {
         ))}
         <MetricCard label="Paradas 2d+" value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
         <MetricCard label="Criticas 5d+" value={summary.agingCriticalTotal} />
+        <MetricCard label="Vence hoje" value={summary.dueTodayTotal} />
         <MetricCard label="Prazos na semana" value={summary.dueSoonTotal} />
         <MetricCard label="Prazos vencidos" value={summary.overdueTotal} />
         <MetricCard label="Sem setor" value={summary.withoutSetorTotal} />

@@ -32,7 +32,7 @@ import {
   associateSei,
   concluirTramitacaoSetor,
   concluirPreDemandaTarefa,
-  createInteressado,
+  createPessoa,
   createPreDemandaComentario,
   createPreDemandaDocumento,
   createPreDemanda,
@@ -41,7 +41,7 @@ import {
   formatAppError,
   getPreDemanda,
   getTimeline,
-  listInteressados,
+  listPessoas,
   listPreDemandas,
   listSetores,
   removePreDemandaDocumento,
@@ -67,7 +67,7 @@ type StatusAction = {
 };
 
 const FIXED_TASKS = [
-  "Aguardando assinatura de interessado",
+  "Aguardando assinatura de pessoa",
   "Aguardando envio ao setor",
   "Aguardando retorno do setor",
   "Aguardando definicao de audiencia",
@@ -108,10 +108,10 @@ export function PreDemandaDetailPage() {
     audiencia_status: "",
   });
   const [relatedForm, setRelatedForm] = useState({
-    solicitante: "",
     assunto: "",
     data_referencia: new Date().toISOString().slice(0, 10),
     descricao: "",
+    prazo_final: "",
   });
   const [notesForm, setNotesForm] = useState("");
   const [deadlineForm, setDeadlineForm] = useState("");
@@ -196,7 +196,7 @@ export function PreDemandaDetailPage() {
     let active = true;
     void (async () => {
       try {
-        const result = await listInteressados({ q: interessadoSearch, page: 1, pageSize: 8 });
+        const result = await listPessoas({ q: interessadoSearch, page: 1, pageSize: 8 });
         if (active) {
           setInteressadoResults(result.items);
         }
@@ -219,7 +219,7 @@ export function PreDemandaDetailPage() {
     if (!record) return { title: "", description: "" };
     switch (record.status) {
       case "aberta":
-        return { title: "Triar e enriquecer o caso", description: "Vincule interessados, complemente metadata e defina setor, prazo e relacionamentos processuais." };
+        return { title: "Triar e enriquecer o caso", description: "Vincule pessoas, complemente metadata e defina setor, prazo e relacionamentos processuais." };
       case "aguardando_sei":
         return { title: "Monitorar a geracao do processo", description: "Mantenha tarefas de acompanhamento activas e associe o numero SEI assim que ele existir." };
       case "associada":
@@ -386,10 +386,10 @@ export function PreDemandaDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
-              <SummaryItem label="Solicitante legado" value={record.solicitante} />
+              <SummaryItem label="Pessoa principal" value={record.pessoaPrincipal?.nome ?? record.solicitante} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
               <SummaryItem label="Prazo final" value={record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"} />
-              <SummaryItem label="Numero judicial" value={record.numeroJudicial ?? "-"} />
+              <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
               <SummaryItem label="Frequencia" value={frequencySummary} />
               <SummaryItem label="Data da audiencia" value={record.metadata.audienciaData ? new Date(record.metadata.audienciaData).toLocaleDateString("pt-BR") : "-"} />
@@ -400,20 +400,20 @@ export function PreDemandaDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Envolvidos</CardTitle>
-              <CardDescription>Multi-cadastro de interessados para substituir o controle isolado em planilha.</CardDescription>
+              <CardTitle>Pessoas vinculadas</CardTitle>
+              <CardDescription>Cadastro relacional das pessoas ligadas ao processo.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
-                <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar interessado..." value={interessadoSearch} />
+                <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoa..." value={interessadoSearch} />
                 <select className={selectClassName} onChange={(event) => setInteressadoRole(event.target.value as "solicitante" | "interessado")} value={interessadoRole}>
-                  <option value="interessado">Interessado</option>
-                  <option value="solicitante">Solicitante</option>
+                  <option value="interessado">Pessoa vinculada</option>
+                  <option value="solicitante">Pessoa principal</option>
                 </select>
                 <Button
                   onClick={() =>
                     interessadoResults[0]
-                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0].id, papel: interessadoRole }).then(() => undefined), "Interessado vinculado.")
+                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0].id, papel: interessadoRole }).then(() => undefined), "Pessoa vinculada.")
                       : undefined
                   }
                   type="button"
@@ -432,7 +432,7 @@ export function PreDemandaDetailPage() {
                       <button
                         className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
                         key={item.id}
-                        onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: interessadoRole }).then(() => undefined), "Interessado vinculado.")}
+                        onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: interessadoRole }).then(() => undefined), "Pessoa vinculada.")}
                         type="button"
                       >
                         <span>
@@ -447,7 +447,7 @@ export function PreDemandaDetailPage() {
               ) : null}
 
               <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
-                <p className="text-sm font-semibold text-slate-950">Adicionar novo interessado</p>
+                <p className="text-sm font-semibold text-slate-950">Adicionar nova pessoa</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, nome: event.target.value }))} placeholder="Nome" value={newInteressadoForm.nome} />
                   <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, matricula: event.target.value }))} placeholder="Matricula" value={newInteressadoForm.matricula} />
@@ -459,12 +459,13 @@ export function PreDemandaDetailPage() {
                     onClick={() =>
                       void runMutation(
                         async () => {
-                          const created = await createInteressado({ nome: newInteressadoForm.nome, matricula: newInteressadoForm.matricula || null, cpf: newInteressadoForm.cpf || null });
+                          const created = await createPessoa({ nome: newInteressadoForm.nome, matricula: newInteressadoForm.matricula || null, cpf: newInteressadoForm.cpf || null });
                           await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: interessadoRole });
                           setNewInteressadoForm({ nome: "", matricula: "", cpf: "" });
-                          setInteressadoSearch("");
+                          setInteressadoSearch(created.nome);
+                          setInteressadoResults([created]);
                         },
-                        "Interessado criado e vinculado.",
+                        "Pessoa criada e vinculada.",
                       )
                     }
                     type="button"
@@ -475,7 +476,7 @@ export function PreDemandaDetailPage() {
               </div>
 
               {record.interessados.length === 0 ? (
-                <EmptyState description="Vincule os envolvidos do caso para destravar tarefas, tramitacoes e relacoes processuais." title="Sem envolvidos" />
+                <EmptyState description="Vincule pessoas ao caso para destravar tarefas, tramitacoes e relacoes processuais." title="Sem pessoas vinculadas" />
               ) : (
                 <div className="grid gap-3">
                   {record.interessados.map((item) => (
@@ -484,7 +485,7 @@ export function PreDemandaDetailPage() {
                         <p className="font-semibold text-slate-950">{item.interessado.nome}</p>
                         <p className="text-sm text-slate-500">{item.papel} - {item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
                       </div>
-                      <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Interessado removido.")} size="sm" type="button" variant="ghost">
+                      <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Pessoa removida.")} size="sm" type="button" variant="ghost">
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
@@ -622,7 +623,7 @@ export function PreDemandaDetailPage() {
                 <p className="text-sm font-semibold text-amber-900">{nextAction.title}</p>
                 <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
               </div>
-              <SummaryItem label="SEI atual" value={record.currentAssociation?.seiNumero ?? "Ainda nao associado"} />
+              <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
               <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registado"}` : "Nenhum evento registado"} />
               <SummaryItem label="Saude da fila" value={queueHealth.summary} />
               <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
@@ -1015,17 +1016,20 @@ export function PreDemandaDetailPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Iniciar processo relacionado</DialogTitle>
-            <DialogDescription>Crie uma nova pre-demanda e relacione-a automaticamente ao caso atual.</DialogDescription>
+            <DialogDescription>Crie uma nova demanda relacionada usando a mesma pessoa principal do caso atual.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <FormField label="Solicitante">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, solicitante: event.target.value }))} value={relatedForm.solicitante} />
+            <FormField label="Pessoa principal">
+              <Input disabled value={record?.pessoaPrincipal?.nome ?? "Vincule uma pessoa principal antes de criar relacionado"} />
             </FormField>
             <FormField label="Assunto">
               <Input onChange={(event) => setRelatedForm((current) => ({ ...current, assunto: event.target.value }))} value={relatedForm.assunto} />
             </FormField>
             <FormField label="Data de referencia">
               <Input onChange={(event) => setRelatedForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={relatedForm.data_referencia} />
+            </FormField>
+            <FormField label="Prazo final">
+              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={relatedForm.prazo_final} />
             </FormField>
             <FormField label="Descricao">
               <Textarea onChange={(event) => setRelatedForm((current) => ({ ...current, descricao: event.target.value }))} rows={4} value={relatedForm.descricao} />
@@ -1036,11 +1040,17 @@ export function PreDemandaDetailPage() {
               Cancelar
             </Button>
             <Button
-              disabled={relatedForm.solicitante.trim().length < 3 || relatedForm.assunto.trim().length < 3 || isSubmitting}
+              disabled={!record?.pessoaPrincipal?.id || !relatedForm.prazo_final || relatedForm.assunto.trim().length < 3 || isSubmitting}
               onClick={() =>
                 void runMutation(
                   async () => {
-                    const created = await createPreDemanda(relatedForm);
+                    const created = await createPreDemanda({
+                      pessoa_solicitante_id: record?.pessoaPrincipal?.id ?? null,
+                      assunto: relatedForm.assunto,
+                      data_referencia: relatedForm.data_referencia,
+                      descricao: relatedForm.descricao,
+                      prazo_final: relatedForm.prazo_final,
+                    });
                     await addPreDemandaVinculo(preId, created.preId);
                     navigate(`/pre-demandas/${created.preId}`);
                   },
