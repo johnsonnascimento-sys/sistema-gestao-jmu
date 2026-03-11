@@ -361,6 +361,53 @@ export function AdminOperationsPage() {
       .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))
       .slice(0, 6);
   }, [summary]);
+  const quickSectionLinks = useMemo(
+    () => [
+      {
+        id: "backups",
+        title: "Backups",
+        description:
+          summary.operationalSummary.backupAgeHours === null
+            ? "Sem backup confirmado no painel."
+            : `${summary.operationalSummary.backupAgeHours} h desde o ultimo backup valido.`,
+        badge: summary.operationalSummary.backupFreshness,
+      },
+      {
+        id: "migracoes",
+        title: "Schema",
+        description:
+          (summary.migrations?.driftedCount ?? 0) > 0
+            ? `${summary.migrations?.driftedCount ?? 0} drift(s) detectados.`
+            : `${summary.migrations?.pendingCount ?? 0} migration(s) pendente(s).`,
+        badge: `${summary.migrations?.pendingCount ?? 0}/${summary.migrations?.driftedCount ?? 0}`,
+      },
+      {
+        id: "postura-operacional",
+        title: "Postura",
+        description: `${summary.operationalSummary.failureCount24h} falha(s) operacional(is) nas ultimas 24h.`,
+        badge: `${summary.operationalSummary.failureCount24h}`,
+      },
+      {
+        id: "incidentes-recentes",
+        title: "Incidentes",
+        description: `${summary.incidentSummary.errorTotal} erro(s) e ${summary.incidentSummary.warnTotal} aviso(s) desde o ultimo start.`,
+        badge: `${summary.incidentSummary.total}`,
+      },
+      {
+        id: "operacoes-recentes",
+        title: "Operacoes",
+        description: `${summary.operationalEvents.length} evento(s) operacional(is) recente(s) visiveis no feed.`,
+        badge: `${summary.operationalEvents.length}`,
+      },
+      {
+        id: "governanca-casos",
+        title: "Fila",
+        description: `${summary.caseManagementReport.overdueTotal} vencido(s), ${summary.caseManagementReport.withoutSetorTotal} sem setor e ${summary.caseManagementReport.withoutInteressadosTotal} sem envolvidos.`,
+        badge: `${summary.caseManagementReport.prioritySetores.length}`,
+      },
+    ],
+    [summary],
+  );
   const activeSection = location.hash.replace(/^#/, "");
 
   return (
@@ -454,6 +501,38 @@ export function AdminOperationsPage() {
         </Card>
       ) : null}
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Mapa operacional</CardTitle>
+          <CardDescription>Entradas directas para as areas de investigacao e execucao mais usadas no painel.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 xl:grid-cols-3">
+          {quickSectionLinks.map((item) => (
+            <article
+              className={`grid gap-3 rounded-[24px] border px-4 py-4 ${
+                activeSection === item.id ? "border-sky-300 bg-sky-50/70 shadow-[0_0_0_3px_rgba(14,165,233,0.12)]" : "border-slate-200 bg-white"
+              }`}
+              key={item.id}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.title}</p>
+                  <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.description}</h3>
+                </div>
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                  {item.badge}
+                </span>
+              </div>
+              <div>
+                <Button asChild size="sm" variant="secondary">
+                  <Link to={`#${item.id}`}>Abrir secao</Link>
+                </Button>
+              </div>
+            </article>
+          ))}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <MetricCard label="Requests" value={summary.counters.requestsTotal} />
         <MetricCard label="Sucesso" value={summary.counters.successfulRequestsTotal} />
@@ -469,7 +548,7 @@ export function AdminOperationsPage() {
         <MetricCard label="Unhandled" value={summary.counters.unhandledErrorsTotal} />
       </div>
 
-      <Card>
+      <Card id="governanca-casos">
         <CardHeader>
           <CardTitle>Governanca de casos</CardTitle>
           <CardDescription>Recorte operativo dos ultimos {summary.caseManagementReport.periodDays} dias, com foco em carga, prazo e distribuicao por setor.</CardDescription>
