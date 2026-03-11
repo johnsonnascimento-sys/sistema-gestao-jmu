@@ -246,6 +246,7 @@ export function AdminOperationsPage() {
       cta?: string;
       score: number;
       trend?: string;
+      area: string;
     }> = [];
 
     if (summary.operationalSummary.backupFreshness === "critical" || summary.operationalSummary.backupFreshness === "attention") {
@@ -256,8 +257,11 @@ export function AdminOperationsPage() {
             ? "Nenhum backup confirmado aparece no painel operacional."
             : `O ultimo backup confirmado tem ${summary.operationalSummary.backupAgeHours} h.`,
         tone: summary.operationalSummary.backupFreshness === "critical" ? "critical" : "attention",
+        href: "#backups",
+        cta: "Ver backups",
         score: summary.operationalSummary.backupFreshness === "critical" ? 120 : 80,
         trend: summary.operationalSummary.backupAgeHours === null ? "Sem backup recente para comparar." : "A idade do backup cresce ate a proxima execucao valida.",
+        area: "Backups",
       });
     }
 
@@ -269,11 +273,14 @@ export function AdminOperationsPage() {
             ? `${summary.migrations?.driftedCount ?? 0} migration(s) em drift exigem revisao.`
             : `${summary.migrations?.pendingCount ?? 0} migration(s) ainda nao aplicadas.`,
         tone: (summary.migrations?.driftedCount ?? 0) > 0 ? "critical" : "attention",
+        href: "#migracoes",
+        cta: "Ver migracoes",
         score: (summary.migrations?.driftedCount ?? 0) > 0 ? 110 + (summary.migrations?.driftedCount ?? 0) * 5 : 70 + (summary.migrations?.pendingCount ?? 0) * 3,
         trend:
           (summary.migrations?.driftedCount ?? 0) > 0
             ? "Drift tende a bloquear deploys e exige correcao imediata."
             : "Pendencias ainda nao impedem a operacao, mas acumulam risco de release.",
+        area: "Schema",
       });
     }
 
@@ -282,8 +289,11 @@ export function AdminOperationsPage() {
         title: "Falhas operacionais nas ultimas 24h",
         description: `${summary.operationalSummary.failureCount24h} falha(s) operacional(is) recente(s) foram registadas fora do processo da aplicacao.`,
         tone: "attention",
+        href: "#operacoes-recentes",
+        cta: "Ver operacoes",
         score: 50 + summary.operationalSummary.failureCount24h * 4,
         trend: "O volume considera apenas a janela movel das ultimas 24 horas.",
+        area: "Operacoes",
       });
     }
 
@@ -292,8 +302,11 @@ export function AdminOperationsPage() {
         title: "Incidentes de erro activos no processo",
         description: `${summary.incidentSummary.errorTotal} incidente(s) de nivel error foram registados desde o ultimo arranque.`,
         tone: "critical",
+        href: "#incidentes-recentes",
+        cta: "Ver incidentes",
         score: 90 + summary.incidentSummary.errorTotal * 4,
         trend: "Incidentes persistem ate novo arranque ou estabilizacao do processo.",
+        area: "Incidentes",
       });
     }
 
@@ -307,6 +320,7 @@ export function AdminOperationsPage() {
         cta: "Abrir vencidos",
         score: 100 + summary.caseManagementReport.overdueTotal * 6 + Math.max(delta, 0) * 2,
         trend: `${formatDelta(delta)} vs janela anterior.`,
+        area: "Fila",
       });
     }
 
@@ -320,6 +334,7 @@ export function AdminOperationsPage() {
         cta: "Abrir sem setor",
         score: 60 + summary.caseManagementReport.withoutSetorTotal * 5 + Math.max(delta, 0) * 2,
         trend: `${formatDelta(delta)} vs janela anterior.`,
+        area: "Fila",
       });
     }
 
@@ -333,6 +348,7 @@ export function AdminOperationsPage() {
         cta: "Abrir sem envolvidos",
         score: 55 + summary.caseManagementReport.withoutInteressadosTotal * 4 + Math.max(delta, 0) * 2,
         trend: `${formatDelta(delta)} vs janela anterior.`,
+        area: "Fila",
       });
     }
 
@@ -407,7 +423,12 @@ export function AdminOperationsPage() {
                 key={`${item.title}-${item.description}`}
               >
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.tone === "critical" ? "Critico" : "Atencao"}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.tone === "critical" ? "Critico" : "Atencao"}</p>
+                    <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                      {item.area}
+                    </span>
+                  </div>
                   <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.title}</h3>
                 </div>
                 <p className="text-sm text-slate-700">{item.description}</p>
@@ -707,9 +728,9 @@ export function AdminOperationsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Backups visiveis</CardTitle>
+      <Card id="backups">
+        <CardHeader>
+          <CardTitle>Backups visiveis</CardTitle>
             <CardDescription>Ultimos dumps acessiveis ao container para conferencias e resposta a incidente.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm text-slate-600">
@@ -752,7 +773,7 @@ export function AdminOperationsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="migracoes">
           <CardHeader>
             <CardTitle>Migracoes de schema</CardTitle>
             <CardDescription>Comparacao entre os scripts versionados e o que o banco reporta como aplicado.</CardDescription>
@@ -809,7 +830,7 @@ export function AdminOperationsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="postura-operacional">
           <CardHeader>
             <CardTitle>Postura operacional</CardTitle>
             <CardDescription>Leitura rapida do ultimo backup, deploy, drill e monitorizacao para reduzir a necessidade de inspecionar o feed completo.</CardDescription>
@@ -882,7 +903,7 @@ export function AdminOperationsPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card id="incidentes-recentes">
         <CardHeader>
           <CardTitle>Incidentes recentes</CardTitle>
           <CardDescription>Eventos registados desde o ultimo arranque do processo.</CardDescription>
@@ -969,7 +990,7 @@ export function AdminOperationsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="operacoes-recentes">
         <CardHeader>
           <CardTitle>Operacoes recentes</CardTitle>
           <CardDescription>Backups, deploys, rollbacks, drills e auditorias executadas fora do processo da aplicacao.</CardDescription>
