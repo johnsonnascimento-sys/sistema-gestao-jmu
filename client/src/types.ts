@@ -371,6 +371,18 @@ export interface OperationalEvent {
   occurredAt: string;
 }
 
+export interface AdminOpsOperationalSummary {
+  backupFreshness: "fresh" | "attention" | "critical" | "unknown";
+  lastSuccessfulBackupAt: string | null;
+  backupAgeHours: number | null;
+  lastSuccessfulDeployAt: string | null;
+  lastSuccessfulRestoreDrillAt: string | null;
+  lastSuccessfulBootstrapAuditAt: string | null;
+  lastSuccessfulRollbackAt: string | null;
+  lastFailedMonitorAt: string | null;
+  lastFailedMonitorMessage: string | null;
+}
+
 export interface AdminOpsCaseSetorReportItem {
   setorId: string | null;
   sigla: string | null;
@@ -424,5 +436,6 @@ export interface AdminOpsSummary {
   queueHealthConfig: QueueHealthConfig;
   backupStatus: BackupStatusSummary;
   operationalEvents: OperationalEvent[];
+  operationalSummary: AdminOpsOperationalSummary;
   caseManagementReport: AdminOpsCaseManagementReport;
 }

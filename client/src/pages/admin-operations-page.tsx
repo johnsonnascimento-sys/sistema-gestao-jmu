@@ -108,6 +108,30 @@ function riskTone(level: "normal" | "attention" | "critical") {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function freshnessTone(level: "fresh" | "attention" | "critical" | "unknown") {
+  if (level === "critical") {
+    return "border-rose-200 bg-rose-50 text-rose-800";
+  }
+
+  if (level === "attention") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+
+  if (level === "fresh") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  return "border-slate-200 bg-slate-50 text-slate-700";
+}
+
+function formatEventMoment(value: string | null) {
+  if (!value) {
+    return "Nao registado";
+  }
+
+  return new Date(value).toLocaleString("pt-BR");
+}
+
 function buildSetorQueueHref(setorId: string, dueState: "" | "overdue" | "due_soon") {
   const search = new URLSearchParams({
     view: "table",
@@ -643,6 +667,53 @@ export function AdminOperationsPage() {
             ) : (
               <EmptyState description="O resumo de migracoes volta a aparecer assim que o banco responder normalmente." title="Migracoes indisponiveis" />
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Postura operacional</CardTitle>
+            <CardDescription>Leitura rapida do ultimo backup, deploy, drill e monitorizacao para reduzir a necessidade de inspecionar o feed completo.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 text-sm text-slate-600">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Freshness do backup</p>
+                <p className="mt-1 text-slate-950">
+                  {summary.operationalSummary.backupAgeHours === null ? "Sem backup confirmado" : `${summary.operationalSummary.backupAgeHours} h desde o ultimo backup`}
+                </p>
+              </div>
+              <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${freshnessTone(summary.operationalSummary.backupFreshness)}`}>
+                {summary.operationalSummary.backupFreshness}
+              </span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50/70 px-3 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Ultimo backup OK</p>
+                <p className="mt-2 font-semibold text-slate-950">{formatEventMoment(summary.operationalSummary.lastSuccessfulBackupAt)}</p>
+              </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50/70 px-3 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Ultimo deploy OK</p>
+                <p className="mt-2 font-semibold text-slate-950">{formatEventMoment(summary.operationalSummary.lastSuccessfulDeployAt)}</p>
+              </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50/70 px-3 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Ultimo drill OK</p>
+                <p className="mt-2 font-semibold text-slate-950">{formatEventMoment(summary.operationalSummary.lastSuccessfulRestoreDrillAt)}</p>
+              </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50/70 px-3 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Ultima auditoria OK</p>
+                <p className="mt-2 font-semibold text-slate-950">{formatEventMoment(summary.operationalSummary.lastSuccessfulBootstrapAuditAt)}</p>
+              </div>
+            </div>
+            <div className={`rounded-[20px] border px-4 py-3 ${summary.operationalSummary.lastFailedMonitorAt ? "border-rose-200 bg-rose-50 text-rose-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+              <p className="text-xs font-bold uppercase tracking-[0.22em]">Monitorizacao</p>
+              <p className="mt-2 font-semibold">
+                {summary.operationalSummary.lastFailedMonitorAt
+                  ? `Ultima falha em ${formatEventMoment(summary.operationalSummary.lastFailedMonitorAt)}`
+                  : "Sem falhas recentes de monitorizacao"}
+              </p>
+              {summary.operationalSummary.lastFailedMonitorMessage ? <p className="mt-1 text-xs">{summary.operationalSummary.lastFailedMonitorMessage}</p> : null}
+            </div>
           </CardContent>
         </Card>
       </div>

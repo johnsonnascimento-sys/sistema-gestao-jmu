@@ -24,6 +24,39 @@ const updateQueueHealthConfigSchema = z
     path: ["criticalDays"],
   });
 
+function findLatestEvent(events: Awaited<ReturnType<typeof listOperationalEvents>>, kind: string, status: "success" | "failure") {
+  return events.find((event) => event.kind === kind && event.status === status) ?? null;
+}
+
+function buildOperationalSummary(
+  backupStatus: Awaited<ReturnType<typeof describeBackupStatus>>,
+  operationalEvents: Awaited<ReturnType<typeof listOperationalEvents>>,
+) {
+  const lastSuccessfulBackupAt = backupStatus.lastBackup?.modifiedAt ?? findLatestEvent(operationalEvents, "backup", "success")?.occurredAt ?? null;
+  const backupAgeHours =
+    lastSuccessfulBackupAt === null ? null : Number((((Date.now() - new Date(lastSuccessfulBackupAt).getTime()) / 3_600_000)).toFixed(1));
+  const backupFreshness =
+    backupAgeHours === null
+      ? "unknown"
+      : backupAgeHours <= 24
+        ? "fresh"
+        : backupAgeHours <= 48
+          ? "attention"
+          : "critical";
+
+  return {
+    backupFreshness,
+    lastSuccessfulBackupAt,
+    backupAgeHours,
+    lastSuccessfulDeployAt: findLatestEvent(operationalEvents, "deploy", "success")?.occurredAt ?? null,
+    lastSuccessfulRestoreDrillAt: findLatestEvent(operationalEvents, "restore_drill", "success")?.occurredAt ?? null,
+    lastSuccessfulBootstrapAuditAt: findLatestEvent(operationalEvents, "bootstrap_audit", "success")?.occurredAt ?? null,
+    lastSuccessfulRollbackAt: findLatestEvent(operationalEvents, "rollback", "success")?.occurredAt ?? null,
+    lastFailedMonitorAt: findLatestEvent(operationalEvents, "monitor", "failure")?.occurredAt ?? null,
+    lastFailedMonitorMessage: findLatestEvent(operationalEvents, "monitor", "failure")?.message ?? null,
+  };
+}
+
 async function getCaseManagementReport(pool: DatabasePool, periodDays: number) {
   const reportResult = await pool.query<{
     created_in_period: string;
@@ -347,6 +380,8 @@ export async function registerAdminOperationsRoutes(
     );
 
     const caseManagementReport = await getCaseManagementReport(pool, periodDays);
+    const backupStatus = await describeBackupStatus(config);
+    const operationalEvents = await listOperationalEvents(config, query.limit ?? 12);
 
     return reply.send({
       ok: true,
@@ -355,8 +390,9 @@ export async function registerAdminOperationsRoutes(
         ...operationsStore.getSnapshot(query.limit ?? 12),
         migrations,
         queueHealthConfig: await settingsRepository.getQueueHealthConfig(),
-        backupStatus: await describeBackupStatus(config),
-        operationalEvents: await listOperationalEvents(config, query.limit ?? 12),
+        backupStatus,
+        operationalEvents,
+        operationalSummary: buildOperationalSummary(backupStatus, operationalEvents),
         caseManagementReport,
       },
       error: null,
