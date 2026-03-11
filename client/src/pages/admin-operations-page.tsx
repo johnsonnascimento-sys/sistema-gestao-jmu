@@ -423,6 +423,8 @@ export function AdminOperationsPage() {
   const activeSection = location.hash.replace(/^#/, "");
   const primaryAttentionItem = attentionItems[0] ?? null;
   const responsePathItems = attentionItems.slice(0, 3);
+  const topIncidentCluster = summary.incidentSummary.clusters[0] ?? null;
+  const topFailureCluster = summary.operationalSummary.failureClusters24h[0] ?? null;
 
   return (
     <section className="grid gap-6">
@@ -543,6 +545,81 @@ export function AdminOperationsPage() {
                 ) : null}
               </article>
             ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {topIncidentCluster || topFailureCluster ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recorrencia recente</CardTitle>
+            <CardDescription>Agrupamentos que ajudam a distinguir ruido ocasional de problema repetido.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 xl:grid-cols-2">
+            {topIncidentCluster ? (
+              <article
+                className={`grid gap-3 rounded-[24px] border px-4 py-4 ${
+                  topIncidentCluster.level === "error" ? "border-rose-200 bg-rose-50/80" : "border-amber-200 bg-amber-50/80"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Cluster de incidente</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">
+                      {describeIncident({
+                        id: topIncidentCluster.key,
+                        kind: topIncidentCluster.kind,
+                        level: topIncidentCluster.level,
+                        message: "",
+                        occurredAt: topIncidentCluster.lastOccurredAt,
+                        requestId: null,
+                        userId: null,
+                        method: null,
+                        path: topIncidentCluster.path,
+                        statusCode: null,
+                      })}
+                    </h3>
+                  </div>
+                  <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                    {topIncidentCluster.total}x
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700">{topIncidentCluster.path ? `Rota dominante: ${topIncidentCluster.path}` : "Sem rota dominante associada."}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {new Date(topIncidentCluster.firstOccurredAt).toLocaleString("pt-BR")} ate {new Date(topIncidentCluster.lastOccurredAt).toLocaleString("pt-BR")}
+                </p>
+                <div>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="#incidentes-recentes">Ver cluster</Link>
+                  </Button>
+                </div>
+              </article>
+            ) : null}
+            {topFailureCluster ? (
+              <article className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Cluster operacional</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">{describeOperationalEventKind(topFailureCluster.kind)}</h3>
+                  </div>
+                  <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                    {topFailureCluster.total}x
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700">
+                  Origem {topFailureCluster.source}
+                  {topFailureCluster.reference ? ` - ref ${topFailureCluster.reference}` : ""}
+                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  {new Date(topFailureCluster.firstOccurredAt).toLocaleString("pt-BR")} ate {new Date(topFailureCluster.lastOccurredAt).toLocaleString("pt-BR")}
+                </p>
+                <div>
+                  <Button asChild size="sm" variant="secondary">
+                    <Link to="#operacoes-recentes">Ver cluster</Link>
+                  </Button>
+                </div>
+              </article>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}
