@@ -409,6 +409,8 @@ export function AdminOperationsPage() {
     [summary],
   );
   const activeSection = location.hash.replace(/^#/, "");
+  const primaryAttentionItem = attentionItems[0] ?? null;
+  const responsePathItems = attentionItems.slice(0, 3);
 
   return (
     <section className="grid gap-6">
@@ -460,6 +462,78 @@ export function AdminOperationsPage() {
 
       {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
       {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
+
+      {primaryAttentionItem ? (
+        <Card className={primaryAttentionItem.tone === "critical" ? "border-rose-200 bg-rose-50/80" : "border-amber-200 bg-amber-50/80"}>
+          <CardHeader>
+            <CardTitle>Maior anomalia do momento</CardTitle>
+            <CardDescription>Leitura unica do ponto mais prioritario entre saude tecnica, operacao e fila.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                  {primaryAttentionItem.area}
+                </span>
+                <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                  {primaryAttentionItem.tone === "critical" ? "Critico" : "Atencao"}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">{primaryAttentionItem.title}</h2>
+                <p className="mt-1 text-sm text-slate-700">{primaryAttentionItem.description}</p>
+              </div>
+              {primaryAttentionItem.trend ? (
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{primaryAttentionItem.trend}</p>
+              ) : null}
+            </div>
+            {primaryAttentionItem.href && primaryAttentionItem.cta ? (
+              <div>
+                <Button asChild variant="secondary">
+                  <Link to={primaryAttentionItem.href}>{primaryAttentionItem.cta}</Link>
+                </Button>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {responsePathItems.length > 1 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Trilha de resposta</CardTitle>
+            <CardDescription>Sequencia curta sugerida para atacar os pontos mais prioritarios desta janela operacional.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 xl:grid-cols-3">
+            {responsePathItems.map((item, index) => (
+              <article className="grid gap-3 rounded-[24px] border border-slate-200 bg-white px-4 py-4" key={`response-${item.title}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Passo {index + 1}</p>
+                    <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.title}</h3>
+                  </div>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                      item.tone === "critical" ? "border-rose-200 bg-rose-50 text-rose-800" : "border-amber-200 bg-amber-50 text-amber-800"
+                    }`}
+                  >
+                    {item.area}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700">{item.description}</p>
+                {item.trend ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{item.trend}</p> : null}
+                {item.href && item.cta ? (
+                  <div>
+                    <Button asChild size="sm" variant="secondary">
+                      <Link to={item.href}>{item.cta}</Link>
+                    </Button>
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {attentionItems.length ? (
         <Card>
