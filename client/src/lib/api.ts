@@ -11,6 +11,7 @@ import type {
   DemandaSetorFluxo,
   DemandaVinculo,
   Interessado,
+  Norma,
   PreDemanda,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
@@ -491,6 +492,24 @@ export function updatePessoa(id: string, payload: { nome: string; matricula?: st
 
 export function listSetores() {
   return request<Setor[]>("/api/setores");
+}
+
+export function listNormas() {
+  return request<Norma[]>("/api/normas");
+}
+
+export function createNorma(payload: { numero: string; data_norma: string; origem: string }) {
+  return request<Norma>("/api/normas", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateNorma(id: string, payload: { numero: string; data_norma: string; origem: string }) {
+  return request<Norma>(`/api/normas/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function createSetor(payload: { sigla: string; nome_completo: string }) {

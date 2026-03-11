@@ -12,6 +12,7 @@ import type {
   DemandaInteressadoPapel,
   DemandaComentarioFormato,
   Interessado,
+  Norma,
   PreDemandaDashboardSummary,
   PreDemandaAuditRecord,
   PreDemandaDetail,
@@ -272,6 +273,16 @@ export interface UpdateSetorInput extends CreateSetorInput {
   id: string;
 }
 
+export interface CreateNormaInput {
+  numero: string;
+  dataNorma: string;
+  origem: string;
+}
+
+export interface UpdateNormaInput extends CreateNormaInput {
+  id: string;
+}
+
 export interface UserRepository {
   findByEmail(email: string): Promise<AppUser | null>;
   findById(id: number): Promise<AppUser | null>;
@@ -305,6 +316,13 @@ export interface SetorRepository {
   getById(id: string): Promise<Setor | null>;
   create(input: CreateSetorInput): Promise<Setor>;
   update(input: UpdateSetorInput): Promise<Setor>;
+}
+
+export interface NormaRepository {
+  list(): Promise<Norma[]>;
+  getById(id: string): Promise<Norma | null>;
+  create(input: CreateNormaInput): Promise<Norma>;
+  update(input: UpdateNormaInput): Promise<Norma>;
 }
 
 export interface PreDemandaRepository {

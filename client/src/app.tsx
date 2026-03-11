@@ -10,6 +10,7 @@ import { InteressadosPage } from "./pages/interessados-page";
 import { LoginPage } from "./pages/login-page";
 import { NewPreDemandaPage } from "./pages/new-pre-demanda-page";
 import { NotFoundPage } from "./pages/not-found-page";
+import { NormasPage } from "./pages/normas-page";
 import { PreDemandaDetailPage } from "./pages/pre-demanda-detail-page";
 import { PreDemandasPage } from "./pages/pre-demandas-page";
 import { SetoresPage } from "./pages/setores-page";
@@ -37,6 +38,14 @@ export function App() {
                 path="/pessoas"
               />
               <Route element={<Navigate replace to="/pessoas" />} path="/interessados" />
+              <Route
+                element={
+                  <RequirePermission permission="cadastro.norma.read">
+                    <NormasPage />
+                  </RequirePermission>
+                }
+                path="/normas"
+              />
               <Route
                 element={
                   <RequirePermission permission="cadastro.setor.read">

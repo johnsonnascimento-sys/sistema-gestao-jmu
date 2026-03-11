@@ -15,15 +15,17 @@ import type { SessionUser } from "./domain/types";
 import { AppError, isAppError } from "./errors";
 import { OperationsStore } from "./observability/operations-store";
 import { PostgresInteressadoRepository } from "./repositories/postgres-interessado-repository";
+import { PostgresNormaRepository } from "./repositories/postgres-norma-repository";
 import { PostgresPreDemandaRepository } from "./repositories/postgres-pre-demanda-repository";
 import { PostgresSetorRepository } from "./repositories/postgres-setor-repository";
 import { PostgresSettingsRepository } from "./repositories/postgres-settings-repository";
 import { PostgresUserRepository } from "./repositories/postgres-user-repository";
-import type { InteressadoRepository, PreDemandaRepository, SetorRepository, SettingsRepository, UserRepository } from "./repositories/types";
+import type { InteressadoRepository, NormaRepository, PreDemandaRepository, SetorRepository, SettingsRepository, UserRepository } from "./repositories/types";
 import { registerAdminOperationsRoutes } from "./routes/admin-operations";
 import { registerAdminUserRoutes } from "./routes/admin-users";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerInteressadoRoutes } from "./routes/interessados";
+import { registerNormaRoutes } from "./routes/normas";
 import { registerPreDemandaRoutes } from "./routes/pre-demandas";
 import { registerSetorRoutes } from "./routes/setores";
 import { createRuntimeStatus } from "./runtime";
@@ -35,6 +37,7 @@ export interface AppDependencies {
   preDemandaRepository: PreDemandaRepository;
   interessadoRepository: InteressadoRepository;
   setorRepository: SetorRepository;
+  normaRepository: NormaRepository;
   pool?: DatabasePool;
   operationsStore?: OperationsStore;
 }
@@ -51,6 +54,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     });
   const interessadoRepository = partialDependencies?.interessadoRepository ?? new PostgresInteressadoRepository(pool);
   const setorRepository = partialDependencies?.setorRepository ?? new PostgresSetorRepository(pool);
+  const normaRepository = partialDependencies?.normaRepository ?? new PostgresNormaRepository(pool);
   const preDemandaRepository =
     partialDependencies?.preDemandaRepository ??
     new PostgresPreDemandaRepository(pool, settingsRepository);
@@ -120,6 +124,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   await registerAuthRoutes(app, { userRepository, config, operationsStore });
   await registerInteressadoRoutes(app, { interessadoRepository });
   await registerSetorRoutes(app, { setorRepository });
+  await registerNormaRoutes(app, { normaRepository });
   await registerPreDemandaRoutes(app, { preDemandaRepository });
   await registerAdminOperationsRoutes(app, { config, pool, operationsStore, settingsRepository });
   await registerAdminUserRoutes(app, { userRepository });

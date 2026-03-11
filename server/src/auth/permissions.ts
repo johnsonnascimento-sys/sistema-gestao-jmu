@@ -17,6 +17,8 @@ const ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     "cadastro.interessado.write",
     "cadastro.setor.read",
     "cadastro.setor.write",
+    "cadastro.norma.read",
+    "cadastro.norma.write",
     "admin.ops.read",
     "admin.ops.update",
     "admin.user.read",
@@ -39,6 +41,7 @@ const ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     "cadastro.interessado.read",
     "cadastro.interessado.write",
     "cadastro.setor.read",
+    "cadastro.norma.read",
   ],
 };
 

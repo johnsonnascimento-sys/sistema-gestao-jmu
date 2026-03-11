@@ -23,6 +23,7 @@ import type {
   DemandaSetorFluxo,
   DemandaVinculo,
   Interessado,
+  Norma,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaDetail,
@@ -49,6 +50,7 @@ import type {
   CreatePreDemandaInput,
   CreatePreDemandaResult,
   CreateInteressadoInput,
+  CreateNormaInput,
   CreateSetorInput,
   CreateTarefaInput,
   CreateUserInput,
@@ -64,10 +66,12 @@ import type {
   RemoveNumeroJudicialInput,
   ResetUserPasswordInput,
   SetorRepository,
+  NormaRepository,
   SettingsRepository,
   TramitarPreDemandaInput,
   UpdateComentarioInput,
   UpdateInteressadoInput,
+  UpdateNormaInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
@@ -1189,6 +1193,50 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
   }
 }
 
+class InMemoryNormaRepository implements NormaRepository {
+  private items = new Map<string, Norma>();
+  private nextId = 1;
+
+  async list() {
+    return Array.from(this.items.values()).sort((left, right) => right.dataNorma.localeCompare(left.dataNorma) || left.numero.localeCompare(right.numero));
+  }
+
+  async getById(id: string) {
+    return this.items.get(id) ?? null;
+  }
+
+  async create(input: CreateNormaInput) {
+    const id = `323e4567-e89b-42d3-a456-${String(this.nextId++).padStart(12, "0")}`;
+    const now = new Date().toISOString();
+    const record: Norma = {
+      id,
+      numero: input.numero,
+      dataNorma: input.dataNorma,
+      origem: input.origem,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.items.set(id, record);
+    return record;
+  }
+
+  async update(input: UpdateNormaInput) {
+    const current = this.items.get(input.id);
+    if (!current) {
+      throw new Error("not found");
+    }
+    const next: Norma = {
+      ...current,
+      numero: input.numero,
+      dataNorma: input.dataNorma,
+      origem: input.origem,
+      updatedAt: new Date().toISOString(),
+    };
+    this.items.set(input.id, next);
+    return next;
+  }
+}
+
 class InMemorySetorRepository implements SetorRepository {
   private items = new Map<string, Setor>([
     [
@@ -1296,6 +1344,7 @@ describe("Gestor JMU API", () => {
   const preDemandaRepository = new InMemoryPreDemandaRepository();
   const interessadoRepository = new InMemoryInteressadoRepository();
   const setorRepository = new InMemorySetorRepository();
+  const normaRepository = new InMemoryNormaRepository();
   const migration001Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "001_gestor_bootstrap.sql"), "utf8")).digest("hex");
   const migration002Checksum = createHash("sha256").update(readFileSync(join(process.cwd(), "sql", "migrations", "002_admin_user_audit.sql"), "utf8")).digest("hex");
   const pool = {
@@ -1361,6 +1410,7 @@ describe("Gestor JMU API", () => {
       preDemandaRepository,
       interessadoRepository,
       setorRepository,
+      normaRepository,
     });
   });
 
@@ -1770,6 +1820,56 @@ describe("Gestor JMU API", () => {
     expect(detail.statusCode).toBe(200);
     expect(detail.json().data.interessados.length).toBeGreaterThanOrEqual(1);
     expect(detail.json().data.tarefasPendentes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("supports normas base repository CRUD", async () => {
+    const adminLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const adminCookie = `${adminLogin.cookies[0]?.name}=${adminLogin.cookies[0]?.value}`;
+
+    const createdNorma = await app.inject({
+      method: "POST",
+      url: "/api/normas",
+      headers: { cookie: adminCookie },
+      payload: {
+        numero: "IN-12/2026",
+        data_norma: "2026-03-11",
+        origem: "STM",
+      },
+    });
+
+    expect(createdNorma.statusCode).toBe(201);
+    const normaId = createdNorma.json().data.id as string;
+
+    const listedNormas = await app.inject({
+      method: "GET",
+      url: "/api/normas",
+      headers: { cookie: adminCookie },
+    });
+
+    expect(listedNormas.statusCode).toBe(200);
+    expect(listedNormas.json().data.length).toBeGreaterThanOrEqual(1);
+
+    const updatedNorma = await app.inject({
+      method: "PATCH",
+      url: `/api/normas/${normaId}`,
+      headers: { cookie: adminCookie },
+      payload: {
+        numero: "IN-12/2026-RET",
+        data_norma: "2026-03-11",
+        origem: "STM/SG",
+      },
+    });
+
+    expect(updatedNorma.statusCode).toBe(200);
+    expect(updatedNorma.json().data.numero).toBe("IN-12/2026-RET");
   });
 
   it("forbids operator admin access and allows admin user management", async () => {

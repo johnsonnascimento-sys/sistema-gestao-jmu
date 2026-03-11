@@ -16,6 +16,8 @@ export type AppPermission =
   | "cadastro.interessado.write"
   | "cadastro.setor.read"
   | "cadastro.setor.write"
+  | "cadastro.norma.read"
+  | "cadastro.norma.write"
   | "admin.ops.read"
   | "admin.ops.update"
   | "admin.user.read"
@@ -86,6 +88,15 @@ export interface Interessado {
 }
 
 export type Pessoa = Interessado;
+
+export interface Norma {
+  id: string;
+  numero: string;
+  dataNorma: string;
+  origem: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface DemandaInteressado {
   interessado: Interessado;
