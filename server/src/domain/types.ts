@@ -319,6 +319,10 @@ export interface AdminOpsIncidentSummary {
     kind: OperationsIncidentKind;
     total: number;
   }>;
+  topPaths: Array<{
+    path: string;
+    total: number;
+  }>;
 }
 
 export interface OperationsCounters {

@@ -789,6 +789,18 @@ export function AdminOperationsPage() {
               ))}
             </div>
           ) : null}
+          {summary.incidentSummary.topPaths.length ? (
+            <div className="grid gap-2">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Rotas mais afectadas</p>
+              <div className="flex flex-wrap gap-2">
+                {summary.incidentSummary.topPaths.map((item) => (
+                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700" key={`incident-path-${item.path}`}>
+                    {item.path} {item.total}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {summary.incidents.length === 0 ? (
             <EmptyState description="Quando houver falha de autenticacao, erro interno ou problema de prontidao, os eventos aparecerao aqui." title="Nenhum incidente desde o ultimo start" />
           ) : (

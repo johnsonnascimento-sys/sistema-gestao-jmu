@@ -74,6 +74,14 @@ function buildIncidentSummary(incidents: Awaited<ReturnType<OperationsStore["get
     acc.set(incident.kind, (acc.get(incident.kind) ?? 0) + 1);
     return acc;
   }, new Map());
+  const byPath = incidents.reduce<Map<string, number>>((acc, incident) => {
+    if (!incident.path) {
+      return acc;
+    }
+
+    acc.set(incident.path, (acc.get(incident.path) ?? 0) + 1);
+    return acc;
+  }, new Map());
 
   return {
     total: incidents.length,
@@ -83,6 +91,10 @@ function buildIncidentSummary(incidents: Awaited<ReturnType<OperationsStore["get
     byKind: Array.from(byKind.entries())
       .map(([kind, total]) => ({ kind: kind as OperationsIncidentKind, total }))
       .sort((left, right) => right.total - left.total || left.kind.localeCompare(right.kind)),
+    topPaths: Array.from(byPath.entries())
+      .map(([path, total]) => ({ path, total }))
+      .sort((left, right) => right.total - left.total || left.path.localeCompare(right.path))
+      .slice(0, 5),
   };
 }
 
