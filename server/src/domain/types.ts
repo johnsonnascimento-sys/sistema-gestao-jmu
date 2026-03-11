@@ -359,11 +359,13 @@ export interface PreDemandaDashboardSummary {
   dueTodayTotal: number;
   dueSoonTotal: number;
   overdueTotal: number;
+  paymentMarkedTotal: number;
   withoutSetorTotal: number;
   withoutInteressadosTotal: number;
   staleItems: PreDemandaDetail[];
   awaitingSeiItems: PreDemandaDetail[];
   dueSoonItems: PreDemandaDetail[];
+  paymentMarkedItems: PreDemandaDetail[];
   withoutSetorItems: PreDemandaDetail[];
   withoutInteressadosItems: PreDemandaDetail[];
   recentTimeline: TimelineEvent[];

@@ -2925,7 +2925,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -2995,6 +2995,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             )::int as due_soon_total,
             count(*) filter (
               where pd.status <> 'encerrada'
+                and coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = true
+            )::int as payment_marked_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
                 and pd.setor_atual_id is null
             )::int as without_setor_total,
             count(*) filter (
@@ -3015,6 +3019,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             and pd.prazo_final is not null
             and pd.prazo_final between current_date and current_date + interval '7 days'
           order by pd.prazo_final asc, pd.updated_at asc, pd.id asc
+          limit 5
+        `,
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
+          where pd.status <> 'encerrada'
+            and coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = true
+          order by pd.prazo_final asc nulls last, pd.updated_at asc, pd.id asc
           limit 5
         `,
       ),
@@ -3052,11 +3065,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       dueTodayTotal: Number(caseSignalsResult.rows[0]?.due_today_total ?? 0),
       dueSoonTotal: Number(caseSignalsResult.rows[0]?.due_soon_total ?? 0),
       overdueTotal: Number(caseSignalsResult.rows[0]?.overdue_total ?? 0),
+      paymentMarkedTotal: Number(caseSignalsResult.rows[0]?.payment_marked_total ?? 0),
       withoutSetorTotal: Number(caseSignalsResult.rows[0]?.without_setor_total ?? 0),
       withoutInteressadosTotal: Number(caseSignalsResult.rows[0]?.without_interessados_total ?? 0),
       staleItems: staleItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       awaitingSeiItems: awaitingSeiResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       dueSoonItems: dueSoonItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
+      paymentMarkedItems: paymentMarkedItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       withoutSetorItems: withoutSetorItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       withoutInteressadosItems: withoutInteressadosItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       recentTimeline,

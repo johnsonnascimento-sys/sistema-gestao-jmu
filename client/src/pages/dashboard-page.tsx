@@ -167,6 +167,7 @@ export function DashboardPage() {
         <MetricCard label="Paradas 2d+" value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
         <MetricCard label="Criticas 5d+" value={summary.agingCriticalTotal} />
         <MetricCard label="Vence hoje" value={summary.dueTodayTotal} />
+        <MetricCard label="Com pagamento" value={summary.paymentMarkedTotal} />
         <MetricCard label="Prazos na semana" value={summary.dueSoonTotal} />
         <MetricCard label="Prazos vencidos" value={summary.overdueTotal} />
         <MetricCard label="Sem setor" value={summary.withoutSetorTotal} />
@@ -232,6 +233,43 @@ export function DashboardPage() {
         </Card>
 
         <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Processos com pagamento</CardTitle>
+              <CardDescription>Casos com impacto financeiro marcado no metadata, em destaque para controlo prioritário.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {summary.paymentMarkedItems.length === 0 ? (
+                <EmptyState description="Quando um processo tiver pagamento envolvido marcado, ele aparece aqui com destaque." title="Nenhum processo com pagamento" />
+              ) : (
+                summary.paymentMarkedItems.map((item) => (
+                  <Link
+                    className="grid gap-2 rounded-[28px] border border-amber-300/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,237,213,0.9))] p-4 shadow-[0_14px_30px_rgba(217,119,6,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(217,119,6,0.16)]"
+                    key={`payment-${item.preId}`}
+                    to={`/pre-demandas/${item.preId}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">{item.principalNumero}</p>
+                        <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <span className="rounded-full bg-amber-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Pagamento</span>
+                        <StatusPill status={item.status} />
+                      </div>
+                    </div>
+                    <div className="grid gap-1 text-sm text-slate-600">
+                      <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
+                      <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}</p>
+                      <p>{formatPrazo(item)}</p>
+                      <p>Referencia: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Demandas paradas</CardTitle>
