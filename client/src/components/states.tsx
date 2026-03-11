@@ -27,7 +27,7 @@ function StateFrame({
   );
 }
 
-export function LoadingState({ title = "Carregando", description = "Aguarde enquanto os dados sao carregados." }: { title?: string; description?: string }) {
+export function LoadingState({ title = "Carregando", description = "Aguarde enquanto os dados são carregados." }: { title?: string; description?: string }) {
   return <StateFrame description={description} icon={<LoaderCircle className="h-5 w-5 animate-spin" />} title={title} />;
 }
 

@@ -95,13 +95,13 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     const session = readSession(request);
 
     if (!session) {
-      throw new AppError(401, "UNAUTHENTICATED", "Sessao invalida ou expirada.");
+      throw new AppError(401, "UNAUTHENTICATED", "Sessão inválida ou expirada.");
     }
 
     const user = await userRepository.findById(session.id);
 
     if (!user || !user.active) {
-      throw new AppError(401, "UNAUTHENTICATED", "Usuario nao encontrado ou inativo.");
+      throw new AppError(401, "UNAUTHENTICATED", "Usuário não encontrado ou inativo.");
     }
 
     request.user = {
@@ -116,11 +116,11 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   app.decorate("authorize", (permission: AppPermission) => {
     return async (request) => {
       if (!request.user) {
-        throw new AppError(401, "UNAUTHENTICATED", "Sessao invalida ou expirada.");
+        throw new AppError(401, "UNAUTHENTICATED", "Sessão inválida ou expirada.");
       }
 
       if (!hasPermission(request.user.role, permission)) {
-        throw new AppError(403, "FORBIDDEN", "Voce nao possui permissao para esta operacao.");
+        throw new AppError(403, "FORBIDDEN", "Você não possui permissão para esta operação.");
       }
     };
   });
@@ -174,7 +174,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
           data: null,
           error: {
             code: "NOT_FOUND",
-            message: "Rota nao encontrada.",
+            message: "Rota não encontrada.",
           },
         });
       }
@@ -192,7 +192,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
         data: null,
         error: {
           code: "VALIDATION_ERROR",
-          message: "Payload invalido.",
+          message: "Payload inválido.",
           details: error.flatten(),
         },
       });

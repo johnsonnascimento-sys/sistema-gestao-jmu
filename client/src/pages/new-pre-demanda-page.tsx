@@ -176,7 +176,7 @@ export function NewPreDemandaPage() {
     } catch (nextError) {
       if (nextError instanceof ApiError && nextError.status === 409) {
         setConflictPreId(getConflictPreId(nextError.details));
-        setError(appendRequestReference("Ja existe uma demanda registada com estes dados.", nextError.requestId));
+        setError(appendRequestReference("Já existe uma demanda registrada com estes dados.", nextError.requestId));
       } else {
         setError(formatAppError(nextError, "Falha ao criar demanda."));
       }
@@ -188,7 +188,7 @@ export function NewPreDemandaPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Via rapida para processo externo, demanda pre-processo ou demanda sem numero."
+        description="Via rápida para processo externo, demanda pré-processo ou demanda sem número."
         eyebrow="Cadastro"
         title="Novo Processo / Demanda"
       />
@@ -198,7 +198,7 @@ export function NewPreDemandaPage() {
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <FormField label="Pessoa principal">
-                <Input onChange={(event) => setPessoaSearch(event.target.value)} placeholder="Buscar pessoa por nome, matricula ou CPF" value={pessoaSearch} />
+                <Input onChange={(event) => setPessoaSearch(event.target.value)} placeholder="Buscar pessoa por nome, matrícula ou CPF" value={pessoaSearch} />
               </FormField>
               {form.pessoa_solicitante_id ? (
                 <p className="text-sm font-medium text-emerald-700">
@@ -244,7 +244,7 @@ export function NewPreDemandaPage() {
                 />
                 <EntryOption
                   checked={entryType === "continuous"}
-                  description="Fluxo sem numero principal na abertura."
+                  description="Fluxo sem número principal na abertura."
                   label="Demanda Sem Número"
                   onChange={() => updateEntryType("continuous")}
                 />
@@ -281,7 +281,7 @@ export function NewPreDemandaPage() {
               </div>
             </div>
 
-            <FormField label="Data de referencia">
+            <FormField label="Data de referência">
               <Input onChange={(event) => setForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={form.data_referencia} />
             </FormField>
 
@@ -289,21 +289,21 @@ export function NewPreDemandaPage() {
               <Input onChange={(event) => setForm((current) => ({ ...current, fonte: event.target.value }))} placeholder="WhatsApp, e-mail, telefone..." value={form.fonte} />
             </FormField>
 
-            <FormField className="md:col-span-2" label="Descricao">
+            <FormField className="md:col-span-2" label="Descrição">
               <Textarea onChange={(event) => setForm((current) => ({ ...current, descricao: event.target.value }))} rows={5} value={form.descricao} />
             </FormField>
 
-            <FormField className="md:col-span-2" label="Observacoes">
+            <FormField className="md:col-span-2" label="Observações">
               <Textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
             </FormField>
 
             {showNumbers ? (
               <>
-                <FormField label="Numero SEI" hint={<code>000181/26-02.227</code>}>
+                <FormField label="Número SEI" hint={<code>000181/26-02.227</code>}>
                   <Input onChange={(event) => setForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={form.sei_numero} />
                 </FormField>
 
-                <FormField label="Numero judicial">
+                <FormField label="Número judicial">
                   <Input
                     onChange={(event) => setForm((current) => ({ ...current, numero_judicial: event.target.value }))}
                     placeholder="0001234-56.2026.9.99.9999"
@@ -316,8 +316,8 @@ export function NewPreDemandaPage() {
             <div className="md:col-span-2 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold text-slate-950">Campos avancados</p>
-                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">prazo, pagamento e frequencia</p>
+                  <p className="text-sm font-semibold text-slate-950">Campos avançados</p>
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">prazo, pagamento e frequência</p>
                 </div>
                 {!isContinuous ? (
                   <Button onClick={() => setAdvancedOpen((current) => !current)} size="sm" type="button" variant="ghost">
@@ -332,9 +332,9 @@ export function NewPreDemandaPage() {
                   <Input onChange={(event) => setForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={form.prazo_final} />
                 </FormField>
 
-                <FormField className="md:col-span-2" label="Frequencia">
+                <FormField className="md:col-span-2" label="Frequência">
                   <select className={selectClassName} onChange={(event) => updateFrequencia(event.target.value)} value={form.frequencia}>
-                    <option value="">Selecione a frequencia</option>
+                    <option value="">Selecione a frequência</option>
                     <option value="Diaria">Diaria</option>
                     <option value="Semanal">Semanal</option>
                     <option value="Mensal">Mensal</option>
@@ -363,7 +363,7 @@ export function NewPreDemandaPage() {
                 ) : null}
 
                 {form.frequencia === "Mensal" ? (
-                  <FormField className="md:col-span-2" label="Dia do mes (1-31)">
+                  <FormField className="md:col-span-2" label="Dia do mês (1-31)">
                     <Input max="31" min="1" onChange={(event) => setForm((current) => ({ ...current, frequencia_dia_mes: event.target.value }))} type="number" value={form.frequencia_dia_mes} />
                   </FormField>
                 ) : null}
@@ -393,7 +393,7 @@ export function NewPreDemandaPage() {
 
             {showNumbers && !isSeiValid ? (
               <div className="md:col-span-2 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-                Informe um numero SEI valido no formato <code>000181/26-02.227</code>.
+                Informe um número SEI válido no formato <code>000181/26-02.227</code>.
               </div>
             ) : null}
 

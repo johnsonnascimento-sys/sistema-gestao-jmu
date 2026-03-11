@@ -33,7 +33,7 @@ const createSchema = z.object({
   fonte: z.string().trim().max(120).optional().nullable(),
   observacoes: z.string().trim().max(4000).optional().nullable(),
   prazo_final: z.string().date().optional().nullable(),
-  sei_numero: z.string().trim().regex(SEI_REGEX, "Numero SEI invalido.").optional().nullable(),
+  sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido.").optional().nullable(),
   numero_judicial: z.string().trim().max(100).optional().nullable(),
   assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
@@ -51,7 +51,7 @@ const createSchema = z.object({
 
     return hasContinuousFrequency || Boolean(value.prazo_final);
   }, {
-    message: "Prazo final e obrigatorio quando a demanda nao possui frequencia continua.",
+    message: "Prazo final é obrigatório quando a demanda não possui frequência contínua.",
     path: ["prazo_final"],
   });
 
@@ -77,7 +77,7 @@ const listRecentTimelineSchema = z.object({
 });
 
 const associateSchema = z.object({
-  sei_numero: z.string().trim().regex(SEI_REGEX, "Numero SEI invalido."),
+  sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido."),
   motivo: z.string().trim().max(2000).optional().nullable(),
   observacoes: z.string().trim().max(2000).optional().nullable(),
 });
@@ -180,7 +180,7 @@ function parseStatuses(input: string | string[] | undefined) {
 
   for (const value of normalized) {
     if (!STATUSES.includes(value as PreDemandaStatus)) {
-      throw new AppError(400, "INVALID_STATUS_FILTER", `Status invalido: ${value}`);
+      throw new AppError(400, "INVALID_STATUS_FILTER", `Status inválido: ${value}`);
     }
   }
 
@@ -197,7 +197,7 @@ function parseQueueHealthLevels(input: string | string[] | undefined) {
 
   for (const value of normalized) {
     if (!QUEUE_HEALTH_LEVELS.includes(value as QueueHealthLevel)) {
-      throw new AppError(400, "INVALID_QUEUE_HEALTH_FILTER", `Filtro de fila invalido: ${value}`);
+      throw new AppError(400, "INVALID_QUEUE_HEALTH_FILTER", `Filtro de fila inválido: ${value}`);
     }
   }
 
@@ -307,7 +307,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     const record = await preDemandaRepository.getByPreId(params.preId);
 
     if (!record) {
-      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Demanda não encontrada.");
     }
 
     return reply.send({

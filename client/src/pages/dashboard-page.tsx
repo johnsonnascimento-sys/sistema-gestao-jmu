@@ -19,7 +19,7 @@ export function DashboardPage() {
   function describeEvent(event: TimelineEvent) {
     switch (event.type) {
       case "created":
-        return "Nova pre-demanda registada.";
+        return "Nova demanda registrada.";
       case "status_changed":
         return `Status alterado para ${event.statusNovo?.replace("_", " ") ?? "-"}.`;
       case "sei_linked":
@@ -27,7 +27,7 @@ export function DashboardPage() {
       case "sei_reassociated":
         return `SEI corrigido para ${event.seiNumeroNovo ?? "-"}.`;
       default:
-        return "Movimentacao operacional registada.";
+        return "Movimentação operacional registrada.";
     }
   }
 
@@ -44,7 +44,7 @@ export function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <LoadingState description="Estamos a montar o resumo operativo do dia." title="A preparar dashboard" />;
+    return <LoadingState description="Estamos montando o resumo operacional do dia." title="Preparando dashboard" />;
   }
 
   if (error) {
@@ -52,7 +52,7 @@ export function DashboardPage() {
   }
 
   if (!summary) {
-    return <ErrorState description="Resumo operativo indisponivel." />;
+    return <ErrorState description="Resumo operacional indisponível." />;
   }
 
   const staleItems = summary.staleItems;
@@ -100,7 +100,7 @@ export function DashboardPage() {
     const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
 
     if (diffDays < 0) {
-      return `Prazo vencido ha ${Math.abs(diffDays)}d`;
+      return `Prazo vencido há ${Math.abs(diffDays)}d`;
     }
 
     if (diffDays === 0) {
@@ -131,10 +131,10 @@ export function DashboardPage() {
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
           <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
-          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}</p>
+          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
           <p>Envolvidos: {item.interessados.length}</p>
           <p>{formatPrazo(item)}</p>
-          <p>Referencia: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
+          <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
           <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
           <p>{queueHealth.detail}</p>
         </div>
@@ -155,8 +155,8 @@ export function DashboardPage() {
             </Button>
           </>
         }
-        description="Visao operacional do modulo pre-SEI/SEI, com atalhos para triagem e acompanhamento."
-        eyebrow="Visao geral"
+        description="Visão operacional do módulo pré-SEI/SEI, com atalhos para triagem e acompanhamento."
+        eyebrow="Visão geral"
         title="Dashboard do Gestor"
       />
 
@@ -165,7 +165,7 @@ export function DashboardPage() {
           <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
         ))}
         <MetricCard label="Paradas 2d+" value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
-        <MetricCard label="Criticas 5d+" value={summary.agingCriticalTotal} />
+        <MetricCard label="Críticas 5d+" value={summary.agingCriticalTotal} />
         <MetricCard label="Vence hoje" value={summary.dueTodayTotal} />
         <MetricCard label="Com pagamento" value={summary.paymentMarkedTotal} />
         <MetricCard label="Prazos na semana" value={summary.dueSoonTotal} />
@@ -178,8 +178,8 @@ export function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Grupos rapidos da operacao</CardTitle>
-          <CardDescription>Entradas directas para os recortes com maior urgencia operacional.</CardDescription>
+          <CardTitle>Grupos rápidos da operação</CardTitle>
+          <CardDescription>Entradas diretas para os recortes com maior urgência operacional.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-4">
           {quickGroups.map((group) => (
@@ -201,12 +201,12 @@ export function DashboardPage() {
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Ultimas movimentacoes</CardTitle>
-            <CardDescription>A timeline recente do modulo pre-SEI/SEI.</CardDescription>
+          <CardTitle>Últimas movimentações</CardTitle>
+          <CardDescription>A timeline recente do módulo pré-SEI/SEI.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3">
             {summary.recentTimeline.length === 0 ? (
-              <EmptyState description="As ultimas criacoes, mudancas de status e vinculacoes SEI aparecerao aqui." title="Sem movimentacoes recentes" />
+              <EmptyState description="As últimas criações, mudanças de status e vinculações SEI aparecerão aqui." title="Sem movimentações recentes" />
             ) : (
               summary.recentTimeline.map((event) => (
                 <Link
@@ -260,9 +260,9 @@ export function DashboardPage() {
                     </div>
                     <div className="grid gap-1 text-sm text-slate-600">
                       <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
-                      <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}</p>
+                      <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
                       <p>{formatPrazo(item)}</p>
-                      <p>Referencia: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
+                      <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
                     </div>
                   </Link>
                 ))
@@ -273,11 +273,11 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Demandas paradas</CardTitle>
-              <CardDescription>Itens activos sem movimentacao recente, ordenados pela actualizacao mais antiga.</CardDescription>
+              <CardDescription>Itens ativos sem movimentação recente, ordenados pela atualização mais antiga.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {staleItems.length === 0 ? (
-                <EmptyState description="Quando houver fila a pedir seguimento por falta de movimentacao, ela aparecera aqui." title="Nenhuma demanda parada" />
+                <EmptyState description="Quando houver fila pedindo seguimento por falta de movimentação, ela aparecerá aqui." title="Nenhuma demanda parada" />
               ) : (
                 staleItems.map(renderQueueItem)
               )}
@@ -326,7 +326,7 @@ export function DashboardPage() {
                   </Button>
                 </div>
                 {summary.withoutSetorItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os casos ativos ja possuem setor.</p>
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os casos ativos já possuem setor.</p>
                 ) : (
                   summary.withoutSetorItems.map(renderQueueItem)
                 )}
@@ -340,7 +340,7 @@ export function DashboardPage() {
                   </Button>
                 </div>
                 {summary.withoutInteressadosItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os casos ativos ja possuem envolvidos vinculados.</p>
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os casos ativos já possuem envolvidos vinculados.</p>
                 ) : (
                   summary.withoutInteressadosItems.map(renderQueueItem)
                 )}
@@ -351,7 +351,7 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Atalhos operacionais</CardTitle>
-              <CardDescription>Entradas rapidas para os fluxos do dia-a-dia.</CardDescription>
+              <CardDescription>Entradas rápidas para os fluxos do dia a dia.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               <Button asChild variant="secondary">
@@ -370,7 +370,7 @@ export function DashboardPage() {
                 <Link to="/pre-demandas?preset=prazos-vencidos">Prazos vencidos</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=ultimas-encerradas">Ultimas encerradas</Link>
+                <Link to="/pre-demandas?preset=ultimas-encerradas">Últimas encerradas</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=sem-setor">Sem setor</Link>

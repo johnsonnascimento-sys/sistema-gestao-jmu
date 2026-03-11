@@ -78,10 +78,10 @@ export function AppShell() {
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-200">Gestor JMU</p>
               <h1 className='mt-3 font-["IBM_Plex_Serif",Georgia,serif] text-3xl leading-tight'>
                 Centro de casos
-                <span className="block text-slate-200">e tramitacao</span>
+                <span className="block text-slate-200">e tramitação</span>
               </h1>
               <p className="mt-3 text-sm leading-6 text-slate-200/85">
-                Operacao inspirada numa linguagem institucional clara, com fluxo, auditoria e governanca num unico painel.
+                Operação inspirada em uma linguagem institucional clara, com fluxo, auditoria e governança em um único painel.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">Pre-SEI</span>
@@ -96,7 +96,7 @@ export function AppShell() {
             </NavLink>
             <NavLink className={navLinkClassName} to="/pre-demandas">
               <ListTodo className="h-4 w-4" />
-              Pre-demandas
+              Pré-processos
             </NavLink>
             <NavLink className={navLinkClassName} to="/pre-demandas/nova">
               <SquarePen className="h-4 w-4" />
@@ -129,13 +129,13 @@ export function AppShell() {
             {hasPermission("admin.user.read") ? (
               <NavLink className={navLinkClassName} to="/admin/users">
                 <ShieldCheck className="h-4 w-4" />
-                Usuarios
+                Usuários
               </NavLink>
             ) : null}
             {hasPermission("admin.ops.read") ? (
               <NavLink className={navLinkClassName} to="/admin/operacoes">
                 <Activity className="h-4 w-4" />
-                Operacoes
+                Operações
               </NavLink>
             ) : null}
             </nav>
@@ -155,7 +155,7 @@ export function AppShell() {
                   {runtime.commitSha ? ` - ${runtime.commitSha.slice(0, 7)}` : ""}
                 </p>
                 <p className="mt-1">
-                  {runtime.environment} - no ar ha {formatUptime(runtime.uptimeSeconds)}
+                  {runtime.environment} - no ar há {formatUptime(runtime.uptimeSeconds)}
                 </p>
               </div>
             ) : null}

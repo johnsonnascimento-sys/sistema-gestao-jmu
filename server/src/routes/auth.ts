@@ -32,14 +32,14 @@ export async function registerAuthRoutes(app: FastifyInstance, options: { userRe
 
     if (!user || !user.active) {
       request.log.warn({ email: payload.email }, "auth.login.invalid-user");
-      throw new AppError(401, "INVALID_CREDENTIALS", "Email ou senha invalidos.");
+      throw new AppError(401, "INVALID_CREDENTIALS", "E-mail ou senha inválidos.");
     }
 
     const isValid = await verifyPassword(payload.password, user.passwordHash);
 
     if (!isValid) {
       request.log.warn({ userId: user.id }, "auth.login.invalid-password");
-      throw new AppError(401, "INVALID_CREDENTIALS", "Email ou senha invalidos.");
+      throw new AppError(401, "INVALID_CREDENTIALS", "E-mail ou senha inválidos.");
     }
 
     const sessionUser = serializeUser(user);
