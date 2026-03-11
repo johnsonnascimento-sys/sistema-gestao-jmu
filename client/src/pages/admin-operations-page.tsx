@@ -471,6 +471,7 @@ export function AdminOperationsPage() {
           confidence: "Alta",
           urgencyReason: "Ha convergencia entre prioridade actual e repeticao recente.",
           effortHint: "Intervencao rapida",
+          impactHint: "Reduz ruido e corta repeticao logo no inicio.",
           href: recurrencePathItems[0].href,
           cta: recurrencePathItems[0].cta,
         }
@@ -482,6 +483,7 @@ export function AdminOperationsPage() {
             confidence: "Alta",
             urgencyReason: "A instabilidade operacional ja esta a repetir e tende a contaminar outras leituras.",
             effortHint: "Investigacao curta",
+            impactHint: "Estabiliza a base operacional antes de efeitos em cascata.",
             href: recurrencePathItems[0].href,
             cta: recurrencePathItems[0].cta,
           }
@@ -492,6 +494,7 @@ export function AdminOperationsPage() {
               confidence: "Media",
               urgencyReason: "Nao surgiu um cluster repetido mais forte do que a anomalia principal.",
               effortHint: "Triagem dirigida",
+              impactHint: "Mantem o foco na frente mais relevante da janela actual.",
               href: primaryAttentionItem.href,
               cta: primaryAttentionItem.cta,
             }
@@ -749,6 +752,7 @@ export function AdminOperationsPage() {
             <p className="text-sm text-slate-700">{suggestedDecision.description}</p>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Porque agora: {suggestedDecision.urgencyReason}</p>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Esforco esperado: {suggestedDecision.effortHint}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Impacto esperado: {suggestedDecision.impactHint}</p>
             {suggestedDecision.href && suggestedDecision.cta ? (
               <div>
                 <Button asChild variant="secondary">

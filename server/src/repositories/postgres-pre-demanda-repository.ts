@@ -2,7 +2,10 @@ import type { PoolClient, QueryResultRow } from "pg";
 import type {
   Andamento,
   AuditActor,
+  DemandaComentario,
+  DemandaDocumento,
   DemandaInteressado,
+  DemandaSetorFluxo,
   DemandaVinculo,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
@@ -28,17 +31,23 @@ import type {
   AddDemandaVinculoInput,
   AssociateSeiInput,
   AssociateSeiResult,
+  ConcluirTramitacaoSetorInput,
   ConcluirTarefaInput,
+  CreateComentarioInput,
+  CreateDocumentoInput,
   CreatePreDemandaInput,
   CreatePreDemandaResult,
   CreateTarefaInput,
+  DocumentoDownloadResult,
   ListPreDemandasParams,
   ListPreDemandasResult,
   PreDemandaRepository,
+  RemoveDocumentoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
   SettingsRepository,
   TramitarPreDemandaInput,
+  UpdateComentarioInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
@@ -182,6 +191,9 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     currentAssociation,
     interessados: [],
     vinculos: [],
+    setoresAtivos: [],
+    documentos: [],
+    comentarios: [],
     tarefasPendentes: [],
     recentAndamentos: [],
   };
@@ -217,6 +229,46 @@ function mapDemandaVinculo(row: QueryResultRow): DemandaVinculo {
     },
     linkedAt: new Date(row.linked_at).toISOString(),
     linkedBy: mapActor(row, "linked_by"),
+  };
+}
+
+function mapDocumento(row: QueryResultRow): DemandaDocumento {
+  return {
+    id: String(row.id),
+    preId: String(row.pre_id),
+    nomeArquivo: String(row.nome_arquivo),
+    mimeType: String(row.mime_type),
+    tamanhoBytes: Number(row.tamanho_bytes),
+    descricao: row.descricao ? String(row.descricao) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    createdBy: mapActor(row, "created_by"),
+  };
+}
+
+function mapComentario(row: QueryResultRow): DemandaComentario {
+  return {
+    id: String(row.id),
+    preId: String(row.pre_id),
+    conteudo: String(row.conteudo),
+    formato: row.formato as DemandaComentario["formato"],
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+    createdBy: mapActor(row, "created_by"),
+    editedBy: mapActor(row, "edited_by"),
+  };
+}
+
+function mapDemandaSetorFluxo(row: QueryResultRow): DemandaSetorFluxo {
+  return {
+    id: String(row.id),
+    status: row.status as DemandaSetorFluxo["status"],
+    observacoes: row.observacoes ? String(row.observacoes) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    createdBy: mapActor(row, "created_by"),
+    concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
+    concluidaPor: mapActor(row, "concluida_por"),
+    setor: mapSetor(row, "setor")!,
+    origemSetor: mapSetor(row, "origem_setor"),
   };
 }
 
@@ -544,6 +596,104 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return result.rows.map(mapDemandaVinculo);
   }
 
+  private async loadSetoresAtivos(queryable: Queryable, preDemandaId: number) {
+    const result = await queryable.query(
+      `
+        select
+          fluxo.id,
+          fluxo.status,
+          fluxo.observacoes,
+          fluxo.created_at,
+          fluxo.concluida_em,
+          created_by.id as created_by_id,
+          created_by.email as created_by_email,
+          created_by.name as created_by_name,
+          created_by.role as created_by_role,
+          concluida_por.id as concluida_por_id,
+          concluida_por.email as concluida_por_email,
+          concluida_por.name as concluida_por_name,
+          concluida_por.role as concluida_por_role,
+          setor.id as setor_id,
+          setor.sigla as setor_sigla,
+          setor.nome_completo as setor_nome_completo,
+          setor.created_at as setor_created_at,
+          setor.updated_at as setor_updated_at,
+          origem.id as origem_setor_id,
+          origem.sigla as origem_setor_sigla,
+          origem.nome_completo as origem_setor_nome_completo,
+          origem.created_at as origem_setor_created_at,
+          origem.updated_at as origem_setor_updated_at
+        from adminlog.demanda_setores_fluxo fluxo
+        inner join adminlog.setores setor on setor.id = fluxo.setor_id
+        left join adminlog.setores origem on origem.id = fluxo.origem_setor_id
+        left join adminlog.app_user created_by on created_by.id = fluxo.created_by_user_id
+        left join adminlog.app_user concluida_por on concluida_por.id = fluxo.concluida_por_user_id
+        where fluxo.pre_demanda_id = $1
+          and fluxo.status = 'ativo'
+        order by fluxo.created_at desc, setor.sigla asc
+      `,
+      [preDemandaId],
+    );
+
+    return result.rows.map(mapDemandaSetorFluxo);
+  }
+
+  private async loadDocumentos(queryable: Queryable, preDemandaId: number, preId: string) {
+    const result = await queryable.query(
+      `
+        select
+          documento.id,
+          $2::text as pre_id,
+          documento.nome_arquivo,
+          documento.mime_type,
+          documento.tamanho_bytes,
+          documento.descricao,
+          documento.created_at,
+          created_by.id as created_by_id,
+          created_by.email as created_by_email,
+          created_by.name as created_by_name,
+          created_by.role as created_by_role
+        from adminlog.demanda_documentos documento
+        left join adminlog.app_user created_by on created_by.id = documento.created_by_user_id
+        where documento.pre_demanda_id = $1
+        order by documento.created_at desc, documento.nome_arquivo asc
+      `,
+      [preDemandaId, preId],
+    );
+
+    return result.rows.map(mapDocumento);
+  }
+
+  private async loadComentarios(queryable: Queryable, preDemandaId: number, preId: string) {
+    const result = await queryable.query(
+      `
+        select
+          comentario.id,
+          $2::text as pre_id,
+          comentario.conteudo,
+          comentario.formato,
+          comentario.created_at,
+          comentario.updated_at,
+          created_by.id as created_by_id,
+          created_by.email as created_by_email,
+          created_by.name as created_by_name,
+          created_by.role as created_by_role,
+          edited_by.id as edited_by_id,
+          edited_by.email as edited_by_email,
+          edited_by.name as edited_by_name,
+          edited_by.role as edited_by_role
+        from adminlog.demanda_comentarios comentario
+        left join adminlog.app_user created_by on created_by.id = comentario.created_by_user_id
+        left join adminlog.app_user edited_by on edited_by.id = comentario.edited_by_user_id
+        where comentario.pre_demanda_id = $1
+        order by comentario.created_at desc, comentario.id desc
+      `,
+      [preDemandaId, preId],
+    );
+
+    return result.rows.map(mapComentario);
+  }
+
   private async loadAndamentos(queryable: Queryable, preDemandaId: number, preId: string, limit?: number) {
     const result = await queryable.query(
       `
@@ -602,15 +752,21 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [interessados, vinculos, tarefasPendentes, recentAndamentos] = await Promise.all([
+    const [interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, recentAndamentos] = await Promise.all([
       this.loadInteressados(queryable, detail.id),
       this.loadVinculos(queryable, detail.id),
+      this.loadSetoresAtivos(queryable, detail.id),
+      this.loadDocumentos(queryable, detail.id, detail.preId),
+      this.loadComentarios(queryable, detail.id, detail.preId),
       this.loadTarefas(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 8),
     ]);
 
     detail.interessados = interessados;
     detail.vinculos = vinculos;
+    detail.setoresAtivos = setoresAtivos;
+    detail.documentos = documentos;
+    detail.comentarios = comentarios;
     detail.tarefasPendentes = tarefasPendentes;
     detail.recentAndamentos = recentAndamentos;
 
@@ -1026,22 +1182,136 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
       }
 
-      const setorResult = await client.query("select id, sigla from adminlog.setores where id = $1::uuid limit 1", [input.setorDestinoId]);
-      if (!setorResult.rows[0]) {
-        throw new AppError(404, "SETOR_NOT_FOUND", "Setor nao encontrado.");
+      const requestedIds = Array.from(new Set(input.setorDestinoIds));
+      if (!requestedIds.length) {
+        throw new AppError(400, "SETOR_DESTINO_REQUIRED", "Informe ao menos um setor destino.");
       }
 
-      await client.query("update adminlog.pre_demanda set setor_atual_id = $2::uuid where pre_id = $1", [input.preId, input.setorDestinoId]);
+      const setoresResult = await client.query(
+        "select id, sigla from adminlog.setores where id = any($1::uuid[]) order by sigla asc",
+        [requestedIds],
+      );
+      if (setoresResult.rows.length !== requestedIds.length) {
+        throw new AppError(404, "SETOR_NOT_FOUND", "Um ou mais setores nao foram encontrados.");
+      }
+
+      const existentesResult = await client.query(
+        `
+          select setor_id
+          from adminlog.demanda_setores_fluxo
+          where pre_demanda_id = $1
+            and status = 'ativo'
+            and setor_id = any($2::uuid[])
+        `,
+        [Number(row.id), requestedIds],
+      );
+      const existentes = new Set(existentesResult.rows.map((item) => String(item.setor_id)));
+      const setoresNovos = setoresResult.rows.filter((item) => !existentes.has(String(item.id)));
+      if (!setoresNovos.length) {
+        throw new AppError(409, "TRAMITACAO_ALREADY_ACTIVE", "Os setores informados ja estao com tramitacao ativa para este processo.");
+      }
+
+      for (const setor of setoresNovos) {
+        await client.query(
+          `
+            insert into adminlog.demanda_setores_fluxo (
+              pre_demanda_id,
+              setor_id,
+              status,
+              origem_setor_id,
+              observacoes,
+              created_by_user_id
+            )
+            values ($1, $2::uuid, 'ativo', $3::uuid, $4, $5)
+          `,
+          [Number(row.id), String(setor.id), row.setor_id ?? null, input.observacoes ?? null, input.changedByUserId],
+        );
+      }
+
+      const ultimoDestinoId = String(setoresNovos[setoresNovos.length - 1].id);
+      await client.query("update adminlog.pre_demanda set setor_atual_id = $2::uuid where pre_id = $1", [input.preId, ultimoDestinoId]);
       const origemSigla = row.setor_sigla ? String(row.setor_sigla) : null;
-      const destinoSigla = String(setorResult.rows[0].sigla);
+      const destinoSiglas = setoresNovos.map((item) => String(item.sigla)).join(", ");
       const descricao = origemSigla
-        ? `Processo remetido de ${origemSigla} para ${destinoSigla}.`
-        : `Processo remetido para ${destinoSigla}.`;
+        ? `Processo remetido de ${origemSigla} para ${destinoSiglas}.`
+        : `Processo remetido para ${destinoSiglas}.`;
 
       await this.insertAndamento(client, {
         preDemandaId: Number(row.id),
         preId: input.preId,
         descricao,
+        tipo: "tramitacao",
+        createdByUserId: input.changedByUserId,
+      });
+
+      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
+      if (!record) {
+        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
+      }
+
+      return record;
+    });
+  }
+
+  async concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput) {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+    return inTransaction(this.pool, async (client) => {
+      const row = await getPreDemandaRowByPreId(client, input.preId);
+      if (!row) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
+
+      const fluxoResult = await client.query(
+        `
+          select fluxo.id, setor.sigla
+          from adminlog.demanda_setores_fluxo fluxo
+          inner join adminlog.setores setor on setor.id = fluxo.setor_id
+          where fluxo.pre_demanda_id = $1
+            and fluxo.setor_id = $2::uuid
+            and fluxo.status = 'ativo'
+          limit 1
+          for update
+        `,
+        [Number(row.id), input.setorId],
+      );
+
+      if (!fluxoResult.rows[0]) {
+        throw new AppError(404, "TRAMITACAO_NOT_FOUND", "Tramitacao ativa nao encontrada para este setor.");
+      }
+
+      await client.query(
+        `
+          update adminlog.demanda_setores_fluxo
+          set status = 'concluido',
+              observacoes = coalesce($3, observacoes),
+              concluida_em = now(),
+              concluida_por_user_id = $4
+          where id = $1::uuid and pre_demanda_id = $2
+        `,
+        [String(fluxoResult.rows[0].id), Number(row.id), input.observacoes ?? null, input.changedByUserId],
+      );
+
+      const ativosRemanescentes = await client.query(
+        `
+          select setor_id
+          from adminlog.demanda_setores_fluxo
+          where pre_demanda_id = $1
+            and status = 'ativo'
+          order by created_at desc
+          limit 1
+        `,
+        [Number(row.id)],
+      );
+
+      await client.query("update adminlog.pre_demanda set setor_atual_id = $2 where pre_id = $1", [
+        input.preId,
+        ativosRemanescentes.rows[0]?.setor_id ?? null,
+      ]);
+
+      await this.insertAndamento(client, {
+        preDemandaId: Number(row.id),
+        preId: input.preId,
+        descricao: `Tramitacao concluida no setor ${String(fluxoResult.rows[0].sigla)}.`,
         tipo: "tramitacao",
         createdByUserId: input.changedByUserId,
       });
@@ -1164,6 +1434,231 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
       return tarefa;
     });
+  }
+
+  async listComentarios(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadComentarios(this.pool, demanda.id, demanda.preId);
+  }
+
+  async createComentario(input: CreateComentarioInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const inserted = await client.query(
+        `
+          insert into adminlog.demanda_comentarios (pre_demanda_id, conteudo, formato, created_by_user_id, edited_by_user_id)
+          values ($1, $2, $3, $4, $4)
+          returning id
+        `,
+        [demanda.id, input.conteudo, input.formato, input.changedByUserId],
+      );
+
+      const result = await client.query(
+        `
+          select
+            comentario.id,
+            $2::text as pre_id,
+            comentario.conteudo,
+            comentario.formato,
+            comentario.created_at,
+            comentario.updated_at,
+            created_by.id as created_by_id,
+            created_by.email as created_by_email,
+            created_by.name as created_by_name,
+            created_by.role as created_by_role,
+            edited_by.id as edited_by_id,
+            edited_by.email as edited_by_email,
+            edited_by.name as edited_by_name,
+            edited_by.role as edited_by_role
+          from adminlog.demanda_comentarios comentario
+          left join adminlog.app_user created_by on created_by.id = comentario.created_by_user_id
+          left join adminlog.app_user edited_by on edited_by.id = comentario.edited_by_user_id
+          where comentario.id = $1::uuid
+          limit 1
+        `,
+        [inserted.rows[0].id, demanda.preId],
+      );
+
+      return mapComentario(result.rows[0]);
+    });
+  }
+
+  async updateComentario(input: UpdateComentarioInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const updated = await client.query(
+        `
+          update adminlog.demanda_comentarios
+          set conteudo = $3,
+              edited_by_user_id = $4
+          where id = $1::uuid
+            and pre_demanda_id = $2
+          returning id
+        `,
+        [input.comentarioId, demanda.id, input.conteudo, input.changedByUserId],
+      );
+
+      if (!updated.rows[0]) {
+        throw new AppError(404, "COMENTARIO_NOT_FOUND", "Comentario nao encontrado.");
+      }
+
+      const result = await client.query(
+        `
+          select
+            comentario.id,
+            $2::text as pre_id,
+            comentario.conteudo,
+            comentario.formato,
+            comentario.created_at,
+            comentario.updated_at,
+            created_by.id as created_by_id,
+            created_by.email as created_by_email,
+            created_by.name as created_by_name,
+            created_by.role as created_by_role,
+            edited_by.id as edited_by_id,
+            edited_by.email as edited_by_email,
+            edited_by.name as edited_by_name,
+            edited_by.role as edited_by_role
+          from adminlog.demanda_comentarios comentario
+          left join adminlog.app_user created_by on created_by.id = comentario.created_by_user_id
+          left join adminlog.app_user edited_by on edited_by.id = comentario.edited_by_user_id
+          where comentario.id = $1::uuid
+          limit 1
+        `,
+        [input.comentarioId, demanda.preId],
+      );
+
+      return mapComentario(result.rows[0]);
+    });
+  }
+
+  async listDocumentos(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadDocumentos(this.pool, demanda.id, demanda.preId);
+  }
+
+  async createDocumento(input: CreateDocumentoInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const inserted = await client.query(
+        `
+          insert into adminlog.demanda_documentos (
+            pre_demanda_id,
+            nome_arquivo,
+            mime_type,
+            tamanho_bytes,
+            descricao,
+            conteudo,
+            created_by_user_id
+          )
+          values ($1, $2, $3, $4, $5, $6, $7)
+          returning id
+        `,
+        [demanda.id, input.nomeArquivo, input.mimeType, input.tamanhoBytes, input.descricao ?? null, input.conteudo, input.changedByUserId],
+      );
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Documento anexado: ${input.nomeArquivo}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      const result = await client.query(
+        `
+          select
+            documento.id,
+            $2::text as pre_id,
+            documento.nome_arquivo,
+            documento.mime_type,
+            documento.tamanho_bytes,
+            documento.descricao,
+            documento.created_at,
+            created_by.id as created_by_id,
+            created_by.email as created_by_email,
+            created_by.name as created_by_name,
+            created_by.role as created_by_role
+          from adminlog.demanda_documentos documento
+          left join adminlog.app_user created_by on created_by.id = documento.created_by_user_id
+          where documento.id = $1::uuid
+          limit 1
+        `,
+        [inserted.rows[0].id, demanda.preId],
+      );
+
+      return mapDocumento(result.rows[0]);
+    });
+  }
+
+  async removeDocumento(input: RemoveDocumentoInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const deleted = await client.query(
+        `
+          delete from adminlog.demanda_documentos
+          where id = $1::uuid
+            and pre_demanda_id = $2
+          returning nome_arquivo
+        `,
+        [input.documentoId, demanda.id],
+      );
+
+      if (!deleted.rows[0]) {
+        throw new AppError(404, "DOCUMENTO_NOT_FOUND", "Documento nao encontrado.");
+      }
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Documento removido: ${String(deleted.rows[0].nome_arquivo)}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      return this.loadDocumentos(client, demanda.id, demanda.preId);
+    });
+  }
+
+  async downloadDocumento(preId: string, documentoId: string): Promise<DocumentoDownloadResult> {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    const result = await this.pool.query(
+      `
+        select
+          documento.id,
+          $2::text as pre_id,
+          documento.nome_arquivo,
+          documento.mime_type,
+          documento.tamanho_bytes,
+          documento.descricao,
+          documento.conteudo,
+          documento.created_at,
+          created_by.id as created_by_id,
+          created_by.email as created_by_email,
+          created_by.name as created_by_name,
+          created_by.role as created_by_role
+        from adminlog.demanda_documentos documento
+        left join adminlog.app_user created_by on created_by.id = documento.created_by_user_id
+        where documento.id = $1::uuid
+          and documento.pre_demanda_id = $3
+        limit 1
+      `,
+      [documentoId, demanda.preId, demanda.id],
+    );
+
+    if (!result.rows[0]) {
+      throw new AppError(404, "DOCUMENTO_NOT_FOUND", "Documento nao encontrado.");
+    }
+
+    return {
+      documento: mapDocumento(result.rows[0]),
+      conteudo: result.rows[0].conteudo as Buffer,
+    };
+  }
+
+  async listSetoresAtivos(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadSetoresAtivos(this.pool, demanda.id);
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
@@ -1479,6 +1974,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               when andamento.tipo = 'interessado_removed' then 'interessado_removed'
               when andamento.tipo = 'vinculo_added' then 'vinculo_added'
               when andamento.tipo = 'vinculo_removed' then 'vinculo_removed'
+              when andamento.tipo = 'sistema' and andamento.descricao like 'Documento anexado:%' then 'document_added'
+              when andamento.tipo = 'sistema' and andamento.descricao like 'Documento removido:%' then 'document_removed'
               else 'andamento'
             end::text as event_type,
             andamento.data_hora as occurred_at,
@@ -1496,6 +1993,29 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           from adminlog.andamentos andamento
           inner join adminlog.pre_demanda pd on pd.id = andamento.pre_demanda_id
           left join adminlog.app_user actor on actor.id = andamento.created_by_user_id
+          where pd.pre_id = $1
+
+          union all
+
+          select
+            concat('comment-', comentario.id) as event_id,
+            pd.pre_id,
+            'comment_added'::text as event_type,
+            comentario.created_at as occurred_at,
+            actor.id as actor_id,
+            actor.email as actor_email,
+            actor.name as actor_name,
+            actor.role as actor_role,
+            null::text as motivo,
+            null::text as observacoes,
+            concat('Comentario registado: ', left(comentario.conteudo, 160))::text as descricao,
+            null::text as status_anterior,
+            null::text as status_novo,
+            null::text as sei_numero_anterior,
+            null::text as sei_numero_novo
+          from adminlog.demanda_comentarios comentario
+          inner join adminlog.pre_demanda pd on pd.id = comentario.pre_demanda_id
+          left join adminlog.app_user actor on actor.id = comentario.created_by_user_id
           where pd.pre_id = $1
         ) timeline
         order by occurred_at desc, event_id desc
@@ -1606,6 +2126,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               when andamento.tipo = 'interessado_removed' then 'interessado_removed'
               when andamento.tipo = 'vinculo_added' then 'vinculo_added'
               when andamento.tipo = 'vinculo_removed' then 'vinculo_removed'
+              when andamento.tipo = 'sistema' and andamento.descricao like 'Documento anexado:%' then 'document_added'
+              when andamento.tipo = 'sistema' and andamento.descricao like 'Documento removido:%' then 'document_removed'
               else 'andamento'
             end::text as event_type,
             andamento.data_hora as occurred_at,
@@ -1623,6 +2145,28 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           from adminlog.andamentos andamento
           inner join adminlog.pre_demanda pd on pd.id = andamento.pre_demanda_id
           left join adminlog.app_user actor on actor.id = andamento.created_by_user_id
+
+          union all
+
+          select
+            concat('comment-', comentario.id) as event_id,
+            pd.pre_id,
+            'comment_added'::text as event_type,
+            comentario.created_at as occurred_at,
+            actor.id as actor_id,
+            actor.email as actor_email,
+            actor.name as actor_name,
+            actor.role as actor_role,
+            null::text as motivo,
+            null::text as observacoes,
+            concat('Comentario registado: ', left(comentario.conteudo, 160))::text as descricao,
+            null::text as status_anterior,
+            null::text as status_novo,
+            null::text as sei_numero_anterior,
+            null::text as sei_numero_novo
+          from adminlog.demanda_comentarios comentario
+          inner join adminlog.pre_demanda pd on pd.id = comentario.pre_demanda_id
+          left join adminlog.app_user actor on actor.id = comentario.created_by_user_id
         ) timeline
         order by occurred_at desc, event_id desc
         limit $1

@@ -30,19 +30,24 @@ import {
   addPreDemandaInteressado,
   addPreDemandaVinculo,
   associateSei,
+  concluirTramitacaoSetor,
   concluirPreDemandaTarefa,
   createInteressado,
+  createPreDemandaComentario,
+  createPreDemandaDocumento,
   createPreDemanda,
   createPreDemandaTarefa,
+  downloadPreDemandaDocumento,
   formatAppError,
   getPreDemanda,
   getTimeline,
   listInteressados,
   listPreDemandas,
   listSetores,
+  removePreDemandaDocumento,
   removePreDemandaInteressado,
   removePreDemandaVinculo,
-  tramitarPreDemanda,
+  tramitarPreDemandaMultiplos,
   updatePreDemandaAnotacoes,
   updatePreDemandaCase,
   updatePreDemandaStatus,
@@ -104,9 +109,11 @@ export function PreDemandaDetailPage() {
   });
   const [notesForm, setNotesForm] = useState("");
   const [deadlineForm, setDeadlineForm] = useState("");
-  const [tramitarSetorId, setTramitarSetorId] = useState("");
+  const [tramitarSetorIds, setTramitarSetorIds] = useState<string[]>([]);
   const [andamentoForm, setAndamentoForm] = useState("");
   const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const });
+  const [commentForm, setCommentForm] = useState("");
+  const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
   const [interessadoRole, setInteressadoRole] = useState<"solicitante" | "interessado">("interessado");
   const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", matricula: "", cpf: "" });
@@ -252,6 +259,27 @@ export function PreDemandaDetailPage() {
           sei_numero: normalizeSeiValue(associationForm.sei_numero),
         }).then(() => undefined),
       "Associacao SEI atualizada.",
+    );
+  }
+
+  async function handleDocumentoUpload() {
+    if (!documentForm.file) {
+      setError("Selecione um ficheiro para anexar.");
+      return;
+    }
+
+    const conteudoBase64 = await readFileAsBase64(documentForm.file);
+    await runMutation(
+      async () => {
+        await createPreDemandaDocumento(preId, {
+          nome_arquivo: documentForm.file!.name,
+          mime_type: documentForm.file!.type || "application/octet-stream",
+          descricao: documentForm.descricao || null,
+          conteudo_base64: conteudoBase64,
+        });
+        setDocumentForm({ file: null, descricao: "" });
+      },
+      "Documento anexado.",
     );
   }
 
@@ -432,6 +460,39 @@ export function PreDemandaDetailPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Setores activos</CardTitle>
+              <CardDescription>O mesmo processo pode correr em paralelo por mais de um setor.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {record.setoresAtivos.length === 0 ? (
+                <EmptyState description="Abra a acao Tramitar para distribuir o processo entre um ou mais setores." title="Sem setores activos" />
+              ) : (
+                record.setoresAtivos.map((item) => (
+                  <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                    <div>
+                      <p className="font-semibold text-slate-950">{item.setor.sigla} - {item.setor.nomeCompleto}</p>
+                      <p className="text-sm text-slate-500">
+                        Activo desde {new Date(item.createdAt).toLocaleString("pt-BR")}
+                        {item.origemSetor ? ` | origem ${item.origemSetor.sigla}` : ""}
+                      </p>
+                    </div>
+                    <Button
+                      disabled={isSubmitting}
+                      onClick={() => void runMutation(() => concluirTramitacaoSetor(preId, item.setor.id).then(() => undefined), `Tramitacao concluida em ${item.setor.sigla}.`)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      Concluir
+                    </Button>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Checklist / Proximas tarefas</CardTitle>
               <CardDescription>Concluir uma tarefa baixa automaticamente para o historico processual.</CardDescription>
             </CardHeader>
@@ -590,6 +651,87 @@ export function PreDemandaDetailPage() {
 
           <Card>
             <CardHeader>
+              <CardTitle>Documentos</CardTitle>
+              <CardDescription>Anexos operacionais do processo, com download directo no detalhe.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
+                <Input onChange={(event) => setDocumentForm((current) => ({ ...current, file: event.target.files?.[0] ?? null }))} type="file" />
+                <Textarea onChange={(event) => setDocumentForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descricao do documento" rows={3} value={documentForm.descricao} />
+                <div className="flex justify-end">
+                  <Button disabled={!documentForm.file || isSubmitting} onClick={() => void handleDocumentoUpload()} type="button">
+                    Anexar documento
+                  </Button>
+                </div>
+              </div>
+              {record.documentos.length === 0 ? (
+                <EmptyState description="Nenhum documento foi anexado a este processo." title="Sem documentos" />
+              ) : (
+                record.documentos.map((item) => (
+                  <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                    <div>
+                      <p className="font-semibold text-slate-950">{item.nomeArquivo}</p>
+                      <p className="text-sm text-slate-500">
+                        {formatBytes(item.tamanhoBytes)} | {new Date(item.createdAt).toLocaleString("pt-BR")}
+                      </p>
+                      {item.descricao ? <p className="mt-1 text-sm text-slate-600">{item.descricao}</p> : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => void downloadPreDemandaDocumento(preId, item.id, item.nomeArquivo)} size="sm" type="button" variant="secondary">
+                        Baixar
+                      </Button>
+                      <Button onClick={() => void runMutation(() => removePreDemandaDocumento(preId, item.id).then(() => undefined), "Documento removido.")} size="sm" type="button" variant="ghost">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Comentarios ricos</CardTitle>
+              <CardDescription>Registos de colaboracao em markdown simples, preservados junto ao processo.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <Textarea onChange={(event) => setCommentForm(event.target.value)} placeholder="Escreva um comentario operacional, contexto de decisao ou combinacao entre setores..." rows={5} value={commentForm} />
+              <div className="flex justify-end">
+                <Button
+                  disabled={commentForm.trim().length < 1 || isSubmitting}
+                  onClick={() =>
+                    void runMutation(
+                      async () => {
+                        await createPreDemandaComentario(preId, { conteudo: commentForm, formato: "markdown" });
+                        setCommentForm("");
+                      },
+                      "Comentario registado.",
+                    )
+                  }
+                  type="button"
+                >
+                  Publicar comentario
+                </Button>
+              </div>
+              {record.comentarios.length === 0 ? (
+                <EmptyState description="Ainda nao ha conversa registrada neste processo." title="Sem comentarios" />
+              ) : (
+                record.comentarios.map((item) => (
+                  <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-semibold text-slate-950">{item.createdBy?.name ?? "Sistema"}</p>
+                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{new Date(item.createdAt).toLocaleString("pt-BR")}</p>
+                    </div>
+                    <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{item.conteudo}</p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Historico (Andamentos)</CardTitle>
               <CardDescription>Timeline unificada com criacao, status, SEI, tramitacoes, tarefas e lancamentos manuais.</CardDescription>
             </CardHeader>
@@ -687,14 +829,26 @@ export function PreDemandaDetailPage() {
             <DialogDescription>Selecione o setor destino para registrar a tramitacao automaticamente no historico.</DialogDescription>
           </DialogHeader>
           <FormField label="Setor destino">
-            <select className="h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTramitarSetorId(event.target.value)} value={tramitarSetorId}>
-              <option value="">Selecione um setor</option>
-              {setores.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.sigla} - {item.nomeCompleto}
-                </option>
-              ))}
-            </select>
+            <div className="grid gap-2">
+              {setores.map((item) => {
+                const checked = tramitarSetorIds.includes(item.id);
+                return (
+                  <label className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm" key={item.id}>
+                    <span>{item.sigla} - {item.nomeCompleto}</span>
+                    <input
+                      checked={checked}
+                      className="h-4 w-4 accent-slate-950"
+                      onChange={(event) =>
+                        setTramitarSetorIds((current) =>
+                          event.target.checked ? [...current, item.id] : current.filter((candidate) => candidate !== item.id),
+                        )
+                      }
+                      type="checkbox"
+                    />
+                  </label>
+                );
+              })}
+            </div>
           </FormField>
           {!setores.length && hasPermission("cadastro.setor.write") ? (
             <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -710,7 +864,19 @@ export function PreDemandaDetailPage() {
             <Button onClick={() => setToolbarDialog(null)} type="button" variant="ghost">
               Cancelar
             </Button>
-            <Button disabled={!tramitarSetorId || isSubmitting} onClick={() => void runMutation(() => tramitarPreDemanda(preId, tramitarSetorId).then(() => setToolbarDialog(null)), "Processo tramitado.")} type="button">
+            <Button
+              disabled={!tramitarSetorIds.length || isSubmitting}
+              onClick={() =>
+                void runMutation(
+                  () => tramitarPreDemandaMultiplos(preId, tramitarSetorIds).then(() => {
+                    setToolbarDialog(null);
+                    setTramitarSetorIds([]);
+                  }),
+                  "Processo tramitado.",
+                )
+              }
+              type="button"
+            >
               Remeter
             </Button>
           </DialogFooter>
@@ -876,6 +1042,28 @@ export function PreDemandaDetailPage() {
       />
     </section>
   );
+}
+
+async function readFileAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Falha ao ler o ficheiro."));
+        return;
+      }
+      resolve(result.split(",")[1] ?? "");
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler o ficheiro."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function SummaryItem({ label, value, className }: { label: string; value: string; className?: string }) {

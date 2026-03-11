@@ -34,6 +34,8 @@ export type SortOrder = "asc" | "desc";
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
 export type DemandaInteressadoPapel = "solicitante" | "interessado";
 export type TarefaPendenteTipo = "fixa" | "livre";
+export type DemandaSetorFluxoStatus = "ativo" | "concluido";
+export type DemandaComentarioFormato = "markdown";
 export type TimelineEventType =
   | "created"
   | "status_changed"
@@ -45,7 +47,10 @@ export type TimelineEventType =
   | "interessado_added"
   | "interessado_removed"
   | "vinculo_added"
-  | "vinculo_removed";
+  | "vinculo_removed"
+  | "document_added"
+  | "document_removed"
+  | "comment_added";
 
 export interface QueueHealth {
   level: QueueHealthLevel;
@@ -108,6 +113,40 @@ export interface DemandaVinculo {
   processo: PreDemandaSummaryLinked;
   linkedAt: string;
   linkedBy: AuditActor | null;
+}
+
+export interface DemandaSetorFluxo {
+  id: string;
+  status: DemandaSetorFluxoStatus;
+  observacoes: string | null;
+  createdAt: string;
+  createdBy: AuditActor | null;
+  concluidaEm: string | null;
+  concluidaPor: AuditActor | null;
+  setor: Setor;
+  origemSetor: Setor | null;
+}
+
+export interface DemandaDocumento {
+  id: string;
+  preId: string;
+  nomeArquivo: string;
+  mimeType: string;
+  tamanhoBytes: number;
+  descricao: string | null;
+  createdAt: string;
+  createdBy: AuditActor | null;
+}
+
+export interface DemandaComentario {
+  id: string;
+  preId: string;
+  conteudo: string;
+  formato: DemandaComentarioFormato;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: AuditActor | null;
+  editedBy: AuditActor | null;
 }
 
 export interface Andamento {
@@ -222,6 +261,9 @@ export interface PreDemanda {
   allowedNextStatuses: PreDemandaStatus[];
   interessados: DemandaInteressado[];
   vinculos: DemandaVinculo[];
+  setoresAtivos: DemandaSetorFluxo[];
+  documentos: DemandaDocumento[];
+  comentarios: DemandaComentario[];
   tarefasPendentes: TarefaPendente[];
   recentAndamentos: Andamento[];
 }

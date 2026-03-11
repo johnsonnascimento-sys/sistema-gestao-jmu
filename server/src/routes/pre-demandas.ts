@@ -93,7 +93,15 @@ const vinculoSchema = z.object({
 });
 
 const tramitarSchema = z.object({
-  setor_destino_id: z.string().uuid(),
+  setor_destino_id: z.string().uuid().optional(),
+  setores_destino_ids: z.array(z.string().uuid()).min(1).max(12).optional(),
+  observacoes: z.string().trim().max(4000).optional().nullable(),
+}).refine((value) => Boolean(value.setor_destino_id) || Boolean(value.setores_destino_ids?.length), {
+  message: "Informe ao menos um setor destino.",
+});
+
+const concluirTramitacaoSchema = z.object({
+  observacoes: z.string().trim().max(4000).optional().nullable(),
 });
 
 const andamentoSchema = z.object({
@@ -104,6 +112,18 @@ const andamentoSchema = z.object({
 const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
+});
+
+const comentarioSchema = z.object({
+  conteudo: z.string().trim().min(1).max(20000),
+  formato: z.literal("markdown").optional().default("markdown"),
+});
+
+const documentoSchema = z.object({
+  nome_arquivo: z.string().trim().min(1).max(255),
+  mime_type: z.string().trim().min(1).max(160),
+  descricao: z.string().trim().max(4000).optional().nullable(),
+  conteudo_base64: z.string().trim().min(1),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -371,7 +391,25 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     const payload = tramitarSchema.parse(request.body);
     const record = await preDemandaRepository.tramitar({
       preId: params.preId,
-      setorDestinoId: payload.setor_destino_id,
+      setorDestinoIds: payload.setores_destino_ids?.length ? payload.setores_destino_ids : [payload.setor_destino_id!],
+      observacoes: emptyToNull(payload.observacoes),
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: record,
+      error: null,
+    });
+  });
+
+  app.patch("/api/pre-demandas/:preId/setores/:setorId/concluir-tramitacao", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tramitacao")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), setorId: z.string().uuid() }).parse(request.params);
+    const payload = concluirTramitacaoSchema.parse(request.body);
+    const record = await preDemandaRepository.concluirTramitacaoSetor({
+      preId: params.preId,
+      setorId: params.setorId,
+      observacoes: emptyToNull(payload.observacoes),
       changedByUserId: request.user!.id,
     });
 
@@ -422,6 +460,102 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     return reply.status(201).send({
       ok: true,
       data: tarefa,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/comentarios", { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const comentarios = await preDemandaRepository.listComentarios(params.preId);
+    return reply.send({
+      ok: true,
+      data: comentarios,
+      error: null,
+    });
+  });
+
+  app.post("/api/pre-demandas/:preId/comentarios", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const payload = comentarioSchema.parse(request.body);
+    const comentario = await preDemandaRepository.createComentario({
+      preId: params.preId,
+      conteudo: payload.conteudo,
+      formato: payload.formato,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.status(201).send({
+      ok: true,
+      data: comentario,
+      error: null,
+    });
+  });
+
+  app.patch("/api/pre-demandas/:preId/comentarios/:comentarioId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), comentarioId: z.string().uuid() }).parse(request.params);
+    const payload = comentarioSchema.parse(request.body);
+    const comentario = await preDemandaRepository.updateComentario({
+      preId: params.preId,
+      comentarioId: params.comentarioId,
+      conteudo: payload.conteudo,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: comentario,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/documentos", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const documentos = await preDemandaRepository.listDocumentos(params.preId);
+    return reply.send({
+      ok: true,
+      data: documentos,
+      error: null,
+    });
+  });
+
+  app.post("/api/pre-demandas/:preId/documentos", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const payload = documentoSchema.parse(request.body);
+    const documento = await preDemandaRepository.createDocumento({
+      preId: params.preId,
+      nomeArquivo: payload.nome_arquivo,
+      mimeType: payload.mime_type,
+      tamanhoBytes: Buffer.from(payload.conteudo_base64, "base64").byteLength,
+      descricao: emptyToNull(payload.descricao),
+      conteudo: Buffer.from(payload.conteudo_base64, "base64"),
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.status(201).send({
+      ok: true,
+      data: documento,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/documentos/:documentoId/download", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), documentoId: z.string().uuid() }).parse(request.params);
+    const result = await preDemandaRepository.downloadDocumento(params.preId, params.documentoId);
+    reply.header("content-type", result.documento.mimeType);
+    reply.header("content-disposition", `attachment; filename="${encodeURIComponent(result.documento.nomeArquivo)}"`);
+    return reply.send(result.conteudo);
+  });
+
+  app.delete("/api/pre-demandas/:preId/documentos/:documentoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), documentoId: z.string().uuid() }).parse(request.params);
+    const documentos = await preDemandaRepository.removeDocumento({
+      preId: params.preId,
+      documentoId: params.documentoId,
+      changedByUserId: request.user!.id,
+    });
+    return reply.send({
+      ok: true,
+      data: documentos,
       error: null,
     });
   });

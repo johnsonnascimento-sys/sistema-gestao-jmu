@@ -4,8 +4,11 @@ import type {
   AdminUserSummary,
   Andamento,
   AuthUser,
+  DemandaComentario,
   DemandaInteressado,
   DemandaInteressadoPapel,
+  DemandaDocumento,
+  DemandaSetorFluxo,
   DemandaVinculo,
   Interessado,
   PreDemanda,
@@ -313,6 +316,20 @@ export function tramitarPreDemanda(preId: string, setorDestinoId: string) {
   });
 }
 
+export function tramitarPreDemandaMultiplos(preId: string, setorDestinoIds: string[], observacoes?: string | null) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/tramitar`, {
+    method: "POST",
+    body: JSON.stringify({ setores_destino_ids: setorDestinoIds, observacoes }),
+  });
+}
+
+export function concluirTramitacaoSetor(preId: string, setorId: string, observacoes?: string | null) {
+  return request<PreDemanda>(`/api/pre-demandas/${preId}/setores/${setorId}/concluir-tramitacao`, {
+    method: "PATCH",
+    body: JSON.stringify({ observacoes }),
+  });
+}
+
 export function addPreDemandaAndamento(preId: string, payload: { descricao: string; data_hora?: string | null }) {
   return request<Andamento>(`/api/pre-demandas/${preId}/andamentos`, {
     method: "POST",
@@ -343,6 +360,71 @@ export function getAudit(preId: string) {
 
 export function getTimeline(preId: string) {
   return request<TimelineEvent[]>(`/api/pre-demandas/${preId}/timeline`);
+}
+
+export function listPreDemandaComentarios(preId: string) {
+  return request<DemandaComentario[]>(`/api/pre-demandas/${preId}/comentarios`);
+}
+
+export function createPreDemandaComentario(preId: string, payload: { conteudo: string; formato?: "markdown" }) {
+  return request<DemandaComentario>(`/api/pre-demandas/${preId}/comentarios`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePreDemandaComentario(preId: string, comentarioId: string, payload: { conteudo: string; formato?: "markdown" }) {
+  return request<DemandaComentario>(`/api/pre-demandas/${preId}/comentarios/${comentarioId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function listPreDemandaDocumentos(preId: string) {
+  return request<DemandaDocumento[]>(`/api/pre-demandas/${preId}/documentos`);
+}
+
+export function createPreDemandaDocumento(
+  preId: string,
+  payload: { nome_arquivo: string; mime_type: string; descricao?: string | null; conteudo_base64: string },
+) {
+  return request<DemandaDocumento>(`/api/pre-demandas/${preId}/documentos`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function downloadPreDemandaDocumento(preId: string, documentoId: string, nomeArquivo: string) {
+  const response = await fetch(`/api/pre-demandas/${preId}/documentos/${documentoId}/download`, {
+    credentials: "include",
+  });
+
+  const requestId = response.headers.get("x-request-id") ?? undefined;
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const body = contentType.includes("application/json") ? ((await response.json()) as ApiEnvelope<never>) : null;
+    throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "Falha ao baixar documento.", body?.error?.details, requestId);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = nomeArquivo;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export function removePreDemandaDocumento(preId: string, documentoId: string) {
+  return request<DemandaDocumento[]>(`/api/pre-demandas/${preId}/documentos/${documentoId}`, {
+    method: "DELETE",
+  });
+}
+
+export function listPreDemandaSetoresAtivos(preId: string) {
+  return request<DemandaSetorFluxo[]>(`/api/pre-demandas/${preId}`).then((item) => item.setoresAtivos);
 }
 
 export function getRecentTimeline(limit = 8) {

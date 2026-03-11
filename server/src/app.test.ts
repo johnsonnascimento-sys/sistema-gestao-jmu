@@ -17,7 +17,10 @@ import type {
   AdminUserSummary,
   Andamento,
   AppUser,
+  DemandaComentario,
+  DemandaDocumento,
   DemandaInteressado,
+  DemandaSetorFluxo,
   DemandaVinculo,
   Interessado,
   PreDemandaAuditRecord,
@@ -38,7 +41,10 @@ import type {
   AddDemandaVinculoInput,
   AssociateSeiInput,
   AssociateSeiResult,
+  ConcluirTramitacaoSetorInput,
   ConcluirTarefaInput,
+  CreateComentarioInput,
+  CreateDocumentoInput,
   CreatePreDemandaInput,
   CreatePreDemandaResult,
   CreateInteressadoInput,
@@ -51,12 +57,14 @@ import type {
   ListInteressadosParams,
   ListInteressadosResult,
   PreDemandaRepository,
+  RemoveDocumentoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
   ResetUserPasswordInput,
   SetorRepository,
   SettingsRepository,
   TramitarPreDemandaInput,
+  UpdateComentarioInput,
   UpdateInteressadoInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
@@ -332,6 +340,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       allowedNextStatuses: getAllowedNextStatuses({ currentStatus: "aberta", hasAssociation: false }),
       interessados: [],
       vinculos: [],
+      setoresAtivos: [],
+      documentos: [],
+      comentarios: [],
       tarefasPendentes: [],
       recentAndamentos: [],
     };
@@ -571,14 +582,41 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       throw new Error("not found");
     }
 
-    record.setorAtual = {
-      id: input.setorDestinoId,
-      sigla: "DIPES",
-      nomeCompleto: "Diretoria de Pessoal",
+    const setores = input.setorDestinoIds.map<DemandaSetorFluxo>((setorId, index) => ({
+      id: `fluxo-${record.id}-${index + 1}-${Date.now()}`,
+      status: "ativo",
+      observacoes: input.observacoes ?? null,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.addAndamentoRecord(record, `Processo remetido para ${record.setorAtual.sigla}.`, "tramitacao");
+      createdBy: null,
+      concluidaEm: null,
+      concluidaPor: null,
+      setor: {
+        id: setorId,
+        sigla: setorId === "123e4567-e89b-42d3-a456-000000000002" ? "GJMU" : `SET-${index + 1}`,
+        nomeCompleto: setorId === "123e4567-e89b-42d3-a456-000000000002" ? "Gabinete JMU" : `Setor ${index + 1}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      origemSetor: record.setorAtual,
+    }));
+    record.setoresAtivos = [
+      ...setores.filter((item) => !record.setoresAtivos.some((current) => current.setor.id === item.setor.id)),
+      ...record.setoresAtivos,
+    ];
+    record.setorAtual = record.setoresAtivos[0]?.setor ?? null;
+    this.addAndamentoRecord(record, `Processo remetido para ${record.setoresAtivos.map((item) => item.setor.sigla).join(", ")}.`, "tramitacao");
+    return this.touch(record);
+  }
+
+  async concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    record.setoresAtivos = record.setoresAtivos.filter((item) => item.setor.id !== input.setorId);
+    record.setorAtual = record.setoresAtivos[0]?.setor ?? null;
+    this.addAndamentoRecord(record, `Tramitacao concluida no setor ${input.setorId}.`, "tramitacao");
     return this.touch(record);
   }
 
@@ -636,6 +674,94 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     tarefa.concluidaEm = new Date().toISOString();
     this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
     return tarefa;
+  }
+
+  async listComentarios(preId: string) {
+    return this.records.find((item) => item.preId === preId)?.comentarios ?? [];
+  }
+
+  async createComentario(input: CreateComentarioInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const comentario: DemandaComentario = {
+      id: `coment-${record.id}-${record.comentarios.length + 1}`,
+      preId: record.preId,
+      conteudo: input.conteudo,
+      formato: input.formato,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: null,
+      editedBy: null,
+    };
+    record.comentarios.unshift(comentario);
+    return comentario;
+  }
+
+  async updateComentario(input: UpdateComentarioInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    const comentario = record?.comentarios.find((item) => item.id === input.comentarioId);
+    if (!comentario) {
+      throw new Error("not found");
+    }
+    comentario.conteudo = input.conteudo;
+    comentario.updatedAt = new Date().toISOString();
+    return comentario;
+  }
+
+  async listDocumentos(preId: string) {
+    return this.records.find((item) => item.preId === preId)?.documentos ?? [];
+  }
+
+  async createDocumento(input: CreateDocumentoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    const documento: DemandaDocumento = {
+      id: `doc-${record.id}-${record.documentos.length + 1}`,
+      preId: record.preId,
+      nomeArquivo: input.nomeArquivo,
+      mimeType: input.mimeType,
+      tamanhoBytes: input.tamanhoBytes,
+      descricao: input.descricao ?? null,
+      createdAt: new Date().toISOString(),
+      createdBy: null,
+    };
+    record.documentos.unshift(documento);
+    this.addAndamentoRecord(record, `Documento anexado: ${documento.nomeArquivo}.`, "sistema");
+    return documento;
+  }
+
+  async removeDocumento(input: RemoveDocumentoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    const removed = record.documentos.find((item) => item.id === input.documentoId);
+    record.documentos = record.documentos.filter((item) => item.id !== input.documentoId);
+    if (removed) {
+      this.addAndamentoRecord(record, `Documento removido: ${removed.nomeArquivo}.`, "sistema");
+    }
+    return record.documentos;
+  }
+
+  async downloadDocumento(preId: string, documentoId: string) {
+    const record = this.records.find((item) => item.preId === preId);
+    const documento = record?.documentos.find((item) => item.id === documentoId);
+    if (!documento) {
+      throw new Error("not found");
+    }
+    return {
+      documento,
+      conteudo: Buffer.from("conteudo"),
+    };
+  }
+
+  async listSetoresAtivos(preId: string) {
+    return this.records.find((item) => item.preId === preId)?.setoresAtivos ?? [];
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {

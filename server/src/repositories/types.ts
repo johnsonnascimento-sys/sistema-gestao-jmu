@@ -3,9 +3,13 @@ import type {
   AdminUserSummary,
   Andamento,
   AppUser,
+  DemandaComentario,
   DemandaInteressado,
+  DemandaDocumento,
+  DemandaSetorFluxo,
   DemandaVinculo,
   DemandaInteressadoPapel,
+  DemandaComentarioFormato,
   Interessado,
   PreDemandaDashboardSummary,
   PreDemandaAuditRecord,
@@ -133,7 +137,15 @@ export interface RemoveDemandaVinculoInput {
 
 export interface TramitarPreDemandaInput {
   preId: string;
-  setorDestinoId: string;
+  setorDestinoIds: string[];
+  observacoes?: string | null;
+  changedByUserId: number;
+}
+
+export interface ConcluirTramitacaoSetorInput {
+  preId: string;
+  setorId: string;
+  observacoes?: string | null;
   changedByUserId: number;
 }
 
@@ -155,6 +167,41 @@ export interface ConcluirTarefaInput {
   preId: string;
   tarefaId: string;
   changedByUserId: number;
+}
+
+export interface CreateComentarioInput {
+  preId: string;
+  conteudo: string;
+  formato: DemandaComentarioFormato;
+  changedByUserId: number;
+}
+
+export interface UpdateComentarioInput {
+  preId: string;
+  comentarioId: string;
+  conteudo: string;
+  changedByUserId: number;
+}
+
+export interface CreateDocumentoInput {
+  preId: string;
+  nomeArquivo: string;
+  mimeType: string;
+  tamanhoBytes: number;
+  descricao?: string | null;
+  conteudo: Buffer;
+  changedByUserId: number;
+}
+
+export interface RemoveDocumentoInput {
+  preId: string;
+  documentoId: string;
+  changedByUserId: number;
+}
+
+export interface DocumentoDownloadResult {
+  documento: DemandaDocumento;
+  conteudo: Buffer;
 }
 
 export interface ListPreDemandasParams {
@@ -257,10 +304,19 @@ export interface PreDemandaRepository {
   addVinculo(input: AddDemandaVinculoInput): Promise<DemandaVinculo[]>;
   removeVinculo(input: RemoveDemandaVinculoInput): Promise<DemandaVinculo[]>;
   tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;
+  concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput): Promise<PreDemandaDetail>;
   addAndamento(input: AddAndamentoInput): Promise<Andamento>;
   listTarefas(preId: string): Promise<TarefaPendente[]>;
   createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
   concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;
+  listComentarios(preId: string): Promise<DemandaComentario[]>;
+  createComentario(input: CreateComentarioInput): Promise<DemandaComentario>;
+  updateComentario(input: UpdateComentarioInput): Promise<DemandaComentario>;
+  listDocumentos(preId: string): Promise<DemandaDocumento[]>;
+  createDocumento(input: CreateDocumentoInput): Promise<DemandaDocumento>;
+  removeDocumento(input: RemoveDocumentoInput): Promise<DemandaDocumento[]>;
+  downloadDocumento(preId: string, documentoId: string): Promise<DocumentoDownloadResult>;
+  listSetoresAtivos(preId: string): Promise<DemandaSetorFluxo[]>;
   associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult>;
   updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult>;
   listAudit(preId: string): Promise<PreDemandaAuditRecord[]>;

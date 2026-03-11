@@ -101,6 +101,8 @@ export type SortOrder = "asc" | "desc";
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
 export type DemandaInteressadoPapel = "solicitante" | "interessado";
 export type TarefaPendenteTipo = "fixa" | "livre";
+export type DemandaSetorFluxoStatus = "ativo" | "concluido";
+export type DemandaComentarioFormato = "markdown";
 export type AndamentoTipo =
   | "manual"
   | "tramitacao"
@@ -169,6 +171,18 @@ export interface DemandaVinculo {
   linkedBy: AuditActor | null;
 }
 
+export interface DemandaSetorFluxo {
+  id: string;
+  status: DemandaSetorFluxoStatus;
+  observacoes: string | null;
+  createdAt: string;
+  createdBy: AuditActor | null;
+  concluidaEm: string | null;
+  concluidaPor: AuditActor | null;
+  setor: Setor;
+  origemSetor: Setor | null;
+}
+
 export interface Andamento {
   id: string;
   preId: string;
@@ -176,6 +190,28 @@ export interface Andamento {
   descricao: string;
   tipo: AndamentoTipo;
   createdBy: AuditActor | null;
+}
+
+export interface DemandaDocumento {
+  id: string;
+  preId: string;
+  nomeArquivo: string;
+  mimeType: string;
+  tamanhoBytes: number;
+  descricao: string | null;
+  createdAt: string;
+  createdBy: AuditActor | null;
+}
+
+export interface DemandaComentario {
+  id: string;
+  preId: string;
+  conteudo: string;
+  formato: DemandaComentarioFormato;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: AuditActor | null;
+  editedBy: AuditActor | null;
 }
 
 export interface TarefaPendente {
@@ -226,6 +262,9 @@ export interface PreDemandaDetail extends PreDemanda {
   currentAssociation: SeiAssociation | null;
   interessados: DemandaInteressado[];
   vinculos: DemandaVinculo[];
+  setoresAtivos: DemandaSetorFluxo[];
+  documentos: DemandaDocumento[];
+  comentarios: DemandaComentario[];
   tarefasPendentes: TarefaPendente[];
   recentAndamentos: Andamento[];
 }
@@ -486,7 +525,10 @@ export type TimelineEventType =
   | "interessado_added"
   | "interessado_removed"
   | "vinculo_added"
-  | "vinculo_removed";
+  | "vinculo_removed"
+  | "document_added"
+  | "document_removed"
+  | "comment_added";
 
 export interface TimelineEvent {
   id: string;
