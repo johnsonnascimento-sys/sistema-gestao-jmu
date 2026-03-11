@@ -238,7 +238,15 @@ export function AdminOperationsPage() {
   }
 
   const attentionItems = useMemo(() => {
-    const items: Array<{ title: string; description: string; tone: "critical" | "attention"; href?: string; cta?: string }> = [];
+    const items: Array<{
+      title: string;
+      description: string;
+      tone: "critical" | "attention";
+      href?: string;
+      cta?: string;
+      score: number;
+      trend?: string;
+    }> = [];
 
     if (summary.operationalSummary.backupFreshness === "critical" || summary.operationalSummary.backupFreshness === "attention") {
       items.push({
@@ -248,6 +256,8 @@ export function AdminOperationsPage() {
             ? "Nenhum backup confirmado aparece no painel operacional."
             : `O ultimo backup confirmado tem ${summary.operationalSummary.backupAgeHours} h.`,
         tone: summary.operationalSummary.backupFreshness === "critical" ? "critical" : "attention",
+        score: summary.operationalSummary.backupFreshness === "critical" ? 120 : 80,
+        trend: summary.operationalSummary.backupAgeHours === null ? "Sem backup recente para comparar." : "A idade do backup cresce ate a proxima execucao valida.",
       });
     }
 
@@ -259,6 +269,11 @@ export function AdminOperationsPage() {
             ? `${summary.migrations?.driftedCount ?? 0} migration(s) em drift exigem revisao.`
             : `${summary.migrations?.pendingCount ?? 0} migration(s) ainda nao aplicadas.`,
         tone: (summary.migrations?.driftedCount ?? 0) > 0 ? "critical" : "attention",
+        score: (summary.migrations?.driftedCount ?? 0) > 0 ? 110 + (summary.migrations?.driftedCount ?? 0) * 5 : 70 + (summary.migrations?.pendingCount ?? 0) * 3,
+        trend:
+          (summary.migrations?.driftedCount ?? 0) > 0
+            ? "Drift tende a bloquear deploys e exige correcao imediata."
+            : "Pendencias ainda nao impedem a operacao, mas acumulam risco de release.",
       });
     }
 
@@ -267,6 +282,8 @@ export function AdminOperationsPage() {
         title: "Falhas operacionais nas ultimas 24h",
         description: `${summary.operationalSummary.failureCount24h} falha(s) operacional(is) recente(s) foram registadas fora do processo da aplicacao.`,
         tone: "attention",
+        score: 50 + summary.operationalSummary.failureCount24h * 4,
+        trend: "O volume considera apenas a janela movel das ultimas 24 horas.",
       });
     }
 
@@ -275,40 +292,53 @@ export function AdminOperationsPage() {
         title: "Incidentes de erro activos no processo",
         description: `${summary.incidentSummary.errorTotal} incidente(s) de nivel error foram registados desde o ultimo arranque.`,
         tone: "critical",
+        score: 90 + summary.incidentSummary.errorTotal * 4,
+        trend: "Incidentes persistem ate novo arranque ou estabilizacao do processo.",
       });
     }
 
     if (summary.caseManagementReport.overdueTotal > 0) {
+      const delta = summary.caseManagementReport.deltas.overdueTotal;
       items.push({
         title: "Casos vencidos na fila",
         description: `${summary.caseManagementReport.overdueTotal} demanda(s) activa(s) estao com prazo vencido.`,
         tone: "critical",
         href: "/pre-demandas?preset=prazos-vencidos",
         cta: "Abrir vencidos",
+        score: 100 + summary.caseManagementReport.overdueTotal * 6 + Math.max(delta, 0) * 2,
+        trend: `${formatDelta(delta)} vs janela anterior.`,
       });
     }
 
     if (summary.caseManagementReport.withoutSetorTotal > 0) {
+      const delta = summary.caseManagementReport.deltas.withoutSetorTotal;
       items.push({
         title: "Demandas sem setor",
         description: `${summary.caseManagementReport.withoutSetorTotal} caso(s) activo(s) ainda nao foram tramitados para um setor.`,
         tone: "attention",
         href: "/pre-demandas?preset=sem-setor",
         cta: "Abrir sem setor",
+        score: 60 + summary.caseManagementReport.withoutSetorTotal * 5 + Math.max(delta, 0) * 2,
+        trend: `${formatDelta(delta)} vs janela anterior.`,
       });
     }
 
     if (summary.caseManagementReport.withoutInteressadosTotal > 0) {
+      const delta = summary.caseManagementReport.deltas.withoutInteressadosTotal;
       items.push({
         title: "Demandas sem envolvidos",
         description: `${summary.caseManagementReport.withoutInteressadosTotal} caso(s) activo(s) ainda nao possuem envolvidos vinculados.`,
         tone: "attention",
         href: "/pre-demandas?preset=sem-envolvidos",
         cta: "Abrir sem envolvidos",
+        score: 55 + summary.caseManagementReport.withoutInteressadosTotal * 4 + Math.max(delta, 0) * 2,
+        trend: `${formatDelta(delta)} vs janela anterior.`,
       });
     }
 
-    return items.slice(0, 6);
+    return items
+      .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))
+      .slice(0, 6);
   }, [summary]);
 
   return (
@@ -381,6 +411,9 @@ export function AdminOperationsPage() {
                   <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.title}</h3>
                 </div>
                 <p className="text-sm text-slate-700">{item.description}</p>
+                {item.trend ? (
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{item.trend}</p>
+                ) : null}
                 {item.href && item.cta ? (
                   <div>
                     <Button asChild size="sm" variant="secondary">
