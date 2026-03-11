@@ -1627,6 +1627,8 @@ describe("Gestor JMU API", () => {
     expect(ops.json().data.runtime.database.status).toBe("ready");
     expect(typeof (ops.json().data as AdminOpsSummary).counters.requestsTotal).toBe("number");
     expect(Array.isArray((ops.json().data as AdminOpsSummary).incidents)).toBe(true);
+    expect(typeof (ops.json().data as AdminOpsSummary).incidentSummary.total).toBe("number");
+    expect(Array.isArray((ops.json().data as AdminOpsSummary).incidentSummary.byKind)).toBe(true);
     expect((ops.json().data as AdminOpsSummary).migrations?.totalFiles).toBeGreaterThanOrEqual(2);
     expect((ops.json().data as AdminOpsSummary).backupStatus.visible).toBe(true);
     expect((ops.json().data as AdminOpsSummary).backupStatus.lastBackup?.fileName).toContain("gestor-adminlog-");

@@ -749,6 +749,46 @@ export function AdminOperationsPage() {
           <CardDescription>Eventos registados desde o ultimo arranque do processo.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50/70 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Total</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">{summary.incidentSummary.total}</p>
+            </div>
+            <div className="rounded-[20px] border border-amber-200 bg-amber-50/70 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-amber-700">Warn</p>
+              <p className="mt-2 text-lg font-semibold text-amber-950">{summary.incidentSummary.warnTotal}</p>
+            </div>
+            <div className="rounded-[20px] border border-rose-200 bg-rose-50/70 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-rose-700">Error</p>
+              <p className="mt-2 text-lg font-semibold text-rose-950">{summary.incidentSummary.errorTotal}</p>
+            </div>
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50/70 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Ultimo incidente</p>
+              <p className="mt-2 text-sm font-semibold text-slate-950">{formatEventMoment(summary.incidentSummary.latestOccurredAt)}</p>
+            </div>
+          </div>
+          {summary.incidentSummary.byKind.length ? (
+            <div className="flex flex-wrap gap-2">
+              {summary.incidentSummary.byKind.map((item) => (
+                <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700" key={`incident-kind-${item.kind}`}>
+                  {describeIncident({
+                    id: item.kind,
+                    kind: item.kind,
+                    level: item.kind === "server_error" || item.kind === "database_readiness_failure" ? "error" : "warn",
+                    message: "",
+                    occurredAt: new Date().toISOString(),
+                    requestId: null,
+                    userId: null,
+                    method: null,
+                    path: null,
+                    statusCode: null,
+                  })}
+                  {" "}
+                  {item.total}
+                </span>
+              ))}
+            </div>
+          ) : null}
           {summary.incidents.length === 0 ? (
             <EmptyState description="Quando houver falha de autenticacao, erro interno ou problema de prontidao, os eventos aparecerao aqui." title="Nenhum incidente desde o ultimo start" />
           ) : (

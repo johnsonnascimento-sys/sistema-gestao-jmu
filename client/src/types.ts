@@ -315,6 +315,17 @@ export interface OperationsIncident {
   statusCode: number | null;
 }
 
+export interface AdminOpsIncidentSummary {
+  total: number;
+  warnTotal: number;
+  errorTotal: number;
+  latestOccurredAt: string | null;
+  byKind: Array<{
+    kind: OperationsIncidentKind;
+    total: number;
+  }>;
+}
+
 export interface OperationsCounters {
   requestsTotal: number;
   successfulRequestsTotal: number;
@@ -437,6 +448,7 @@ export interface AdminOpsSummary {
   runtime: RuntimeStatus;
   counters: OperationsCounters;
   incidents: OperationsIncident[];
+  incidentSummary: AdminOpsIncidentSummary;
   migrations: SchemaMigrationSummary | null;
   queueHealthConfig: QueueHealthConfig;
   backupStatus: BackupStatusSummary;

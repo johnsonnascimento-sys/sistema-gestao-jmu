@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { AppConfig } from "../config";
 import type { DatabasePool } from "../db";
-import type { OperationalEventKind } from "../domain/types";
+import type { OperationalEventKind, OperationsIncidentKind } from "../domain/types";
 import { describeMigrations } from "../migrations/describe-migrations";
 import type { OperationsStore } from "../observability/operations-store";
 import { describeBackupStatus } from "../operations/backup-status";
@@ -65,6 +65,23 @@ function buildOperationalSummary(
     failureCount24h: Array.from(failuresByKind24h.values()).reduce((total, current) => total + current, 0),
     failuresByKind24h: Array.from(failuresByKind24h.entries())
       .map(([kind, total]) => ({ kind: kind as OperationalEventKind, total }))
+      .sort((left, right) => right.total - left.total || left.kind.localeCompare(right.kind)),
+  };
+}
+
+function buildIncidentSummary(incidents: Awaited<ReturnType<OperationsStore["getSnapshot"]>>["incidents"]) {
+  const byKind = incidents.reduce<Map<string, number>>((acc, incident) => {
+    acc.set(incident.kind, (acc.get(incident.kind) ?? 0) + 1);
+    return acc;
+  }, new Map());
+
+  return {
+    total: incidents.length,
+    warnTotal: incidents.filter((incident) => incident.level === "warn").length,
+    errorTotal: incidents.filter((incident) => incident.level === "error").length,
+    latestOccurredAt: incidents[0]?.occurredAt ?? null,
+    byKind: Array.from(byKind.entries())
+      .map(([kind, total]) => ({ kind: kind as OperationsIncidentKind, total }))
       .sort((left, right) => right.total - left.total || left.kind.localeCompare(right.kind)),
   };
 }
@@ -391,6 +408,7 @@ export async function registerAdminOperationsRoutes(
       "admin.ops.summary",
     );
 
+    const snapshot = operationsStore.getSnapshot(query.limit ?? 12);
     const caseManagementReport = await getCaseManagementReport(pool, periodDays);
     const backupStatus = await describeBackupStatus(config);
     const operationalEvents = await listOperationalEvents(config, query.limit ?? 12);
@@ -399,7 +417,8 @@ export async function registerAdminOperationsRoutes(
       ok: true,
       data: {
         runtime,
-        ...operationsStore.getSnapshot(query.limit ?? 12),
+        ...snapshot,
+        incidentSummary: buildIncidentSummary(snapshot.incidents),
         migrations,
         queueHealthConfig: await settingsRepository.getQueueHealthConfig(),
         backupStatus,
