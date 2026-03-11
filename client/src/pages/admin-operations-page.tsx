@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
@@ -124,6 +124,10 @@ function freshnessTone(level: "fresh" | "attention" | "critical" | "unknown") {
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
+function sectionCardClass(active: boolean) {
+  return active ? "border-sky-300 bg-sky-50/70 shadow-[0_0_0_3px_rgba(14,165,233,0.12)]" : undefined;
+}
+
 function formatEventMoment(value: string | null) {
   if (!value) {
     return "Nao registado";
@@ -191,6 +195,7 @@ function buildPriorityQueueHref(setorId: string | null, dueState: "" | "overdue"
 
 export function AdminOperationsPage() {
   const { hasPermission } = useAuth();
+  const location = useLocation();
   const [summary, setSummary] = useState<AdminOpsSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -356,6 +361,7 @@ export function AdminOperationsPage() {
       .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))
       .slice(0, 6);
   }, [summary]);
+  const activeSection = location.hash.replace(/^#/, "");
 
   return (
     <section className="grid gap-6">
@@ -728,7 +734,7 @@ export function AdminOperationsPage() {
           </CardContent>
         </Card>
 
-      <Card id="backups">
+      <Card className={sectionCardClass(activeSection === "backups")} id="backups">
         <CardHeader>
           <CardTitle>Backups visiveis</CardTitle>
             <CardDescription>Ultimos dumps acessiveis ao container para conferencias e resposta a incidente.</CardDescription>
@@ -773,7 +779,7 @@ export function AdminOperationsPage() {
           </CardContent>
         </Card>
 
-        <Card id="migracoes">
+        <Card className={sectionCardClass(activeSection === "migracoes")} id="migracoes">
           <CardHeader>
             <CardTitle>Migracoes de schema</CardTitle>
             <CardDescription>Comparacao entre os scripts versionados e o que o banco reporta como aplicado.</CardDescription>
@@ -830,7 +836,7 @@ export function AdminOperationsPage() {
           </CardContent>
         </Card>
 
-        <Card id="postura-operacional">
+        <Card className={sectionCardClass(activeSection === "postura-operacional")} id="postura-operacional">
           <CardHeader>
             <CardTitle>Postura operacional</CardTitle>
             <CardDescription>Leitura rapida do ultimo backup, deploy, drill e monitorizacao para reduzir a necessidade de inspecionar o feed completo.</CardDescription>
@@ -903,7 +909,7 @@ export function AdminOperationsPage() {
         </Card>
       </div>
 
-      <Card id="incidentes-recentes">
+      <Card className={sectionCardClass(activeSection === "incidentes-recentes")} id="incidentes-recentes">
         <CardHeader>
           <CardTitle>Incidentes recentes</CardTitle>
           <CardDescription>Eventos registados desde o ultimo arranque do processo.</CardDescription>
@@ -990,7 +996,7 @@ export function AdminOperationsPage() {
         </CardContent>
       </Card>
 
-      <Card id="operacoes-recentes">
+      <Card className={sectionCardClass(activeSection === "operacoes-recentes")} id="operacoes-recentes">
         <CardHeader>
           <CardTitle>Operacoes recentes</CardTitle>
           <CardDescription>Backups, deploys, rollbacks, drills e auditorias executadas fora do processo da aplicacao.</CardDescription>
