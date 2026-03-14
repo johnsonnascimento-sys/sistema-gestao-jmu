@@ -70,22 +70,22 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[320px_1fr]">
-      <aside className="relative overflow-hidden border-b border-white/10 bg-[linear-gradient(160deg,#0f2b46_0%,#173858_48%,#0f2a44_100%)] px-5 py-5 text-white lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-white/10 lg:px-6 lg:py-6">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,191,105,0.22),transparent_28%),linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:auto,48px_48px,48px_48px] opacity-80" />
+      <aside className="relative overflow-hidden border-b border-white/10 bg-[linear-gradient(160deg,#1f3a2b_0%,#294a36_48%,#1d3427_100%)] px-5 py-5 text-white lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-white/10 lg:px-6 lg:py-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(196,156,88,0.22),transparent_28%),linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:auto,48px_48px,48px_48px] opacity-80" />
         <div className="relative flex h-full flex-col justify-between gap-8">
           <div className="space-y-8">
             <div className="rounded-[30px] border border-white/10 bg-white/7 p-5 backdrop-blur-xl">
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-200">Gestor JMU</p>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-emerald-100">Gestor JMU</p>
               <h1 className='mt-3 font-["IBM_Plex_Serif",Georgia,serif] text-3xl leading-tight'>
                 Centro de casos
-                <span className="block text-slate-200">e tramitação</span>
+                <span className="block text-stone-200">e tramitacao</span>
               </h1>
               <p className="mt-3 text-sm leading-6 text-slate-200/85">
-                Operação inspirada em uma linguagem institucional clara, com fluxo, auditoria e governança em um único painel.
+                Operacao interna com linguagem institucional clara, fluxo rastreavel e identidade propria.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100">Pre-SEI</span>
-                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-100">Case management</span>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">Pre-SEI</span>
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-lime-100">Fluxo interno</span>
               </div>
             </div>
 
@@ -145,11 +145,11 @@ export function AppShell() {
             <div>
               <p className="font-semibold">{user?.name}</p>
               <p className="text-sm text-slate-300">{user?.email}</p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-amber-200">{user?.role}</p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.22em] text-emerald-100">{user?.role}</p>
             </div>
             {runtime ? (
               <div className="rounded-[24px] border border-white/10 bg-slate-950/20 px-4 py-4 text-xs text-slate-300">
-                <p className="font-bold uppercase tracking-[0.22em] text-amber-200">Runtime</p>
+                <p className="font-bold uppercase tracking-[0.22em] text-emerald-100">Runtime</p>
                 <p className="mt-2 text-sm font-semibold text-white">
                   v{runtime.version}
                   {runtime.commitSha ? ` - ${runtime.commitSha.slice(0, 7)}` : ""}
@@ -168,7 +168,7 @@ export function AppShell() {
       </aside>
 
       <main className="relative min-w-0 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 rounded-b-[60px] bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(255,191,105,0.24),transparent_28%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 rounded-b-[60px] bg-[radial-gradient(circle_at_top_left,rgba(61,122,86,0.18),transparent_32%),radial-gradient(circle_at_top_right,rgba(196,156,88,0.2),transparent_28%)]" />
         <Outlet />
       </main>
     </div>

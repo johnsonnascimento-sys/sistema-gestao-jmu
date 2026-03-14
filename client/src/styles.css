@@ -4,27 +4,27 @@
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   color: #14213d;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 26%),
-    radial-gradient(circle at top right, rgba(255, 191, 105, 0.24), transparent 28%),
-    linear-gradient(180deg, #f7f2e9 0%, #eef3f8 52%, #edf2f7 100%);
+    radial-gradient(circle at top left, rgba(61, 122, 86, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(196, 156, 88, 0.2), transparent 24%),
+    linear-gradient(180deg, #f5f4ec 0%, #edf3ee 52%, #e8eeea 100%);
   line-height: 1.5;
   font-weight: 400;
 }
 
 html {
   min-height: 100%;
-  background: #eef3f8;
+  background: #edf3ee;
   scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 26%),
-    radial-gradient(circle at top right, rgba(255, 191, 105, 0.24), transparent 28%),
-    linear-gradient(180deg, #f7f2e9 0%, #eef3f8 52%, #edf2f7 100%);
+    radial-gradient(circle at top left, rgba(61, 122, 86, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(196, 156, 88, 0.2), transparent 24%),
+    linear-gradient(180deg, #f5f4ec 0%, #edf3ee 52%, #e8eeea 100%);
   background-attachment: fixed;
-  color: #14213d;
+  color: #1f2d23;
   position: relative;
 }
 
@@ -34,8 +34,8 @@ body::before {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(rgba(20, 33, 61, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 33, 61, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(31, 45, 35, 0.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(31, 45, 35, 0.032) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.26), transparent 72%);
   opacity: 0.35;
@@ -47,8 +47,8 @@ body::after {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 12% 12%, rgba(255, 191, 105, 0.18), transparent 18%),
-    radial-gradient(circle at 88% 16%, rgba(59, 130, 246, 0.16), transparent 18%);
+    radial-gradient(circle at 12% 12%, rgba(196, 156, 88, 0.18), transparent 18%),
+    radial-gradient(circle at 88% 16%, rgba(61, 122, 86, 0.16), transparent 18%);
   opacity: 0.9;
 }
 
@@ -66,8 +66,8 @@ a {
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.16);
-  color: #0f172a;
+  background: rgba(61, 122, 86, 0.18);
+  color: #142018;
 }
 
 button,

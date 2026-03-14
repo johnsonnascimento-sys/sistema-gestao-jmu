@@ -9,9 +9,9 @@ const labels: Record<PreDemandaStatus, string> = {
 };
 
 const styles: Record<PreDemandaStatus, string> = {
-  aberta: "bg-amber-100/90 text-amber-900 ring-1 ring-amber-200/90",
-  aguardando_sei: "bg-orange-100/90 text-orange-900 ring-1 ring-orange-200/90",
-  associada: "bg-gradient-to-r from-sky-100 to-teal-100 text-sky-950 ring-1 ring-sky-200/90",
+  aberta: "bg-stone-100 text-stone-900 ring-1 ring-stone-200",
+  aguardando_sei: "bg-amber-100/90 text-amber-900 ring-1 ring-amber-200/90",
+  associada: "bg-gradient-to-r from-emerald-100 to-lime-100 text-emerald-950 ring-1 ring-emerald-200/90",
   encerrada: "bg-slate-200/90 text-slate-700 ring-1 ring-slate-300/80",
 };
 
