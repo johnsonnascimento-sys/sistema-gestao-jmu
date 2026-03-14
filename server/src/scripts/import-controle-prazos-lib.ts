@@ -58,6 +58,22 @@ export interface ParsedControlePrazosRow {
   errors: string[];
 }
 
+const MONTHS_PT_BR: Record<string, string> = {
+  janeiro: "01",
+  fevereiro: "02",
+  marco: "03",
+  março: "03",
+  abril: "04",
+  maio: "05",
+  junho: "06",
+  julho: "07",
+  agosto: "08",
+  setembro: "09",
+  outubro: "10",
+  novembro: "11",
+  dezembro: "12",
+};
+
 function asTrimmedString(value: RawCell) {
   if (value === null || value === undefined) {
     return "";
@@ -73,6 +89,34 @@ function asTrimmedString(value: RawCell) {
 function compactText(value: RawCell) {
   const text = asTrimmedString(value);
   return text ? text.replace(/[ \t]+/g, " ").trim() : "";
+}
+
+function parsePortugueseDateFromText(value: string) {
+  const normalized = value.toLocaleLowerCase("pt-BR");
+
+  const rangeMatch = normalized.match(/(\d{1,2})\s+a\s+\d{1,2}\s+de\s+([a-zç]+)\s+de\s+(\d{4})/i);
+  if (rangeMatch) {
+    const day = rangeMatch[1];
+    const monthLabel = rangeMatch[2];
+    const year = rangeMatch[3];
+    const month = monthLabel ? MONTHS_PT_BR[monthLabel] : undefined;
+    if (day && year && month) {
+      return `${year}-${month}-${day.padStart(2, "0")}`;
+    }
+  }
+
+  const textMatch = normalized.match(/(?:até\s+)?(\d{1,2})\s+de?\s*([a-zç]+)\s+de\s+(\d{4})/i);
+  if (textMatch) {
+    const day = textMatch[1];
+    const monthLabel = textMatch[2];
+    const year = textMatch[3];
+    const month = monthLabel ? MONTHS_PT_BR[monthLabel] : undefined;
+    if (day && year && month) {
+      return `${year}-${month}-${day.padStart(2, "0")}`;
+    }
+  }
+
+  return null;
 }
 
 function excelSerialToDate(serial: number) {
@@ -109,12 +153,54 @@ export function normalizeDateValue(value: RawCell): string | null {
     return `${yyyy}-${mm}-${dd}`;
   }
 
+  const fromText = parsePortugueseDateFromText(text);
+  if (fromText) {
+    return fromText;
+  }
+
   const parsed = new Date(text);
   if (!Number.isNaN(parsed.getTime())) {
     return parsed.toISOString().slice(0, 10);
   }
 
   return null;
+}
+
+function inferDataReferencia(params: {
+  raw: ControlePrazosRawRow;
+  andamentos: ParsedAndamento[];
+  prazoInicial: ParsedDeadline;
+  prazoIntermediario: ParsedDeadline;
+  prazoFinal: ParsedDeadline;
+  audienciaData: string | null;
+  dataConclusao: string | null;
+}) {
+  const warnings: string[] = [];
+  const explicit = normalizeDateValue(params.raw["DATA DE INICIO"]);
+  if (explicit) {
+    return { value: explicit, warnings };
+  }
+
+  const candidates = [
+    params.andamentos.map((item) => item.dataHora?.slice(0, 10) ?? null),
+    [params.prazoInicial.value, params.prazoIntermediario.value, params.prazoFinal.value, params.audienciaData, params.dataConclusao],
+    [
+      normalizeDateValue(params.raw.ASSUNTO),
+      normalizeDateValue(params.raw["OBSERVAÇÃO"]),
+      normalizeDateValue(params.raw.TAREFAS),
+      normalizeDateValue(params.raw.HISTORICO),
+    ],
+  ].flat();
+
+  const validDates = candidates.filter((item): item is string => Boolean(item)).sort();
+  if (validDates[0]) {
+    warnings.push(`DATA DE INICIO ausente; usado fallback ${validDates[0]}.`);
+    return { value: validDates[0], warnings };
+  }
+
+  const fallbackToday = new Date().toISOString().slice(0, 10);
+  warnings.push(`DATA DE INICIO ausente; usado fallback da data de importacao ${fallbackToday}.`);
+  return { value: fallbackToday, warnings };
 }
 
 function normalizeDateTimeValue(value: string) {
@@ -293,8 +379,9 @@ export function buildImportAnnotation(params: { filePath: string; sheetName: str
 }
 
 export function parseControlePrazosRow(raw: ControlePrazosRawRow, rowNumber: number): ParsedControlePrazosRow {
-  const assunto = compactText(raw.ASSUNTO);
-  const dataReferencia = normalizeDateValue(raw["DATA DE INICIO"]);
+  const warnings: string[] = [];
+  const assuntoOriginal = compactText(raw.ASSUNTO);
+  const assunto = assuntoOriginal || `Registro importado sem assunto (linha ${rowNumber})`;
   const observacoes = compactText(raw["OBSERVAÇÃO"]) || null;
   const prazoInicial = parseDeadline(raw["PRAZO 1"], "PRAZO 1");
   const prazoIntermediario = parseDeadline(raw["PRAZO 2"], "PRAZO 2");
@@ -302,47 +389,53 @@ export function parseControlePrazosRow(raw: ControlePrazosRawRow, rowNumber: num
   const dataConclusao = normalizeDateValue(raw["DATA DE CONCLUSAO"]);
   const seiOriginal = compactText(raw["NUMEROS E ASSOCIADOS"]) || null;
   const seiNumbers = parseSeiNumbers(raw["NUMEROS E ASSOCIADOS"]);
-  const interessados = parseInterested(raw);
+  const interestedNames = parseInterested(raw);
   const andamentos = parseHistorico(raw.HISTORICO);
   const tarefas = parseTasks(raw.TAREFAS);
-  const warnings = [...prazoInicial.warnings, ...prazoIntermediario.warnings, ...prazoFinal.warnings];
+  const metadata = {
+    frequencia: compactText(raw.FREQUENCIA) || null,
+    pagamentoEnvolvido: parsePagamento(raw.PAGAMENTO),
+    audienciaData: normalizeDateValue(raw["DATA AUDIENCIA"]),
+    audienciaStatus: compactText(raw.AUDIENCIA) || null,
+  };
+  const dataReferenciaResult = inferDataReferencia({
+    raw,
+    andamentos,
+    prazoInicial,
+    prazoIntermediario,
+    prazoFinal,
+    audienciaData: metadata.audienciaData,
+    dataConclusao,
+  });
+  const interessados = interestedNames.length ? interestedNames : ["Sem interessado informado"];
   const errors: string[] = [];
 
-  if (!assunto) {
-    errors.push("ASSUNTO vazio.");
+  if (!assuntoOriginal) {
+    warnings.push(`ASSUNTO vazio; usado fallback "${assunto}".`);
   }
 
-  if (!dataReferencia) {
-    errors.push("DATA DE INICIO ausente ou invalida.");
-  }
-
-  if (!interessados.length) {
-    errors.push("Nenhum interessado identificado.");
+  if (!interestedNames.length) {
+    warnings.push('Nenhum interessado identificado; usado fallback "Sem interessado informado".');
   }
 
   return {
     rowNumber,
     assunto,
-    dataReferencia: dataReferencia ?? "",
+    dataReferencia: dataReferenciaResult.value,
     observacoes,
     prazoInicial,
     prazoIntermediario,
     prazoFinal,
     status: inferStatus({ prazoInicial, dataConclusao, seiNumbers }),
     dataConclusao,
-    metadata: {
-      frequencia: compactText(raw.FREQUENCIA) || null,
-      pagamentoEnvolvido: parsePagamento(raw.PAGAMENTO),
-      audienciaData: normalizeDateValue(raw["DATA AUDIENCIA"]),
-      audienciaStatus: compactText(raw.AUDIENCIA) || null,
-    },
+    metadata,
     seiNumbers,
     seiOriginal,
     interessados,
     historicoOriginal: asTrimmedString(raw.HISTORICO) || null,
     andamentos,
     tarefas,
-    warnings,
+    warnings: [...warnings, ...dataReferenciaResult.warnings, ...prazoInicial.warnings, ...prazoIntermediario.warnings, ...prazoFinal.warnings],
     errors,
   };
 }

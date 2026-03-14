@@ -38,4 +38,25 @@ describe("import-controle-prazos-lib", () => {
     expect(parsed.interessados[0]).toBe("DRA. VERA");
     expect(parsed.errors).toEqual([]);
   });
+
+  it("falls back when assunto, interessado and data de inicio are missing", () => {
+    const parsed = parseControlePrazosRow(
+      {
+        ASSUNTO: "",
+        "DATA DE INICIO": null,
+        "INTERESSADO 1": "",
+        HISTORICO: "",
+        TAREFAS: "",
+        "PRAZO 3": "01 a 31 de outubro de 2026",
+      },
+      99,
+    );
+
+    expect(parsed.assunto).toContain("linha 99");
+    expect(parsed.interessados[0]).toBe("Sem interessado informado");
+    expect(parsed.dataReferencia).toBe("2026-10-01");
+    expect(parsed.warnings.some((item) => item.includes("ASSUNTO vazio"))).toBe(true);
+    expect(parsed.warnings.some((item) => item.includes("Nenhum interessado identificado"))).toBe(true);
+    expect(parsed.errors).toEqual([]);
+  });
 });
