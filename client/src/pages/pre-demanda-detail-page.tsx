@@ -104,6 +104,8 @@ export function PreDemandaDetailPage() {
     fonte: "",
     observacoes: "",
     numero_judicial: "",
+    prazo_inicial: "",
+    prazo_intermediario: "",
     prazo_final: "",
     frequencia: "",
     frequencia_dias_semana: [] as string[],
@@ -116,10 +118,16 @@ export function PreDemandaDetailPage() {
     assunto: "",
     data_referencia: new Date().toISOString().slice(0, 10),
     descricao: "",
+    prazo_inicial: "",
+    prazo_intermediario: "",
     prazo_final: "",
   });
   const [notesForm, setNotesForm] = useState("");
-  const [deadlineForm, setDeadlineForm] = useState("");
+  const [deadlineForm, setDeadlineForm] = useState({
+    prazo_inicial: "",
+    prazo_intermediario: "",
+    prazo_final: "",
+  });
   const [tramitarSetorIds, setTramitarSetorIds] = useState<string[]>([]);
   const [andamentoForm, setAndamentoForm] = useState("");
   const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const });
@@ -149,6 +157,8 @@ export function PreDemandaDetailPage() {
         fonte: nextRecord.fonte ?? "",
         observacoes: nextRecord.observacoes ?? "",
         numero_judicial: nextRecord.numeroJudicial ?? "",
+        prazo_inicial: nextRecord.prazoInicial ?? "",
+        prazo_intermediario: nextRecord.prazoIntermediario ?? "",
         prazo_final: nextRecord.prazoFinal ?? "",
         frequencia: nextRecord.metadata.frequencia ?? "",
         frequencia_dias_semana: nextRecord.metadata.frequenciaDiasSemana ?? [],
@@ -158,7 +168,11 @@ export function PreDemandaDetailPage() {
         audiencia_status: nextRecord.metadata.audienciaStatus ?? "",
       });
       setNotesForm(nextRecord.anotacoes ?? "");
-      setDeadlineForm(nextRecord.prazoFinal ?? "");
+      setDeadlineForm({
+        prazo_inicial: nextRecord.prazoInicial ?? "",
+        prazo_intermediario: nextRecord.prazoIntermediario ?? "",
+        prazo_final: nextRecord.prazoFinal ?? "",
+      });
       setError("");
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao carregar demanda."));
@@ -262,7 +276,7 @@ export function PreDemandaDetailPage() {
     () =>
       record
         ? {
-            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo ${record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"}`,
+            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo final ${record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"}`,
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
             setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) activo(s)` : "Sem setores activos",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
@@ -416,6 +430,8 @@ export function PreDemandaDetailPage() {
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
               <SummaryItem label="Pessoa principal" value={record.pessoaPrincipal?.nome ?? record.solicitante} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
+              <SummaryItem label="Prazo inicial" value={record.prazoInicial ? new Date(record.prazoInicial).toLocaleDateString("pt-BR") : "-"} />
+              <SummaryItem label="Prazo intermediario" value={record.prazoIntermediario ? new Date(record.prazoIntermediario).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Prazo final" value={record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
@@ -900,6 +916,14 @@ export function PreDemandaDetailPage() {
               </FormField>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Prazo inicial">
+                <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={editForm.prazo_inicial} />
+              </FormField>
+              <FormField label="Prazo intermediario">
+                <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={editForm.prazo_intermediario} />
+              </FormField>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Prazo final">
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={editForm.prazo_final} />
               </FormField>
@@ -970,6 +994,8 @@ export function PreDemandaDetailPage() {
                       descricao: editForm.descricao || null,
                       fonte: editForm.fonte || null,
                       observacoes: editForm.observacoes || null,
+                      prazo_inicial: editForm.prazo_inicial || null,
+                      prazo_intermediario: editForm.prazo_intermediario || null,
                       prazo_final: editForm.prazo_final || null,
                       numero_judicial: editForm.numero_judicial || null,
                       metadata: {
@@ -1075,17 +1101,39 @@ export function PreDemandaDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Controle de prazos</DialogTitle>
-            <DialogDescription>Defina, altere ou remova o prazo final do caso.</DialogDescription>
+            <DialogDescription>Defina, altere ou remova os tres prazos estruturados do caso.</DialogDescription>
           </DialogHeader>
-          <FormField label="Prazo final">
-            <Input onChange={(event) => setDeadlineForm(event.target.value)} type="date" value={deadlineForm} />
-          </FormField>
+          <div className="grid gap-4">
+            <FormField label="Prazo inicial">
+              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={deadlineForm.prazo_inicial} />
+            </FormField>
+            <FormField label="Prazo intermediario">
+              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={deadlineForm.prazo_intermediario} />
+            </FormField>
+            <FormField label="Prazo final">
+              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={deadlineForm.prazo_final} />
+            </FormField>
+          </div>
           <DialogFooter>
             <Button onClick={() => setToolbarDialog(null)} type="button" variant="ghost">
               Cancelar
             </Button>
-            <Button disabled={isSubmitting} onClick={() => void runMutation(() => updatePreDemandaCase(preId, { prazo_final: deadlineForm || null }).then(() => setToolbarDialog(null)), "Prazo atualizado.")} type="button">
-              Salvar prazo
+            <Button
+              disabled={isSubmitting}
+              onClick={() =>
+                void runMutation(
+                  () =>
+                    updatePreDemandaCase(preId, {
+                      prazo_inicial: deadlineForm.prazo_inicial || null,
+                      prazo_intermediario: deadlineForm.prazo_intermediario || null,
+                      prazo_final: deadlineForm.prazo_final || null,
+                    }).then(() => setToolbarDialog(null)),
+                  "Prazos atualizados.",
+                )
+              }
+              type="button"
+            >
+              Salvar prazos
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1129,6 +1177,12 @@ export function PreDemandaDetailPage() {
             <FormField label="Data de referencia">
               <Input onChange={(event) => setRelatedForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={relatedForm.data_referencia} />
             </FormField>
+            <FormField label="Prazo inicial">
+              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={relatedForm.prazo_inicial} />
+            </FormField>
+            <FormField label="Prazo intermediario">
+              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={relatedForm.prazo_intermediario} />
+            </FormField>
             <FormField label="Prazo final">
               <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={relatedForm.prazo_final} />
             </FormField>
@@ -1150,6 +1204,8 @@ export function PreDemandaDetailPage() {
                       assunto: relatedForm.assunto,
                       data_referencia: relatedForm.data_referencia,
                       descricao: relatedForm.descricao,
+                      prazo_inicial: relatedForm.prazo_inicial || null,
+                      prazo_intermediario: relatedForm.prazo_intermediario || null,
                       prazo_final: relatedForm.prazo_final,
                     });
                     await addPreDemandaVinculo(preId, created.preId);

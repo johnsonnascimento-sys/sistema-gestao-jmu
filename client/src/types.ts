@@ -303,6 +303,8 @@ export interface PreDemanda {
   descricao: string | null;
   fonte: string | null;
   observacoes: string | null;
+  prazoInicial: string | null;
+  prazoIntermediario: string | null;
   prazoFinal: string | null;
   dataConclusao: string | null;
   numeroJudicial: string | null;

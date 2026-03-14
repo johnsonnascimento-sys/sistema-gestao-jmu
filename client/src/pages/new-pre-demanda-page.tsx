@@ -45,6 +45,8 @@ export function NewPreDemandaPage() {
     fonte: "",
     observacoes: "",
     sei_numero: "",
+    prazo_inicial: "",
+    prazo_intermediario: "",
     prazo_final: "",
     numero_judicial: "",
     pagamento_envolvido: false,
@@ -159,6 +161,8 @@ export function NewPreDemandaPage() {
         fonte: form.fonte || undefined,
         observacoes: form.observacoes || undefined,
         sei_numero: showNumbers ? form.sei_numero || null : null,
+        prazo_inicial: form.prazo_inicial || null,
+        prazo_intermediario: form.prazo_intermediario || null,
         prazo_final: form.prazo_final || null,
         numero_judicial: showNumbers ? form.numero_judicial || null : null,
         assunto_ids: selectedAssuntoIds,
@@ -328,6 +332,14 @@ export function NewPreDemandaPage() {
                 )}
               </div>
               {showAdvanced ? <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <FormField label="Prazo inicial">
+                  <Input onChange={(event) => setForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={form.prazo_inicial} />
+                </FormField>
+
+                <FormField label="Prazo intermediario">
+                  <Input onChange={(event) => setForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={form.prazo_intermediario} />
+                </FormField>
+
                 <FormField label={`Prazo final${requiresPrazo ? " *" : ""}`}>
                   <Input onChange={(event) => setForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={form.prazo_final} />
                 </FormField>

@@ -126,6 +126,8 @@ export interface CreatePreDemandaPayload {
   descricao?: string;
   fonte?: string;
   observacoes?: string;
+  prazo_inicial?: string | null;
+  prazo_intermediario?: string | null;
   prazo_final?: string | null;
   sei_numero?: string | null;
   numero_judicial?: string | null;
@@ -145,6 +147,8 @@ export interface UpdatePreDemandaCasePayload {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
+  prazo_inicial?: string | null;
+  prazo_intermediario?: string | null;
   prazo_final?: string | null;
   numero_judicial?: string | null;
   metadata?: {

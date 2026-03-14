@@ -398,6 +398,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       descricao: input.descricao ?? null,
       fonte: input.fonte ?? null,
       observacoes: input.observacoes ?? null,
+      prazoInicial: input.prazoInicial ?? null,
+      prazoIntermediario: input.prazoIntermediario ?? null,
       prazoFinal: input.prazoFinal ?? null,
       dataConclusao: null,
       numeroJudicial: input.numeroJudicial ?? null,
@@ -614,6 +616,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (input.descricao !== undefined) record.descricao = input.descricao;
     if (input.fonte !== undefined) record.fonte = input.fonte;
     if (input.observacoes !== undefined) record.observacoes = input.observacoes;
+    if (input.prazoInicial !== undefined) record.prazoInicial = input.prazoInicial;
+    if (input.prazoIntermediario !== undefined) record.prazoIntermediario = input.prazoIntermediario;
     if (input.prazoFinal !== undefined) record.prazoFinal = input.prazoFinal;
     if (input.numeroJudicial !== undefined) record.numeroJudicial = input.numeroJudicial;
     if (input.numeroJudicial) {

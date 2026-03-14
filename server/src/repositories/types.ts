@@ -61,6 +61,8 @@ export interface CreatePreDemandaInput {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
+  prazoInicial?: string | null;
+  prazoIntermediario?: string | null;
   prazoFinal?: string | null;
   seiNumero?: string | null;
   numeroJudicial?: string | null;
@@ -106,6 +108,8 @@ export interface UpdatePreDemandaCaseDataInput {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
+  prazoInicial?: string | null;
+  prazoIntermediario?: string | null;
   prazoFinal?: string | null;
   numeroJudicial?: string | null;
   metadata?: Partial<PreDemandaMetadata>;
