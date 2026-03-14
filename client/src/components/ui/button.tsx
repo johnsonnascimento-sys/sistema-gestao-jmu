@@ -9,13 +9,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-gradient-to-r from-blue-800 via-blue-700 to-teal-600 text-white shadow-[0_18px_40px_rgba(29,78,216,0.24)] hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(13,110,253,0.28)]",
+          "bg-gradient-to-r from-rose-900 via-rose-700 to-orange-500 text-white shadow-[0_18px_40px_rgba(127,29,29,0.24)] hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(190,24,93,0.26)]",
         secondary:
           "bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(243,247,250,0.92))] text-slate-900 ring-1 ring-slate-200/80 shadow-[0_10px_24px_rgba(20,33,61,0.08)] hover:bg-white hover:ring-slate-300/80",
         ghost:
-          "bg-transparent text-slate-700 hover:bg-sky-950/5 hover:text-slate-950",
+          "bg-transparent text-slate-700 hover:bg-rose-950/5 hover:text-slate-950",
         outline:
-          "bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(247,241,233,0.88))] text-slate-900 ring-1 ring-sky-200/90 hover:ring-sky-300",
+          "bg-[linear-gradient(180deg,rgba(255,255,255,0.7),rgba(250,241,236,0.88))] text-slate-900 ring-1 ring-rose-200/90 hover:ring-rose-300",
         destructive:
           "bg-gradient-to-r from-rose-700 to-rose-600 text-white shadow-[0_16px_36px_rgba(190,24,93,0.22)] hover:-translate-y-0.5 hover:shadow-[0_20px_44px_rgba(190,24,93,0.26)]",
       },
