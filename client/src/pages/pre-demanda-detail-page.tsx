@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  ChevronDown,
   CheckCircle,
   Edit,
   FilePlus2,
@@ -10,7 +11,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { ConfirmDialog } from "../components/confirm-dialog";
@@ -257,6 +258,24 @@ export function PreDemandaDetailPage() {
     }
     return record.metadata.frequencia;
   }, [record]);
+  const sectionSummaries = useMemo(
+    () =>
+      record
+        ? {
+            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo ${record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"}`,
+            pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
+            setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) activo(s)` : "Sem setores activos",
+            checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
+            visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
+            relacionados: record.vinculos.length ? `${record.vinculos.length} vinculo(s) activo(s)` : "Sem processos relacionados",
+            associacaoSei: record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
+            documentos: record.documentos.length ? `${record.documentos.length} documento(s) anexado(s)` : "Sem documentos anexados",
+            comentarios: record.comentarios.length ? `${record.comentarios.length} comentario(s) registado(s)` : "Sem comentarios",
+            historico: timeline.length ? `${timeline.length} evento(s) registado(s)` : "Sem eventos registados",
+          }
+        : null,
+    [completedTasks.length, nextAction.title, pendingTasks.length, queueHealth?.summary, record, timeline.length],
+  );
 
   function updateEditFrequencia(nextValue: string) {
     setEditForm((current) => ({
@@ -381,7 +400,7 @@ export function PreDemandaDetailPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="grid gap-6">
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.resumo} title="Resumo executivo">
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -405,9 +424,9 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
               <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.pessoas} title="Pessoas vinculadas">
             <CardHeader>
               <CardTitle>Pessoas vinculadas</CardTitle>
               <CardDescription>Cadastro relacional das pessoas ligadas ao processo.</CardDescription>
@@ -502,9 +521,9 @@ export function PreDemandaDetailPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.setores} title="Setores activos">
             <CardHeader>
               <CardTitle>Setores activos</CardTitle>
               <CardDescription>O mesmo processo pode correr em paralelo por mais de um setor.</CardDescription>
@@ -535,9 +554,9 @@ export function PreDemandaDetailPage() {
                 ))
               )}
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen summary={sectionSummaries?.checklist} title="Checklist / Proximas tarefas">
             <CardHeader>
               <CardTitle>Checklist / Proximas tarefas</CardTitle>
               <CardDescription>Concluir uma tarefa baixa automaticamente para o historico processual.</CardDescription>
@@ -691,11 +710,11 @@ export function PreDemandaDetailPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </DetailSectionCard>
         </div>
 
         <div className="grid gap-6">
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.visao} title="Visao operacional">
             <CardHeader>
               <CardTitle>Visao operacional</CardTitle>
               <CardDescription>{nextAction.title}</CardDescription>
@@ -712,9 +731,9 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
               <SummaryItem label="Data de conclusao" value={record.dataConclusao ? new Date(record.dataConclusao).toLocaleDateString("pt-BR") : "-"} />
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.relacionados} title="Processos relacionados">
             <CardHeader>
               <CardTitle>Processos relacionados</CardTitle>
               <CardDescription>Relacione casos dependentes, espelho ou desdobramentos sem duplicar trabalho.</CardDescription>
@@ -741,9 +760,9 @@ export function PreDemandaDetailPage() {
                 ))
               )}
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.associacaoSei} title="Associacao PRE para SEI">
             <CardHeader>
               <CardTitle>Associacao PRE para SEI</CardTitle>
               <CardDescription>Validacao e mascara seguem o backend para manter o vinculo confiavel.</CardDescription>
@@ -766,9 +785,9 @@ export function PreDemandaDetailPage() {
                 </div>
               </form>
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.documentos} title="Documentos">
             <CardHeader>
               <CardTitle>Documentos</CardTitle>
               <CardDescription>Anexos operacionais do processo, com download directo no detalhe.</CardDescription>
@@ -807,9 +826,9 @@ export function PreDemandaDetailPage() {
                 ))
               )}
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.comentarios} title="Comentarios ricos">
             <CardHeader>
               <CardTitle>Comentarios ricos</CardTitle>
               <CardDescription>Registos de colaboracao em markdown simples, preservados junto ao processo.</CardDescription>
@@ -847,15 +866,15 @@ export function PreDemandaDetailPage() {
                 ))
               )}
             </CardContent>
-          </Card>
+          </DetailSectionCard>
 
-          <Card>
+          <DetailSectionCard defaultOpen summary={sectionSummaries?.historico} title="Historico (Andamentos)">
             <CardHeader>
               <CardTitle>Historico (Andamentos)</CardTitle>
               <CardDescription>Timeline unificada com criacao, status, SEI, tramitacoes, tarefas e lancamentos manuais.</CardDescription>
             </CardHeader>
             <CardContent>{timeline.length === 0 ? <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registados" /> : <Timeline events={timeline} />}</CardContent>
-          </Card>
+          </DetailSectionCard>
         </div>
       </div>
 
@@ -1232,6 +1251,45 @@ function SummaryItem({ label, value, className }: { label: string; value: string
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
       <p className="mt-1 whitespace-pre-wrap text-slate-950">{value}</p>
     </div>
+  );
+}
+
+function DetailSectionCard({
+  children,
+  defaultOpen = false,
+  summary,
+  title,
+}: {
+  children: ReactNode;
+  defaultOpen?: boolean;
+  summary?: string | null;
+  title: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <Card className={open ? "" : "overflow-hidden"}>
+      <button
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-4 px-7 py-5 text-left transition hover:bg-white/40"
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-950">{title}</p>
+          <p className="mt-1 truncate text-sm text-slate-500">{summary ?? "Sem resumo disponivel."}</p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-rose-800">
+            {open ? "Em destaque" : "Recolhido"}
+          </span>
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm">
+            <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
+          </span>
+        </div>
+      </button>
+      {open ? children : null}
+    </Card>
   );
 }
 
