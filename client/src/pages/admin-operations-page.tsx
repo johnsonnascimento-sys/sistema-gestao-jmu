@@ -37,7 +37,7 @@ function describeIncident(incident: OperationsIncident) {
     case "database_readiness_failure":
       return "Falha na verificacao de prontidao do banco.";
     case "server_error":
-      return "Erro interno registado pela aplicacao.";
+      return "Erro interno registrado pela aplicacao.";
     default:
       return "Incidente operacional.";
   }
@@ -142,7 +142,7 @@ function sectionCardClass(active: boolean) {
 
 function formatEventMoment(value: string | null) {
   if (!value) {
-    return "Nao registado";
+    return "Nao registrado";
   }
 
   return new Date(value).toLocaleString("pt-BR");
@@ -304,7 +304,7 @@ export function AdminOperationsPage() {
     if (summary.operationalSummary.failureCount24h > 0) {
       items.push({
         title: "Falhas operacionais nas ultimas 24h",
-        description: `${summary.operationalSummary.failureCount24h} falha(s) operacional(is) recente(s) foram registadas fora do processo da aplicacao.`,
+        description: `${summary.operationalSummary.failureCount24h} falha(s) operacional(is) recente(s) foram registradas fora do processo da aplicacao.`,
         tone: "attention",
         href: "#operacoes-recentes",
         cta: "Ver operacoes",
@@ -317,7 +317,7 @@ export function AdminOperationsPage() {
     if (summary.incidentSummary.errorTotal > 0) {
       items.push({
         title: "Incidentes de erro activos no processo",
-        description: `${summary.incidentSummary.errorTotal} incidente(s) de nivel error foram registados desde o ultimo arranque.`,
+        description: `${summary.incidentSummary.errorTotal} incidente(s) de nivel error foram registrados desde o ultimo arranque.`,
         tone: "critical",
         href: "#incidentes-recentes",
         cta: "Ver incidentes",
@@ -330,7 +330,7 @@ export function AdminOperationsPage() {
     if (summary.caseManagementReport.overdueTotal > 0) {
       const delta = summary.caseManagementReport.deltas.overdueTotal;
       items.push({
-        title: "Casos vencidos na fila",
+        title: "Processos vencidos na fila",
         description: `${summary.caseManagementReport.overdueTotal} processo(s) activo(s) estao com prazo vencido.`,
         tone: "critical",
         href: "/pre-demandas?preset=prazos-vencidos",
@@ -345,7 +345,7 @@ export function AdminOperationsPage() {
       const delta = summary.caseManagementReport.deltas.withoutSetorTotal;
       items.push({
         title: "Processos sem setor",
-        description: `${summary.caseManagementReport.withoutSetorTotal} caso(s) activo(s) ainda nao foram tramitados para um setor.`,
+        description: `${summary.caseManagementReport.withoutSetorTotal} processo(s) ativo(s) ainda nao foram tramitados para um setor.`,
         tone: "attention",
         href: "/pre-demandas?preset=sem-setor",
         cta: "Abrir sem setor",
@@ -359,7 +359,7 @@ export function AdminOperationsPage() {
       const delta = summary.caseManagementReport.deltas.withoutInteressadosTotal;
       items.push({
         title: "Processos sem envolvidos",
-        description: `${summary.caseManagementReport.withoutInteressadosTotal} caso(s) activo(s) ainda nao possuem envolvidos vinculados.`,
+        description: `${summary.caseManagementReport.withoutInteressadosTotal} processo(s) ativo(s) ainda nao possuem envolvidos vinculados.`,
         tone: "attention",
         href: "/pre-demandas?preset=sem-envolvidos",
         cta: "Abrir sem envolvidos",
@@ -853,19 +853,19 @@ export function AdminOperationsPage() {
 
       <Card id="governanca-casos">
         <CardHeader>
-          <CardTitle>Governanca de casos</CardTitle>
-          <CardDescription>Recorte operativo dos ultimos {summary.caseManagementReport.periodDays} dias, com foco em carga, prazo e distribuicao por setor.</CardDescription>
+          <CardTitle>Governanca de processos</CardTitle>
+          <CardDescription>Recorte operacional dos ultimos {summary.caseManagementReport.periodDays} dias, com foco em carga, prazo e distribuicao por setor.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="grid gap-2">
-              <MetricCard label="Casos criados" value={summary.caseManagementReport.createdInPeriod} />
+              <MetricCard label="Processos criados" value={summary.caseManagementReport.createdInPeriod} />
               <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.createdInPeriod)}`}>
                 {formatDelta(summary.caseManagementReport.deltas.createdInPeriod)} vs janela anterior
               </p>
             </div>
             <div className="grid gap-2">
-              <MetricCard label="Casos encerrados" value={summary.caseManagementReport.closedInPeriod} />
+              <MetricCard label="Processos encerrados" value={summary.caseManagementReport.closedInPeriod} />
               <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(summary.caseManagementReport.deltas.closedInPeriod)}`}>
                 {formatDelta(summary.caseManagementReport.deltas.closedInPeriod)} vs janela anterior
               </p>
@@ -909,7 +909,7 @@ export function AdminOperationsPage() {
             <div className="grid gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Prioridade imediata</p>
-                <p className="mt-1 text-sm text-slate-600">Setores ordenados por risco operativo, combinando carga, vencidos, proximidade de prazo e agravamento da fila.</p>
+                <p className="mt-1 text-sm text-slate-600">Setores ordenados por risco operacional, combinando carga, vencidos, proximidade de prazo e agravamento da fila.</p>
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 {summary.caseManagementReport.prioritySetores.map((item) => (
@@ -989,7 +989,7 @@ export function AdminOperationsPage() {
               ))}
             </div>
           ) : (
-            <EmptyState description="Assim que houver distribuicao de casos, a leitura por setor aparecera aqui." title="Sem dados por setor" />
+            <EmptyState description="Assim que houver distribuicao de processos, a leitura por setor aparecera aqui." title="Sem dados por setor" />
           )}
         </CardContent>
       </Card>
@@ -997,8 +997,8 @@ export function AdminOperationsPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Runtime actual</CardTitle>
-            <CardDescription>Dados do processo actualmente em execucao.</CardDescription>
+            <CardTitle>Runtime atual</CardTitle>
+            <CardDescription>Dados do processo atualmente em execucao.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm text-slate-600">
             <div>
@@ -1076,10 +1076,10 @@ export function AdminOperationsPage() {
                       attentionDays: Number(queueThresholds.attentionDays),
                       criticalDays: Number(queueThresholds.criticalDays),
                     });
-                    setMessage("Regras da fila actualizadas com sucesso.");
+                    setMessage("Regras da fila atualizadas com sucesso.");
                     await load();
                   } catch (nextError) {
-                    setError(formatAppError(nextError, "Falha ao actualizar regras da fila."));
+                    setError(formatAppError(nextError, "Falha ao atualizar regras da fila."));
                   } finally {
                     setSavingQueueThresholds(false);
                   }
@@ -1318,7 +1318,7 @@ export function AdminOperationsPage() {
       <Card className={sectionCardClass(activeSection === "incidentes-recentes")} id="incidentes-recentes">
         <CardHeader>
           <CardTitle>Incidentes recentes</CardTitle>
-          <CardDescription>Eventos registados desde o ultimo arranque do processo.</CardDescription>
+          <CardDescription>Eventos registrados desde o ultimo arranque do processo.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-4">
@@ -1450,7 +1450,7 @@ export function AdminOperationsPage() {
         </CardHeader>
         <CardContent className="grid gap-3">
           {summary.operationalEvents.length === 0 ? (
-            <EmptyState description="Assim que backup, deploy, rollback, monitoracao ou auditoria registar eventos, eles aparecerao aqui." title="Sem operacoes registadas" />
+            <EmptyState description="Assim que backup, deploy, rollback, monitoracao ou auditoria registrar eventos, eles aparecerao aqui." title="Sem operacoes registradas" />
           ) : (
             summary.operationalEvents.map((event) => (
               <article
@@ -1467,7 +1467,7 @@ export function AdminOperationsPage() {
                   <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{new Date(event.occurredAt).toLocaleString("pt-BR")}</p>
                 </div>
                 <p className="text-sm text-slate-700">
-                  {event.status === "failure" ? "Falha operacional registada." : "Execucao concluida com sucesso."}
+                  {event.status === "failure" ? "Falha operacional registrada." : "Execucao concluida com sucesso."}
                   {event.reference ? ` Referencia: ${event.reference}` : ""}
                 </p>
                 <p className="text-xs text-slate-500">Origem: {event.source}</p>

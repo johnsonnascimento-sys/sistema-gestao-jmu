@@ -239,11 +239,11 @@ export function PreDemandaDetailPage() {
     if (!record) return { title: "", description: "" };
     switch (record.status) {
       case "em_andamento":
-        return { title: "Conduzir a execucao administrativa", description: "Vincule pessoas, complemente metadata, tramita o caso e conclua tarefas pendentes ate o encerramento." };
+        return { title: "Conduzir a execucao administrativa", description: "Vincule pessoas, complemente os dados do processo e conclua tarefas pendentes ate o encerramento." };
       case "aguardando_sei":
         return { title: "Monitorar a geracao do processo", description: "Mantenha tarefas de acompanhamento activas e associe o numero SEI assim que ele existir." };
       case "encerrada":
-        return { title: "Preservar historico e reabrir apenas com motivo", description: "O caso esta fechado. Reabra so se houver fato novo, correcao processual ou impulso operacional real." };
+        return { title: "Preservar historico e reabrir apenas com motivo", description: "O processo esta encerrado. Reabra so se houver fato novo, correcao processual ou necessidade operacional real." };
     }
   }, [record]);
   const taskShortcutOptions = useMemo(() => {
@@ -282,8 +282,8 @@ export function PreDemandaDetailPage() {
             relacionados: record.vinculos.length ? `${record.vinculos.length} vinculo(s) activo(s)` : "Sem processos relacionados",
             associacaoSei: record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
             documentos: record.documentos.length ? `${record.documentos.length} documento(s) anexado(s)` : "Sem documentos anexados",
-            comentarios: record.comentarios.length ? `${record.comentarios.length} comentario(s) registado(s)` : "Sem comentarios",
-            historico: timeline.length ? `${timeline.length} evento(s) registado(s)` : "Sem eventos registados",
+            comentarios: record.comentarios.length ? `${record.comentarios.length} comentario(s) registrado(s)` : "Sem comentarios",
+            historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
     [completedTasks.length, nextAction.title, pendingTasks.length, queueHealth?.summary, record, timeline.length],
@@ -376,7 +376,7 @@ export function PreDemandaDetailPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Workbench operacional inspirada no SEI para controle de envolvidos, tarefas, tramitacoes e historico."
+        description="Painel operacional inspirado no SEI para controle de envolvidos, tarefas, tramitacoes e historico."
         eyebrow={record.preId}
         title={record.assunto}
       />
@@ -518,7 +518,7 @@ export function PreDemandaDetailPage() {
               </div>
 
               {record.interessados.length === 0 ? (
-                <EmptyState description="Vincule pessoas ao caso para destravar tarefas, tramitacoes e relacoes processuais." title="Sem pessoas vinculadas" />
+                <EmptyState description="Vincule pessoas ao processo para destravar tarefas, tramitacoes e relacoes processuais." title="Sem pessoas vinculadas" />
               ) : (
                 <div className="grid gap-3">
                   {record.interessados.map((item) => (
@@ -739,7 +739,7 @@ export function PreDemandaDetailPage() {
                 <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
               </div>
               <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
-              <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registado"}` : "Nenhum evento registado"} />
+              <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
               <SummaryItem label="Saude da fila" value={queueHealth.summary} />
               <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
               <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
@@ -750,7 +750,7 @@ export function PreDemandaDetailPage() {
           <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.relacionados} title="Processos relacionados">
             <CardHeader>
               <CardTitle>Processos relacionados</CardTitle>
-              <CardDescription>Relacione casos dependentes, espelho ou desdobramentos sem duplicar trabalho.</CardDescription>
+              <CardDescription>Relacione processos dependentes, espelho ou desdobramentos sem duplicar trabalho.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {record.vinculos.length === 0 ? (
@@ -858,7 +858,7 @@ export function PreDemandaDetailPage() {
                         await createPreDemandaComentario(preId, { conteudo: commentForm, formato: "markdown" });
                         setCommentForm("");
                       },
-                      "Comentario registado.",
+                      "Comentario registrado.",
                     )
                   }
                   type="button"
@@ -887,7 +887,7 @@ export function PreDemandaDetailPage() {
               <CardTitle>Historico (Andamentos)</CardTitle>
               <CardDescription>Timeline unificada com criacao, status, SEI, tramitacoes, tarefas e lancamentos manuais.</CardDescription>
             </CardHeader>
-            <CardContent>{timeline.length === 0 ? <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registados" /> : <Timeline events={timeline} />}</CardContent>
+            <CardContent>{timeline.length === 0 ? <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registrados" /> : <Timeline events={timeline} />}</CardContent>
           </DetailSectionCard>
         </div>
       </div>
@@ -896,7 +896,7 @@ export function PreDemandaDetailPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Consultar / Alterar processo</DialogTitle>
-            <DialogDescription>Atualize os dados principais e o metadata operacional do caso.</DialogDescription>
+            <DialogDescription>Atualize os dados principais e o metadata operacional do processo.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <FormField label="Assunto">
@@ -970,7 +970,7 @@ export function PreDemandaDetailPage() {
             <label className="flex items-center justify-between rounded-[24px] border border-sky-100/90 bg-white/90 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(20,33,61,0.04)]">
               <span>
                 <span className="block font-semibold text-slate-950">Pagamento envolvido</span>
-                <span className="text-slate-500">Sinalizador rapido para o caso.</span>
+                <span className="text-slate-500">Sinalizador rapido para o processo.</span>
               </span>
               <input checked={editForm.pagamento_envolvido} className="h-5 w-5 accent-slate-950" onChange={(event) => setEditForm((current) => ({ ...current, pagamento_envolvido: event.target.checked }))} type="checkbox" />
             </label>
@@ -1099,7 +1099,7 @@ export function PreDemandaDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Controle de prazos</DialogTitle>
-            <DialogDescription>Defina, altere ou remova os tres prazos estruturados do caso.</DialogDescription>
+            <DialogDescription>Defina, altere ou remova os tres prazos estruturados do processo.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <FormField label="Prazo inicial">
@@ -1163,7 +1163,7 @@ export function PreDemandaDetailPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Iniciar processo relacionado</DialogTitle>
-            <DialogDescription>Crie um novo processo relacionado usando a mesma pessoa principal do caso atual.</DialogDescription>
+            <DialogDescription>Crie um novo processo relacionado usando a mesma pessoa principal do processo atual.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <FormField label="Pessoa principal">
@@ -1224,7 +1224,7 @@ export function PreDemandaDetailPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Registrar andamento manual</DialogTitle>
-            <DialogDescription>Inclua uma movimentacao livre no historico do caso.</DialogDescription>
+            <DialogDescription>Inclua uma movimentacao livre no historico do processo.</DialogDescription>
           </DialogHeader>
           <Textarea onChange={(event) => setAndamentoForm(event.target.value)} rows={6} value={andamentoForm} />
           <DialogFooter>
@@ -1240,7 +1240,7 @@ export function PreDemandaDetailPage() {
                     setAndamentoForm("");
                     setToolbarDialog(null);
                   },
-                  "Andamento registado.",
+                  "Andamento registrado.",
                 )
               }
               type="button"

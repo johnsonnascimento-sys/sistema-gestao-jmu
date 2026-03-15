@@ -140,7 +140,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "fila-parada",
     label: "Fila parada",
-    description: "Processos activos com maior tempo sem movimentacao, ordenados pela actualizacao mais antiga.",
+    description: "Processos ativos com maior tempo sem movimentacao, ordenados pela atualizacao mais antiga.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       queueHealth: ["attention", "critical"],
@@ -152,7 +152,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "criticas",
     label: "Criticas",
-    description: "Processos activos em risco maximo de fila, ordenados pela actualizacao mais antiga.",
+    description: "Processos ativos em risco maximo de fila, ordenados pela atualizacao mais antiga.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       queueHealth: ["critical"],
@@ -164,7 +164,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "prazos-vencidos",
     label: "Prazos vencidos",
-    description: "Casos activos com prazo final ja ultrapassado.",
+    description: "Processos ativos com prazo final ja ultrapassado.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       dueState: "overdue",
@@ -176,7 +176,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "vencem-na-semana",
     label: "Vencem na semana",
-    description: "Processos activos com prazo nos proximos 7 dias.",
+    description: "Processos ativos com prazo nos proximos 7 dias.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       dueState: "due_soon",
@@ -188,7 +188,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "sem-envolvidos",
     label: "Sem envolvidos",
-    description: "Casos activos que ainda precisam de envolvidos vinculados.",
+    description: "Processos ativos que ainda precisam de envolvidos vinculados.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       hasInteressados: "false",
@@ -200,7 +200,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "sem-setor",
     label: "Sem setor",
-    description: "Casos activos ainda sem setor formalmente definido.",
+    description: "Processos ativos ainda sem setor formalmente definido.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       withoutSetor: "true",
@@ -617,7 +617,7 @@ export function PreDemandasPage() {
       {
         id: "criticas",
         label: "Criticas",
-        description: "Fila com maior risco operativo e actualizacao mais antiga primeiro.",
+        description: "Fila com maior risco operacional e atualizacao mais antiga primeiro.",
         value: items.filter((item) => item.queueHealth.level === "critical").length,
         href: "/pre-demandas?preset=criticas",
       },
@@ -705,7 +705,7 @@ export function PreDemandasPage() {
       <Card>
         <CardHeader>
           <CardTitle>Grupos rapidos</CardTitle>
-          <CardDescription>Recortes operacionais prontos para accao imediata dentro da fila actual.</CardDescription>
+          <CardDescription>Recortes operacionais prontos para acao imediata dentro da fila atual.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-5">
           {quickGroups.map((group) => (
@@ -729,7 +729,7 @@ export function PreDemandasPage() {
         <Card>
           <CardHeader>
             <CardTitle>Setores em foco</CardTitle>
-            <CardDescription>Resumo dos setores mais pressionados dentro do recorte atual da fila, para trocar rapidamente de contexto sem voltar ao painel admin.</CardDescription>
+            <CardDescription>Resumo dos setores mais pressionados dentro do recorte atual da fila, para trocar rapidamente de contexto sem voltar ao painel administrativo.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 xl:grid-cols-4">
             {sectorSummaries.slice(0, 4).map((sector) => (
@@ -786,7 +786,7 @@ export function PreDemandasPage() {
           <CardHeader>
             <CardTitle>Contexto operativo</CardTitle>
             <CardDescription>
-              A fila esta focada no setor {selectedSetor.sigla}. Use os atalhos para alternar rapidamente entre todos os itens, vencidos e proximos do prazo.
+              A fila esta focada no setor {selectedSetor.sigla}. Use os atalhos para alternar rapidamente entre todos os processos, vencidos e proximos do prazo.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
@@ -812,7 +812,7 @@ export function PreDemandasPage() {
         <Card>
           <CardHeader>
             <CardTitle>Contexto operativo</CardTitle>
-            <CardDescription>A fila esta focada em processos ainda sem setor. Use os atalhos para distribuir primeiro os casos vencidos, proximos do prazo ou ainda sem envolvidos.</CardDescription>
+            <CardDescription>A fila esta focada em processos ainda sem setor. Use os atalhos para distribuir primeiro os processos vencidos, proximos do prazo ou ainda sem envolvidos.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             <Button asChild size="sm" variant={resolvedState.dueState === "" && resolvedState.hasInteressados !== "false" ? "primary" : "secondary"}>
@@ -834,7 +834,7 @@ export function PreDemandasPage() {
       <Card>
         <CardHeader>
           <CardTitle>Visualizacoes salvas</CardTitle>
-          <CardDescription>Presets partilhaveis por query string para os filtros mais usados da operacao.</CardDescription>
+          <CardDescription>Presets compartilhaveis por query string para os filtros mais usados da operacao.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-6">
           {SAVED_VIEWS.map((preset) => (
@@ -858,7 +858,7 @@ export function PreDemandasPage() {
       <form onSubmit={handleFilterSubmit}>
         <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
-            <Input onChange={(event) => setQuery(event.target.value)} placeholder="DEMANDA, SEI, pessoa ou assunto" value={query} />
+            <Input onChange={(event) => setQuery(event.target.value)} placeholder="PROCESSO, SEI, pessoa ou assunto" value={query} />
           </FormField>
 
           <FormField hint="Multiplos estados." label="Status">
@@ -902,7 +902,7 @@ export function PreDemandasPage() {
             </select>
           </FormField>
 
-          <FormField label="Setor actual">
+          <FormField label="Setor atual">
             <select className={selectClassName} onChange={(event) => setSetorAtualId(event.target.value)} value={setorAtualId}>
               <option value="">Todos</option>
               {setores.map((setor) => (
@@ -940,7 +940,7 @@ export function PreDemandasPage() {
 
           <FormField label="Ordenacao">
             <select className={selectClassName} onChange={(event) => setSortBy(event.target.value as PreDemandaSortBy)} value={sortBy}>
-              <option value="updatedAt">Actualizacao</option>
+              <option value="updatedAt">Atualizacao</option>
               <option value="createdAt">Criacao</option>
               <option value="dataReferencia">Data de referencia</option>
               <option value="solicitante">Pessoa principal</option>
@@ -1148,7 +1148,7 @@ export function PreDemandasPage() {
 
       <ConfirmDialog
         confirmLabel={quickAction?.label ?? "Confirmar"}
-        description="Registe o motivo da alteracao de status para manter a trilha de auditoria operacional."
+        description="Registre o motivo da alteracao de status para manter a trilha de auditoria operacional."
         onConfirm={async ({ motivo, observacoes }) => {
           if (!quickAction) {
             return;

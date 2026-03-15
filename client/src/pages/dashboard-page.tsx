@@ -155,7 +155,7 @@ export function DashboardPage() {
             </Button>
           </>
         }
-        description="Visão operacional do módulo pré-SEI/SEI, com atalhos para triagem e acompanhamento."
+        description="Visao operacional dos processos, com atalhos para triagem e acompanhamento."
         eyebrow="Visão geral"
         title="Dashboard do Gestor"
       />
@@ -236,7 +236,7 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Processos com pagamento</CardTitle>
-              <CardDescription>Casos com impacto financeiro marcado no metadata, em destaque para controlo prioritário.</CardDescription>
+              <CardDescription>Processos com impacto financeiro marcado no metadata, em destaque para acompanhamento prioritario.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {summary.paymentMarkedItems.length === 0 ? (
@@ -273,7 +273,7 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Processos parados</CardTitle>
-              <CardDescription>Itens ativos sem movimentação recente, ordenados pela atualização mais antiga.</CardDescription>
+              <CardDescription>Processos ativos sem movimentacao recente, ordenados pela atualizacao mais antiga.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {staleItems.length === 0 ? (
@@ -312,7 +312,7 @@ export function DashboardPage() {
                   </Button>
                 </div>
                 {summary.dueSoonItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum prazo iminente registado.</p>
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum prazo iminente registrado.</p>
                 ) : (
                   summary.dueSoonItems.map(renderQueueItem)
                 )}
@@ -326,7 +326,7 @@ export function DashboardPage() {
                   </Button>
                 </div>
                 {summary.withoutSetorItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os casos ativos já possuem setor.</p>
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos ja possuem setor.</p>
                 ) : (
                   summary.withoutSetorItems.map(renderQueueItem)
                 )}
@@ -340,7 +340,7 @@ export function DashboardPage() {
                   </Button>
                 </div>
                 {summary.withoutInteressadosItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os casos ativos já possuem envolvidos vinculados.</p>
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos ja possuem envolvidos vinculados.</p>
                 ) : (
                   summary.withoutInteressadosItems.map(renderQueueItem)
                 )}

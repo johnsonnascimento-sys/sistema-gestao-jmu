@@ -77,8 +77,8 @@ export function AppShell() {
             <div className="rounded-[30px] border border-white/10 bg-white/7 p-5 backdrop-blur-xl">
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-100">Gestor JMU</p>
               <h1 className='mt-3 font-["IBM_Plex_Serif",Georgia,serif] text-3xl leading-tight'>
-                Centro de casos
-                <span className="block text-rose-100">e tramitacao</span>
+                Centro de processos
+                <span className="block text-rose-100">e tramitacoes</span>
               </h1>
               <p className="mt-3 text-sm leading-6 text-slate-200/85">
                 Operacao interna com linguagem institucional clara, fluxo rastreavel e identidade propria.
