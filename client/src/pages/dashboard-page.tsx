@@ -226,7 +226,7 @@ export function DashboardPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{event.preId}</p>
+                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{event.principalNumero}</p>
                       <h3 className="mt-2 text-base font-semibold text-slate-950">{describeEvent(event)}</h3>
                     </div>
                     {event.statusNovo ? <StatusPill status={event.statusNovo} /> : null}

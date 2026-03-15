@@ -821,6 +821,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         processo: {
           id: destino.id,
           preId: destino.preId,
+          principalNumero: destino.principalNumero,
           assunto: destino.assunto,
           status: destino.status,
           dataReferencia: destino.dataReferencia,
@@ -1183,6 +1184,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const created: TimelineEvent = {
       id: `created-${record.id}`,
       preId,
+      principalNumero: record.principalNumero,
       type: "created",
       occurredAt: record.createdAt,
       actor: null,
@@ -1200,6 +1202,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .map<TimelineEvent>((item) => ({
         id: `status-${item.id}`,
         preId,
+        principalNumero: record.principalNumero,
         type: "status_changed",
         occurredAt: item.registradoEm,
         actor: item.changedBy,
@@ -1217,6 +1220,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .map<TimelineEvent>((item) => ({
         id: `sei-${item.id}`,
         preId,
+        principalNumero: record.principalNumero,
         type: "sei_reassociated",
         occurredAt: item.registradoEm,
         actor: item.changedBy,
@@ -1234,6 +1238,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .map<TimelineEvent>((item) => ({
         id: item.id,
         preId,
+        principalNumero: record.principalNumero,
         type:
           item.tipo === "tramitacao"
             ? "tramitation"

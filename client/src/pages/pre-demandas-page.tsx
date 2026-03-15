@@ -1245,7 +1245,7 @@ export function PreDemandasPage() {
               motivo,
               observacoes,
             });
-            setMessage(`Processo ${quickAction.item.preId} atualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
+            setMessage(`Processo ${quickAction.item.principalNumero} atualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
             await load();
           } catch (nextError) {
             throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar o processo."));

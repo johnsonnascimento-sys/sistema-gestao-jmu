@@ -193,6 +193,7 @@ export interface DemandaNumeroJudicial {
 export interface PreDemandaSummaryLinked {
   id: number;
   preId: string;
+  principalNumero: string;
   assunto: string;
   status: PreDemandaStatus;
   dataReferencia: string;
@@ -597,6 +598,7 @@ export type TimelineEventType =
 export interface TimelineEvent {
   id: string;
   preId: string;
+  principalNumero: string;
   type: TimelineEventType;
   occurredAt: string;
   actor: AuditActor | null;

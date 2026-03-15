@@ -91,7 +91,7 @@ export function KanbanBoard({
                         <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Processo:</span> {item.preId}
+                        <span className="font-medium text-slate-950">Referencia interna:</span> {item.preId}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Fila:</span> {getQueueHealth(item).detail}

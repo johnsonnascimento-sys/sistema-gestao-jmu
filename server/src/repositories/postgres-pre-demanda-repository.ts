@@ -299,6 +299,7 @@ function mapDemandaVinculo(row: QueryResultRow): DemandaVinculo {
     processo: {
       id: Number(row.id),
       preId: String(row.pre_id),
+      principalNumero: row.principal_numero ? String(row.principal_numero) : String(row.pre_id),
       assunto: String(row.assunto),
       status: row.status as PreDemandaStatus,
       dataReferencia: new Date(row.data_referencia).toISOString().slice(0, 10),
@@ -421,6 +422,7 @@ function mapTimelineEvent(row: QueryResultRow): TimelineEvent {
   return {
     id: String(row.event_id),
     preId: String(row.pre_id),
+    principalNumero: row.principal_numero ? String(row.principal_numero) : String(row.pre_id),
     type: row.event_type as TimelineEvent["type"],
     occurredAt: new Date(row.occurred_at).toISOString(),
     actor: mapActor(row, "actor"),
@@ -864,6 +866,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         select
           other.id,
           other.pre_id,
+          coalesce(other_link.sei_numero, other.pre_id) as principal_numero,
           other.assunto,
           other.status,
           other.data_referencia,
@@ -880,6 +883,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             when dv.origem_pre_demanda_id = $1 then dv.destino_pre_demanda_id
             else dv.origem_pre_demanda_id
           end
+        left join adminlog.pre_to_sei_link other_link on other_link.pre_id = other.pre_id
         left join adminlog.app_user linked_by on linked_by.id = dv.created_by_user_id
         where dv.origem_pre_demanda_id = $1 or dv.destino_pre_demanda_id = $1
         order by dv.created_at desc, other.pre_id asc
@@ -2679,6 +2683,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('created-', pd.id) as event_id,
             pd.pre_id,
+            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
             'created'::text as event_type,
             pd.created_at as occurred_at,
             created_by.id as actor_id,
@@ -2693,6 +2698,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text as sei_numero_anterior,
             null::text as sei_numero_novo
           from adminlog.pre_demanda pd
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
           where pd.pre_id = $1
 
@@ -2701,6 +2707,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('status-', audit.id) as event_id,
             audit.pre_id,
+            coalesce(pts.sei_numero, audit.pre_id) as principal_numero,
             'status_changed'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -2715,6 +2722,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text,
             null::text
           from adminlog.pre_demanda_status_audit audit
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
           where audit.pre_id = $1
 
@@ -2723,6 +2731,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('sei-linked-', pts.id) as event_id,
             pts.pre_id,
+            pts.sei_numero as principal_numero,
             'sei_linked'::text as event_type,
             pts.linked_at as occurred_at,
             linked_by.id as actor_id,
@@ -2745,6 +2754,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('sei-audit-', audit.id) as event_id,
             audit.pre_id,
+            coalesce(pts.sei_numero, audit.sei_numero_novo, audit.pre_id) as principal_numero,
             'sei_reassociated'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -2759,6 +2769,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             audit.sei_numero_anterior::text,
             audit.sei_numero_novo::text
           from adminlog.pre_to_sei_link_audit audit
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
           where audit.pre_id = $1
 
@@ -2767,6 +2778,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('andamento-', andamento.id) as event_id,
             pd.pre_id,
+            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
             case
               when andamento.tipo = 'tramitacao' then 'tramitation'
               when andamento.tipo = 'tarefa_concluida' then 'task_completed'
@@ -2792,6 +2804,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text as sei_numero_novo
           from adminlog.andamentos andamento
           inner join adminlog.pre_demanda pd on pd.id = andamento.pre_demanda_id
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           left join adminlog.app_user actor on actor.id = andamento.created_by_user_id
           where pd.pre_id = $1
 
@@ -2800,6 +2813,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('comment-', comentario.id) as event_id,
             pd.pre_id,
+            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
             'comment_added'::text as event_type,
             comentario.created_at as occurred_at,
             actor.id as actor_id,
@@ -2815,6 +2829,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text as sei_numero_novo
           from adminlog.demanda_comentarios comentario
           inner join adminlog.pre_demanda pd on pd.id = comentario.pre_demanda_id
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           left join adminlog.app_user actor on actor.id = comentario.created_by_user_id
           where pd.pre_id = $1
         ) timeline
@@ -2849,6 +2864,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text as sei_numero_anterior,
             null::text as sei_numero_novo
           from adminlog.pre_demanda pd
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
 
           union all
@@ -2856,6 +2872,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('status-', audit.id) as event_id,
             audit.pre_id,
+            coalesce(pts.sei_numero, audit.pre_id) as principal_numero,
             'status_changed'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -2870,6 +2887,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text,
             null::text
           from adminlog.pre_demanda_status_audit audit
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
 
           union all
@@ -2877,6 +2895,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('sei-linked-', pts.id) as event_id,
             pts.pre_id,
+            pts.sei_numero as principal_numero,
             'sei_linked'::text as event_type,
             pts.linked_at as occurred_at,
             linked_by.id as actor_id,
@@ -2898,6 +2917,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('sei-audit-', audit.id) as event_id,
             audit.pre_id,
+            coalesce(pts.sei_numero, audit.sei_numero_novo, audit.pre_id) as principal_numero,
             'sei_reassociated'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -2912,6 +2932,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             audit.sei_numero_anterior::text,
             audit.sei_numero_novo::text
           from adminlog.pre_to_sei_link_audit audit
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
 
           union all
@@ -2919,6 +2940,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('andamento-', andamento.id) as event_id,
             pd.pre_id,
+            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
             case
               when andamento.tipo = 'tramitacao' then 'tramitation'
               when andamento.tipo = 'tarefa_concluida' then 'task_completed'
@@ -2944,6 +2966,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text as sei_numero_novo
           from adminlog.andamentos andamento
           inner join adminlog.pre_demanda pd on pd.id = andamento.pre_demanda_id
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           left join adminlog.app_user actor on actor.id = andamento.created_by_user_id
 
           union all
@@ -2951,6 +2974,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('comment-', comentario.id) as event_id,
             pd.pre_id,
+            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
             'comment_added'::text as event_type,
             comentario.created_at as occurred_at,
             actor.id as actor_id,
@@ -2966,6 +2990,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text as sei_numero_novo
           from adminlog.demanda_comentarios comentario
           inner join adminlog.pre_demanda pd on pd.id = comentario.pre_demanda_id
+          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           left join adminlog.app_user actor on actor.id = comentario.created_by_user_id
         ) timeline
         order by occurred_at desc, event_id desc

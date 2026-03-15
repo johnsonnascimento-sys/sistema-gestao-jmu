@@ -376,8 +376,8 @@ export function PreDemandaDetailPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Painel operacional inspirado no SEI para controle de envolvidos, tarefas, tramitacoes e historico."
-        eyebrow={record.preId}
+        description={`Painel operacional inspirado no SEI para controle de envolvidos, tarefas, tramitacoes e historico. Referencia interna: ${record.preId}.`}
+        eyebrow={record.principalNumero}
         title={record.assunto}
       />
       {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
@@ -759,7 +759,8 @@ export function PreDemandaDetailPage() {
                 record.vinculos.map((item) => (
                   <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.processo.preId}>
                     <div>
-                      <p className="font-semibold text-slate-950">{item.processo.preId}</p>
+                      <p className="font-semibold text-slate-950">{item.processo.principalNumero}</p>
+                      <p className="text-xs text-slate-400">{item.processo.preId}</p>
                       <p className="text-sm text-slate-500">{item.processo.assunto}</p>
                     </div>
                     <div className="flex gap-2">
@@ -1148,7 +1149,8 @@ export function PreDemandaDetailPage() {
             {linkedProcessResults.map((item) => (
               <button className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300" key={item.preId} onClick={() => void runMutation(() => addPreDemandaVinculo(preId, item.preId).then(() => setToolbarDialog(null)), "Vinculo criado.")} type="button">
                 <span>
-                  <span className="block font-semibold text-slate-950">{item.preId}</span>
+                  <span className="block font-semibold text-slate-950">{item.principalNumero}</span>
+                  <span className="text-xs text-slate-400">{item.preId}</span>
                   <span className="text-sm text-slate-500">{item.assunto}</span>
                 </span>
                 <Plus className="h-4 w-4 text-slate-500" />
