@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS adminlog.pre_demanda (
   solicitante text NOT NULL,
   assunto text NOT NULL,
   data_referencia date NOT NULL,
-  status text NOT NULL DEFAULT 'em_andamento',
+  status text NOT NULL DEFAULT 'aberta',
   descricao text,
   fonte text,
   observacoes text,
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS adminlog.pre_demanda (
     lower(regexp_replace(trim(assunto), '\s+', ' ', 'g'))
   ) STORED,
   CONSTRAINT ck_pre_demanda_status
-    CHECK (status IN ('em_andamento', 'aguardando_sei', 'encerrada'))
+    CHECK (status IN ('aberta', 'aguardando_sei', 'associada', 'encerrada'))
 );
 
 ALTER TABLE adminlog.pre_demanda
@@ -152,9 +152,9 @@ CREATE TABLE IF NOT EXISTS adminlog.pre_demanda_status_audit (
   changed_by_user_id bigint REFERENCES adminlog.app_user(id) ON DELETE SET NULL,
   registrado_em timestamptz NOT NULL DEFAULT NOW(),
   CONSTRAINT ck_pre_demanda_status_audit_anterior
-    CHECK (status_anterior IN ('em_andamento', 'aguardando_sei', 'encerrada')),
+    CHECK (status_anterior IN ('aberta', 'aguardando_sei', 'associada', 'encerrada')),
   CONSTRAINT ck_pre_demanda_status_audit_novo
-    CHECK (status_novo IN ('em_andamento', 'aguardando_sei', 'encerrada'))
+    CHECK (status_novo IN ('aberta', 'aguardando_sei', 'associada', 'encerrada'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_pre_demanda_status_audit_pre_id
