@@ -316,7 +316,7 @@ export function AdminOperationsPage() {
 
     if (summary.incidentSummary.errorTotal > 0) {
       items.push({
-        title: "Incidentes de erro activos no processo",
+        title: "Incidentes de erro ativos no processo",
         description: `${summary.incidentSummary.errorTotal} incidente(s) de nivel error foram registrados desde o ultimo arranque.`,
         tone: "critical",
         href: "#incidentes-recentes",
@@ -331,7 +331,7 @@ export function AdminOperationsPage() {
       const delta = summary.caseManagementReport.deltas.overdueTotal;
       items.push({
         title: "Processos vencidos na fila",
-        description: `${summary.caseManagementReport.overdueTotal} processo(s) activo(s) estao com prazo vencido.`,
+        description: `${summary.caseManagementReport.overdueTotal} processo(s) ativo(s) estao com prazo vencido.`,
         tone: "critical",
         href: "/pre-demandas?preset=prazos-vencidos",
         cta: "Abrir vencidos",
@@ -467,9 +467,9 @@ export function AdminOperationsPage() {
       ? {
           title: "Abrir incidente recorrente antes dos demais alertas",
           description:
-            "A anomalia principal e a recorrencia actual apontam para o mesmo eixo de incidente. Vale atacar primeiro o cluster repetido para cortar ruido e impacto mais rapido.",
+            "A anomalia principal e a recorrencia atual apontam para o mesmo eixo de incidente. Vale atacar primeiro o cluster repetido para cortar ruido e impacto mais rapido.",
           confidence: "Alta",
-          urgencyReason: "Ha convergencia entre prioridade actual e repeticao recente.",
+          urgencyReason: "Ha convergencia entre prioridade atual e repeticao recente.",
           effortHint: "Intervencao rapida",
           impactHint: "Reduz ruido e corta repeticao logo no inicio.",
           href: recurrencePathItems[0].href,
@@ -494,7 +494,7 @@ export function AdminOperationsPage() {
               confidence: "Media",
               urgencyReason: "Nao surgiu um cluster repetido mais forte do que a anomalia principal.",
               effortHint: "Triagem dirigida",
-              impactHint: "Mantem o foco na frente mais relevante da janela actual.",
+              impactHint: "Mantem o foco na frente mais relevante da janela atual.",
               href: primaryAttentionItem.href,
               cta: primaryAttentionItem.cta,
             }
@@ -768,7 +768,7 @@ export function AdminOperationsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Atencao imediata</CardTitle>
-            <CardDescription>Itens que exigem accao mais rapida com base na saude da aplicacao, operacao e fila actual.</CardDescription>
+            <CardDescription>Itens que exigem acao mais rapida com base na saude da aplicacao, operacao e fila atual.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 xl:grid-cols-3">
             {attentionItems.map((item) => (
@@ -923,7 +923,7 @@ export function AdminOperationsPage() {
                         {item.riskLevel}
                       </span>
                     </div>
-                    <p className="mt-3 text-sm text-slate-700">Score {item.riskScore} - {item.activeTotal} activos - {item.overdueTotal} vencidos</p>
+                    <p className="mt-3 text-sm text-slate-700">Score {item.riskScore} - {item.activeTotal} ativos - {item.overdueTotal} vencidos</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="secondary">
                         <Link to={buildPriorityQueueHref(item.setorId, item.overdueTotal > 0 ? "overdue" : item.dueSoonTotal > 0 ? "due_soon" : "", item.riskLevel)}>
@@ -960,7 +960,7 @@ export function AdminOperationsPage() {
                       <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${riskTone(item.riskLevel)}`}>
                         {item.riskLevel} - {item.riskScore}
                       </span>
-                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} activos</p>
+                      <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{item.activeTotal} ativos</p>
                       <p className={`mt-1 text-xs font-semibold uppercase tracking-[0.18em] ${deltaTone(item.activeDelta)}`}>
                         {formatDelta(item.activeDelta)} vs janela anterior
                       </p>
@@ -1037,7 +1037,7 @@ export function AdminOperationsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Regras da fila</CardTitle>
-            <CardDescription>Limiar operativo para sinalizar processos em atencao ou criticos.</CardDescription>
+            <CardDescription>Limiar operacional para sinalizar processos em atencao ou criticos.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm text-slate-600">
             <div className="grid gap-4 md:grid-cols-2">
@@ -1284,7 +1284,7 @@ export function AdminOperationsPage() {
                   ))}
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-slate-500">Nenhuma falha operacional registada nas ultimas 24 horas.</p>
+                <p className="mt-2 text-xs text-slate-500">Nenhuma falha operacional registrada nas ultimas 24 horas.</p>
               )}
             </div>
             {summary.operationalSummary.failureClusters24h.length ? (

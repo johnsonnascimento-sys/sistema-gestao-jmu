@@ -624,14 +624,14 @@ export function PreDemandasPage() {
       {
         id: "vencidas",
         label: "Prazos vencidos",
-        description: "Processos activos com prazo final ja ultrapassado.",
+        description: "Processos ativos com prazo final ja ultrapassado.",
         value: items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
         href: "/pre-demandas?preset=prazos-vencidos",
       },
       {
         id: "na-semana",
         label: "Vencem na semana",
-        description: "Processos activos que exigem seguimento antes do prazo final.",
+        description: "Processos ativos que exigem seguimento antes do prazo final.",
         value: items.filter((item) => {
           if (!item.prazoFinal) {
             return false;
@@ -666,7 +666,7 @@ export function PreDemandasPage() {
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
   if (loading) {
-    return <LoadingState description="A preparar o quadro operativo e os filtros da fila." title="Carregando processos" />;
+    return <LoadingState description="Preparando o quadro operacional e os filtros da fila." title="Carregando processos" />;
   }
 
   if (error) {
@@ -784,7 +784,7 @@ export function PreDemandasPage() {
       {selectedSetor ? (
         <Card>
           <CardHeader>
-            <CardTitle>Contexto operativo</CardTitle>
+            <CardTitle>Contexto operacional</CardTitle>
             <CardDescription>
               A fila esta focada no setor {selectedSetor.sigla}. Use os atalhos para alternar rapidamente entre todos os processos, vencidos e proximos do prazo.
             </CardDescription>
@@ -811,7 +811,7 @@ export function PreDemandasPage() {
       {isWithoutSetorFocused ? (
         <Card>
           <CardHeader>
-            <CardTitle>Contexto operativo</CardTitle>
+            <CardTitle>Contexto operacional</CardTitle>
             <CardDescription>A fila esta focada em processos ainda sem setor. Use os atalhos para distribuir primeiro os processos vencidos, proximos do prazo ou ainda sem envolvidos.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
@@ -1162,7 +1162,7 @@ export function PreDemandasPage() {
               motivo,
               observacoes,
             });
-            setMessage(`Processo ${quickAction.item.preId} actualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
+            setMessage(`Processo ${quickAction.item.preId} atualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
             await load();
           } catch (nextError) {
             throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar o processo."));

@@ -276,10 +276,10 @@ export function PreDemandaDetailPage() {
         ? {
             resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo final ${record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"}`,
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
-            setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) activo(s)` : "Sem setores activos",
+            setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
             visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
-            relacionados: record.vinculos.length ? `${record.vinculos.length} vinculo(s) activo(s)` : "Sem processos relacionados",
+            relacionados: record.vinculos.length ? `${record.vinculos.length} vinculo(s) ativo(s)` : "Sem processos relacionados",
             associacaoSei: record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
             documentos: record.documentos.length ? `${record.documentos.length} documento(s) anexado(s)` : "Sem documentos anexados",
             comentarios: record.comentarios.length ? `${record.comentarios.length} comentario(s) registrado(s)` : "Sem comentarios",
@@ -360,7 +360,7 @@ export function PreDemandaDetailPage() {
   }
 
   if (loading) {
-    return <LoadingState description="A workbench processual esta a ser preparada com metadados, envolvidos e historico." title="Carregando processo" />;
+    return <LoadingState description="Estamos preparando a visao do processo com metadados, envolvidos e historico." title="Carregando processo" />;
   }
 
   if (error && !record) {
@@ -537,14 +537,14 @@ export function PreDemandaDetailPage() {
             </CardContent>
           </DetailSectionCard>
 
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.setores} title="Setores activos">
+          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.setores} title="Setores ativos">
             <CardHeader>
-              <CardTitle>Setores activos</CardTitle>
+              <CardTitle>Setores ativos</CardTitle>
               <CardDescription>O mesmo processo pode correr em paralelo por mais de um setor.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {record.setoresAtivos.length === 0 ? (
-                <EmptyState description="Abra a acao Tramitar para distribuir o processo entre um ou mais setores." title="Sem setores activos" />
+                <EmptyState description="Abra a acao Tramitar para distribuir o processo entre um ou mais setores." title="Sem setores ativos" />
               ) : (
                 record.setoresAtivos.map((item) => (
                   <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
