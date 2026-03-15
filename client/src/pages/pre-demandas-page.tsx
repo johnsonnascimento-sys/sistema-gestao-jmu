@@ -83,6 +83,8 @@ type ResolvedSearchState = {
   setorAtualId: string;
   withoutSetor: "" | "true" | "false";
   dueState: "" | "overdue" | "due_today" | "due_soon" | "none";
+  prazoCampo: "" | "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+  prazoRecorte: "" | "overdue" | "today" | "soon";
   paymentInvolved: "" | "true" | "false";
   hasInteressados: "" | "true" | "false";
   closedWithinDays: string;
@@ -382,6 +384,8 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     !searchParams.has("setorAtualId") &&
     !searchParams.has("withoutSetor") &&
     !searchParams.has("dueState") &&
+    !searchParams.has("prazoCampo") &&
+    !searchParams.has("prazoRecorte") &&
     !searchParams.has("paymentInvolved") &&
     !searchParams.has("hasInteressados") &&
     !searchParams.has("closedWithinDays") &&
@@ -402,6 +406,8 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
     withoutSetor: searchParams.has("withoutSetor") ? ((searchParams.get("withoutSetor") as "true" | "false") ?? "") : preset?.defaults.withoutSetor ?? "",
     dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_today" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
+    prazoCampo: (searchParams.get("prazoCampo") as ResolvedSearchState["prazoCampo"] | null) ?? "",
+    prazoRecorte: (searchParams.get("prazoRecorte") as ResolvedSearchState["prazoRecorte"] | null) ?? "",
     paymentInvolved: searchParams.has("paymentInvolved") ? ((searchParams.get("paymentInvolved") as "true" | "false") ?? "") : preset?.defaults.paymentInvolved ?? "",
     hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
     closedWithinDays: searchParams.get("closedWithinDays") ?? preset?.defaults.closedWithinDays ?? "",
@@ -436,6 +442,8 @@ export function PreDemandasPage() {
   const [setorAtualId, setSetorAtualId] = useState(resolvedState.setorAtualId);
   const [withoutSetor, setWithoutSetor] = useState(resolvedState.withoutSetor);
   const [dueState, setDueState] = useState(resolvedState.dueState);
+  const [prazoCampo, setPrazoCampo] = useState(resolvedState.prazoCampo);
+  const [prazoRecorte, setPrazoRecorte] = useState(resolvedState.prazoRecorte);
   const [paymentInvolved, setPaymentInvolved] = useState(resolvedState.paymentInvolved);
   const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
   const [closedWithinDays, setClosedWithinDays] = useState(resolvedState.closedWithinDays);
@@ -455,6 +463,8 @@ export function PreDemandasPage() {
     setSetorAtualId(resolvedState.setorAtualId);
     setWithoutSetor(resolvedState.withoutSetor);
     setDueState(resolvedState.dueState);
+    setPrazoCampo(resolvedState.prazoCampo);
+    setPrazoRecorte(resolvedState.prazoRecorte);
     setPaymentInvolved(resolvedState.paymentInvolved);
     setHasInteressados(resolvedState.hasInteressados);
     setClosedWithinDays(resolvedState.closedWithinDays);
@@ -477,6 +487,8 @@ export function PreDemandasPage() {
         setorAtualId: resolvedState.setorAtualId || undefined,
         withoutSetor: resolvedState.withoutSetor ? resolvedState.withoutSetor === "true" : undefined,
         dueState: resolvedState.dueState || undefined,
+        prazoCampo: resolvedState.prazoCampo || undefined,
+        prazoRecorte: resolvedState.prazoRecorte || undefined,
         paymentInvolved: resolvedState.paymentInvolved ? resolvedState.paymentInvolved === "true" : undefined,
         hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
         closedWithinDays: resolvedState.closedWithinDays ? Number(resolvedState.closedWithinDays) : undefined,
@@ -554,6 +566,14 @@ export function PreDemandasPage() {
       next.set("dueState", dueState);
     }
 
+    if (prazoCampo) {
+      next.set("prazoCampo", prazoCampo);
+    }
+
+    if (prazoRecorte) {
+      next.set("prazoRecorte", prazoRecorte);
+    }
+
     if (paymentInvolved) {
       next.set("paymentInvolved", paymentInvolved);
     }
@@ -607,6 +627,8 @@ export function PreDemandasPage() {
     setSetorAtualId("");
     setWithoutSetor("");
     setDueState("");
+    setPrazoCampo("");
+    setPrazoRecorte("");
     setPaymentInvolved("");
     setHasInteressados("");
     setClosedWithinDays("");
@@ -1110,7 +1132,9 @@ export function PreDemandasPage() {
                   <th className="px-3 py-3">Setor</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Fila</th>
-                  <th className="px-3 py-3">Prazo</th>
+                  <th className="px-3 py-3">Prazo inicial</th>
+                  <th className="px-3 py-3">Prazo intermediario</th>
+                  <th className="px-3 py-3">Prazo final</th>
                   <th className="px-3 py-3">SEI</th>
                   <th className="px-3 py-3">Envolvidos</th>
                   <th className="px-3 py-3">Data</th>
@@ -1154,6 +1178,8 @@ export function PreDemandasPage() {
                           <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
                         </div>
                       </td>
+                      <td className="px-3 py-4">{item.prazoInicial ? new Date(item.prazoInicial).toLocaleDateString("pt-BR") : "-"}</td>
+                      <td className="px-3 py-4">{item.prazoIntermediario ? new Date(item.prazoIntermediario).toLocaleDateString("pt-BR") : "-"}</td>
                       <td className="px-3 py-4">{item.prazoFinal ? new Date(item.prazoFinal).toLocaleDateString("pt-BR") : "-"}</td>
                       <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
                       <td className="px-3 py-4">{item.interessados.length}</td>

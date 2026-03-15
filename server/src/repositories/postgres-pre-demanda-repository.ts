@@ -50,10 +50,12 @@ import type {
   RemoveDemandaAssuntoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
+  RemoveAndamentoInput,
   RemoveNumeroJudicialInput,
   SettingsRepository,
   TramitarPreDemandaInput,
   UpdateComentarioInput,
+  UpdateAndamentoInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
@@ -440,6 +442,14 @@ function normalizeBool(value: boolean | undefined) {
   return value === undefined ? undefined : value;
 }
 
+function normalizeSearchTerm(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | undefined) {
   if (!metadata) {
     return null;
@@ -460,9 +470,43 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
   const clauses: string[] = [];
 
   if (params.q) {
-    values.push(`%${params.q}%`);
-    const index = values.length;
-    clauses.push(`(pd.pre_id ilike $${index} or pd.solicitante ilike $${index} or pd.assunto ilike $${index} or coalesce(pd.numero_judicial, '') ilike $${index})`);
+    const normalizedQuery = normalizeSearchTerm(params.q);
+    const normalizedTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+    const numericOnly = normalizedQuery.replace(/\D/g, "");
+    const qClauses: string[] = [];
+
+    if (normalizedTokens.length) {
+      const tokenClauses: string[] = [];
+
+      for (const token of normalizedTokens) {
+        values.push(`%${token}%`);
+        const index = values.length;
+        tokenClauses.push(`(
+          translate(lower(coalesce(pd.assunto, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+          or translate(lower(coalesce(pd.solicitante, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+          or translate(lower(coalesce(pessoa_principal.pessoa_principal_nome, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+          or translate(lower(coalesce(pd.pre_id, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+          or translate(lower(coalesce(pd.numero_judicial, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+          or translate(lower(coalesce(pts.sei_numero, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+        )`);
+      }
+
+      qClauses.push(`(${tokenClauses.join(" and ")})`);
+    }
+
+    if (numericOnly.length >= 3) {
+      values.push(`%${numericOnly}%`);
+      const index = values.length;
+      qClauses.push(`(
+        regexp_replace(coalesce(pd.pre_id, ''), '\\D', '', 'g') like $${index}
+        or regexp_replace(coalesce(pd.numero_judicial, ''), '\\D', '', 'g') like $${index}
+        or regexp_replace(coalesce(pts.sei_numero, ''), '\\D', '', 'g') like $${index}
+      )`);
+    }
+
+    if (qClauses.length) {
+      clauses.push(`(${qClauses.join(" or ")})`);
+    }
   }
 
   if (params.statuses?.length) {
@@ -550,6 +594,25 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
   }
   if (params.dueState === "none") {
     clauses.push("pd.prazo_final is null");
+  }
+
+  if (params.prazoCampo && params.prazoRecorte) {
+    const columnMap = {
+      prazoInicial: "pd.prazo_inicial",
+      prazoIntermediario: "pd.prazo_intermediario",
+      prazoFinal: "pd.prazo_final",
+    } as const;
+    const column = columnMap[params.prazoCampo];
+
+    if (params.prazoRecorte === "overdue") {
+      clauses.push(`${column} is not null and ${column} < current_date`);
+    }
+    if (params.prazoRecorte === "today") {
+      clauses.push(`${column} = current_date`);
+    }
+    if (params.prazoRecorte === "soon") {
+      clauses.push(`${column} is not null and ${column} between current_date and current_date + interval '7 days'`);
+    }
   }
 
   const paymentInvolved = normalizeBool(params.paymentInvolved);
@@ -1067,7 +1130,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.loadDocumentos(queryable, detail.id, detail.preId),
       this.loadComentarios(queryable, detail.id, detail.preId),
       this.loadTarefas(queryable, detail.id, detail.preId),
-      this.loadAndamentos(queryable, detail.id, detail.preId, 8),
+      this.loadAndamentos(queryable, detail.id, detail.preId, 20),
       this.loadSeiAssociations(queryable, detail.id, detail.preId),
       this.loadNumerosJudiciais(queryable, detail.id),
     ]);
@@ -2094,6 +2157,110 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     });
   }
 
+  async updateAndamento(input: UpdateAndamentoInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const current = await client.query(
+        `
+          select id, descricao, data_hora, tipo
+          from adminlog.andamentos
+          where id = $1::uuid
+            and pre_demanda_id = $2
+          limit 1
+          for update
+        `,
+        [input.andamentoId, demanda.id],
+      );
+
+      const row = current.rows[0];
+      if (!row) {
+        throw new AppError(404, "ANDAMENTO_NOT_FOUND", "Andamento nao encontrado.");
+      }
+
+      if (row.tipo !== "manual") {
+        throw new AppError(409, "ANDAMENTO_NOT_EDITABLE", "Somente andamentos manuais podem ser editados.");
+      }
+
+      await client.query(
+        `
+          update adminlog.andamentos
+          set descricao = $2,
+              data_hora = coalesce($3::timestamptz, data_hora)
+          where id = $1::uuid
+        `,
+        [input.andamentoId, input.descricao, input.dataHora ?? null],
+      );
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Andamento manual atualizado. Antes: ${String(row.descricao)}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      const updated = await client.query(
+        `
+          select
+            andamento.id,
+            $2::text as pre_id,
+            andamento.data_hora,
+            andamento.descricao,
+            andamento.tipo,
+            created_by.id as created_by_id,
+            created_by.email as created_by_email,
+            created_by.name as created_by_name,
+            created_by.role as created_by_role
+          from adminlog.andamentos andamento
+          left join adminlog.app_user created_by on created_by.id = andamento.created_by_user_id
+          where andamento.id = $1::uuid
+          limit 1
+        `,
+        [input.andamentoId, demanda.preId],
+      );
+
+      return mapAndamento(updated.rows[0]);
+    });
+  }
+
+  async removeAndamento(input: RemoveAndamentoInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const current = await client.query(
+        `
+          select id, descricao, tipo
+          from adminlog.andamentos
+          where id = $1::uuid
+            and pre_demanda_id = $2
+          limit 1
+          for update
+        `,
+        [input.andamentoId, demanda.id],
+      );
+
+      const row = current.rows[0];
+      if (!row) {
+        throw new AppError(404, "ANDAMENTO_NOT_FOUND", "Andamento nao encontrado.");
+      }
+
+      if (row.tipo !== "manual") {
+        throw new AppError(409, "ANDAMENTO_NOT_DELETABLE", "Somente andamentos manuais podem ser excluidos.");
+      }
+
+      await client.query("delete from adminlog.andamentos where id = $1::uuid", [input.andamentoId]);
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Andamento manual removido. Conteudo anterior: ${String(row.descricao)}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      return { removedId: input.andamentoId };
+    });
+  }
+
   async listTarefas(preId: string) {
     const demanda = await getResolvedPreDemanda(this.pool, preId);
     return this.loadTarefas(this.pool, demanda.id, demanda.preId);
@@ -3088,7 +3255,43 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
                   from adminlog.demanda_interessados di
                   where di.pre_demanda_id = pd.id
                 )
-            )::int as without_interessados_total
+            )::int as without_interessados_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_inicial is not null
+            )::int as prazo_inicial_defined_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_inicial < current_date
+            )::int as prazo_inicial_overdue_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_inicial = current_date
+            )::int as prazo_inicial_due_today_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_inicial between current_date and current_date + interval '7 days'
+            )::int as prazo_inicial_due_soon_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_intermediario is not null
+            )::int as prazo_intermediario_defined_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_intermediario < current_date
+            )::int as prazo_intermediario_overdue_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_intermediario = current_date
+            )::int as prazo_intermediario_due_today_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_intermediario between current_date and current_date + interval '7 days'
+            )::int as prazo_intermediario_due_soon_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and pd.prazo_final is not null
+            )::int as prazo_final_defined_total
           from adminlog.pre_demanda pd
         `,
       ),
@@ -3138,6 +3341,26 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     return {
       counts,
+      deadlines: {
+        prazoInicial: {
+          overdueTotal: Number(caseSignalsResult.rows[0]?.prazo_inicial_overdue_total ?? 0),
+          dueTodayTotal: Number(caseSignalsResult.rows[0]?.prazo_inicial_due_today_total ?? 0),
+          dueSoonTotal: Number(caseSignalsResult.rows[0]?.prazo_inicial_due_soon_total ?? 0),
+          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_inicial_defined_total ?? 0),
+        },
+        prazoIntermediario: {
+          overdueTotal: Number(caseSignalsResult.rows[0]?.prazo_intermediario_overdue_total ?? 0),
+          dueTodayTotal: Number(caseSignalsResult.rows[0]?.prazo_intermediario_due_today_total ?? 0),
+          dueSoonTotal: Number(caseSignalsResult.rows[0]?.prazo_intermediario_due_soon_total ?? 0),
+          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_intermediario_defined_total ?? 0),
+        },
+        prazoFinal: {
+          overdueTotal: Number(caseSignalsResult.rows[0]?.overdue_total ?? 0),
+          dueTodayTotal: Number(caseSignalsResult.rows[0]?.due_today_total ?? 0),
+          dueSoonTotal: Number(caseSignalsResult.rows[0]?.due_soon_total ?? 0),
+          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_final_defined_total ?? 0),
+        },
+      },
       reopenedLast30Days: Number(lifecycleMetricsResult.rows[0]?.reopened_last_30_days ?? 0),
       closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
       agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),

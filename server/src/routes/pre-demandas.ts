@@ -9,6 +9,8 @@ const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoFinal", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
 const DUE_STATES = ["overdue", "due_today", "due_soon", "none"] as const;
+const PRAZO_FIELDS = ["prazoInicial", "prazoIntermediario", "prazoFinal"] as const;
+const PRAZO_RECORTES = ["overdue", "today", "soon"] as const;
 const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
 
 const metadataSchema = z
@@ -67,6 +69,8 @@ const listSchema = z.object({
   setorAtualId: z.string().uuid().optional(),
   withoutSetor: z.enum(["true", "false"]).optional(),
   dueState: z.enum(DUE_STATES).optional(),
+  prazoCampo: z.enum(PRAZO_FIELDS).optional(),
+  prazoRecorte: z.enum(PRAZO_RECORTES).optional(),
   paymentInvolved: z.enum(["true", "false"]).optional(),
   hasInteressados: z.enum(["true", "false"]).optional(),
   closedWithinDays: z.coerce.number().int().positive().max(365).optional(),
@@ -139,6 +143,10 @@ const concluirTramitacaoSchema = z.object({
 const andamentoSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   data_hora: z.string().datetime().optional().nullable(),
+});
+
+const andamentoDeleteSchema = z.object({
+  confirmacao: z.literal("EXCLUIR"),
 });
 
 const tarefaSchema = z.object({
@@ -270,6 +278,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
         setorAtualId: query.setorAtualId,
         withoutSetor: query.withoutSetor ? query.withoutSetor === "true" : undefined,
         dueState: query.dueState,
+        prazoCampo: query.prazoCampo,
+        prazoRecorte: query.prazoRecorte,
         paymentInvolved: query.paymentInvolved ? query.paymentInvolved === "true" : undefined,
         hasInteressados: query.hasInteressados ? query.hasInteressados === "true" : undefined,
         closedWithinDays: query.closedWithinDays,
@@ -500,6 +510,40 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     return reply.status(201).send({
       ok: true,
       data: andamento,
+      error: null,
+    });
+  });
+
+  app.patch("/api/pre-demandas/:preId/andamentos/:andamentoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), andamentoId: z.string().uuid() }).parse(request.params);
+    const payload = andamentoSchema.parse(request.body);
+    const andamento = await preDemandaRepository.updateAndamento({
+      preId: params.preId,
+      andamentoId: params.andamentoId,
+      descricao: payload.descricao,
+      dataHora: payload.data_hora ?? null,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: andamento,
+      error: null,
+    });
+  });
+
+  app.delete("/api/pre-demandas/:preId/andamentos/:andamentoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), andamentoId: z.string().uuid() }).parse(request.params);
+    andamentoDeleteSchema.parse(request.body ?? {});
+    const result = await preDemandaRepository.removeAndamento({
+      preId: params.preId,
+      andamentoId: params.andamentoId,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: result,
       error: null,
     });
   });

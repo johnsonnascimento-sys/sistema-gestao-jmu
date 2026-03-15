@@ -355,6 +355,11 @@ export interface PreDemandaStatusAuditRecord {
 
 export interface PreDemandaDashboardSummary {
   counts: Array<{ status: PreDemandaStatus; total: number }>;
+  deadlines: {
+    prazoInicial: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    prazoIntermediario: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    prazoFinal: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+  };
   reopenedLast30Days: number;
   closedLast30Days: number;
   agingAttentionTotal: number;

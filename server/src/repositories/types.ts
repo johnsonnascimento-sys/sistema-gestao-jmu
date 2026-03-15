@@ -178,6 +178,20 @@ export interface AddAndamentoInput {
   changedByUserId: number;
 }
 
+export interface UpdateAndamentoInput {
+  preId: string;
+  andamentoId: string;
+  descricao: string;
+  dataHora?: string | null;
+  changedByUserId: number;
+}
+
+export interface RemoveAndamentoInput {
+  preId: string;
+  andamentoId: string;
+  changedByUserId: number;
+}
+
 export interface CreateTarefaInput {
   preId: string;
   descricao: string;
@@ -252,6 +266,8 @@ export interface ListPreDemandasParams {
   setorAtualId?: string;
   withoutSetor?: boolean;
   dueState?: "overdue" | "due_today" | "due_soon" | "none";
+  prazoCampo?: "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+  prazoRecorte?: "overdue" | "today" | "soon";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;
   closedWithinDays?: number;
@@ -392,6 +408,8 @@ export interface PreDemandaRepository {
   tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;
   concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput): Promise<PreDemandaDetail>;
   addAndamento(input: AddAndamentoInput): Promise<Andamento>;
+  updateAndamento(input: UpdateAndamentoInput): Promise<Andamento>;
+  removeAndamento(input: RemoveAndamentoInput): Promise<{ removedId: string }>;
   listTarefas(preId: string): Promise<TarefaPendente[]>;
   createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
   concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;

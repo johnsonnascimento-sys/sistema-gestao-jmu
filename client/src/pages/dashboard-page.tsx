@@ -16,6 +16,16 @@ function buildAnalyticalTableHref(overrides: Record<string, string>) {
   return `/pre-demandas?${search.toString()}`;
 }
 
+function formatStructuredDeadlines(item: PreDemanda) {
+  return [
+    { label: "Inicial", value: item.prazoInicial },
+    { label: "Intermediario", value: item.prazoIntermediario },
+    { label: "Final", value: item.prazoFinal },
+  ]
+    .map(({ label, value }) => `${label}: ${value ? new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR") : "-"}`)
+    .join(" | ");
+}
+
 export function DashboardPage() {
   const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,6 +154,7 @@ export function DashboardPage() {
           <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
           <p>Envolvidos: {item.interessados.length}</p>
           <p>{formatPrazo(item)}</p>
+          <p>{formatStructuredDeadlines(item)}</p>
           <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
           <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
           <p>{queueHealth.detail}</p>
@@ -185,6 +196,42 @@ export function DashboardPage() {
         <MetricCard label="Reabertas 30d" to={buildAnalyticalTableHref({ preset: "reabertas-30d" })} value={summary.reopenedLast30Days} />
         <MetricCard label="Encerradas 30d" to={buildAnalyticalTableHref({ preset: "encerradas-30d" })} value={summary.closedLast30Days} />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Radar dos tres prazos</CardTitle>
+          <CardDescription>Resumo separado para prazo inicial, intermediario e final nos processos ativos.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 xl:grid-cols-3">
+          {[
+            { id: "prazoInicial", label: "Prazo inicial", campo: "prazoInicial" },
+            { id: "prazoIntermediario", label: "Prazo intermediario", campo: "prazoIntermediario" },
+            { id: "prazoFinal", label: "Prazo final", campo: "prazoFinal" },
+          ].map((item) => {
+            const metrics = summary.deadlines[item.id as keyof typeof summary.deadlines];
+            return (
+              <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={item.id}>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">{metrics.totalDefined}</h3>
+                  <p className="text-sm text-slate-500">processos com este prazo definido</p>
+                </div>
+                <div className="grid gap-2 text-sm text-slate-700">
+                  <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100" to={buildAnalyticalTableHref({ prazoCampo: item.campo, prazoRecorte: "overdue" })}>
+                    Vencidos: {metrics.overdueTotal}
+                  </Link>
+                  <Link className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100" to={buildAnalyticalTableHref({ prazoCampo: item.campo, prazoRecorte: "today" })}>
+                    Vence hoje: {metrics.dueTodayTotal}
+                  </Link>
+                  <Link className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 hover:bg-sky-100" to={buildAnalyticalTableHref({ prazoCampo: item.campo, prazoRecorte: "soon" })}>
+                    Na semana: {metrics.dueSoonTotal}
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -272,6 +319,7 @@ export function DashboardPage() {
                       <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
                       <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
                       <p>{formatPrazo(item)}</p>
+                      <p>{formatStructuredDeadlines(item)}</p>
                       <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
                     </div>
                   </Link>

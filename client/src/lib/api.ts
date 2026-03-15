@@ -111,6 +111,8 @@ export interface ListPreDemandasParams {
   setorAtualId?: string;
   withoutSetor?: boolean;
   dueState?: "overdue" | "due_today" | "due_soon" | "none";
+  prazoCampo?: "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+  prazoRecorte?: "overdue" | "today" | "soon";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;
   closedWithinDays?: number;
@@ -241,6 +243,8 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   if (params.setorAtualId) searchParams.set("setorAtualId", params.setorAtualId);
   if (params.withoutSetor !== undefined) searchParams.set("withoutSetor", String(params.withoutSetor));
   if (params.dueState) searchParams.set("dueState", params.dueState);
+  if (params.prazoCampo) searchParams.set("prazoCampo", params.prazoCampo);
+  if (params.prazoRecorte) searchParams.set("prazoRecorte", params.prazoRecorte);
   if (params.paymentInvolved !== undefined) searchParams.set("paymentInvolved", String(params.paymentInvolved));
   if (params.hasInteressados !== undefined) searchParams.set("hasInteressados", String(params.hasInteressados));
   if (params.closedWithinDays) searchParams.set("closedWithinDays", String(params.closedWithinDays));
@@ -369,6 +373,20 @@ export function addPreDemandaAndamento(preId: string, payload: { descricao: stri
   return request<Andamento>(`/api/pre-demandas/${preId}/andamentos`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function updatePreDemandaAndamento(preId: string, andamentoId: string, payload: { descricao: string; data_hora?: string | null }) {
+  return request<Andamento>(`/api/pre-demandas/${preId}/andamentos/${andamentoId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removePreDemandaAndamento(preId: string, andamentoId: string, confirmacao = "EXCLUIR") {
+  return request<{ removedId: string }>(`/api/pre-demandas/${preId}/andamentos/${andamentoId}`, {
+    method: "DELETE",
+    body: JSON.stringify({ confirmacao }),
   });
 }
 

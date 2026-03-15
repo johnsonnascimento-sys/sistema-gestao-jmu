@@ -364,6 +364,11 @@ export interface StatusCount {
 
 export interface PreDemandaDashboardSummary {
   counts: StatusCount[];
+  deadlines: {
+    prazoInicial: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    prazoIntermediario: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    prazoFinal: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+  };
   reopenedLast30Days: number;
   closedLast30Days: number;
   agingAttentionTotal: number;

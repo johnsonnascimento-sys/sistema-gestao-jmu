@@ -68,6 +68,7 @@ import type {
   RemoveDemandaAssuntoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
+  RemoveAndamentoInput,
   RemoveNumeroJudicialInput,
   ResetUserPasswordInput,
   SetorRepository,
@@ -82,6 +83,7 @@ import type {
   UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
+  UpdateAndamentoInput,
   UpdateQueueHealthConfigInput,
   UpdateSetorInput,
   UpdateUserInput,
@@ -576,6 +578,24 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => item.prazoFinal === null);
     }
 
+    if (params.prazoCampo && params.prazoRecorte) {
+      const getPrazo = (item: PreDemandaDetail) =>
+        params.prazoCampo === "prazoInicial" ? item.prazoInicial : params.prazoCampo === "prazoIntermediario" ? item.prazoIntermediario : item.prazoFinal;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      items = items.filter((item) => {
+        const prazo = getPrazo(item);
+        if (!prazo) {
+          return false;
+        }
+
+        const value = new Date(`${prazo}T00:00:00`).getTime();
+        if (params.prazoRecorte === "overdue") return value < today.getTime();
+        if (params.prazoRecorte === "today") return value === today.getTime();
+        return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
+      });
+    }
+
     if (params.paymentInvolved === true) {
       items = items.filter((item) => item.metadata.pagamentoEnvolvido === true);
     }
@@ -903,6 +923,43 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     return this.addAndamentoRecord(record, input.descricao, "manual", input.dataHora ?? new Date().toISOString());
+  }
+
+  async updateAndamento(input: UpdateAndamentoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    const andamento = this.andamentos.find((item) => item.id === input.andamentoId && item.preId === input.preId);
+    if (!record || !andamento) {
+      throw new Error("not found");
+    }
+
+    if (andamento.tipo !== "manual") {
+      throw new Error("not editable");
+    }
+
+    const previousDescription = andamento.descricao;
+    andamento.descricao = input.descricao;
+    andamento.dataHora = input.dataHora ?? andamento.dataHora;
+    this.addAndamentoRecord(record, `Andamento manual atualizado. Antes: ${previousDescription}.`, "sistema");
+    this.touch(record);
+    return andamento;
+  }
+
+  async removeAndamento(input: RemoveAndamentoInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    const andamento = this.andamentos.find((item) => item.id === input.andamentoId && item.preId === input.preId);
+    if (!record || !andamento) {
+      throw new Error("not found");
+    }
+
+    if (andamento.tipo !== "manual") {
+      throw new Error("not deletable");
+    }
+
+    this.andamentos = this.andamentos.filter((item) => item.id !== input.andamentoId);
+    record.recentAndamentos = this.andamentos.filter((item) => item.preId === record.preId).slice(0, 20);
+    this.addAndamentoRecord(record, `Andamento manual removido. Conteudo anterior: ${andamento.descricao}.`, "sistema");
+    this.touch(record);
+    return { removedId: input.andamentoId };
   }
 
   async listTarefas(preId: string) {
@@ -1291,6 +1348,41 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     return {
       counts,
+      deadlines: {
+        prazoInicial: {
+          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial && new Date(`${item.prazoInicial}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial && new Date(`${item.prazoInicial}T00:00:00`).getTime() === new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial).filter((item) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const value = new Date(`${item.prazoInicial}T00:00:00`).getTime();
+            return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
+          }).length,
+          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial).length,
+        },
+        prazoIntermediario: {
+          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario && new Date(`${item.prazoIntermediario}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario && new Date(`${item.prazoIntermediario}T00:00:00`).getTime() === new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario).filter((item) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const value = new Date(`${item.prazoIntermediario}T00:00:00`).getTime();
+            return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
+          }).length,
+          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario).length,
+        },
+        prazoFinal: {
+          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() === new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal).filter((item) => {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const value = new Date(`${item.prazoFinal}T00:00:00`).getTime();
+            return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
+          }).length,
+          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal).length,
+        },
+      },
       reopenedLast30Days: this.statusAudit.filter((item) => item.statusAnterior === "encerrada" && item.statusNovo !== "encerrada").length,
       closedLast30Days: this.statusAudit.filter((item) => item.statusNovo === "encerrada").length,
       agingAttentionTotal: this.records.filter((item) => item.queueHealth.level === "attention").length,

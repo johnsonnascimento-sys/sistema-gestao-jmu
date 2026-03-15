@@ -48,11 +48,13 @@ import {
   listPreDemandas,
   listSetores,
   removePreDemandaDocumento,
+  removePreDemandaAndamento,
   removePreDemandaAssunto,
   removePreDemandaInteressado,
   removePreDemandaVinculo,
   tramitarPreDemandaMultiplos,
   updatePreDemandaAnotacoes,
+  updatePreDemandaAndamento,
   updatePreDemandaCase,
   updatePreDemandaStatus,
 } from "../lib/api";
@@ -60,7 +62,7 @@ import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TimelineEvent } from "../types";
+import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TimelineEvent } from "../types";
 
 type ToolbarDialog = null | "related" | "edit" | "send" | "link" | "notes" | "deadline" | "andamento";
 
@@ -96,6 +98,8 @@ export function PreDemandaDetailPage() {
   const [message, setMessage] = useState("");
   const [toolbarDialog, setToolbarDialog] = useState<ToolbarDialog>(null);
   const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
+  const [editingAndamento, setEditingAndamento] = useState<Andamento | null>(null);
+  const [deleteAndamento, setDeleteAndamento] = useState<Andamento | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [associationForm, setAssociationForm] = useState({ sei_numero: "", motivo: "", observacoes: "" });
   const [editForm, setEditForm] = useState({
@@ -129,7 +133,9 @@ export function PreDemandaDetailPage() {
     prazo_final: "",
   });
   const [tramitarSetorIds, setTramitarSetorIds] = useState<string[]>([]);
-  const [andamentoForm, setAndamentoForm] = useState("");
+  const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
+  const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
+  const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
   const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const });
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
@@ -231,9 +237,28 @@ export function PreDemandaDetailPage() {
     };
   }, [interessadoSearch]);
 
+  useEffect(() => {
+    if (!editingAndamento) {
+      setEditAndamentoForm({ descricao: "", data_hora: "" });
+      return;
+    }
+
+    setEditAndamentoForm({
+      descricao: editingAndamento.descricao,
+      data_hora: toDateTimeLocalValue(editingAndamento.dataHora),
+    });
+  }, [editingAndamento]);
+
+  useEffect(() => {
+    if (!deleteAndamento) {
+      setDeleteAndamentoConfirm("");
+    }
+  }, [deleteAndamento]);
+
   const queueHealth = useMemo(() => (record ? getQueueHealth(record) : null), [record]);
   const pendingTasks = useMemo(() => record?.tarefasPendentes.filter((item) => !item.concluida) ?? [], [record]);
   const completedTasks = useMemo(() => record?.tarefasPendentes.filter((item) => item.concluida) ?? [], [record]);
+  const manualAndamentos = useMemo(() => record?.recentAndamentos.filter((item) => item.tipo === "manual") ?? [], [record]);
   const lastEvent = useMemo(() => timeline[0] ?? null, [timeline]);
   const nextAction = useMemo(() => {
     if (!record) return { title: "", description: "" };
@@ -888,7 +913,39 @@ export function PreDemandaDetailPage() {
               <CardTitle>Historico (Andamentos)</CardTitle>
               <CardDescription>Timeline unificada com criacao, status, SEI, tramitacoes, tarefas e lancamentos manuais.</CardDescription>
             </CardHeader>
-            <CardContent>{timeline.length === 0 ? <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registrados" /> : <Timeline events={timeline} />}</CardContent>
+            <CardContent className="grid gap-5">
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950">Andamentos manuais recentes</p>
+                  <Button onClick={() => setToolbarDialog("andamento")} size="sm" type="button" variant="secondary">
+                    Novo andamento
+                  </Button>
+                </div>
+                {manualAndamentos.length === 0 ? (
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum andamento manual registado.</p>
+                ) : (
+                  manualAndamentos.map((item) => (
+                    <div className="flex items-start justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-950">{new Date(item.dataHora).toLocaleString("pt-BR")}</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{item.descricao}</p>
+                        <p className="mt-2 text-xs text-slate-500">{item.createdBy?.name ?? "Sistema"}</p>
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <Button onClick={() => setEditingAndamento(item)} size="sm" type="button" variant="secondary">
+                          Editar
+                        </Button>
+                        <Button onClick={() => setDeleteAndamento(item)} size="sm" type="button" variant="ghost">
+                          Excluir
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {timeline.length === 0 ? <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registrados" /> : <Timeline events={timeline} />}
+            </CardContent>
           </DetailSectionCard>
         </div>
       </div>
@@ -1228,18 +1285,28 @@ export function PreDemandaDetailPage() {
             <DialogTitle>Registrar andamento manual</DialogTitle>
             <DialogDescription>Inclua uma movimentacao livre no historico do processo.</DialogDescription>
           </DialogHeader>
-          <Textarea onChange={(event) => setAndamentoForm(event.target.value)} rows={6} value={andamentoForm} />
+          <div className="grid gap-4">
+            <FormField label="Data e hora">
+              <Input onChange={(event) => setAndamentoForm((current) => ({ ...current, data_hora: event.target.value }))} type="datetime-local" value={andamentoForm.data_hora} />
+            </FormField>
+            <FormField label="Descricao">
+              <Textarea onChange={(event) => setAndamentoForm((current) => ({ ...current, descricao: event.target.value }))} rows={6} value={andamentoForm.descricao} />
+            </FormField>
+          </div>
           <DialogFooter>
             <Button onClick={() => setToolbarDialog(null)} type="button" variant="ghost">
               Cancelar
             </Button>
             <Button
-              disabled={andamentoForm.trim().length < 3 || isSubmitting}
+              disabled={andamentoForm.descricao.trim().length < 3 || isSubmitting}
               onClick={() =>
                 void runMutation(
                   async () => {
-                    await addPreDemandaAndamento(preId, { descricao: andamentoForm });
-                    setAndamentoForm("");
+                    await addPreDemandaAndamento(preId, {
+                      descricao: andamentoForm.descricao,
+                      data_hora: toIsoFromDateTimeLocal(andamentoForm.data_hora),
+                    });
+                    setAndamentoForm({ descricao: "", data_hora: "" });
                     setToolbarDialog(null);
                   },
                   "Andamento registrado.",
@@ -1248,6 +1315,88 @@ export function PreDemandaDetailPage() {
               type="button"
             >
               Lancar andamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setEditingAndamento(null)} open={Boolean(editingAndamento)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar andamento manual</DialogTitle>
+            <DialogDescription>Ajuste o texto e a data/hora do andamento manual.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <FormField label="Data e hora">
+              <Input onChange={(event) => setEditAndamentoForm((current) => ({ ...current, data_hora: event.target.value }))} type="datetime-local" value={editAndamentoForm.data_hora} />
+            </FormField>
+            <FormField label="Descricao">
+              <Textarea onChange={(event) => setEditAndamentoForm((current) => ({ ...current, descricao: event.target.value }))} rows={6} value={editAndamentoForm.descricao} />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setEditingAndamento(null)} type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              disabled={!editingAndamento || editAndamentoForm.descricao.trim().length < 3 || isSubmitting}
+              onClick={() =>
+                editingAndamento
+                  ? void runMutation(
+                      async () => {
+                        await updatePreDemandaAndamento(preId, editingAndamento.id, {
+                          descricao: editAndamentoForm.descricao,
+                          data_hora: toIsoFromDateTimeLocal(editAndamentoForm.data_hora),
+                        });
+                        setEditingAndamento(null);
+                      },
+                      "Andamento atualizado.",
+                    )
+                  : undefined
+              }
+              type="button"
+            >
+              Salvar alteracoes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setDeleteAndamento(null)} open={Boolean(deleteAndamento)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir andamento manual</DialogTitle>
+            <DialogDescription>Esta acao remove o andamento manual e regista a remocao no historico. Digite EXCLUIR para confirmar.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+              {deleteAndamento?.descricao}
+            </div>
+            <FormField label="Confirmacao">
+              <Input onChange={(event) => setDeleteAndamentoConfirm(event.target.value)} placeholder="EXCLUIR" value={deleteAndamentoConfirm} />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setDeleteAndamento(null)} type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              disabled={!deleteAndamento || deleteAndamentoConfirm !== "EXCLUIR" || isSubmitting}
+              onClick={() =>
+                deleteAndamento
+                  ? void runMutation(
+                      async () => {
+                        await removePreDemandaAndamento(preId, deleteAndamento.id);
+                        setDeleteAndamento(null);
+                      },
+                      "Andamento removido.",
+                    )
+                  : undefined
+              }
+              type="button"
+              variant="primary"
+            >
+              Excluir andamento
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1295,6 +1444,21 @@ async function readFileAsBase64(file: File) {
   });
 }
 
+function toDateTimeLocalValue(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function toIsoFromDateTimeLocal(value: string) {
+  return value ? new Date(value).toISOString() : null;
+}
+
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
@@ -1327,19 +1491,19 @@ function DetailSectionCard({
     <Card className={open ? "" : "overflow-hidden"}>
       <button
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-4 px-7 py-5 text-left transition hover:bg-white/40"
+        className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition hover:bg-white/40"
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
         <div className="min-w-0">
           <p className="text-sm font-semibold text-slate-950">{title}</p>
-          <p className="mt-1 truncate text-sm text-slate-500">{summary ?? "Sem resumo disponivel."}</p>
+          <p className="mt-0.5 truncate text-xs text-slate-500">{summary ?? "Sem resumo disponivel."}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-rose-800">
+          <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.16em] text-rose-800">
             {open ? "Em destaque" : "Recolhido"}
           </span>
-          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm">
             <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
           </span>
         </div>
