@@ -381,7 +381,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (!hasContinuousFrequency && !input.prazoFinal) {
       throw new Error("prazo required");
     }
-    const initialStatus: PreDemandaStatus = input.seiNumero || hasContinuousFrequency ? "associada" : "aberta";
+    const initialStatus: PreDemandaStatus = "em_andamento";
     const now = new Date().toISOString();
     const preId = `PRE-2026-${String(this.nextId).padStart(3, "0")}`;
     const pessoaPrincipal = input.pessoaSolicitanteId ? this.buildDefaultPessoa(input.pessoaSolicitanteId, resolvedSolicitante) : null;
@@ -589,9 +589,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
   async getStatusCounts() {
     const counts = new Map<PreDemandaStatus, number>([
-      ["aberta", 0],
+      ["em_andamento", 0],
       ["aguardando_sei", 0],
-      ["associada", 0],
       ["encerrada", 0],
     ]);
 
@@ -1077,19 +1076,19 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     ];
     record.principalNumero = input.seiNumero;
     record.principalTipo = "sei";
-    if (record.status !== "associada") {
+    if (record.status !== "em_andamento") {
       this.statusAudit.unshift({
         id: this.nextAuditId++,
         preId: input.preId,
         statusAnterior: record.status,
-        statusNovo: "associada",
+        statusNovo: "em_andamento",
         motivo: input.motivo ?? "Associacao de numero SEI.",
         observacoes: input.observacoes ?? null,
         registradoEm: now,
         changedBy: null,
       });
     }
-    record.status = "associada";
+    record.status = "em_andamento";
     this.addAndamentoRecord(record, current ? `Numero SEI alterado de ${current.seiNumero} para ${input.seiNumero}.` : `Numero SEI associado: ${input.seiNumero}.`, "sei");
     this.touch(record);
 
@@ -1802,7 +1801,7 @@ describe("Gestor JMU API", () => {
 
     const filtered = await app.inject({
       method: "GET",
-      url: "/api/pre-demandas?status=associada",
+      url: "/api/pre-demandas?status=em_andamento",
       headers: { cookie },
     });
 
@@ -1852,7 +1851,7 @@ describe("Gestor JMU API", () => {
 
     expect(updated.statusCode).toBe(200);
     expect(updated.json().data.status).toBe("encerrada");
-    expect(updated.json().data.allowedNextStatuses).toContain("aberta");
+    expect(updated.json().data.allowedNextStatuses).toContain("em_andamento");
 
     const timeline = await app.inject({
       method: "GET",
@@ -1899,7 +1898,7 @@ describe("Gestor JMU API", () => {
     });
 
     expect(detail.statusCode).toBe(200);
-    expect(detail.json().data.allowedNextStatuses).toContain("aberta");
+    expect(detail.json().data.allowedNextStatuses).toContain("em_andamento");
   });
 
   it("supports cadastros base and nested case-management routes", async () => {

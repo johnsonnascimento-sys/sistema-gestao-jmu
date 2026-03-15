@@ -4,7 +4,7 @@ import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } 
 import { AppError } from "../errors";
 import type { PreDemandaRepository } from "../repositories/types";
 
-const STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "encerrada"];
+const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoFinal", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];

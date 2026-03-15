@@ -355,7 +355,7 @@ export function DashboardPage() {
             </CardHeader>
             <CardContent className="grid gap-3">
               <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=triagem-abertas">Triagem de abertas</Link>
+                <Link to="/pre-demandas?preset=triagem-em-andamento">Fila em andamento</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=aguardando-sei">Fila aguardando SEI</Link>
@@ -370,7 +370,7 @@ export function DashboardPage() {
                 <Link to="/pre-demandas?preset=prazos-vencidos">Prazos vencidos</Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=ultimas-encerradas">Últimas encerradas</Link>
+                <Link to="/pre-demandas?preset=ultimas-encerradas">Últimos encerrados</Link>
               </Button>
               <Button asChild variant="secondary">
                 <Link to="/pre-demandas?preset=sem-setor">Sem setor</Link>

@@ -142,7 +142,7 @@ const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
   numeroJudicial: "pd.numero_judicial",
 };
 
-const ALL_STATUSES: PreDemandaStatus[] = ["aberta", "aguardando_sei", "associada", "encerrada"];
+const ALL_STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const FILTERABLE_QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const DEFAULT_INITIAL_SETOR_SIGLA = "SETAD2A2CJM";
 
@@ -1228,7 +1228,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length) ||
         input.metadata?.frequenciaDiaMes,
     );
-    const initialStatus: PreDemandaStatus = input.seiNumero || hasContinuousFrequency ? "associada" : "aberta";
+    const initialStatus: PreDemandaStatus = "em_andamento";
 
     try {
       const preId = await inTransaction(this.pool, async (client) => {
@@ -2502,12 +2502,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       );
 
       const currentStatus = demanda.rows[0].status as PreDemandaStatus;
-      if (currentStatus !== "associada") {
-        await client.query("update adminlog.pre_demanda set status = 'associada' where pre_id = $1", [input.preId]);
+      if (currentStatus !== "em_andamento") {
+        await client.query("update adminlog.pre_demanda set status = 'em_andamento' where pre_id = $1", [input.preId]);
         await client.query(
           `
             insert into adminlog.pre_demanda_status_audit (pre_id, status_anterior, status_novo, motivo, observacoes, changed_by_user_id)
-            values ($1, $2, 'associada', $3, $4, $5)
+            values ($1, $2, 'em_andamento', $3, $4, $5)
           `,
           [input.preId, currentStatus, input.motivo ?? "Associacao de numero SEI.", input.observacoes ?? null, input.changedByUserId],
         );
@@ -2948,7 +2948,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             count(*) filter (
               where audit.status_anterior = 'encerrada'
-                and audit.status_novo in ('aberta', 'aguardando_sei', 'associada')
+                and audit.status_novo in ('em_andamento', 'aguardando_sei')
                 and audit.registrado_em >= now() - interval '30 days'
             )::int as reopened_last_30_days,
             count(*) filter (

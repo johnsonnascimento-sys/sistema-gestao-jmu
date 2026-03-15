@@ -19,10 +19,9 @@ import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, Setor, SortOrder, StatusCount } from "../types";
 
 const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
-  { value: "aberta", label: "Aberta" },
+  { value: "em_andamento", label: "Em andamento" },
   { value: "aguardando_sei", label: "Aguardando SEI" },
-  { value: "associada", label: "Associada" },
-  { value: "encerrada", label: "Encerrada" },
+  { value: "encerrada", label: "Encerrado" },
 ];
 
 const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: string }> = [
@@ -37,7 +36,7 @@ const selectClassName =
 type BoardView = "kanban" | "table";
 type SavedViewId =
   | "fila-operacional"
-  | "triagem-abertas"
+  | "triagem-em-andamento"
   | "aguardando-sei"
   | "fila-parada"
   | "criticas"
@@ -107,9 +106,9 @@ const SAVED_VIEWS: Array<{
   {
     id: "fila-operacional",
     label: "Fila operacional",
-    description: "Abertas, aguardando SEI e associadas no quadro principal.",
+    description: "Processos em andamento e aguardando SEI no quadro principal.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       hasInteressados: "true",
       sortBy: "updatedAt",
       sortOrder: "desc",
@@ -117,11 +116,11 @@ const SAVED_VIEWS: Array<{
     },
   },
   {
-    id: "triagem-abertas",
-    label: "Triagem de abertas",
-    description: "Demandas novas, ordenadas pela referencia mais antiga.",
+    id: "triagem-em-andamento",
+    label: "Em andamento",
+    description: "Processos em andamento, ordenados pela referencia mais antiga.",
     defaults: {
-      statuses: ["aberta"],
+      statuses: ["em_andamento"],
       sortBy: "dataReferencia",
       sortOrder: "asc",
       view: "kanban",
@@ -143,7 +142,7 @@ const SAVED_VIEWS: Array<{
     label: "Fila parada",
     description: "Demandas activas com maior tempo sem movimentacao, ordenadas pela actualizacao mais antiga.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       queueHealth: ["attention", "critical"],
       sortBy: "updatedAt",
       sortOrder: "asc",
@@ -155,7 +154,7 @@ const SAVED_VIEWS: Array<{
     label: "Criticas",
     description: "Demandas activas em risco maximo de fila, ordenadas pela actualizacao mais antiga.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       queueHealth: ["critical"],
       sortBy: "updatedAt",
       sortOrder: "asc",
@@ -167,7 +166,7 @@ const SAVED_VIEWS: Array<{
     label: "Prazos vencidos",
     description: "Casos activos com prazo final ja ultrapassado.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       dueState: "overdue",
       sortBy: "prazoFinal",
       sortOrder: "asc",
@@ -179,7 +178,7 @@ const SAVED_VIEWS: Array<{
     label: "Vencem na semana",
     description: "Demandas activas com prazo nos proximos 7 dias.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       dueState: "due_soon",
       sortBy: "prazoFinal",
       sortOrder: "asc",
@@ -191,7 +190,7 @@ const SAVED_VIEWS: Array<{
     label: "Sem envolvidos",
     description: "Casos activos que ainda precisam de envolvidos vinculados.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       hasInteressados: "false",
       sortBy: "updatedAt",
       sortOrder: "asc",
@@ -203,7 +202,7 @@ const SAVED_VIEWS: Array<{
     label: "Sem setor",
     description: "Casos activos ainda sem setor formalmente definido.",
     defaults: {
-      statuses: ["aberta", "aguardando_sei", "associada"],
+      statuses: ["em_andamento", "aguardando_sei"],
       withoutSetor: "true",
       sortBy: "updatedAt",
       sortOrder: "asc",
@@ -223,7 +222,7 @@ const SAVED_VIEWS: Array<{
   },
   {
     id: "ultimas-encerradas",
-    label: "Ultimas encerradas",
+    label: "Ultimos encerrados",
     description: "Fechamentos mais recentes para revisao ou conferencias.",
     defaults: {
       statuses: ["encerrada"],
@@ -239,7 +238,8 @@ function splitValues(value: string | null) {
 }
 
 function getSavedView(presetId: string | null) {
-  return SAVED_VIEWS.find((item) => item.id === presetId) ?? null;
+  const normalizedPresetId = presetId === "triagem-abertas" ? "triagem-em-andamento" : presetId;
+  return SAVED_VIEWS.find((item) => item.id === normalizedPresetId) ?? null;
 }
 
 function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, dueState: "" | "overdue" | "due_soon" | "none") {

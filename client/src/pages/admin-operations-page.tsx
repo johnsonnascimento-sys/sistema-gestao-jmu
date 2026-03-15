@@ -151,7 +151,7 @@ function formatEventMoment(value: string | null) {
 function buildSetorQueueHref(setorId: string, dueState: "" | "overdue" | "due_soon") {
   const search = new URLSearchParams({
     view: "table",
-    status: "aberta,aguardando_sei,associada",
+    status: "em_andamento,aguardando_sei",
     setorAtualId: setorId,
     sortBy: "updatedAt",
     sortOrder: "asc",

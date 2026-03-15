@@ -7,9 +7,8 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 
 const COLUMNS: Array<{ value: PreDemandaStatus; label: string; description: string }> = [
-  { value: "aberta", label: "Abertas", description: "Demandas prontas para triagem." },
+  { value: "em_andamento", label: "Em andamento", description: "Processos em curso, com ou sem associacao processual concluida." },
   { value: "aguardando_sei", label: "Aguardando SEI", description: "Pendencias aguardando vinculacao valida." },
-  { value: "associada", label: "Em Andamento / Associadas", description: "Processos com numero de origem ou rotinas continuas em execucao." },
 ];
 
 export function KanbanBoard({

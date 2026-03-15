@@ -1,5 +1,5 @@
 export type UserRole = "admin" | "operador";
-export type PreDemandaStatus = "aberta" | "aguardando_sei" | "associada" | "encerrada";
+export type PreDemandaStatus = "em_andamento" | "aguardando_sei" | "encerrada";
 export type AppPermission =
   | "dashboard.read"
   | "pre_demanda.read"

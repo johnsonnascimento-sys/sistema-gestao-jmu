@@ -40,7 +40,7 @@ export interface ParsedControlePrazosRow {
   prazoInicial: ParsedDeadline;
   prazoIntermediario: ParsedDeadline;
   prazoFinal: ParsedDeadline;
-  status: "aberta" | "associada" | "encerrada";
+  status: "em_andamento" | "encerrada";
   dataConclusao: string | null;
   metadata: {
     frequencia: string | null;
@@ -357,9 +357,9 @@ function inferStatus(input: { prazoInicial: ParsedDeadline; dataConclusao: strin
     return "encerrada" as const;
   }
   if (input.seiNumbers.length > 0) {
-    return "associada" as const;
+    return "em_andamento" as const;
   }
-  return "aberta" as const;
+  return "em_andamento" as const;
 }
 
 export function buildImportAnnotation(params: { filePath: string; sheetName: string; rowNumber: number; warnings: string[] }) {

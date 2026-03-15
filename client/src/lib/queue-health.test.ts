@@ -7,7 +7,7 @@ describe("queue-health", () => {
     vi.setSystemTime(new Date("2026-03-09T12:00:00Z"));
 
     const result = getQueueHealth({
-      status: "aberta",
+      status: "em_andamento",
       dataReferencia: "2026-03-01",
       updatedAt: "2026-03-03T10:00:00Z",
     });

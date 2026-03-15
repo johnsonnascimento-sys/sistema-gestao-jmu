@@ -1,10 +1,9 @@
 import type { PreDemanda, PreDemandaStatus } from "../types";
 
 const STATUS_LABELS: Record<PreDemandaStatus, string> = {
-  aberta: "Aberta",
+  em_andamento: "Em andamento",
   aguardando_sei: "Aguardando SEI",
-  associada: "Em Andamento / Associada",
-  encerrada: "Encerrada",
+  encerrada: "Encerrado",
 };
 
 export function getPreDemandaStatusLabel(status: PreDemandaStatus) {
@@ -12,12 +11,8 @@ export function getPreDemandaStatusLabel(status: PreDemandaStatus) {
 }
 
 export function getPreferredReopenStatus(item: Pick<PreDemanda, "allowedNextStatuses">): PreDemandaStatus | null {
-  if (item.allowedNextStatuses.includes("associada")) {
-    return "associada";
-  }
-
-  if (item.allowedNextStatuses.includes("aberta")) {
-    return "aberta";
+  if (item.allowedNextStatuses.includes("em_andamento")) {
+    return "em_andamento";
   }
 
   if (item.allowedNextStatuses.includes("aguardando_sei")) {

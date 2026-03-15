@@ -238,12 +238,10 @@ export function PreDemandaDetailPage() {
   const nextAction = useMemo(() => {
     if (!record) return { title: "", description: "" };
     switch (record.status) {
-      case "aberta":
-        return { title: "Triar e enriquecer o caso", description: "Vincule pessoas, complemente metadata e defina setor, prazo e relacionamentos processuais." };
+      case "em_andamento":
+        return { title: "Conduzir a execucao administrativa", description: "Vincule pessoas, complemente metadata, tramita o caso e conclua tarefas pendentes ate o encerramento." };
       case "aguardando_sei":
         return { title: "Monitorar a geracao do processo", description: "Mantenha tarefas de acompanhamento activas e associe o numero SEI assim que ele existir." };
-      case "associada":
-        return { title: "Conduzir a execucao administrativa", description: "Tramite o caso, conclua tarefas pendentes e encerre apenas quando a tratativa estiver fechada." };
       case "encerrada":
         return { title: "Preservar historico e reabrir apenas com motivo", description: "O caso esta fechado. Reabra so se houver fato novo, correcao processual ou impulso operacional real." };
     }
@@ -601,7 +599,7 @@ export function PreDemandaDetailPage() {
                             onClick={() =>
                               void runMutation(
                                 () => removePreDemandaAssunto(preId, item.assunto.id).then((next) => setRecord(next)),
-                                "Assunto removido e tarefas automáticas abertas foram revistas.",
+                                "Assunto removido e tarefas automáticas pendentes foram revistas.",
                               )
                             }
                             size="sm"

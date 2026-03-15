@@ -42,7 +42,7 @@ export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "
           : item.queueHealth.level === "attention"
             ? "Atencao"
             : item.queueHealth.level === "closed"
-              ? "Encerrada"
+              ? "Encerrado"
               : "No prazo",
       summary:
         item.queueHealth.level === "critical"
@@ -74,7 +74,7 @@ export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "
         : level === "attention"
           ? "Atencao"
           : level === "closed"
-            ? "Encerrada"
+            ? "Encerrado"
             : "No prazo",
     summary:
       level === "critical"

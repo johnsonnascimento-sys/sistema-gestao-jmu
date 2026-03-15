@@ -92,7 +92,7 @@ export interface AdminUserAuditRecord {
   registradoEm: string;
 }
 
-export type PreDemandaStatus = "aberta" | "aguardando_sei" | "associada" | "encerrada";
+export type PreDemandaStatus = "em_andamento" | "aguardando_sei" | "encerrada";
 export type PreDemandaSortBy =
   | "updatedAt"
   | "createdAt"
