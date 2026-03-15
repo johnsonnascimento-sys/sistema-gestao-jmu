@@ -251,8 +251,11 @@ export interface ListPreDemandasParams {
   hasSei?: boolean;
   setorAtualId?: string;
   withoutSetor?: boolean;
-  dueState?: "overdue" | "due_soon" | "none";
+  dueState?: "overdue" | "due_today" | "due_soon" | "none";
+  paymentInvolved?: boolean;
   hasInteressados?: boolean;
+  closedWithinDays?: number;
+  reopenedWithinDays?: number;
   sortBy?: PreDemandaSortBy;
   sortOrder?: SortOrder;
   page: number;

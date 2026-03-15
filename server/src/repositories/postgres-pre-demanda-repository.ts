@@ -540,11 +540,49 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
   if (params.dueState === "overdue") {
     clauses.push("pd.prazo_final is not null and pd.prazo_final < current_date");
   }
+  if (params.dueState === "due_today") {
+    clauses.push("pd.prazo_final = current_date");
+  }
   if (params.dueState === "due_soon") {
     clauses.push("pd.prazo_final is not null and pd.prazo_final between current_date and current_date + interval '7 days'");
   }
   if (params.dueState === "none") {
     clauses.push("pd.prazo_final is null");
+  }
+
+  const paymentInvolved = normalizeBool(params.paymentInvolved);
+  if (paymentInvolved === true) {
+    clauses.push("coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = true");
+  }
+  if (paymentInvolved === false) {
+    clauses.push("coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = false");
+  }
+
+  if (params.closedWithinDays) {
+    values.push(params.closedWithinDays);
+    clauses.push(`
+      exists (
+        select 1
+        from adminlog.pre_demanda_status_audit audit
+        where audit.pre_id = pd.pre_id
+          and audit.status_novo = 'encerrada'
+          and audit.registrado_em >= now() - make_interval(days => $${values.length}::int)
+      )
+    `);
+  }
+
+  if (params.reopenedWithinDays) {
+    values.push(params.reopenedWithinDays);
+    clauses.push(`
+      exists (
+        select 1
+        from adminlog.pre_demanda_status_audit audit
+        where audit.pre_id = pd.pre_id
+          and audit.status_anterior = 'encerrada'
+          and audit.status_novo <> 'encerrada'
+          and audit.registrado_em >= now() - make_interval(days => $${values.length}::int)
+      )
+    `);
   }
 
   return {

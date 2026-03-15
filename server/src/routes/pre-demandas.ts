@@ -8,7 +8,7 @@ const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerra
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoFinal", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
-const DUE_STATES = ["overdue", "due_soon", "none"] as const;
+const DUE_STATES = ["overdue", "due_today", "due_soon", "none"] as const;
 const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
 
 const metadataSchema = z
@@ -67,7 +67,10 @@ const listSchema = z.object({
   setorAtualId: z.string().uuid().optional(),
   withoutSetor: z.enum(["true", "false"]).optional(),
   dueState: z.enum(DUE_STATES).optional(),
+  paymentInvolved: z.enum(["true", "false"]).optional(),
   hasInteressados: z.enum(["true", "false"]).optional(),
+  closedWithinDays: z.coerce.number().int().positive().max(365).optional(),
+  reopenedWithinDays: z.coerce.number().int().positive().max(365).optional(),
   sortBy: z.enum(SORT_FIELDS).optional(),
   sortOrder: z.enum(SORT_ORDERS).optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -267,7 +270,10 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
         setorAtualId: query.setorAtualId,
         withoutSetor: query.withoutSetor ? query.withoutSetor === "true" : undefined,
         dueState: query.dueState,
+        paymentInvolved: query.paymentInvolved ? query.paymentInvolved === "true" : undefined,
         hasInteressados: query.hasInteressados ? query.hasInteressados === "true" : undefined,
+        closedWithinDays: query.closedWithinDays,
+        reopenedWithinDays: query.reopenedWithinDays,
         sortBy: query.sortBy,
         sortOrder: query.sortOrder,
         page: query.page,

@@ -11,6 +11,11 @@ import { formatAppError, getDashboardSummary } from "../lib/api";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
 
+function buildAnalyticalTableHref(overrides: Record<string, string>) {
+  const search = new URLSearchParams({ view: "table", page: "1", ...overrides });
+  return `/pre-demandas?${search.toString()}`;
+}
+
 export function DashboardPage() {
   const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,36 +61,41 @@ export function DashboardPage() {
   }
 
   const staleItems = summary.staleItems;
+  const statusMetricHref: Record<string, string> = {
+    em_andamento: buildAnalyticalTableHref({ status: "em_andamento" }),
+    aguardando_sei: buildAnalyticalTableHref({ status: "aguardando_sei" }),
+    encerrada: buildAnalyticalTableHref({ status: "encerrada" }),
+  };
   const quickGroups = [
     {
       id: "criticas",
       label: "Criticas",
       value: summary.agingCriticalTotal,
-      href: "/pre-demandas?preset=criticas",
+      href: buildAnalyticalTableHref({ preset: "criticas" }),
     },
     {
       id: "vencidas",
       label: "Prazos vencidos",
       value: summary.overdueTotal,
-      href: "/pre-demandas?preset=prazos-vencidos",
+      href: buildAnalyticalTableHref({ preset: "prazos-vencidos" }),
     },
     {
       id: "vence-hoje",
       label: "Vence hoje",
       value: summary.dueTodayTotal,
-      href: "/pre-demandas?dueState=due_soon&view=table",
+      href: buildAnalyticalTableHref({ preset: "vence-hoje" }),
     },
     {
       id: "na-semana",
       label: "Vencem na semana",
       value: summary.dueSoonTotal,
-      href: "/pre-demandas?preset=vencem-na-semana",
+      href: buildAnalyticalTableHref({ preset: "vencem-na-semana" }),
     },
     {
       id: "sem-envolvidos",
       label: "Sem envolvidos",
       value: summary.withoutInteressadosTotal,
-      href: "/pre-demandas?preset=sem-envolvidos",
+      href: buildAnalyticalTableHref({ preset: "sem-envolvidos" }),
     },
   ];
 
@@ -162,18 +172,18 @@ export function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
         {summary.counts.map((item) => (
-          <MetricCard key={item.status} label={item.status.replace("_", " ")} value={item.total} />
+          <MetricCard key={item.status} label={item.status.replace("_", " ")} to={statusMetricHref[item.status]} value={item.total} />
         ))}
-        <MetricCard label="Paradas 2d+" value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
-        <MetricCard label="Críticas 5d+" value={summary.agingCriticalTotal} />
-        <MetricCard label="Vence hoje" value={summary.dueTodayTotal} />
-        <MetricCard label="Com pagamento" value={summary.paymentMarkedTotal} />
-        <MetricCard label="Prazos na semana" value={summary.dueSoonTotal} />
-        <MetricCard label="Prazos vencidos" value={summary.overdueTotal} />
-        <MetricCard label="Sem setor" value={summary.withoutSetorTotal} />
-        <MetricCard label="Sem envolvidos" value={summary.withoutInteressadosTotal} />
-        <MetricCard label="Reabertas 30d" value={summary.reopenedLast30Days} />
-        <MetricCard label="Encerradas 30d" value={summary.closedLast30Days} />
+        <MetricCard label="Paradas 2d+" to={buildAnalyticalTableHref({ queueHealth: "attention,critical", sortBy: "updatedAt", sortOrder: "asc" })} value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
+        <MetricCard label="Críticas 5d+" to={buildAnalyticalTableHref({ preset: "criticas" })} value={summary.agingCriticalTotal} />
+        <MetricCard label="Vence hoje" to={buildAnalyticalTableHref({ preset: "vence-hoje" })} value={summary.dueTodayTotal} />
+        <MetricCard label="Com pagamento" to={buildAnalyticalTableHref({ preset: "com-pagamento" })} value={summary.paymentMarkedTotal} />
+        <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.dueSoonTotal} />
+        <MetricCard label="Prazos vencidos" to={buildAnalyticalTableHref({ preset: "prazos-vencidos" })} value={summary.overdueTotal} />
+        <MetricCard label="Sem setor" to={buildAnalyticalTableHref({ preset: "sem-setor" })} value={summary.withoutSetorTotal} />
+        <MetricCard label="Sem envolvidos" to={buildAnalyticalTableHref({ preset: "sem-envolvidos" })} value={summary.withoutInteressadosTotal} />
+        <MetricCard label="Reabertas 30d" to={buildAnalyticalTableHref({ preset: "reabertas-30d" })} value={summary.reopenedLast30Days} />
+        <MetricCard label="Encerradas 30d" to={buildAnalyticalTableHref({ preset: "encerradas-30d" })} value={summary.closedLast30Days} />
       </div>
 
       <Card>

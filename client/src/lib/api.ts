@@ -110,8 +110,11 @@ export interface ListPreDemandasParams {
   hasSei?: boolean;
   setorAtualId?: string;
   withoutSetor?: boolean;
-  dueState?: "overdue" | "due_soon" | "none";
+  dueState?: "overdue" | "due_today" | "due_soon" | "none";
+  paymentInvolved?: boolean;
   hasInteressados?: boolean;
+  closedWithinDays?: number;
+  reopenedWithinDays?: number;
   sortBy?: PreDemandaSortBy;
   sortOrder?: SortOrder;
   page?: number;
@@ -238,7 +241,10 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   if (params.setorAtualId) searchParams.set("setorAtualId", params.setorAtualId);
   if (params.withoutSetor !== undefined) searchParams.set("withoutSetor", String(params.withoutSetor));
   if (params.dueState) searchParams.set("dueState", params.dueState);
+  if (params.paymentInvolved !== undefined) searchParams.set("paymentInvolved", String(params.paymentInvolved));
   if (params.hasInteressados !== undefined) searchParams.set("hasInteressados", String(params.hasInteressados));
+  if (params.closedWithinDays) searchParams.set("closedWithinDays", String(params.closedWithinDays));
+  if (params.reopenedWithinDays) searchParams.set("reopenedWithinDays", String(params.reopenedWithinDays));
   if (params.sortBy) searchParams.set("sortBy", params.sortBy);
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
 

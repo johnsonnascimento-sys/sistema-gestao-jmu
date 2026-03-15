@@ -553,6 +553,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < today.getTime());
     }
 
+    if (params.dueState === "due_today") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      items = items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() === today.getTime());
+    }
+
     if (params.dueState === "due_soon") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -570,12 +576,40 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => item.prazoFinal === null);
     }
 
+    if (params.paymentInvolved === true) {
+      items = items.filter((item) => item.metadata.pagamentoEnvolvido === true);
+    }
+
+    if (params.paymentInvolved === false) {
+      items = items.filter((item) => item.metadata.pagamentoEnvolvido !== true);
+    }
+
     if (params.hasInteressados === true) {
       items = items.filter((item) => item.interessados.length > 0);
     }
 
     if (params.hasInteressados === false) {
       items = items.filter((item) => item.interessados.length === 0);
+    }
+
+    if (params.closedWithinDays) {
+      const threshold = Date.now() - params.closedWithinDays * 86400000;
+      const preIds = new Set(
+        this.statusAudit
+          .filter((item) => item.statusNovo === "encerrada" && new Date(item.registradoEm).getTime() >= threshold)
+          .map((item) => item.preId),
+      );
+      items = items.filter((item) => preIds.has(item.preId));
+    }
+
+    if (params.reopenedWithinDays) {
+      const threshold = Date.now() - params.reopenedWithinDays * 86400000;
+      const preIds = new Set(
+        this.statusAudit
+          .filter((item) => item.statusAnterior === "encerrada" && item.statusNovo !== "encerrada" && new Date(item.registradoEm).getTime() >= threshold)
+          .map((item) => item.preId),
+      );
+      items = items.filter((item) => preIds.has(item.preId));
     }
 
     const start = (params.page - 1) * params.pageSize;

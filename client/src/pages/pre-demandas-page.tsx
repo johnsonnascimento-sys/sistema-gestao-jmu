@@ -40,10 +40,14 @@ type SavedViewId =
   | "aguardando-sei"
   | "fila-parada"
   | "criticas"
+  | "vence-hoje"
   | "prazos-vencidos"
   | "vencem-na-semana"
+  | "com-pagamento"
   | "sem-envolvidos"
   | "sem-setor"
+  | "reabertas-30d"
+  | "encerradas-30d"
   | "com-sei"
   | "ultimas-encerradas";
 
@@ -78,8 +82,11 @@ type ResolvedSearchState = {
   hasSei: "" | "true" | "false";
   setorAtualId: string;
   withoutSetor: "" | "true" | "false";
-  dueState: "" | "overdue" | "due_soon" | "none";
+  dueState: "" | "overdue" | "due_today" | "due_soon" | "none";
+  paymentInvolved: "" | "true" | "false";
   hasInteressados: "" | "true" | "false";
+  closedWithinDays: string;
+  reopenedWithinDays: string;
   sortBy: PreDemandaSortBy;
   sortOrder: SortOrder;
   page: number;
@@ -96,8 +103,11 @@ const SAVED_VIEWS: Array<{
     hasSei?: "" | "true" | "false";
     setorAtualId?: string;
     withoutSetor?: "" | "true" | "false";
-    dueState?: "" | "overdue" | "due_soon" | "none";
+    dueState?: "" | "overdue" | "due_today" | "due_soon" | "none";
+    paymentInvolved?: "" | "true" | "false";
     hasInteressados?: "" | "true" | "false";
+    closedWithinDays?: string;
+    reopenedWithinDays?: string;
     sortBy: PreDemandaSortBy;
     sortOrder: SortOrder;
     view: BoardView;
@@ -162,6 +172,18 @@ const SAVED_VIEWS: Array<{
     },
   },
   {
+    id: "vence-hoje",
+    label: "Vence hoje",
+    description: "Processos ativos com prazo final vencendo hoje.",
+    defaults: {
+      statuses: ["em_andamento", "aguardando_sei"],
+      dueState: "due_today",
+      sortBy: "prazoFinal",
+      sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
     id: "prazos-vencidos",
     label: "Prazos vencidos",
     description: "Processos ativos com prazo final ja ultrapassado.",
@@ -186,6 +208,18 @@ const SAVED_VIEWS: Array<{
     },
   },
   {
+    id: "com-pagamento",
+    label: "Com pagamento",
+    description: "Processos com pagamento envolvido marcado no cadastro.",
+    defaults: {
+      statuses: ["em_andamento", "aguardando_sei"],
+      paymentInvolved: "true",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+  {
     id: "sem-envolvidos",
     label: "Sem envolvidos",
     description: "Processos ativos que ainda precisam de envolvidos vinculados.",
@@ -206,6 +240,28 @@ const SAVED_VIEWS: Array<{
       withoutSetor: "true",
       sortBy: "updatedAt",
       sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "reabertas-30d",
+    label: "Reabertas 30d",
+    description: "Processos com reabertura registrada nos ultimos 30 dias.",
+    defaults: {
+      reopenedWithinDays: "30",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+  {
+    id: "encerradas-30d",
+    label: "Encerradas 30d",
+    description: "Processos com encerramento registrado nos ultimos 30 dias.",
+    defaults: {
+      closedWithinDays: "30",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
       view: "table",
     },
   },
@@ -242,7 +298,7 @@ function getSavedView(presetId: string | null) {
   return SAVED_VIEWS.find((item) => item.id === normalizedPresetId) ?? null;
 }
 
-function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, dueState: "" | "overdue" | "due_soon" | "none") {
+function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, dueState: "" | "overdue" | "due_today" | "due_soon" | "none") {
   const next = new URLSearchParams(current);
   next.set("setorAtualId", setorAtualId);
   next.delete("withoutSetor");
@@ -260,11 +316,7 @@ function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, 
   return `/pre-demandas?${next.toString()}`;
 }
 
-function buildWithoutSetorQueueSearch(
-  current: URLSearchParams,
-  dueState: "" | "overdue" | "due_soon" | "none",
-  hasInteressados: "" | "true" | "false" = "",
-) {
+function buildWithoutSetorQueueSearch(current: URLSearchParams, dueState: "" | "overdue" | "due_today" | "due_soon" | "none", hasInteressados: "" | "true" | "false" = "") {
   const next = new URLSearchParams(current);
   next.delete("setorAtualId");
   next.set("withoutSetor", "true");
@@ -330,7 +382,10 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     !searchParams.has("setorAtualId") &&
     !searchParams.has("withoutSetor") &&
     !searchParams.has("dueState") &&
+    !searchParams.has("paymentInvolved") &&
     !searchParams.has("hasInteressados") &&
+    !searchParams.has("closedWithinDays") &&
+    !searchParams.has("reopenedWithinDays") &&
     !searchParams.has("sortBy") &&
     !searchParams.has("sortOrder") &&
     !searchParams.has("page");
@@ -346,8 +401,11 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
     setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
     withoutSetor: searchParams.has("withoutSetor") ? ((searchParams.get("withoutSetor") as "true" | "false") ?? "") : preset?.defaults.withoutSetor ?? "",
-    dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
+    dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_today" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
+    paymentInvolved: searchParams.has("paymentInvolved") ? ((searchParams.get("paymentInvolved") as "true" | "false") ?? "") : preset?.defaults.paymentInvolved ?? "",
     hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
+    closedWithinDays: searchParams.get("closedWithinDays") ?? preset?.defaults.closedWithinDays ?? "",
+    reopenedWithinDays: searchParams.get("reopenedWithinDays") ?? preset?.defaults.reopenedWithinDays ?? "",
     sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
     sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? preset?.defaults.sortOrder ?? "desc",
     page: Number(searchParams.get("page") ?? "1"),
@@ -378,7 +436,10 @@ export function PreDemandasPage() {
   const [setorAtualId, setSetorAtualId] = useState(resolvedState.setorAtualId);
   const [withoutSetor, setWithoutSetor] = useState(resolvedState.withoutSetor);
   const [dueState, setDueState] = useState(resolvedState.dueState);
+  const [paymentInvolved, setPaymentInvolved] = useState(resolvedState.paymentInvolved);
   const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
+  const [closedWithinDays, setClosedWithinDays] = useState(resolvedState.closedWithinDays);
+  const [reopenedWithinDays, setReopenedWithinDays] = useState(resolvedState.reopenedWithinDays);
   const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
   const [sortOrder, setSortOrder] = useState<SortOrder>(resolvedState.sortOrder);
 
@@ -394,7 +455,10 @@ export function PreDemandasPage() {
     setSetorAtualId(resolvedState.setorAtualId);
     setWithoutSetor(resolvedState.withoutSetor);
     setDueState(resolvedState.dueState);
+    setPaymentInvolved(resolvedState.paymentInvolved);
     setHasInteressados(resolvedState.hasInteressados);
+    setClosedWithinDays(resolvedState.closedWithinDays);
+    setReopenedWithinDays(resolvedState.reopenedWithinDays);
     setSortBy(resolvedState.sortBy);
     setSortOrder(resolvedState.sortOrder);
   }, [searchKey, resolvedState]);
@@ -413,7 +477,10 @@ export function PreDemandasPage() {
         setorAtualId: resolvedState.setorAtualId || undefined,
         withoutSetor: resolvedState.withoutSetor ? resolvedState.withoutSetor === "true" : undefined,
         dueState: resolvedState.dueState || undefined,
+        paymentInvolved: resolvedState.paymentInvolved ? resolvedState.paymentInvolved === "true" : undefined,
         hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
+        closedWithinDays: resolvedState.closedWithinDays ? Number(resolvedState.closedWithinDays) : undefined,
+        reopenedWithinDays: resolvedState.reopenedWithinDays ? Number(resolvedState.reopenedWithinDays) : undefined,
         sortBy: resolvedState.sortBy,
         sortOrder: resolvedState.sortOrder,
         page: resolvedState.page,
@@ -487,8 +554,20 @@ export function PreDemandasPage() {
       next.set("dueState", dueState);
     }
 
+    if (paymentInvolved) {
+      next.set("paymentInvolved", paymentInvolved);
+    }
+
     if (hasInteressados) {
       next.set("hasInteressados", hasInteressados);
+    }
+
+    if (closedWithinDays) {
+      next.set("closedWithinDays", closedWithinDays);
+    }
+
+    if (reopenedWithinDays) {
+      next.set("reopenedWithinDays", reopenedWithinDays);
     }
 
     next.set("sortBy", sortBy);
@@ -528,7 +607,10 @@ export function PreDemandasPage() {
     setSetorAtualId("");
     setWithoutSetor("");
     setDueState("");
+    setPaymentInvolved("");
     setHasInteressados("");
+    setClosedWithinDays("");
+    setReopenedWithinDays("");
     setSortBy("updatedAt");
     setSortOrder("desc");
     setSearchParams(new URLSearchParams({ view: resolvedState.view, page: "1", sortBy: "updatedAt", sortOrder: "desc" }));
@@ -922,9 +1004,10 @@ export function PreDemandasPage() {
           </FormField>
 
           <FormField label="Prazo">
-            <select className={selectClassName} onChange={(event) => setDueState(event.target.value as "" | "overdue" | "due_soon" | "none")} value={dueState}>
+            <select className={selectClassName} onChange={(event) => setDueState(event.target.value as "" | "overdue" | "due_today" | "due_soon" | "none")} value={dueState}>
               <option value="">Todos</option>
               <option value="overdue">Vencido</option>
+              <option value="due_today">Vence hoje</option>
               <option value="due_soon">Na semana</option>
               <option value="none">Sem prazo</option>
             </select>
