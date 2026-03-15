@@ -318,6 +318,23 @@ function getSectorRiskLevel(score: number) {
 
 function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState {
   const preset = getSavedView(searchParams.get("preset"));
+  const hasExplicitView = searchParams.has("view");
+  const isBlankSearch =
+    !searchParams.get("preset") &&
+    !searchParams.has("q") &&
+    !searchParams.has("status") &&
+    !searchParams.has("queueHealth") &&
+    !searchParams.has("dateFrom") &&
+    !searchParams.has("dateTo") &&
+    !searchParams.has("hasSei") &&
+    !searchParams.has("setorAtualId") &&
+    !searchParams.has("withoutSetor") &&
+    !searchParams.has("dueState") &&
+    !searchParams.has("hasInteressados") &&
+    !searchParams.has("sortBy") &&
+    !searchParams.has("sortOrder") &&
+    !searchParams.has("page");
+  const defaultView: BoardView = isBlankSearch ? "table" : preset?.defaults.view ?? "kanban";
 
   return {
     presetId: preset?.id ?? null,
@@ -334,7 +351,7 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
     sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? preset?.defaults.sortOrder ?? "desc",
     page: Number(searchParams.get("page") ?? "1"),
-    view: searchParams.get("view") === "table" ? "table" : preset?.defaults.view ?? "kanban",
+    view: hasExplicitView ? (searchParams.get("view") === "table" ? "table" : "kanban") : defaultView,
   };
 }
 
@@ -519,7 +536,10 @@ export function PreDemandasPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const metrics = useMemo(() => counts, [counts]);
-  const hiddenClosedCount = useMemo(() => (resolvedState.view === "kanban" ? items.filter((item) => item.status === "encerrada").length : 0), [items, resolvedState.view]);
+  const hiddenClosedCount = useMemo(
+    () => (resolvedState.view === "kanban" ? counts.find((item) => item.status === "encerrada")?.total ?? 0 : 0),
+    [counts, resolvedState.view],
+  );
   const selectedSetor = useMemo(() => setores.find((item) => item.id === resolvedState.setorAtualId) ?? null, [resolvedState.setorAtualId, setores]);
   const isWithoutSetorFocused = resolvedState.withoutSetor === "true" && !resolvedState.setorAtualId;
   const sectorSummaries = useMemo<SectorQueueSummary[]>(() => {
