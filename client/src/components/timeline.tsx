@@ -4,7 +4,7 @@ import { Badge } from "./ui/badge";
 function getEventLabel(event: TimelineEvent) {
   switch (event.type) {
     case "created":
-      return "Demanda criada";
+      return "Processo criado";
     case "status_changed":
       return event.statusNovo ? `Status alterado para ${event.statusNovo.replace("_", " ")}` : "Status alterado";
     case "sei_linked":

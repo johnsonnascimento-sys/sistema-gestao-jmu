@@ -90,54 +90,54 @@ export function AppShell() {
             </div>
 
             <nav className="grid gap-2">
-            <NavLink className={navLinkClassName} to="/dashboard">
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </NavLink>
-            <NavLink className={navLinkClassName} to="/pre-demandas">
-              <ListTodo className="h-4 w-4" />
-              Pré-processos
-            </NavLink>
-            <NavLink className={navLinkClassName} to="/pre-demandas/nova">
-              <SquarePen className="h-4 w-4" />
-              Nova demanda
-            </NavLink>
-            {hasPermission("cadastro.interessado.read") ? (
-              <NavLink className={navLinkClassName} to="/pessoas">
-                <Users className="h-4 w-4" />
-                Pessoas
+              <NavLink className={navLinkClassName} to="/dashboard">
+                <LayoutDashboard className="h-4 w-4" />
+                Dashboard
               </NavLink>
-            ) : null}
-            {hasPermission("cadastro.setor.read") ? (
-              <NavLink className={navLinkClassName} to="/setores">
-                <Building2 className="h-4 w-4" />
-                Setores
+              <NavLink className={navLinkClassName} to="/pre-demandas">
+                <ListTodo className="h-4 w-4" />
+                Processos
               </NavLink>
-            ) : null}
-            {hasPermission("cadastro.norma.read") ? (
-              <NavLink className={navLinkClassName} to="/normas">
-                <BookText className="h-4 w-4" />
-                Normas
+              <NavLink className={navLinkClassName} to="/pre-demandas/nova">
+                <SquarePen className="h-4 w-4" />
+                Novo processo
               </NavLink>
-            ) : null}
-            {hasPermission("cadastro.assunto.read") ? (
-              <NavLink className={navLinkClassName} to="/assuntos">
-                <Tag className="h-4 w-4" />
-                Assuntos
-              </NavLink>
-            ) : null}
-            {hasPermission("admin.user.read") ? (
-              <NavLink className={navLinkClassName} to="/admin/users">
-                <ShieldCheck className="h-4 w-4" />
-                Usuários
-              </NavLink>
-            ) : null}
-            {hasPermission("admin.ops.read") ? (
-              <NavLink className={navLinkClassName} to="/admin/operacoes">
-                <Activity className="h-4 w-4" />
-                Operações
-              </NavLink>
-            ) : null}
+              {hasPermission("cadastro.interessado.read") ? (
+                <NavLink className={navLinkClassName} to="/pessoas">
+                  <Users className="h-4 w-4" />
+                  Pessoas
+                </NavLink>
+              ) : null}
+              {hasPermission("cadastro.setor.read") ? (
+                <NavLink className={navLinkClassName} to="/setores">
+                  <Building2 className="h-4 w-4" />
+                  Setores
+                </NavLink>
+              ) : null}
+              {hasPermission("cadastro.norma.read") ? (
+                <NavLink className={navLinkClassName} to="/normas">
+                  <BookText className="h-4 w-4" />
+                  Normas
+                </NavLink>
+              ) : null}
+              {hasPermission("cadastro.assunto.read") ? (
+                <NavLink className={navLinkClassName} to="/assuntos">
+                  <Tag className="h-4 w-4" />
+                  Assuntos
+                </NavLink>
+              ) : null}
+              {hasPermission("admin.user.read") ? (
+                <NavLink className={navLinkClassName} to="/admin/users">
+                  <ShieldCheck className="h-4 w-4" />
+                  Usuarios
+                </NavLink>
+              ) : null}
+              {hasPermission("admin.ops.read") ? (
+                <NavLink className={navLinkClassName} to="/admin/operacoes">
+                  <Activity className="h-4 w-4" />
+                  Operacoes
+                </NavLink>
+              ) : null}
             </nav>
           </div>
 
@@ -155,7 +155,7 @@ export function AppShell() {
                   {runtime.commitSha ? ` - ${runtime.commitSha.slice(0, 7)}` : ""}
                 </p>
                 <p className="mt-1">
-                  {runtime.environment} - no ar há {formatUptime(runtime.uptimeSeconds)}
+                  {runtime.environment} - no ar ha {formatUptime(runtime.uptimeSeconds)}
                 </p>
               </div>
             ) : null}

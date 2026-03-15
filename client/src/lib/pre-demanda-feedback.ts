@@ -7,13 +7,13 @@ export function formatPreDemandaMutationError(error: unknown, fallback: string) 
 
   switch (error.code) {
     case "PRE_DEMANDA_NOT_FOUND":
-      return appendRequestReference("A demanda informada não foi encontrada.", error.requestId);
+      return appendRequestReference("O processo informado nao foi encontrado.", error.requestId);
     case "PRE_DEMANDA_STATUS_UNCHANGED":
-      return appendRequestReference("A demanda já se encontra nesse status.", error.requestId);
+      return appendRequestReference("O processo ja se encontra nesse status.", error.requestId);
     case "PRE_DEMANDA_STATUS_INVALID":
-      return appendRequestReference(error.message || "A transição de status não é permitida para a situação atual da demanda.", error.requestId);
+      return appendRequestReference(error.message || "A transicao de status nao e permitida para a situacao atual do processo.", error.requestId);
     case "PRE_DEMANDA_STATUS_REASON_REQUIRED":
-      return appendRequestReference("Informe o motivo para encerrar ou reabrir a demanda.", error.requestId);
+      return appendRequestReference("Informe o motivo para encerrar ou reabrir o processo.", error.requestId);
     case "VALIDATION_ERROR":
       return appendRequestReference("Revise os campos informados e tente novamente.", error.requestId);
     default:

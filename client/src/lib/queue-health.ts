@@ -50,7 +50,7 @@ export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "
           : item.queueHealth.level === "attention"
             ? `${item.queueHealth.staleDays}d sem movimentacao`
             : item.queueHealth.level === "closed"
-              ? "Demanda encerrada"
+              ? "Processo encerrado"
               : item.queueHealth.staleDays === 0
                 ? "Movimentada hoje"
                 : `${item.queueHealth.staleDays}d desde a ultima acao`,
@@ -82,7 +82,7 @@ export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "
         : level === "attention"
           ? `${staleDays}d sem movimentacao`
           : level === "closed"
-            ? "Demanda encerrada"
+            ? "Processo encerrado"
             : staleDays === 0
               ? "Movimentada hoje"
               : `${staleDays}d desde a ultima acao`,

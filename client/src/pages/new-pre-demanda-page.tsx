@@ -180,9 +180,9 @@ export function NewPreDemandaPage() {
     } catch (nextError) {
       if (nextError instanceof ApiError && nextError.status === 409) {
         setConflictPreId(getConflictPreId(nextError.details));
-        setError(appendRequestReference("Já existe uma demanda registrada com estes dados.", nextError.requestId));
+        setError(appendRequestReference("Ja existe um processo registrado com estes dados.", nextError.requestId));
       } else {
-        setError(formatAppError(nextError, "Falha ao criar demanda."));
+        setError(formatAppError(nextError, "Falha ao criar processo."));
       }
     } finally {
       setIsSubmitting(false);
@@ -192,9 +192,9 @@ export function NewPreDemandaPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Via rápida para processo externo, demanda pré-processo ou demanda sem número."
+        description="Via rapida para processo externo, processo pre-SEI ou processo sem numero."
         eyebrow="Cadastro"
-        title="Novo Processo / Demanda"
+        title="Novo Processo"
       />
 
       <Card>
@@ -243,13 +243,13 @@ export function NewPreDemandaPage() {
                 <EntryOption
                   checked={entryType === "eventual"}
                   description="Fluxo normal aguardando numeracao."
-                  label="Demanda Pré-Processo (Aguardará SEI)"
+                  label="Processo Pré-SEI (Aguardará SEI)"
                   onChange={() => updateEntryType("eventual")}
                 />
                 <EntryOption
                   checked={entryType === "continuous"}
                   description="Fluxo sem número principal na abertura."
-                  label="Demanda Sem Número"
+                  label="Processo Sem Número"
                   onChange={() => updateEntryType("continuous")}
                 />
               </div>
@@ -399,7 +399,7 @@ export function NewPreDemandaPage() {
 
             {error ? (
               <div className="md:col-span-2 rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
-                {error} {conflictPreId ? <Link className="underline" to={`/pre-demandas/${conflictPreId}`}>Abrir demanda existente</Link> : null}
+                {error} {conflictPreId ? <Link className="underline" to={`/pre-demandas/${conflictPreId}`}>Abrir processo existente</Link> : null}
               </div>
             ) : null}
 
@@ -411,7 +411,7 @@ export function NewPreDemandaPage() {
 
             {result ? (
               <div className="md:col-span-2 rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                {result.idempotent ? "Demanda existente localizada." : "Demanda criada com sucesso."}{" "}
+                {result.idempotent ? "Processo existente localizado." : "Processo criado com sucesso."}{" "}
                 <Link className="underline" to={`/pre-demandas/${result.preId}`}>
                   {result.preId}
                 </Link>
@@ -420,7 +420,7 @@ export function NewPreDemandaPage() {
 
             <div className="md:col-span-2 flex justify-end">
               <Button disabled={isSubmitBlocked} type="submit">
-                {isSubmitting ? "Salvando..." : "Salvar demanda"}
+                {isSubmitting ? "Salvando..." : "Salvar processo"}
               </Button>
             </div>
           </form>

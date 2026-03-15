@@ -91,7 +91,7 @@ export function KanbanBoard({
                         <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Demanda:</span> {item.preId}
+                        <span className="font-medium text-slate-950">Processo:</span> {item.preId}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Fila:</span> {getQueueHealth(item).detail}
@@ -122,7 +122,7 @@ export function KanbanBoard({
                 ))
               ) : (
                 <div className="rounded-[28px] border border-dashed border-slate-300/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.8),rgba(247,241,233,0.72))] px-4 py-10 text-center text-sm text-slate-500">
-                  Nenhuma demanda nesta coluna.
+                  Nenhum processo nesta coluna.
                 </div>
               )}
             </div>

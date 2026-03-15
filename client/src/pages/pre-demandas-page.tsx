@@ -140,7 +140,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "fila-parada",
     label: "Fila parada",
-    description: "Demandas activas com maior tempo sem movimentacao, ordenadas pela actualizacao mais antiga.",
+    description: "Processos activos com maior tempo sem movimentacao, ordenados pela actualizacao mais antiga.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       queueHealth: ["attention", "critical"],
@@ -152,7 +152,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "criticas",
     label: "Criticas",
-    description: "Demandas activas em risco maximo de fila, ordenadas pela actualizacao mais antiga.",
+    description: "Processos activos em risco maximo de fila, ordenados pela actualizacao mais antiga.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       queueHealth: ["critical"],
@@ -176,7 +176,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "vencem-na-semana",
     label: "Vencem na semana",
-    description: "Demandas activas com prazo nos proximos 7 dias.",
+    description: "Processos activos com prazo nos proximos 7 dias.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       dueState: "due_soon",
@@ -212,7 +212,7 @@ const SAVED_VIEWS: Array<{
   {
     id: "com-sei",
     label: "Com SEI",
-    description: "Demandas que ja possuem vinculacao valida.",
+    description: "Processos que ja possuem vinculacao valida.",
     defaults: {
       hasSei: "true",
       sortBy: "updatedAt",
@@ -425,7 +425,7 @@ export function PreDemandasPage() {
       setTotal(response.total);
       setError("");
     } catch (nextError) {
-      setError(formatAppError(nextError, "Falha ao carregar pre-demandas."));
+      setError(formatAppError(nextError, "Falha ao carregar processos."));
     } finally {
       setLoading(false);
     }
@@ -552,7 +552,7 @@ export function PreDemandasPage() {
         {
           setorId: item.setorAtual?.id ?? null,
           sigla: item.setorAtual?.sigla ?? "Sem setor",
-          nome: item.setorAtual?.nomeCompleto ?? "Demandas ainda sem setor definido.",
+          nome: item.setorAtual?.nomeCompleto ?? "Processos ainda sem setor definido.",
           total: 0,
           overdue: 0,
           dueSoon: 0,
@@ -624,14 +624,14 @@ export function PreDemandasPage() {
       {
         id: "vencidas",
         label: "Prazos vencidos",
-        description: "Demandas activas com prazo final ja ultrapassado.",
+        description: "Processos activos com prazo final ja ultrapassado.",
         value: items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
         href: "/pre-demandas?preset=prazos-vencidos",
       },
       {
         id: "na-semana",
         label: "Vencem na semana",
-        description: "Demandas activas que exigem seguimento antes do prazo final.",
+        description: "Processos activos que exigem seguimento antes do prazo final.",
         value: items.filter((item) => {
           if (!item.prazoFinal) {
             return false;
@@ -666,7 +666,7 @@ export function PreDemandasPage() {
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
   if (loading) {
-    return <LoadingState description="A preparar o quadro operativo e os filtros da fila." title="Carregando pre-demandas" />;
+    return <LoadingState description="A preparar o quadro operativo e os filtros da fila." title="Carregando processos" />;
   }
 
   if (error) {
@@ -685,13 +685,13 @@ export function PreDemandasPage() {
               Tabela analitica
             </Button>
             <Button asChild>
-              <Link to="/pre-demandas/nova">Nova demanda</Link>
+              <Link to="/pre-demandas/nova">Novo processo</Link>
             </Button>
           </>
         }
         description="Filtre, ordene e aja sobre a fila operacional sem sair do quadro principal."
         eyebrow="Fila operacional"
-        title="Pre-demandas do Gestor"
+        title="Processos do Gestor"
       />
 
       {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
@@ -812,7 +812,7 @@ export function PreDemandasPage() {
         <Card>
           <CardHeader>
             <CardTitle>Contexto operativo</CardTitle>
-            <CardDescription>A fila esta focada em demandas ainda sem setor. Use os atalhos para distribuir primeiro os casos vencidos, proximos do prazo ou ainda sem envolvidos.</CardDescription>
+            <CardDescription>A fila esta focada em processos ainda sem setor. Use os atalhos para distribuir primeiro os casos vencidos, proximos do prazo ou ainda sem envolvidos.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3">
             <Button asChild size="sm" variant={resolvedState.dueState === "" && resolvedState.hasInteressados !== "false" ? "primary" : "secondary"}>
@@ -971,7 +971,7 @@ export function PreDemandasPage() {
       {hiddenClosedCount > 0 ? (
         <div className="flex flex-col items-start justify-between gap-3 rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.92))] px-4 py-4 text-sm text-amber-900 md:flex-row md:items-center">
           <p>
-            {hiddenClosedCount} demanda{hiddenClosedCount > 1 ? "s" : ""} encerrada{hiddenClosedCount > 1 ? "s" : ""} corresponde{hiddenClosedCount > 1 ? "m" : ""} aos filtros, mas aparece{hiddenClosedCount > 1 ? "m" : ""} apenas na tabela analitica.
+            {hiddenClosedCount} processo{hiddenClosedCount > 1 ? "s" : ""} encerrado{hiddenClosedCount > 1 ? "s" : ""} corresponde{hiddenClosedCount > 1 ? "m" : ""} aos filtros, mas aparece{hiddenClosedCount > 1 ? "m" : ""} apenas na tabela analitica.
           </p>
           <Button onClick={() => updateView("table")} type="button" variant="secondary">
             Ver na tabela
@@ -991,7 +991,7 @@ export function PreDemandasPage() {
             }
 
             if (action === "encerrar") {
-              setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar demanda", requireReason: true });
+              setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true });
               return;
             }
 
@@ -1004,7 +1004,7 @@ export function PreDemandasPage() {
             setQuickAction({
               item,
               nextStatus: reopenStatus,
-              label: "Reabrir demanda",
+              label: "Reabrir processo",
               requireReason: true,
             });
           }}
@@ -1016,7 +1016,7 @@ export function PreDemandasPage() {
           </CardHeader>
           <CardContent className="overflow-x-auto">
             {items.length === 0 ? (
-              <EmptyState description="Ajuste os filtros ou mude para outro preset para encontrar demandas nesta fila." title="Nenhuma demanda encontrada" />
+              <EmptyState description="Ajuste os filtros ou mude para outro preset para encontrar processos nesta fila." title="Nenhum processo encontrado" />
             ) : (
               <table className="min-w-full text-left text-sm">
                 <thead className="text-slate-500">
@@ -1091,7 +1091,7 @@ export function PreDemandasPage() {
                             </Button>
                           ) : null}
                           {item.allowedNextStatuses.includes("encerrada") ? (
-                            <Button onClick={() => setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar demanda", requireReason: true })} size="sm" type="button" variant="ghost">
+                            <Button onClick={() => setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true })} size="sm" type="button" variant="ghost">
                               Encerrar
                             </Button>
                           ) : item.status === "encerrada" && getPreferredReopenStatus(item) ? (
@@ -1100,7 +1100,7 @@ export function PreDemandasPage() {
                                 setQuickAction({
                                   item,
                                   nextStatus: getPreferredReopenStatus(item)!,
-                                  label: "Reabrir demanda",
+                                  label: "Reabrir processo",
                                   requireReason: true,
                                 })
                               }
@@ -1162,10 +1162,10 @@ export function PreDemandasPage() {
               motivo,
               observacoes,
             });
-            setMessage(`Demanda ${quickAction.item.preId} actualizada para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
+            setMessage(`Processo ${quickAction.item.preId} actualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
             await load();
           } catch (nextError) {
-            throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar a demanda."));
+            throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar o processo."));
           }
         }}
         onOpenChange={(open) => {

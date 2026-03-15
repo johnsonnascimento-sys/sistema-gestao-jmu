@@ -19,7 +19,7 @@ export function DashboardPage() {
   function describeEvent(event: TimelineEvent) {
     switch (event.type) {
       case "created":
-        return "Nova demanda registrada.";
+        return "Novo processo registrado.";
       case "status_changed":
         return `Status alterado para ${event.statusNovo?.replace("_", " ") ?? "-"}.`;
       case "sei_linked":
@@ -151,7 +151,7 @@ export function DashboardPage() {
               <Link to="/pre-demandas?preset=aguardando-sei">Ver aguardando SEI</Link>
             </Button>
             <Button asChild>
-              <Link to="/pre-demandas/nova">Nova demanda</Link>
+              <Link to="/pre-demandas/nova">Novo processo</Link>
             </Button>
           </>
         }
@@ -272,12 +272,12 @@ export function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Demandas paradas</CardTitle>
+              <CardTitle>Processos parados</CardTitle>
               <CardDescription>Itens ativos sem movimentação recente, ordenados pela atualização mais antiga.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {staleItems.length === 0 ? (
-                <EmptyState description="Quando houver fila pedindo seguimento por falta de movimentação, ela aparecerá aqui." title="Nenhuma demanda parada" />
+                <EmptyState description="Quando houver fila pedindo seguimento por falta de movimentação, ela aparecerá aqui." title="Nenhum processo parado" />
               ) : (
                 staleItems.map(renderQueueItem)
               )}
@@ -287,11 +287,11 @@ export function DashboardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Fila aguardando SEI</CardTitle>
-              <CardDescription>Demandas que pedem seguimento operacional imediato.</CardDescription>
+              <CardDescription>Processos que pedem seguimento operacional imediato.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               {summary.awaitingSeiItems.length === 0 ? (
-                <EmptyState description="Quando uma demanda entrar em acompanhamento ate nascer o processo, ela aparecera aqui." title="Nenhuma demanda aguardando SEI" />
+                <EmptyState description="Quando um processo entrar em acompanhamento ate nascer o processo, ele aparecera aqui." title="Nenhum processo aguardando SEI" />
               ) : (
                 summary.awaitingSeiItems.map(renderQueueItem)
               )}

@@ -175,7 +175,7 @@ export function PreDemandaDetailPage() {
       });
       setError("");
     } catch (nextError) {
-      setError(formatAppError(nextError, "Falha ao carregar demanda."));
+      setError(formatAppError(nextError, "Falha ao carregar processo."));
     } finally {
       setLoading(false);
     }
@@ -360,7 +360,7 @@ export function PreDemandaDetailPage() {
   }
 
   if (loading) {
-    return <LoadingState description="A workbench processual esta a ser preparada com metadados, envolvidos e historico." title="Carregando demanda" />;
+    return <LoadingState description="A workbench processual esta a ser preparada com metadados, envolvidos e historico." title="Carregando processo" />;
   }
 
   if (error && !record) {
@@ -368,7 +368,7 @@ export function PreDemandaDetailPage() {
   }
 
   if (!record || !queueHealth) {
-    return <ErrorState description="Demanda nao encontrada." />;
+    return <ErrorState description="Processo nao encontrado." />;
   }
 
   const reopenStatus = getPreferredReopenStatus(record);
@@ -1163,7 +1163,7 @@ export function PreDemandaDetailPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Iniciar processo relacionado</DialogTitle>
-            <DialogDescription>Crie uma nova demanda relacionada usando a mesma pessoa principal do caso atual.</DialogDescription>
+            <DialogDescription>Crie um novo processo relacionado usando a mesma pessoa principal do caso atual.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <FormField label="Pessoa principal">

@@ -331,7 +331,7 @@ export function AdminOperationsPage() {
       const delta = summary.caseManagementReport.deltas.overdueTotal;
       items.push({
         title: "Casos vencidos na fila",
-        description: `${summary.caseManagementReport.overdueTotal} demanda(s) activa(s) estao com prazo vencido.`,
+        description: `${summary.caseManagementReport.overdueTotal} processo(s) activo(s) estao com prazo vencido.`,
         tone: "critical",
         href: "/pre-demandas?preset=prazos-vencidos",
         cta: "Abrir vencidos",
@@ -344,7 +344,7 @@ export function AdminOperationsPage() {
     if (summary.caseManagementReport.withoutSetorTotal > 0) {
       const delta = summary.caseManagementReport.deltas.withoutSetorTotal;
       items.push({
-        title: "Demandas sem setor",
+        title: "Processos sem setor",
         description: `${summary.caseManagementReport.withoutSetorTotal} caso(s) activo(s) ainda nao foram tramitados para um setor.`,
         tone: "attention",
         href: "/pre-demandas?preset=sem-setor",
@@ -358,7 +358,7 @@ export function AdminOperationsPage() {
     if (summary.caseManagementReport.withoutInteressadosTotal > 0) {
       const delta = summary.caseManagementReport.deltas.withoutInteressadosTotal;
       items.push({
-        title: "Demandas sem envolvidos",
+        title: "Processos sem envolvidos",
         description: `${summary.caseManagementReport.withoutInteressadosTotal} caso(s) activo(s) ainda nao possuem envolvidos vinculados.`,
         tone: "attention",
         href: "/pre-demandas?preset=sem-envolvidos",
@@ -917,7 +917,7 @@ export function AdminOperationsPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.sigla ?? "Sem setor"}</p>
-                        <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Demandas ainda sem destinacao formal."}</h3>
+                        <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Processos ainda sem destinacao formal."}</h3>
                       </div>
                       <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${riskTone(item.riskLevel)}`}>
                         {item.riskLevel}
@@ -954,7 +954,7 @@ export function AdminOperationsPage() {
                   <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.sigla ?? "Sem setor"}</p>
-                      <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Demandas ainda nao encaminhadas para um setor."}</h3>
+                      <h3 className="mt-1 text-sm font-semibold text-slate-950">{item.nome ?? "Processos ainda nao encaminhados para um setor."}</h3>
                     </div>
                     <div className="text-right">
                       <span className={`inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${riskTone(item.riskLevel)}`}>
@@ -1037,7 +1037,7 @@ export function AdminOperationsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Regras da fila</CardTitle>
-            <CardDescription>Limiar operativo para sinalizar demandas em atencao ou criticas.</CardDescription>
+            <CardDescription>Limiar operativo para sinalizar processos em atencao ou criticos.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm text-slate-600">
             <div className="grid gap-4 md:grid-cols-2">
