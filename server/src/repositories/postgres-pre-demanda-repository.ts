@@ -2850,6 +2850,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('created-', pd.id) as event_id,
             pd.pre_id,
+            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
             'created'::text as event_type,
             pd.created_at as occurred_at,
             created_by.id as actor_id,
