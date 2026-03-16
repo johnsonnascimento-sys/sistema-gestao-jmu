@@ -211,6 +211,12 @@ export interface UpdateTarefaInput {
   changedByUserId: number;
 }
 
+export interface ReorderTarefasInput {
+  preId: string;
+  tarefaIds: string[];
+  changedByUserId: number;
+}
+
 export interface AddDemandaAssuntoInput {
   preId: string;
   assuntoId: string;
@@ -428,6 +434,7 @@ export interface PreDemandaRepository {
   listTarefas(preId: string): Promise<TarefaPendente[]>;
   createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
   updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
+  reorderTarefas(input: ReorderTarefasInput): Promise<TarefaPendente[]>;
   removeTarefa(input: RemoveTarefaInput): Promise<{ removedId: string }>;
   concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;
   listComentarios(preId: string): Promise<DemandaComentario[]>;

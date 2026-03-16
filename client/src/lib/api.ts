@@ -407,6 +407,13 @@ export function updatePreDemandaTarefa(preId: string, tarefaId: string, payload:
   });
 }
 
+export function reorderPreDemandaTarefas(preId: string, tarefaIds: string[]) {
+  return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas/ordem`, {
+    method: "PATCH",
+    body: JSON.stringify({ tarefa_ids: tarefaIds }),
+  });
+}
+
 export function removePreDemandaTarefa(preId: string, tarefaId: string) {
   return request<{ removedId: string }>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
     method: "DELETE",

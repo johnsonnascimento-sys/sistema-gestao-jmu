@@ -53,6 +53,7 @@ import {
   removePreDemandaInteressado,
   removePreDemandaTarefa,
   removePreDemandaVinculo,
+  reorderPreDemandaTarefas,
   tramitarPreDemandaMultiplos,
   updatePreDemandaAnotacoes,
   updatePreDemandaAndamento,
@@ -75,11 +76,10 @@ type StatusAction = {
 };
 
 const FIXED_TASKS = [
-  "Aguardando assinatura de pessoa",
-  "Aguardando envio ao setor",
-  "Aguardando retorno do setor",
-  "Aguardando definicao de audiencia",
+  "Assinatura de pessoa",
+  "Definicao de audiencia",
   "Envio para",
+  "Retorno do setor",
 ];
 
 const WEEKDAY_OPTIONS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
@@ -142,6 +142,7 @@ export function PreDemandaDetailPage() {
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
   const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, setor_destino_id: "" });
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [commentForm, setCommentForm] = useState("");
@@ -309,15 +310,38 @@ export function PreDemandaDetailPage() {
   }, [record]);
   const taskShortcutOptions = useMemo(() => {
     const items = [...FIXED_TASKS];
-    const interessadoShortcuts = (record?.interessados ?? []).slice(0, 6).map((item) => `Aguardando assinatura de ${item.interessado.nome}`);
-
-    if (record?.setorAtual) {
-      items.push(`Aguardando retorno do setor ${record.setorAtual.sigla}`);
-    }
+    const interessadoShortcuts = (record?.interessados ?? []).slice(0, 6).map((item) => `Assinatura de ${item.interessado.nome}`);
 
     return Array.from(new Set([...items, ...interessadoShortcuts]));
   }, [record]);
-  const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para";
+  const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor";
+
+  async function handleReorderPendingTasks(targetTaskId: string) {
+    if (!draggedTaskId || draggedTaskId === targetTaskId) {
+      return;
+    }
+
+    const currentPendingIds = pendingTasks.map((task) => task.id);
+    const fromIndex = currentPendingIds.indexOf(draggedTaskId);
+    const toIndex = currentPendingIds.indexOf(targetTaskId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedTaskId(null);
+      return;
+    }
+
+    const nextIds = [...currentPendingIds];
+    const [moved] = nextIds.splice(fromIndex, 1);
+    nextIds.splice(toIndex, 0, moved);
+    setDraggedTaskId(null);
+    await runMutation(
+      async () => {
+        const tarefas = await reorderPreDemandaTarefas(preId, nextIds);
+        setRecord((current) => (current ? { ...current, tarefasPendentes: tarefas } : current));
+      },
+      "Checklist reorganizada.",
+    );
+  }
   const availableAssuntos = useMemo(
     () => assuntosCatalogo.filter((item) => !record?.assuntos.some((linked) => linked.assunto.id === item.id)),
     [assuntosCatalogo, record],
@@ -725,8 +749,8 @@ export function PreDemandaDetailPage() {
                       async () => {
                         await createPreDemandaTarefa(preId, {
                           descricao:
-                            taskForm.descricao.trim() === "Envio para"
-                              ? `Envio para ${setores.find((item) => item.id === taskForm.setor_destino_id)?.sigla ?? ""}`.trim()
+                            taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor"
+                              ? `${taskForm.descricao.trim()} ${setores.find((item) => item.id === taskForm.setor_destino_id)?.sigla ?? ""}`.trim()
                               : taskForm.descricao,
                           tipo: taskForm.tipo,
                           setor_destino_id: taskForm.setor_destino_id || null,
@@ -769,7 +793,7 @@ export function PreDemandaDetailPage() {
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-slate-500 md:self-center">Os atalhos consideram envolvidos e setor atual.</p>
+                <p className="text-xs text-slate-500 md:self-center">Os atalhos consideram envolvidos. Arraste as tarefas pendentes para reorganizar.</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -787,7 +811,14 @@ export function PreDemandaDetailPage() {
                     <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhuma tarefa pendente.</p>
                   ) : (
                     pendingTasks.map((task) => (
-                      <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={task.id}>
+                      <div
+                        className={`rounded-[22px] border border-slate-200 bg-white px-4 py-3 ${draggedTaskId === task.id ? "opacity-60" : ""}`}
+                        draggable
+                        key={task.id}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDragStart={() => setDraggedTaskId(task.id)}
+                        onDrop={() => void handleReorderPendingTasks(task.id)}
+                      >
                         <div className="flex items-start gap-3">
                           <input className="mt-1 h-4 w-4 accent-slate-950" onChange={() => void runMutation(() => concluirPreDemandaTarefa(preId, task.id).then(() => undefined), "Tarefa concluida.")} type="checkbox" />
                           <div className="min-w-0 flex-1">

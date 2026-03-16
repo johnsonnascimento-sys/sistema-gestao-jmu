@@ -150,6 +150,10 @@ const tarefaSchema = z.object({
   setor_destino_id: z.string().uuid().optional().nullable(),
 });
 
+const tarefaOrderSchema = z.object({
+  tarefa_ids: z.array(z.string().uuid()).min(1),
+});
+
 const comentarioSchema = z.object({
   conteudo: z.string().trim().min(1).max(20000),
   formato: z.literal("markdown").optional().default("markdown"),
@@ -585,6 +589,22 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     return reply.send({
       ok: true,
       data: tarefa,
+      error: null,
+    });
+  });
+
+  app.patch("/api/pre-demandas/:preId/tarefas/ordem", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const payload = tarefaOrderSchema.parse(request.body);
+    const tarefas = await preDemandaRepository.reorderTarefas({
+      preId: params.preId,
+      tarefaIds: payload.tarefa_ids,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: tarefas,
       error: null,
     });
   });

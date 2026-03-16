@@ -485,6 +485,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       tarefasPendentes: (input.assuntoIds ?? []).map((assuntoId, index) => ({
         id: `123e4567-e89b-42d3-a456-${String(index + 1).padStart(12, "0")}`,
         preId,
+        ordem: index + 1,
         descricao: `[${buildAssuntoStub(assuntoId).nome}] 1. Passo padrao`,
         tipo: "fixa",
         assuntoId,
@@ -715,9 +716,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       linkedAt: new Date().toISOString(),
       linkedBy: null,
     });
-    record.tarefasPendentes.unshift({
+    record.tarefasPendentes.push({
       id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
       preId: record.preId,
+      ordem: record.tarefasPendentes.length + 1,
       descricao: `[${assunto.nome}] 1. ${procedimento.descricao}`,
       tipo: "fixa",
       assuntoId: assunto.id,
@@ -977,6 +979,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const tarefa: TarefaPendente = {
       id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
       preId: record.preId,
+      ordem: record.tarefasPendentes.length + 1,
       descricao: input.descricao,
       tipo: input.tipo,
       assuntoId: input.assuntoId ?? null,
@@ -998,7 +1001,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       createdBy: null,
     };
 
-    record.tarefasPendentes.unshift(tarefa);
+    record.tarefasPendentes.push(tarefa);
     return tarefa;
   }
 
@@ -1021,6 +1024,28 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     tarefa.tipo = input.tipo;
     this.addAndamentoRecord(record, `Tarefa atualizada: ${tarefa.descricao}.`, "sistema");
     return tarefa;
+  }
+
+  async reorderTarefas(input: { preId: string; tarefaIds: string[] }) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const pending = record.tarefasPendentes.filter((item) => !item.concluida);
+    const completed = record.tarefasPendentes.filter((item) => item.concluida);
+    const reorderedPending = input.tarefaIds.map((id, index) => {
+      const tarefa = pending.find((item) => item.id === id);
+      if (!tarefa) {
+        throw new Error("invalid order");
+      }
+      tarefa.ordem = index + 1;
+      return tarefa;
+    });
+
+    record.tarefasPendentes = [...reorderedPending, ...completed];
+    this.addAndamentoRecord(record, "Checklist reorganizada manualmente.", "sistema");
+    return record.tarefasPendentes;
   }
 
   async removeTarefa(input: { preId: string; tarefaId: string }) {

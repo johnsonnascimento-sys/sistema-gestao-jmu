@@ -392,6 +392,7 @@ function mapTarefa(row: QueryResultRow): TarefaPendente {
   return {
     id: String(row.id),
     preId: String(row.pre_id),
+    ordem: Number(row.ordem),
     descricao: String(row.descricao),
     tipo: row.tipo as TarefaPendente["tipo"],
     assuntoId: row.assunto_id ? String(row.assunto_id) : null,
@@ -1137,6 +1138,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           $2::text as pre_id,
           tarefa.descricao,
           tarefa.tipo,
+          tarefa.ordem,
           tarefa.assunto_id,
           tarefa.procedimento_id,
           tarefa.gerada_automaticamente,
@@ -1161,7 +1163,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         left join adminlog.app_user created_by on created_by.id = tarefa.created_by_user_id
         left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
         where tarefa.pre_demanda_id = $1
-        order by tarefa.concluida asc, tarefa.created_at desc, tarefa.id desc
+        order by tarefa.concluida asc, tarefa.ordem asc, tarefa.created_at asc, tarefa.id asc
       `,
       [preDemandaId, preId],
     );
@@ -2296,10 +2298,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async createTarefa(input: CreateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const orderResult = await client.query(
+        `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
+        [demanda.id],
+      );
+      const nextOrdem = Number(orderResult.rows[0]?.max_ordem ?? 0) + 1;
       const inserted = await client.query(
         `
           insert into adminlog.tarefas_pendentes (
             pre_demanda_id,
+            ordem,
             descricao,
             tipo,
             assunto_id,
@@ -2308,11 +2316,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, $3, $4::uuid, $5::uuid, $6::uuid, $7, $8)
+          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::uuid, $8, $9)
           returning id
         `,
         [
           demanda.id,
+          nextOrdem,
           input.descricao,
           input.tipo,
           input.assuntoId ?? null,
@@ -2328,6 +2337,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             tarefa.id,
             $2::text as pre_id,
+            tarefa.ordem,
             tarefa.descricao,
             tarefa.tipo,
             tarefa.assunto_id,
@@ -2409,6 +2419,46 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       }
 
       return tarefa;
+    });
+  }
+
+  async reorderTarefas(input: { preId: string; tarefaIds: string[]; changedByUserId: number }) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const current = await client.query(
+        `
+          select id
+          from adminlog.tarefas_pendentes
+          where pre_demanda_id = $1 and concluida = false
+          order by ordem asc, created_at asc, id asc
+          for update
+        `,
+        [demanda.id],
+      );
+
+      const currentIds = current.rows.map((row) => String(row.id));
+      const requestedIds = input.tarefaIds;
+
+      if (currentIds.length !== requestedIds.length || currentIds.some((id) => !requestedIds.includes(id))) {
+        throw new AppError(400, "TAREFA_REORDER_INVALID", "A ordenacao informada nao corresponde as tarefas pendentes da demanda.");
+      }
+
+      for (let index = 0; index < requestedIds.length; index += 1) {
+        await client.query(
+          `update adminlog.tarefas_pendentes set ordem = $3 where id = $1::uuid and pre_demanda_id = $2`,
+          [requestedIds[index], demanda.id, index + 1],
+        );
+      }
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: "Checklist reorganizada manualmente.",
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      return this.loadTarefas(client, demanda.id, demanda.preId);
     });
   }
 

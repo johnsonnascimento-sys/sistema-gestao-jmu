@@ -215,6 +215,7 @@ export interface Andamento {
 export interface TarefaPendente {
   id: string;
   preId: string;
+  ordem: number;
   descricao: string;
   tipo: TarefaPendenteTipo;
   assuntoId: string | null;
