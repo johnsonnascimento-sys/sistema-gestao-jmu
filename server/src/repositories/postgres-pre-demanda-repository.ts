@@ -78,7 +78,7 @@ const BASE_FROM = `
       link.linked_by_user_id
     from adminlog.pre_to_sei_link link
     where link.pre_id = pd.pre_id
-    order by link.principal desc, link.updated_at desc, link.id desc
+    order by link.updated_at desc, link.id desc
     limit 1
   ) pts on true
   left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
