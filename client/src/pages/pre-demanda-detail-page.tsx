@@ -120,6 +120,7 @@ export function PreDemandaDetailPage() {
     frequencia_dias_semana: [] as string[],
     frequencia_dia_mes: "",
     pagamento_envolvido: false,
+    urgente: false,
     audiencia_data: "",
     audiencia_status: "",
   });
@@ -177,6 +178,7 @@ export function PreDemandaDetailPage() {
         frequencia_dias_semana: nextRecord.metadata.frequenciaDiasSemana ?? [],
         frequencia_dia_mes: nextRecord.metadata.frequenciaDiaMes ? String(nextRecord.metadata.frequenciaDiaMes) : "",
         pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
+        urgente: nextRecord.metadata.urgente ?? false,
         audiencia_data: nextRecord.metadata.audienciaData ?? "",
         audiencia_status: nextRecord.metadata.audienciaStatus ?? "",
       });
@@ -496,8 +498,8 @@ export function PreDemandaDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="grid gap-6">
+      <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid content-start gap-6">
           <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.resumo} title="Resumo executivo">
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
@@ -507,6 +509,7 @@ export function PreDemandaDetailPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <StatusPill status={record.status} />
+                  {record.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
                   <QueueHealthPill item={record} />
                 </div>
               </div>
@@ -518,6 +521,7 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Prazo intermediario" value={record.prazoIntermediario ? new Date(record.prazoIntermediario).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Prazo final" value={record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
+              <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
               <SummaryItem label="Frequencia" value={frequencySummary} />
               <SummaryItem label="Data da audiencia" value={record.metadata.audienciaData ? new Date(record.metadata.audienciaData).toLocaleDateString("pt-BR") : "-"} />
@@ -859,7 +863,7 @@ export function PreDemandaDetailPage() {
           </DetailSectionCard>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid content-start gap-6">
           <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.visao} title="Visao operacional">
             <CardHeader>
               <CardTitle>Visao operacional</CardTitle>
@@ -1148,6 +1152,13 @@ export function PreDemandaDetailPage() {
               </span>
               <input checked={editForm.pagamento_envolvido} className="h-5 w-5 accent-slate-950" onChange={(event) => setEditForm((current) => ({ ...current, pagamento_envolvido: event.target.checked }))} type="checkbox" />
             </label>
+            <label className="flex items-center justify-between rounded-[24px] border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(190,24,93,0.08)]">
+              <span>
+                <span className="block font-semibold text-slate-950">Marcar como urgente</span>
+                <span className="text-slate-500">Destaque operativo para tratamento prioritário.</span>
+              </span>
+              <input checked={editForm.urgente} className="h-5 w-5 accent-rose-600" onChange={(event) => setEditForm((current) => ({ ...current, urgente: event.target.checked }))} type="checkbox" />
+            </label>
             <FormField label="Observacoes principais">
               <Textarea onChange={(event) => setEditForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={editForm.observacoes} />
             </FormField>
@@ -1175,6 +1186,7 @@ export function PreDemandaDetailPage() {
                         frequencia_dias_semana: editForm.frequencia === "Semanal" ? editForm.frequencia_dias_semana : null,
                         frequencia_dia_mes: editForm.frequencia === "Mensal" && editForm.frequencia_dia_mes ? Number(editForm.frequencia_dia_mes) : null,
                         pagamento_envolvido: editForm.pagamento_envolvido,
+                        urgente: editForm.urgente,
                         audiencia_data: editForm.audiencia_data || null,
                         audiencia_status: editForm.audiencia_status || null,
                       },
@@ -1682,7 +1694,7 @@ function DetailSectionCard({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <Card className={open ? "" : "overflow-hidden"}>
+    <Card className={open ? "h-fit self-start" : "h-fit self-start overflow-hidden"}>
       <button
         aria-expanded={open}
         className={`flex w-full items-center justify-between gap-3 text-left transition hover:bg-white/40 ${open ? "px-5 py-3.5" : "px-4 py-2.5"}`}

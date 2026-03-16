@@ -190,6 +190,7 @@ function mapMetadata(raw: unknown): PreDemandaMetadata {
     frequenciaDiasSemana: Array.isArray(value.frequencia_dias_semana) ? value.frequencia_dias_semana.filter((item): item is string => typeof item === "string") : null,
     frequenciaDiaMes: typeof value.frequencia_dia_mes === "number" ? value.frequencia_dia_mes : null,
     pagamentoEnvolvido: typeof value.pagamento_envolvido === "boolean" ? value.pagamento_envolvido : null,
+    urgente: typeof value.urgente === "boolean" ? value.urgente : null,
     audienciaData: typeof value.audiencia_data === "string" ? value.audiencia_data : null,
     audienciaStatus: typeof value.audiencia_status === "string" ? value.audiencia_status : null,
   };
@@ -485,6 +486,7 @@ function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | u
     frequencia_dias_semana: metadata.frequenciaDiasSemana ?? null,
     frequencia_dia_mes: metadata.frequenciaDiaMes ?? null,
     pagamento_envolvido: metadata.pagamentoEnvolvido ?? null,
+    urgente: metadata.urgente ?? null,
     audiencia_data: metadata.audienciaData ?? null,
     audiencia_status: metadata.audienciaStatus ?? null,
   };
@@ -3340,7 +3342,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -3412,6 +3414,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               where pd.status <> 'encerrada'
                 and coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = true
             )::int as payment_marked_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and coalesce((pd.metadata ->> 'urgente')::boolean, false) = true
+            )::int as urgent_total,
             count(*) filter (
               where pd.status <> 'encerrada'
                 and pd.setor_atual_id is null
@@ -3486,6 +3492,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `
           ${BASE_SELECT}
           where pd.status <> 'encerrada'
+            and coalesce((pd.metadata ->> 'urgente')::boolean, false) = true
+          order by pd.prazo_final asc nulls last, pd.updated_at asc, pd.id asc
+          limit 5
+        `,
+      ),
+      this.pool.query(
+        `
+          ${BASE_SELECT}
+          where pd.status <> 'encerrada'
             and pd.setor_atual_id is null
           order by pd.updated_at asc, pd.data_referencia asc, pd.id asc
           limit 5
@@ -3537,12 +3552,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       dueSoonTotal: Number(caseSignalsResult.rows[0]?.due_soon_total ?? 0),
       overdueTotal: Number(caseSignalsResult.rows[0]?.overdue_total ?? 0),
       paymentMarkedTotal: Number(caseSignalsResult.rows[0]?.payment_marked_total ?? 0),
+      urgentTotal: Number(caseSignalsResult.rows[0]?.urgent_total ?? 0),
       withoutSetorTotal: Number(caseSignalsResult.rows[0]?.without_setor_total ?? 0),
       withoutInteressadosTotal: Number(caseSignalsResult.rows[0]?.without_interessados_total ?? 0),
       staleItems: staleItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       awaitingSeiItems: awaitingSeiResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       dueSoonItems: dueSoonItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       paymentMarkedItems: paymentMarkedItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
+      urgentItems: urgentItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       withoutSetorItems: withoutSetorItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       withoutInteressadosItems: withoutInteressadosItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       recentTimeline,

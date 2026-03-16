@@ -19,6 +19,7 @@ const metadataSchema = z
     frequencia_dias_semana: z.array(z.string().trim().min(3).max(16)).max(7).optional().nullable(),
     frequencia_dia_mes: z.number().int().min(1).max(31).optional().nullable(),
     pagamento_envolvido: z.boolean().optional().nullable(),
+    urgente: z.boolean().optional().nullable(),
     audiencia_data: z.string().date().optional().nullable(),
     audiencia_status: z.string().trim().max(120).optional().nullable(),
   })
@@ -180,6 +181,7 @@ function normalizeMetadata(payload: z.infer<typeof metadataSchema>) {
     frequenciaDiasSemana: payload.frequencia_dias_semana?.length ? payload.frequencia_dias_semana : null,
     frequenciaDiaMes: payload.frequencia_dia_mes ?? null,
     pagamentoEnvolvido: payload.pagamento_envolvido ?? null,
+    urgente: payload.urgente ?? null,
     audienciaData: payload.audiencia_data ?? null,
     audienciaStatus: emptyToNull(payload.audiencia_status),
   };

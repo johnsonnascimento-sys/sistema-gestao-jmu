@@ -145,6 +145,7 @@ export function DashboardPage() {
             <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            {item.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
             <StatusPill status={item.status} />
             <QueueHealthPill item={item} />
           </div>
@@ -188,6 +189,7 @@ export function DashboardPage() {
         <MetricCard label="Paradas 2d+" to={buildAnalyticalTableHref({ queueHealth: "attention,critical", sortBy: "updatedAt", sortOrder: "asc" })} value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
         <MetricCard label="Críticas 5d+" to={buildAnalyticalTableHref({ preset: "criticas" })} value={summary.agingCriticalTotal} />
         <MetricCard label="Vence hoje" to={buildAnalyticalTableHref({ preset: "vence-hoje" })} value={summary.dueTodayTotal} />
+        <MetricCard label="Urgentes" to="/pre-demandas" value={summary.urgentTotal} />
         <MetricCard label="Com pagamento" to={buildAnalyticalTableHref({ preset: "com-pagamento" })} value={summary.paymentMarkedTotal} />
         <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.dueSoonTotal} />
         <MetricCard label="Prazos vencidos" to={buildAnalyticalTableHref({ preset: "prazos-vencidos" })} value={summary.overdueTotal} />
@@ -290,6 +292,44 @@ export function DashboardPage() {
         </Card>
 
         <div className="grid gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Processos urgentes</CardTitle>
+              <CardDescription>Casos marcados como urgentes para tratamento prioritário imediato.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              {summary.urgentItems.length === 0 ? (
+                <EmptyState description="Quando um processo for marcado como urgente, ele aparece aqui com destaque prioritário." title="Nenhum processo urgente" />
+              ) : (
+                summary.urgentItems.map((item) => (
+                  <Link
+                    className="grid gap-2 rounded-[28px] border border-rose-300/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,228,230,0.9))] p-4 shadow-[0_14px_30px_rgba(190,24,93,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(190,24,93,0.16)]"
+                    key={`urgent-${item.preId}`}
+                    to={`/pre-demandas/${item.preId}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-700">{item.principalNumero}</p>
+                        <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span>
+                        <StatusPill status={item.status} />
+                      </div>
+                    </div>
+                    <div className="grid gap-1 text-sm text-slate-600">
+                      <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
+                      <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
+                      <p>{formatPrazo(item)}</p>
+                      <p>{formatStructuredDeadlines(item)}</p>
+                      <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Processos com pagamento</CardTitle>

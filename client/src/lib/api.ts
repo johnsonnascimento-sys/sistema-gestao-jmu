@@ -141,6 +141,7 @@ export interface CreatePreDemandaPayload {
     frequencia_dias_semana?: string[] | null;
     frequencia_dia_mes?: number | null;
     pagamento_envolvido?: boolean | null;
+    urgente?: boolean | null;
     audiencia_data?: string | null;
     audiencia_status?: string | null;
   } | null;
@@ -160,6 +161,7 @@ export interface UpdatePreDemandaCasePayload {
     frequencia_dias_semana?: string[] | null;
     frequencia_dia_mes?: number | null;
     pagamento_envolvido?: boolean | null;
+    urgente?: boolean | null;
     audiencia_data?: string | null;
     audiencia_status?: string | null;
   };

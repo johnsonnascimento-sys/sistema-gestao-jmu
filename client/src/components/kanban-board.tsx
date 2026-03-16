@@ -59,6 +59,7 @@ export function KanbanBoard({
                         <h4 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h4>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
+                        {item.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
                         <StatusPill status={item.status} />
                         <QueueHealthPill item={item} />
                       </div>

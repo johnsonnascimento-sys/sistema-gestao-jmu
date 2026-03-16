@@ -49,6 +49,7 @@ export function NewPreDemandaPage() {
     prazo_final: "",
     numero_judicial: "",
     pagamento_envolvido: false,
+    urgente: false,
     frequencia: "",
     frequencia_dias_semana: [] as string[],
     frequencia_dia_mes: "",
@@ -183,6 +184,7 @@ export function NewPreDemandaPage() {
           frequencia_dias_semana: form.frequencia === "Semanal" ? form.frequencia_dias_semana : null,
           frequencia_dia_mes: form.frequencia === "Mensal" && form.frequencia_dia_mes ? Number(form.frequencia_dia_mes) : null,
           pagamento_envolvido: form.pagamento_envolvido,
+          urgente: form.urgente,
         },
       });
 
@@ -427,6 +429,19 @@ export function NewPreDemandaPage() {
                     checked={form.pagamento_envolvido}
                     className="h-5 w-5 accent-slate-950"
                     onChange={(event) => setForm((current) => ({ ...current, pagamento_envolvido: event.target.checked }))}
+                    type="checkbox"
+                  />
+                </label>
+
+                <label className="md:col-span-2 flex items-center justify-between rounded-[24px] border border-rose-200/80 bg-rose-50/80 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(190,24,93,0.08)]">
+                  <div>
+                    <p className="font-semibold text-slate-950">Marcar como urgente</p>
+                    <p className="text-slate-500">Destaca o processo no dashboard, na fila e no detalhe para tratamento prioritário.</p>
+                  </div>
+                  <input
+                    checked={form.urgente}
+                    className="h-5 w-5 accent-rose-600"
+                    onChange={(event) => setForm((current) => ({ ...current, urgente: event.target.checked }))}
                     type="checkbox"
                   />
                 </label>

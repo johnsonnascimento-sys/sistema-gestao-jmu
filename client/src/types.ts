@@ -132,6 +132,7 @@ export interface PreDemandaMetadata {
   frequenciaDiasSemana: string[] | null;
   frequenciaDiaMes: number | null;
   pagamentoEnvolvido: boolean | null;
+  urgente: boolean | null;
   audienciaData: string | null;
   audienciaStatus: string | null;
 }
@@ -379,12 +380,14 @@ export interface PreDemandaDashboardSummary {
   dueSoonTotal: number;
   overdueTotal: number;
   paymentMarkedTotal: number;
+  urgentTotal: number;
   withoutSetorTotal: number;
   withoutInteressadosTotal: number;
   staleItems: PreDemanda[];
   awaitingSeiItems: PreDemanda[];
   dueSoonItems: PreDemanda[];
   paymentMarkedItems: PreDemanda[];
+  urgentItems: PreDemanda[];
   withoutSetorItems: PreDemanda[];
   withoutInteressadosItems: PreDemanda[];
   recentTimeline: TimelineEvent[];
