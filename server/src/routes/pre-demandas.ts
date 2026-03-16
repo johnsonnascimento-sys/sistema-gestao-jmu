@@ -147,6 +147,7 @@ const andamentoDeleteSchema = z.object({
 const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
+  setor_destino_id: z.string().uuid().optional().nullable(),
 });
 
 const comentarioSchema = z.object({
@@ -559,6 +560,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       preId: params.preId,
       descricao: payload.descricao,
       tipo: payload.tipo,
+      setorDestinoId: payload.setor_destino_id ?? null,
       changedByUserId: request.user!.id,
     });
 

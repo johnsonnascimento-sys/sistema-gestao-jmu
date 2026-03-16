@@ -393,7 +393,7 @@ export function listPreDemandaTarefas(preId: string) {
   return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas`);
 }
 
-export function createPreDemandaTarefa(preId: string, payload: { descricao: string; tipo: TarefaPendenteTipo }) {
+export function createPreDemandaTarefa(preId: string, payload: { descricao: string; tipo: TarefaPendenteTipo; setor_destino_id?: string | null }) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas`, {
     method: "POST",
     body: JSON.stringify(payload),

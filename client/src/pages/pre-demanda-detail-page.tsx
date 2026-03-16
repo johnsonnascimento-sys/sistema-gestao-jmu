@@ -79,6 +79,7 @@ const FIXED_TASKS = [
   "Aguardando envio ao setor",
   "Aguardando retorno do setor",
   "Aguardando definicao de audiencia",
+  "Envio para",
 ];
 
 const WEEKDAY_OPTIONS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
@@ -140,7 +141,7 @@ export function PreDemandaDetailPage() {
   const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
-  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const });
+  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, setor_destino_id: "" });
   const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [commentForm, setCommentForm] = useState("");
@@ -316,6 +317,7 @@ export function PreDemandaDetailPage() {
 
     return Array.from(new Set([...items, ...interessadoShortcuts]));
   }, [record]);
+  const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para";
   const availableAssuntos = useMemo(
     () => assuntosCatalogo.filter((item) => !record?.assuntos.some((linked) => linked.assunto.id === item.id)),
     [assuntosCatalogo, record],
@@ -717,12 +719,19 @@ export function PreDemandaDetailPage() {
                   <option value="fixa">Fixa</option>
                 </select>
                 <Button
-                  disabled={taskForm.descricao.trim().length < 3}
+                  disabled={taskForm.descricao.trim().length < 3 || (requiresTaskSetorDestino && !taskForm.setor_destino_id)}
                   onClick={() =>
                     void runMutation(
                       async () => {
-                        await createPreDemandaTarefa(preId, taskForm);
-                        setTaskForm({ descricao: "", tipo: "livre" });
+                        await createPreDemandaTarefa(preId, {
+                          descricao:
+                            taskForm.descricao.trim() === "Envio para"
+                              ? `Envio para ${setores.find((item) => item.id === taskForm.setor_destino_id)?.sigla ?? ""}`.trim()
+                              : taskForm.descricao,
+                          tipo: taskForm.tipo,
+                          setor_destino_id: taskForm.setor_destino_id || null,
+                        });
+                        setTaskForm({ descricao: "", tipo: "livre", setor_destino_id: "" });
                       },
                       "Tarefa criada.",
                     )
@@ -733,8 +742,26 @@ export function PreDemandaDetailPage() {
                 </Button>
               </div>
 
+              {requiresTaskSetorDestino ? (
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <select
+                    className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
+                    onChange={(event) => setTaskForm((current) => ({ ...current, setor_destino_id: event.target.value }))}
+                    value={taskForm.setor_destino_id}
+                  >
+                    <option value="">Escolha o setor destino</option>
+                    {setores.map((setor) => (
+                      <option key={setor.id} value={setor.id}>
+                        {setor.sigla} - {setor.nomeCompleto}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 md:self-center">Ao concluir, o processo será tramitado automaticamente para o setor escolhido.</p>
+                </div>
+              ) : null}
+
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm({ descricao: event.target.value, tipo: "fixa" })} value="">
+                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value, tipo: "fixa", setor_destino_id: event.target.value === "Envio para" ? current.setor_destino_id : "" }))} value="">
                   <option value="">Atalhos de tarefas</option>
                   {taskShortcutOptions.map((item) => (
                     <option key={item} value={item}>
@@ -747,7 +774,7 @@ export function PreDemandaDetailPage() {
 
               <div className="flex flex-wrap gap-2">
                 {taskShortcutOptions.slice(0, 6).map((item) => (
-                  <Button key={item} onClick={() => setTaskForm({ descricao: item, tipo: "fixa" })} size="sm" type="button" variant="outline">
+                  <Button key={item} onClick={() => setTaskForm((current) => ({ ...current, descricao: item, tipo: "fixa", setor_destino_id: item === "Envio para" ? current.setor_destino_id : "" }))} size="sm" type="button" variant="outline">
                     {item}
                   </Button>
                 ))}
