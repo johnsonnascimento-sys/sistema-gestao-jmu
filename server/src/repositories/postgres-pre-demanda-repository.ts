@@ -64,6 +64,44 @@ import type {
 
 type Queryable = DatabasePool | PoolClient;
 
+const BASE_FROM = `
+  from adminlog.pre_demanda pd
+  left join lateral (
+    select
+      link.id,
+      link.pre_id,
+      link.sei_numero,
+      link.sei_numero_inicial,
+      link.linked_at,
+      link.updated_at,
+      link.observacoes,
+      link.linked_by_user_id
+    from adminlog.pre_to_sei_link link
+    where link.pre_id = pd.pre_id
+    order by link.principal desc, link.updated_at desc, link.id desc
+    limit 1
+  ) pts on true
+  left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
+  left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
+  left join lateral (
+    select
+      pessoa.id as pessoa_principal_id,
+      pessoa.nome as pessoa_principal_nome,
+      pessoa.cargo as pessoa_principal_cargo,
+      pessoa.matricula as pessoa_principal_matricula,
+      pessoa.cpf as pessoa_principal_cpf,
+      pessoa.data_nascimento as pessoa_principal_data_nascimento,
+      pessoa.created_at as pessoa_principal_created_at,
+      pessoa.updated_at as pessoa_principal_updated_at
+    from adminlog.demanda_interessados di
+    inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
+    where di.pre_demanda_id = pd.id
+    order by case when di.papel = 'solicitante' then 0 else 1 end, di.created_at desc, pessoa.nome asc
+    limit 1
+  ) pessoa_principal on true
+  left join adminlog.setores setor on setor.id = pd.setor_atual_id
+`;
+
 const BASE_SELECT = `
   select
     pd.id,
@@ -113,27 +151,7 @@ const BASE_SELECT = `
     linked_by.email as linked_by_email,
     linked_by.name as linked_by_name,
     linked_by.role as linked_by_role
-  from adminlog.pre_demanda pd
-  left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
-  left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
-  left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
-  left join lateral (
-    select
-      pessoa.id as pessoa_principal_id,
-      pessoa.nome as pessoa_principal_nome,
-      pessoa.cargo as pessoa_principal_cargo,
-      pessoa.matricula as pessoa_principal_matricula,
-      pessoa.cpf as pessoa_principal_cpf,
-      pessoa.data_nascimento as pessoa_principal_data_nascimento,
-      pessoa.created_at as pessoa_principal_created_at,
-      pessoa.updated_at as pessoa_principal_updated_at
-    from adminlog.demanda_interessados di
-    inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
-    where di.pre_demanda_id = pd.id
-    order by case when di.papel = 'solicitante' then 0 else 1 end, di.created_at desc, pessoa.nome asc
-    limit 1
-  ) pessoa_principal on true
-  left join adminlog.setores setor on setor.id = pd.setor_atual_id
+  ${BASE_FROM}
 `;
 
 const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
@@ -469,6 +487,10 @@ function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | u
   };
 }
 
+function buildNormalizedLikeExpression(column: string, index: number) {
+  return `translate(lower(coalesce(${column}, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
+}
+
 function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: QueueHealthThresholds) {
   const values: Array<string | number | string[] | boolean> = [];
   const clauses: string[] = [];
@@ -486,12 +508,22 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
         values.push(`%${token}%`);
         const index = values.length;
         tokenClauses.push(`(
-          translate(lower(coalesce(pd.assunto, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
-          or translate(lower(coalesce(pd.solicitante, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
-          or translate(lower(coalesce(pessoa_principal.pessoa_principal_nome, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
-          or translate(lower(coalesce(pd.pre_id, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
-          or translate(lower(coalesce(pd.numero_judicial, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
-          or translate(lower(coalesce(pts.sei_numero, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}
+          ${buildNormalizedLikeExpression("pd.assunto", index)}
+          or ${buildNormalizedLikeExpression("pd.solicitante", index)}
+          or ${buildNormalizedLikeExpression("pessoa_principal.pessoa_principal_nome", index)}
+          or ${buildNormalizedLikeExpression("pd.pre_id", index)}
+          or exists (
+            select 1
+            from adminlog.demanda_numeros_judiciais dnj
+            where dnj.pre_demanda_id = pd.id
+              and ${buildNormalizedLikeExpression("dnj.numero_judicial", index)}
+          )
+          or exists (
+            select 1
+            from adminlog.pre_to_sei_link sei_busca
+            where sei_busca.pre_id = pd.pre_id
+              and ${buildNormalizedLikeExpression("sei_busca.sei_numero", index)}
+          )
         )`);
       }
 
@@ -503,8 +535,18 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
       const index = values.length;
       qClauses.push(`(
         regexp_replace(coalesce(pd.pre_id, ''), '\\D', '', 'g') like $${index}
-        or regexp_replace(coalesce(pd.numero_judicial, ''), '\\D', '', 'g') like $${index}
-        or regexp_replace(coalesce(pts.sei_numero, ''), '\\D', '', 'g') like $${index}
+        or exists (
+          select 1
+          from adminlog.demanda_numeros_judiciais dnj
+          where dnj.pre_demanda_id = pd.id
+            and regexp_replace(coalesce(dnj.numero_judicial, ''), '\\D', '', 'g') like $${index}
+        )
+        or exists (
+          select 1
+          from adminlog.pre_to_sei_link sei_busca
+          where sei_busca.pre_id = pd.pre_id
+            and regexp_replace(coalesce(sei_busca.sei_numero, ''), '\\D', '', 'g') like $${index}
+        )
       )`);
     }
 
@@ -1587,8 +1629,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.pool.query(
         `
           select count(*)::int as total
-          from adminlog.pre_demanda pd
-          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
+          ${BASE_FROM}
           ${where}
         `,
         values,
