@@ -575,6 +575,39 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     });
   });
 
+  app.patch("/api/pre-demandas/:preId/tarefas/:tarefaId", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
+    const payload = tarefaSchema.parse(request.body);
+    const tarefa = await preDemandaRepository.updateTarefa({
+      preId: params.preId,
+      tarefaId: params.tarefaId,
+      descricao: payload.descricao,
+      tipo: payload.tipo,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: tarefa,
+      error: null,
+    });
+  });
+
+  app.delete("/api/pre-demandas/:preId/tarefas/:tarefaId", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
+    const result = await preDemandaRepository.removeTarefa({
+      preId: params.preId,
+      tarefaId: params.tarefaId,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: result,
+      error: null,
+    });
+  });
+
   app.get("/api/pre-demandas/:preId/comentarios", { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const comentarios = await preDemandaRepository.listComentarios(params.preId);

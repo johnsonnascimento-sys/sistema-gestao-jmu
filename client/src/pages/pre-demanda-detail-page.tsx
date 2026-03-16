@@ -51,18 +51,20 @@ import {
   removePreDemandaAndamento,
   removePreDemandaAssunto,
   removePreDemandaInteressado,
+  removePreDemandaTarefa,
   removePreDemandaVinculo,
   tramitarPreDemandaMultiplos,
   updatePreDemandaAnotacoes,
   updatePreDemandaAndamento,
   updatePreDemandaCase,
+  updatePreDemandaTarefa,
   updatePreDemandaStatus,
 } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TimelineEvent } from "../types";
+import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TimelineEvent } from "../types";
 
 type ToolbarDialog = null | "related" | "edit" | "send" | "link" | "notes" | "deadline" | "andamento";
 
@@ -100,6 +102,8 @@ export function PreDemandaDetailPage() {
   const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
   const [editingAndamento, setEditingAndamento] = useState<Andamento | null>(null);
   const [deleteAndamento, setDeleteAndamento] = useState<Andamento | null>(null);
+  const [editingTask, setEditingTask] = useState<TarefaPendente | null>(null);
+  const [deleteTask, setDeleteTask] = useState<TarefaPendente | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [associationForm, setAssociationForm] = useState({ sei_numero: "", motivo: "", observacoes: "" });
   const [editForm, setEditForm] = useState({
@@ -137,6 +141,8 @@ export function PreDemandaDetailPage() {
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
   const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const });
+  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const });
+  const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
@@ -255,10 +261,40 @@ export function PreDemandaDetailPage() {
     }
   }, [deleteAndamento]);
 
+  useEffect(() => {
+    if (!editingTask) {
+      setEditTaskForm({ descricao: "", tipo: "livre" });
+      return;
+    }
+
+    setEditTaskForm({
+      descricao: editingTask.descricao,
+      tipo: editingTask.tipo,
+    });
+  }, [editingTask]);
+
+  useEffect(() => {
+    if (!deleteTask) {
+      setDeleteTaskConfirm("");
+    }
+  }, [deleteTask]);
+
   const queueHealth = useMemo(() => (record ? getQueueHealth(record) : null), [record]);
   const pendingTasks = useMemo(() => record?.tarefasPendentes.filter((item) => !item.concluida) ?? [], [record]);
   const completedTasks = useMemo(() => record?.tarefasPendentes.filter((item) => item.concluida) ?? [], [record]);
-  const manualAndamentos = useMemo(() => record?.recentAndamentos.filter((item) => item.tipo === "manual") ?? [], [record]);
+  const editableAndamentoIds = useMemo(
+    () => new Set((record?.recentAndamentos ?? []).filter((item) => item.tipo === "manual").map((item) => item.id)),
+    [record],
+  );
+  const editableAndamentos = useMemo(
+    () =>
+      new Map(
+        (record?.recentAndamentos ?? [])
+          .filter((item) => item.tipo === "manual")
+          .map((item) => [item.id, item] as const),
+      ),
+    [record],
+  );
   const lastEvent = useMemo(() => timeline[0] ?? null, [timeline]);
   const nextAction = useMemo(() => {
     if (!record) return { title: "", description: "" };
@@ -729,14 +765,25 @@ export function PreDemandaDetailPage() {
                     <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhuma tarefa pendente.</p>
                   ) : (
                     pendingTasks.map((task) => (
-                      <label className="flex items-start gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={task.id}>
-                        <input className="mt-1 h-4 w-4 accent-slate-950" onChange={() => void runMutation(() => concluirPreDemandaTarefa(preId, task.id).then(() => undefined), "Tarefa concluida.")} type="checkbox" />
-                        <span>
-                          <span className="block font-semibold text-slate-950">{task.descricao}</span>
-                          <span className="text-sm text-slate-500">{task.tipo}</span>
-                          {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
-                        </span>
-                      </label>
+                      <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={task.id}>
+                        <div className="flex items-start gap-3">
+                          <input className="mt-1 h-4 w-4 accent-slate-950" onChange={() => void runMutation(() => concluirPreDemandaTarefa(preId, task.id).then(() => undefined), "Tarefa concluida.")} type="checkbox" />
+                          <div className="min-w-0 flex-1">
+                            <span className="block font-semibold text-slate-950">{task.descricao}</span>
+                            <span className="text-sm text-slate-500">{task.tipo}</span>
+                            {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
+                            {task.geradaAutomaticamente ? <span className="mt-1 block text-xs text-slate-500">Gerada automaticamente pelo fluxo do assunto.</span> : null}
+                          </div>
+                          <div className="flex shrink-0 gap-2">
+                            <Button onClick={() => setEditingTask(task)} size="sm" type="button" variant="secondary">
+                              Editar
+                            </Button>
+                            <Button onClick={() => setDeleteTask(task)} size="sm" type="button" variant="ghost">
+                              Excluir
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     ))
                   )}
                 </div>
@@ -749,6 +796,7 @@ export function PreDemandaDetailPage() {
                       <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3" key={task.id}>
                         <p className="font-semibold text-emerald-950">{task.descricao}</p>
                         <p className="text-sm text-emerald-800">Concluida em {task.concluidaEm ? new Date(task.concluidaEm).toLocaleString("pt-BR") : "-"}</p>
+                        <p className="mt-1 text-xs text-emerald-900/80">{task.tipo}{task.concluidaPor ? ` • ${task.concluidaPor.name}` : ""}</p>
                       </div>
                     ))
                   )}
@@ -916,41 +964,45 @@ export function PreDemandaDetailPage() {
 
           <DetailSectionCard defaultOpen summary={sectionSummaries?.historico} title="Historico (Andamentos)">
             <CardHeader>
-              <CardTitle>Historico (Andamentos)</CardTitle>
-              <CardDescription>Timeline unificada com criacao, status, SEI, tramitacoes, tarefas e lancamentos manuais.</CardDescription>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Historico (Andamentos)</CardTitle>
+                  <CardDescription>Timeline unificada com criacao, status, SEI, tramitacoes, tarefas e lancamentos manuais.</CardDescription>
+                </div>
+                <Button onClick={() => setToolbarDialog("andamento")} size="sm" type="button" variant="secondary">
+                  Novo andamento
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-5">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-950">Andamentos manuais recentes</p>
-                  <Button onClick={() => setToolbarDialog("andamento")} size="sm" type="button" variant="secondary">
-                    Novo andamento
-                  </Button>
-                </div>
-                {manualAndamentos.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum andamento manual registado.</p>
-                ) : (
-                  manualAndamentos.map((item) => (
-                    <div className="flex items-start justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-950">{new Date(item.dataHora).toLocaleString("pt-BR")}</p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{item.descricao}</p>
-                        <p className="mt-2 text-xs text-slate-500">{item.createdBy?.name ?? "Sistema"}</p>
-                      </div>
-                      <div className="flex shrink-0 gap-2">
-                        <Button onClick={() => setEditingAndamento(item)} size="sm" type="button" variant="secondary">
+              {timeline.length === 0 ? (
+                <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registrados" />
+              ) : (
+                <Timeline
+                  events={timeline}
+                  renderActions={(event) => {
+                    if (event.type !== "andamento" || !editableAndamentoIds.has(event.id)) {
+                      return null;
+                    }
+
+                    const andamento = editableAndamentos.get(event.id);
+                    if (!andamento) {
+                      return null;
+                    }
+
+                    return (
+                      <>
+                        <Button onClick={() => setEditingAndamento(andamento)} size="sm" type="button" variant="secondary">
                           Editar
                         </Button>
-                        <Button onClick={() => setDeleteAndamento(item)} size="sm" type="button" variant="ghost">
+                        <Button onClick={() => setDeleteAndamento(andamento)} size="sm" type="button" variant="ghost">
                           Excluir
                         </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {timeline.length === 0 ? <EmptyState description="Assim que houver qualquer movimentacao operacional, os eventos aparecem aqui." title="Sem eventos registrados" /> : <Timeline events={timeline} />}
+                      </>
+                    );
+                  }}
+                />
+              )}
             </CardContent>
           </DetailSectionCard>
         </div>
@@ -1403,6 +1455,88 @@ export function PreDemandaDetailPage() {
               variant="primary"
             >
               Excluir andamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setEditingTask(null)} open={Boolean(editingTask)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar tarefa</DialogTitle>
+            <DialogDescription>Ajuste a descriçao e o tipo da próxima tarefa.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <FormField label="Descriçao">
+              <Textarea onChange={(event) => setEditTaskForm((current) => ({ ...current, descricao: event.target.value }))} rows={5} value={editTaskForm.descricao} />
+            </FormField>
+            <FormField label="Tipo">
+              <select className={selectClassName} onChange={(event) => setEditTaskForm((current) => ({ ...current, tipo: event.target.value as "fixa" | "livre" }))} value={editTaskForm.tipo}>
+                <option value="livre">Livre</option>
+                <option value="fixa">Fixa</option>
+              </select>
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setEditingTask(null)} type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              disabled={!editingTask || editTaskForm.descricao.trim().length < 3 || isSubmitting}
+              onClick={() =>
+                editingTask
+                  ? void runMutation(
+                      async () => {
+                        await updatePreDemandaTarefa(preId, editingTask.id, editTaskForm);
+                        setEditingTask(null);
+                      },
+                      "Tarefa atualizada.",
+                    )
+                  : undefined
+              }
+              type="button"
+            >
+              Salvar alteraçoes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setDeleteTask(null)} open={Boolean(deleteTask)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir tarefa</DialogTitle>
+            <DialogDescription>Esta ação remove a tarefa pendente e registra a remoção no histórico. Digite EXCLUIR para confirmar.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+              {deleteTask?.descricao}
+            </div>
+            <FormField label="Confirmação">
+              <Input onChange={(event) => setDeleteTaskConfirm(event.target.value)} placeholder="EXCLUIR" value={deleteTaskConfirm} />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setDeleteTask(null)} type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              disabled={!deleteTask || deleteTaskConfirm !== "EXCLUIR" || isSubmitting}
+              onClick={() =>
+                deleteTask
+                  ? void runMutation(
+                      async () => {
+                        await removePreDemandaTarefa(preId, deleteTask.id);
+                        setDeleteTask(null);
+                      },
+                      "Tarefa excluída.",
+                    )
+                  : undefined
+              }
+              type="button"
+              variant="primary"
+            >
+              Excluir tarefa
             </Button>
           </DialogFooter>
         </DialogContent>

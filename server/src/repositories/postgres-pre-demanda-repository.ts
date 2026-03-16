@@ -56,10 +56,12 @@ import type {
   TramitarPreDemandaInput,
   UpdateComentarioInput,
   UpdateAndamentoInput,
+  UpdateTarefaInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
+  RemoveTarefaInput,
 } from "./types";
 
 type Queryable = DatabasePool | PoolClient;
@@ -2379,6 +2381,97 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       );
 
       return mapTarefa(result.rows[0]);
+    });
+  }
+
+  async updateTarefa(input: UpdateTarefaInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const current = await client.query(
+        `
+          select id, concluida, descricao, tipo
+          from adminlog.tarefas_pendentes
+          where id = $1::uuid and pre_demanda_id = $2
+          limit 1
+          for update
+        `,
+        [input.tarefaId, demanda.id],
+      );
+
+      if (!current.rows[0]) {
+        throw new AppError(404, "TAREFA_NOT_FOUND", "Tarefa nao encontrada.");
+      }
+
+      if (current.rows[0].concluida) {
+        throw new AppError(409, "TAREFA_NOT_EDITABLE", "Tarefas concluidas nao podem ser alteradas.");
+      }
+
+      await client.query(
+        `
+          update adminlog.tarefas_pendentes
+          set descricao = $3, tipo = $4
+          where id = $1::uuid and pre_demanda_id = $2
+        `,
+        [input.tarefaId, demanda.id, input.descricao, input.tipo],
+      );
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Tarefa atualizada: ${input.descricao}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      const tarefas = await this.loadTarefas(client, demanda.id, demanda.preId);
+      const tarefa = tarefas.find((item) => item.id === input.tarefaId);
+      if (!tarefa) {
+        throw new AppError(500, "TAREFA_UPDATE_FAILED", "Falha ao carregar a tarefa atualizada.");
+      }
+
+      return tarefa;
+    });
+  }
+
+  async removeTarefa(input: RemoveTarefaInput) {
+    return inTransaction(this.pool, async (client) => {
+      const demanda = await getResolvedPreDemanda(client, input.preId);
+      const current = await client.query(
+        `
+          select id, descricao, concluida
+          from adminlog.tarefas_pendentes
+          where id = $1::uuid and pre_demanda_id = $2
+          limit 1
+          for update
+        `,
+        [input.tarefaId, demanda.id],
+      );
+
+      if (!current.rows[0]) {
+        throw new AppError(404, "TAREFA_NOT_FOUND", "Tarefa nao encontrada.");
+      }
+
+      if (current.rows[0].concluida) {
+        throw new AppError(409, "TAREFA_NOT_DELETABLE", "Tarefas concluidas nao podem ser excluidas.");
+      }
+
+      await client.query(
+        `
+          delete from adminlog.tarefas_pendentes
+          where id = $1::uuid and pre_demanda_id = $2
+        `,
+        [input.tarefaId, demanda.id],
+      );
+
+      await this.insertAndamento(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        descricao: `Tarefa removida: ${String(current.rows[0].descricao)}.`,
+        tipo: "sistema",
+        createdByUserId: input.changedByUserId,
+      });
+
+      return { removedId: input.tarefaId };
     });
   }
 

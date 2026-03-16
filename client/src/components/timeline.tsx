@@ -1,5 +1,6 @@
 import type { TimelineEvent } from "../types";
 import { Badge } from "./ui/badge";
+import type { ReactNode } from "react";
 
 function getEventLabel(event: TimelineEvent) {
   switch (event.type) {
@@ -53,7 +54,7 @@ function getEventTone(event: TimelineEvent) {
   }
 }
 
-export function Timeline({ events }: { events: TimelineEvent[] }) {
+export function Timeline({ events, renderActions }: { events: TimelineEvent[]; renderActions?: (event: TimelineEvent) => ReactNode }) {
   return (
     <div className="relative grid gap-4 pl-6 before:absolute before:bottom-0 before:left-2 before:top-0 before:w-px before:bg-slate-200">
       {events.map((event) => (
@@ -86,6 +87,8 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
               {event.observacoes ? <p>{event.observacoes}</p> : null}
             </div>
           ) : null}
+
+          {renderActions ? <div className="mt-4 flex flex-wrap justify-end gap-2">{renderActions(event)}</div> : null}
         </article>
       ))}
     </div>

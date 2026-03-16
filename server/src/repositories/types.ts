@@ -203,6 +203,14 @@ export interface CreateTarefaInput {
   changedByUserId: number;
 }
 
+export interface UpdateTarefaInput {
+  preId: string;
+  tarefaId: string;
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  changedByUserId: number;
+}
+
 export interface AddDemandaAssuntoInput {
   preId: string;
   assuntoId: string;
@@ -216,6 +224,12 @@ export interface RemoveDemandaAssuntoInput {
 }
 
 export interface ConcluirTarefaInput {
+  preId: string;
+  tarefaId: string;
+  changedByUserId: number;
+}
+
+export interface RemoveTarefaInput {
   preId: string;
   tarefaId: string;
   changedByUserId: number;
@@ -413,6 +427,8 @@ export interface PreDemandaRepository {
   removeAndamento(input: RemoveAndamentoInput): Promise<{ removedId: string }>;
   listTarefas(preId: string): Promise<TarefaPendente[]>;
   createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
+  updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
+  removeTarefa(input: RemoveTarefaInput): Promise<{ removedId: string }>;
   concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;
   listComentarios(preId: string): Promise<DemandaComentario[]>;
   createComentario(input: CreateComentarioInput): Promise<DemandaComentario>;

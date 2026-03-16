@@ -1002,6 +1002,47 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return tarefa;
   }
 
+  async updateTarefa(input: { preId: string; tarefaId: string; descricao: string; tipo: "fixa" | "livre" }) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const tarefa = record.tarefasPendentes.find((item) => item.id === input.tarefaId);
+    if (!tarefa) {
+      throw new Error("not found");
+    }
+
+    if (tarefa.concluida) {
+      throw new Error("not editable");
+    }
+
+    tarefa.descricao = input.descricao;
+    tarefa.tipo = input.tipo;
+    this.addAndamentoRecord(record, `Tarefa atualizada: ${tarefa.descricao}.`, "sistema");
+    return tarefa;
+  }
+
+  async removeTarefa(input: { preId: string; tarefaId: string }) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const tarefa = record.tarefasPendentes.find((item) => item.id === input.tarefaId);
+    if (!tarefa) {
+      throw new Error("not found");
+    }
+
+    if (tarefa.concluida) {
+      throw new Error("not deletable");
+    }
+
+    record.tarefasPendentes = record.tarefasPendentes.filter((item) => item.id !== input.tarefaId);
+    this.addAndamentoRecord(record, `Tarefa removida: ${tarefa.descricao}.`, "sistema");
+    return { removedId: input.tarefaId };
+  }
+
   async concluirTarefa(input: ConcluirTarefaInput) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {

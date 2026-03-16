@@ -401,6 +401,19 @@ export function createPreDemandaTarefa(preId: string, payload: { descricao: stri
   });
 }
 
+export function updatePreDemandaTarefa(preId: string, tarefaId: string, payload: { descricao: string; tipo: TarefaPendenteTipo }) {
+  return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removePreDemandaTarefa(preId: string, tarefaId: string) {
+  return request<{ removedId: string }>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
+    method: "DELETE",
+  });
+}
+
 export function concluirPreDemandaTarefa(preId: string, tarefaId: string) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`, {
     method: "PATCH",
