@@ -1636,19 +1636,21 @@ function DetailSectionCard({
     <Card className={open ? "" : "overflow-hidden"}>
       <button
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition hover:bg-white/40"
+        className={`flex w-full items-center justify-between gap-3 text-left transition hover:bg-white/40 ${open ? "px-5 py-3.5" : "px-4 py-2.5"}`}
         onClick={() => setOpen((current) => !current)}
         type="button"
       >
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-950">{title}</p>
-          <p className="mt-0.5 truncate text-xs text-slate-500">{summary ?? "Sem resumo disponivel."}</p>
+          <p className={`${open ? "text-sm" : "text-[0.82rem]"} font-semibold text-slate-950`}>{title}</p>
+          <p className={`truncate text-slate-500 ${open ? "mt-0.5 text-xs" : "text-[0.72rem]"}`}>{summary ?? "Sem resumo disponivel."}</p>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.16em] text-rose-800">
-            {open ? "Em destaque" : "Recolhido"}
-          </span>
-          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm">
+        <div className={`flex shrink-0 items-center ${open ? "gap-3" : "gap-2"}`}>
+          {open ? (
+            <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.16em] text-rose-800">
+              Em destaque
+            </span>
+          ) : null}
+          <span className={`flex items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm ${open ? "h-8 w-8" : "h-7 w-7"}`}>
             <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
           </span>
         </div>

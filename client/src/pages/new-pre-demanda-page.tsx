@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
-import { ApiError, appendRequestReference, createPreDemanda, formatAppError, listAssuntos, listPessoas } from "../lib/api";
+import { addPreDemandaInteressado, ApiError, appendRequestReference, createPreDemanda, formatAppError, listAssuntos, listPessoas } from "../lib/api";
 import type { Assunto, Pessoa } from "../types";
 import { formatSeiInput, isValidSei } from "../lib/sei";
 
@@ -60,6 +60,10 @@ export function NewPreDemandaPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pessoaSearch, setPessoaSearch] = useState("");
   const [pessoaResults, setPessoaResults] = useState<Pessoa[]>([]);
+  const [selectedPessoa, setSelectedPessoa] = useState<Pessoa | null>(null);
+  const [interessadoSearch, setInteressadoSearch] = useState("");
+  const [interessadoResults, setInteressadoResults] = useState<Pessoa[]>([]);
+  const [selectedInteressados, setSelectedInteressados] = useState<Pessoa[]>([]);
   const [assuntos, setAssuntos] = useState<Assunto[]>([]);
   const [selectedAssuntoIds, setSelectedAssuntoIds] = useState<string[]>([]);
   const isSeiValid = !form.sei_numero || isValidSei(form.sei_numero);
@@ -101,6 +105,33 @@ export function NewPreDemandaPage() {
       active = false;
     };
   }, [pessoaSearch]);
+
+  useEffect(() => {
+    if (interessadoSearch.trim().length < 2) {
+      setInteressadoResults([]);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const result = await listPessoas({ q: interessadoSearch, page: 1, pageSize: 8 });
+        if (active) {
+          setInteressadoResults(
+            result.items.filter(
+              (item) => item.id !== form.pessoa_solicitante_id && !selectedInteressados.some((selected) => selected.id === item.id),
+            ),
+          );
+        }
+      } catch {
+        if (active) {
+          setInteressadoResults([]);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [form.pessoa_solicitante_id, interessadoSearch, selectedInteressados]);
 
   const frequenciaHint = useMemo(() => {
     if (form.frequencia === "Semanal" && form.frequencia_dias_semana.length) {
@@ -145,6 +176,24 @@ export function NewPreDemandaPage() {
     }));
   }
 
+  function selectPessoaPrincipal(pessoa: Pessoa) {
+    setSelectedPessoa(pessoa);
+    setPessoaSearch(pessoa.nome);
+    setPessoaResults([]);
+    setSelectedInteressados((current) => current.filter((item) => item.id !== pessoa.id));
+    setForm((current) => ({ ...current, pessoa_solicitante_id: pessoa.id }));
+  }
+
+  function addInteressado(pessoa: Pessoa) {
+    setSelectedInteressados((current) => [...current, pessoa]);
+    setInteressadoSearch("");
+    setInteressadoResults([]);
+  }
+
+  function removeInteressado(pessoaId: string) {
+    setSelectedInteressados((current) => current.filter((item) => item.id !== pessoaId));
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -173,6 +222,18 @@ export function NewPreDemandaPage() {
           pagamento_envolvido: form.pagamento_envolvido,
         },
       });
+
+      if (!created.idempotent && selectedInteressados.length > 0) {
+        await Promise.all(
+          selectedInteressados.map((pessoa) =>
+            addPreDemandaInteressado(created.preId, {
+              interessado_id: pessoa.id,
+              papel: "interessado",
+            }),
+          ),
+        );
+      }
+
       setResult({
         preId: created.existingPreId ?? created.preId,
         idempotent: created.idempotent,
@@ -206,7 +267,7 @@ export function NewPreDemandaPage() {
               </FormField>
               {form.pessoa_solicitante_id ? (
                 <p className="text-sm font-medium text-emerald-700">
-                  Pessoa selecionada: {pessoaResults.find((item) => item.id === form.pessoa_solicitante_id)?.nome ?? "Vinculada"}
+                  Pessoa selecionada: {selectedPessoa?.nome ?? "Vinculada"}
                 </p>
               ) : null}
               {pessoaResults.length > 0 ? (
@@ -217,7 +278,7 @@ export function NewPreDemandaPage() {
                         form.pessoa_solicitante_id === item.id ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                       key={item.id}
-                      onClick={() => setForm((current) => ({ ...current, pessoa_solicitante_id: item.id }))}
+                      onClick={() => selectPessoaPrincipal(item)}
                       type="button"
                     >
                       <span>
@@ -225,6 +286,48 @@ export function NewPreDemandaPage() {
                         <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
                       </span>
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Usar</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
+              <FormField label="Interessados">
+                <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoas para vincular como interessadas" value={interessadoSearch} />
+              </FormField>
+
+              {selectedInteressados.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {selectedInteressados.map((item) => (
+                    <button
+                      className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-900"
+                      key={item.id}
+                      onClick={() => removeInteressado(item.id)}
+                      type="button"
+                    >
+                      {item.nome} ×
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">Nenhum interessado adicional selecionado.</p>
+              )}
+
+              {interessadoResults.length > 0 ? (
+                <div className="grid gap-2">
+                  {interessadoResults.map((item) => (
+                    <button
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
+                      key={item.id}
+                      onClick={() => addInteressado(item)}
+                      type="button"
+                    >
+                      <span>
+                        <span className="block font-semibold text-slate-950">{item.nome}</span>
+                        <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
+                      </span>
+                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Adicionar</span>
                     </button>
                   ))}
                 </div>
