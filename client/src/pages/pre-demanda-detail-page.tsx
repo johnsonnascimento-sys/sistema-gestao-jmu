@@ -141,7 +141,7 @@ export function PreDemandaDetailPage() {
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
   const [interessadoRole, setInteressadoRole] = useState<"solicitante" | "interessado">("interessado");
-  const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", matricula: "", cpf: "" });
+  const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", cargo: "", matricula: "", cpf: "" });
   const [processSearch, setProcessSearch] = useState("");
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
@@ -504,7 +504,7 @@ export function PreDemandaDetailPage() {
                       >
                         <span>
                           <span className="block font-semibold text-slate-950">{item.nome}</span>
-                          <span className="block text-slate-500">{item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
+                          <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
                         </span>
                         <Plus className="h-4 w-4 text-slate-500" />
                       </button>
@@ -515,8 +515,9 @@ export function PreDemandaDetailPage() {
 
               <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
                 <p className="text-sm font-semibold text-slate-950">Adicionar nova pessoa</p>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, nome: event.target.value }))} placeholder="Nome" value={newInteressadoForm.nome} />
+                  <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, cargo: event.target.value }))} placeholder="Cargo" value={newInteressadoForm.cargo} />
                   <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, matricula: event.target.value }))} placeholder="Matricula" value={newInteressadoForm.matricula} />
                   <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, cpf: event.target.value }))} placeholder="CPF" value={newInteressadoForm.cpf} />
                 </div>
@@ -526,9 +527,14 @@ export function PreDemandaDetailPage() {
                     onClick={() =>
                       void runMutation(
                         async () => {
-                          const created = await createPessoa({ nome: newInteressadoForm.nome, matricula: newInteressadoForm.matricula || null, cpf: newInteressadoForm.cpf || null });
+                          const created = await createPessoa({
+                            nome: newInteressadoForm.nome,
+                            cargo: newInteressadoForm.cargo || null,
+                            matricula: newInteressadoForm.matricula || null,
+                            cpf: newInteressadoForm.cpf || null,
+                          });
                           await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: interessadoRole });
-                          setNewInteressadoForm({ nome: "", matricula: "", cpf: "" });
+                          setNewInteressadoForm({ nome: "", cargo: "", matricula: "", cpf: "" });
                           setInteressadoSearch(created.nome);
                           setInteressadoResults([created]);
                         },
@@ -550,7 +556,7 @@ export function PreDemandaDetailPage() {
                     <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.interessado.id}>
                       <div>
                         <p className="font-semibold text-slate-950">{item.interessado.nome}</p>
-                        <p className="text-sm text-slate-500">{item.papel} - {item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
+                        <p className="text-sm text-slate-500">{item.papel} - {item.interessado.cargo ?? item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
                       </div>
                       <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Pessoa removida.")} size="sm" type="button" variant="ghost">
                         <X className="h-4 w-4" />

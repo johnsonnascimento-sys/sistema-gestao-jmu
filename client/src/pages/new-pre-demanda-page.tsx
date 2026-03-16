@@ -202,7 +202,7 @@ export function NewPreDemandaPage() {
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <FormField label="Pessoa principal">
-                <Input onChange={(event) => setPessoaSearch(event.target.value)} placeholder="Buscar pessoa por nome, matrícula ou CPF" value={pessoaSearch} />
+                <Input onChange={(event) => setPessoaSearch(event.target.value)} placeholder="Buscar pessoa por nome, cargo, matrícula ou CPF" value={pessoaSearch} />
               </FormField>
               {form.pessoa_solicitante_id ? (
                 <p className="text-sm font-medium text-emerald-700">
@@ -222,7 +222,7 @@ export function NewPreDemandaPage() {
                     >
                       <span>
                         <span className="block font-semibold text-slate-950">{item.nome}</span>
-                        <span className="block text-slate-500">{item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
+                        <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
                       </span>
                       <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Usar</span>
                     </button>

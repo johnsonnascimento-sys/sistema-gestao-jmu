@@ -11,6 +11,7 @@ import type { Interessado } from "../types";
 
 type InteressadoFormState = {
   nome: string;
+  cargo: string;
   matricula: string;
   cpf: string;
   data_nascimento: string;
@@ -18,6 +19,7 @@ type InteressadoFormState = {
 
 const EMPTY_FORM: InteressadoFormState = {
   nome: "",
+  cargo: "",
   matricula: "",
   cpf: "",
   data_nascimento: "",
@@ -26,6 +28,7 @@ const EMPTY_FORM: InteressadoFormState = {
 function normalizePayload(form: InteressadoFormState) {
   return {
     nome: form.nome,
+    cargo: form.cargo || null,
     matricula: form.matricula || null,
     cpf: form.cpf || null,
     data_nascimento: form.data_nascimento || null,
@@ -70,6 +73,7 @@ export function InteressadosPage() {
     setEditing(item);
     setForm({
       nome: item.nome,
+      cargo: item.cargo ?? "",
       matricula: item.matricula ?? "",
       cpf: item.cpf ?? "",
       data_nascimento: item.dataNascimento ?? "",
@@ -127,7 +131,7 @@ export function InteressadosPage() {
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <CardTitle>Base reutilizavel</CardTitle>
-            <CardDescription>Use nome, matricula ou CPF para localizar rapidamente o cadastro correto.</CardDescription>
+            <CardDescription>Use nome, cargo, matricula ou CPF para localizar rapidamente o cadastro correto.</CardDescription>
           </div>
           <form
             className="flex w-full gap-3 md:max-w-xl"
@@ -136,7 +140,7 @@ export function InteressadosPage() {
               void load(search);
             }}
           >
-            <Input onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, matricula ou CPF" value={search} />
+            <Input onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, cargo, matricula ou CPF" value={search} />
             <Button type="submit" variant="secondary">
               Buscar
             </Button>
@@ -148,6 +152,7 @@ export function InteressadosPage() {
               <thead className="bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(240,246,249,0.92))] text-left text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Nome</th>
+                  <th className="px-4 py-3">Cargo</th>
                   <th className="px-4 py-3">Matricula</th>
                   <th className="px-4 py-3">CPF</th>
                   <th className="px-4 py-3">Nascimento</th>
@@ -158,7 +163,7 @@ export function InteressadosPage() {
               <tbody className="divide-y divide-slate-100 bg-white/95">
                 {items.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={6}>
+                    <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={7}>
                       Nenhuma pessoa encontrada.
                     </td>
                   </tr>
@@ -166,6 +171,7 @@ export function InteressadosPage() {
                   items.map((item) => (
                     <tr className="align-top" key={item.id}>
                       <td className="px-4 py-4 font-medium text-slate-950">{item.nome}</td>
+                      <td className="px-4 py-4 text-slate-600">{item.cargo ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.matricula ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.cpf ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.dataNascimento ? new Date(item.dataNascimento).toLocaleDateString("pt-BR") : "-"}</td>
@@ -193,6 +199,9 @@ export function InteressadosPage() {
           <form className="grid gap-4" onSubmit={handleSubmit}>
             <FormField label="Nome">
               <Input onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))} value={form.nome} />
+            </FormField>
+            <FormField label="Cargo">
+              <Input onChange={(event) => setForm((current) => ({ ...current, cargo: event.target.value }))} value={form.cargo} />
             </FormField>
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Matricula">

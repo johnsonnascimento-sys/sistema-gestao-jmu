@@ -505,28 +505,28 @@ export function listPessoas(params: ListPessoasParams = {}) {
   return request<{ items: Interessado[]; total: number; page: number; pageSize: number }>(`/api/pessoas?${search.toString()}`);
 }
 
-export function createInteressado(payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function createInteressado(payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
   return request<Interessado>("/api/interessados", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function createPessoa(payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function createPessoa(payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
   return request<Interessado>("/api/pessoas", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function updateInteressado(id: string, payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function updateInteressado(id: string, payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
   return request<Interessado>(`/api/interessados/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePessoa(id: string, payload: { nome: string; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function updatePessoa(id: string, payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
   return request<Interessado>(`/api/pessoas/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

@@ -138,6 +138,7 @@ export interface Setor {
 export interface Interessado {
   id: string;
   nome: string;
+  cargo: string | null;
   matricula: string | null;
   cpf: string | null;
   dataNascimento: string | null;

@@ -296,6 +296,7 @@ export interface ListInteressadosResult {
 
 export interface CreateInteressadoInput {
   nome: string;
+  cargo?: string | null;
   matricula?: string | null;
   cpf?: string | null;
   dataNascimento?: string | null;

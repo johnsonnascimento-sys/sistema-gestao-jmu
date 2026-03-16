@@ -354,6 +354,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return {
       id,
       nome: nome ?? `Pessoa ${id.slice(0, 4)}`,
+      cargo: null,
       matricula: null,
       cpf: null,
       dataNascimento: null,
@@ -792,6 +793,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const interessado: Interessado = {
       id: input.interessadoId,
       nome: `Interessado ${input.interessadoId.slice(0, 4)}`,
+      cargo: null,
       matricula: null,
       cpf: null,
       dataNascimento: null,
@@ -1412,7 +1414,7 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
     let items = Array.from(this.items.values());
     if (params.q) {
       const q = params.q.toLowerCase();
-      items = items.filter((item) => [item.nome, item.matricula ?? "", item.cpf ?? ""].some((value) => value.toLowerCase().includes(q)));
+      items = items.filter((item) => [item.nome, item.cargo ?? "", item.matricula ?? "", item.cpf ?? ""].some((value) => value.toLowerCase().includes(q)));
     }
 
     const start = (params.page - 1) * params.pageSize;
@@ -1431,6 +1433,7 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
     const record: Interessado = {
       id,
       nome: input.nome,
+      cargo: input.cargo ?? null,
       matricula: input.matricula ?? null,
       cpf: input.cpf ?? null,
       dataNascimento: input.dataNascimento ?? null,
@@ -1451,6 +1454,7 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
     const record: Interessado = {
       ...current,
       nome: input.nome,
+      cargo: input.cargo ?? null,
       matricula: input.matricula ?? null,
       cpf: input.cpf ?? null,
       dataNascimento: input.dataNascimento ?? null,

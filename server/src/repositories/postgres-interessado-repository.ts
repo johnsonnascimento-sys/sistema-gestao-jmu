@@ -14,6 +14,7 @@ function mapInteressado(row: QueryResultRow): Interessado {
   return {
     id: String(row.id),
     nome: String(row.nome),
+    cargo: row.cargo ? String(row.cargo) : null,
     matricula: row.matricula ? String(row.matricula) : null,
     cpf: row.cpf ? String(row.cpf) : null,
     dataNascimento: row.data_nascimento ? new Date(row.data_nascimento).toISOString().slice(0, 10) : null,
@@ -36,7 +37,7 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
     if (params.q) {
       values.push(`%${params.q}%`);
       const index = values.length;
-      filters.push(`(nome ilike $${index} or coalesce(matricula, '') ilike $${index} or coalesce(cpf, '') ilike $${index})`);
+      filters.push(`(nome ilike $${index} or coalesce(cargo, '') ilike $${index} or coalesce(matricula, '') ilike $${index} or coalesce(cpf, '') ilike $${index})`);
     }
 
     const where = filters.length ? `where ${filters.join(" and ")}` : "";
@@ -80,11 +81,11 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
   async create(input: CreateInteressadoInput) {
     const result = await this.pool.query(
       `
-        insert into adminlog.interessados (nome, matricula, cpf, data_nascimento)
-        values ($1, $2, $3, $4::date)
+        insert into adminlog.interessados (nome, cargo, matricula, cpf, data_nascimento)
+        values ($1, $2, $3, $4, $5::date)
         returning *
       `,
-      [input.nome, emptyToNull(input.matricula), emptyToNull(input.cpf), input.dataNascimento ?? null],
+      [input.nome, emptyToNull(input.cargo), emptyToNull(input.matricula), emptyToNull(input.cpf), input.dataNascimento ?? null],
     );
 
     return mapInteressado(result.rows[0]);
@@ -96,13 +97,14 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
         update adminlog.interessados
         set
           nome = $2,
-          matricula = $3,
-          cpf = $4,
-          data_nascimento = $5::date
+          cargo = $3,
+          matricula = $4,
+          cpf = $5,
+          data_nascimento = $6::date
         where id = $1::uuid
         returning *
       `,
-      [input.id, input.nome, emptyToNull(input.matricula), emptyToNull(input.cpf), input.dataNascimento ?? null],
+      [input.id, input.nome, emptyToNull(input.cargo), emptyToNull(input.matricula), emptyToNull(input.cpf), input.dataNascimento ?? null],
     );
 
     if (!result.rows[0]) {

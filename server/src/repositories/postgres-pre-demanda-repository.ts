@@ -91,6 +91,7 @@ const BASE_SELECT = `
     created_by.role as created_by_role,
     pessoa_principal.pessoa_principal_id,
     pessoa_principal.pessoa_principal_nome,
+    pessoa_principal.pessoa_principal_cargo,
     pessoa_principal.pessoa_principal_matricula,
     pessoa_principal.pessoa_principal_cpf,
     pessoa_principal.pessoa_principal_data_nascimento,
@@ -120,6 +121,7 @@ const BASE_SELECT = `
     select
       pessoa.id as pessoa_principal_id,
       pessoa.nome as pessoa_principal_nome,
+      pessoa.cargo as pessoa_principal_cargo,
       pessoa.matricula as pessoa_principal_matricula,
       pessoa.cpf as pessoa_principal_cpf,
       pessoa.data_nascimento as pessoa_principal_data_nascimento,
@@ -228,6 +230,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
       : {
           id: String(row.pessoa_principal_id),
           nome: String(row.pessoa_principal_nome),
+          cargo: row.pessoa_principal_cargo ? String(row.pessoa_principal_cargo) : null,
           matricula: row.pessoa_principal_matricula ? String(row.pessoa_principal_matricula) : null,
           cpf: row.pessoa_principal_cpf ? String(row.pessoa_principal_cpf) : null,
           dataNascimento: row.pessoa_principal_data_nascimento ? new Date(row.pessoa_principal_data_nascimento).toISOString().slice(0, 10) : null,
@@ -284,6 +287,7 @@ function mapDemandaInteressado(row: QueryResultRow): DemandaInteressado {
     interessado: {
       id: String(row.interessado_id),
       nome: String(row.interessado_nome),
+      cargo: row.interessado_cargo ? String(row.interessado_cargo) : null,
       matricula: row.interessado_matricula ? String(row.interessado_matricula) : null,
       cpf: row.interessado_cpf ? String(row.interessado_cpf) : null,
       dataNascimento: row.interessado_data_nascimento ? new Date(row.interessado_data_nascimento).toISOString().slice(0, 10) : null,
@@ -742,6 +746,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           di.created_at,
           interessado.id as interessado_id,
           interessado.nome as interessado_nome,
+          interessado.cargo as interessado_cargo,
           interessado.matricula as interessado_matricula,
           interessado.cpf as interessado_cpf,
           interessado.data_nascimento as interessado_data_nascimento,

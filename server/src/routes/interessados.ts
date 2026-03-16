@@ -4,6 +4,7 @@ import type { InteressadoRepository } from "../repositories/types";
 
 const interessadoSchema = z.object({
   nome: z.string().trim().min(3).max(255),
+  cargo: z.string().trim().max(255).optional().nullable(),
   matricula: z.string().trim().max(50).optional().nullable(),
   cpf: z.string().trim().max(14).optional().nullable(),
   data_nascimento: z.string().date().optional().nullable(),
@@ -45,6 +46,7 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
     const payload = interessadoSchema.parse(request.body);
     const record = await interessadoRepository.create({
       nome: payload.nome,
+      cargo: emptyToNull(payload.cargo),
       matricula: emptyToNull(payload.matricula),
       cpf: emptyToNull(payload.cpf),
       dataNascimento: payload.data_nascimento ?? null,
@@ -63,6 +65,7 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
     const record = await interessadoRepository.update({
       id: params.id,
       nome: payload.nome,
+      cargo: emptyToNull(payload.cargo),
       matricula: emptyToNull(payload.matricula),
       cpf: emptyToNull(payload.cpf),
       dataNascimento: payload.data_nascimento ?? null,
