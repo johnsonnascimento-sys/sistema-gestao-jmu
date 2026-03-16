@@ -2909,9 +2909,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return inTransaction(this.pool, async (client) => {
       const currentResult = await client.query(
         `
-          select pd.id, pd.status, pts.pre_id as has_link
+          select pd.id, pd.status
           from adminlog.pre_demanda pd
-          left join adminlog.pre_to_sei_link pts on pts.pre_id = pd.pre_id
           where pd.pre_id = $1
           limit 1
           for update
@@ -2924,7 +2923,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       }
 
       const currentStatus = currentResult.rows[0].status as PreDemandaStatus;
-      const hasAssociation = Boolean(currentResult.rows[0].has_link);
+      const associationResult = await client.query(
+        `
+          select 1
+          from adminlog.pre_to_sei_link pts
+          where pts.pre_id = $1
+          limit 1
+        `,
+        [input.preId],
+      );
+      const hasAssociation = (associationResult.rowCount ?? 0) > 0;
       ensureStatusTransition(currentStatus, input.status, hasAssociation, input.motivo);
 
       await client.query("update adminlog.pre_demanda set status = $2 where pre_id = $1", [input.preId, input.status]);

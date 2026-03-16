@@ -859,6 +859,43 @@ export function PreDemandaDetailPage() {
                   )}
                 </div>
               </div>
+
+              <div className="grid gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950">Tabela analítica das próximas tarefas</p>
+                  <span className="text-xs text-slate-500">{pendingTasks.length} pendente(s)</span>
+                </div>
+                {pendingTasks.length === 0 ? (
+                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhuma próxima tarefa pendente.</p>
+                ) : (
+                  <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white">
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-slate-500">
+                          <tr>
+                            <th className="px-4 py-3 font-semibold">Ordem</th>
+                            <th className="px-4 py-3 font-semibold">Tarefa</th>
+                            <th className="px-4 py-3 font-semibold">Tipo</th>
+                            <th className="px-4 py-3 font-semibold">Setor destino</th>
+                            <th className="px-4 py-3 font-semibold">Origem</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingTasks.map((task) => (
+                            <tr className="border-t border-slate-200" key={`table-${task.id}`}>
+                              <td className="px-4 py-3 font-semibold text-slate-950">{task.ordem}</td>
+                              <td className="px-4 py-3 text-slate-950">{task.descricao}</td>
+                              <td className="px-4 py-3 text-slate-600">{task.tipo}</td>
+                              <td className="px-4 py-3 text-slate-600">{task.setorDestino ? `${task.setorDestino.sigla} - ${task.setorDestino.nomeCompleto}` : "-"}</td>
+                              <td className="px-4 py-3 text-slate-600">{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lançamento manual"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </DetailSectionCard>
         </div>
