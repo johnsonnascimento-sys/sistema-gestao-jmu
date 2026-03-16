@@ -224,36 +224,6 @@ export function NewPreDemandaPage() {
       <Card>
         <CardContent className="p-6">
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-            <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
-              <FormField label="Pessoa interessada">
-                <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoa por nome, cargo, matrícula ou CPF" value={interessadoSearch} />
-              </FormField>
-              {selectedInteressados.length > 0 ? (
-                <p className="text-sm font-medium text-emerald-700">
-                  Primeira pessoa vinculada: {selectedInteressados[0]?.nome ?? "Vinculada"}
-                </p>
-              ) : null}
-              {interessadoResults.length > 0 ? (
-                <div className="grid gap-2">
-                  {interessadoResults.map((item) => (
-                    <button
-                      className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm ${
-                        selectedInteressados.some((selected) => selected.id === item.id) ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                      key={item.id}
-                      onClick={() => addInteressado(item)}
-                      type="button"
-                    >
-                      <span>
-                        <span className="block font-semibold text-slate-950">{item.nome}</span>
-                        <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
-                      </span>
-                      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Usar</span>
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
 
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <FormField label="Pessoas interessadas">
