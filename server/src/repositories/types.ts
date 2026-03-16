@@ -27,6 +27,7 @@ import type {
   SeiAssociation,
   SortOrder,
   TarefaPendente,
+  TarefaPrazoReferencia,
   TarefaPendenteTipo,
   TimelineEvent,
 } from "../domain/types";
@@ -196,6 +197,8 @@ export interface CreateTarefaInput {
   preId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  prazoReferencia?: TarefaPrazoReferencia | null;
+  confirmarConflito?: boolean;
   assuntoId?: string | null;
   procedimentoId?: string | null;
   setorDestinoId?: string | null;
@@ -208,6 +211,8 @@ export interface UpdateTarefaInput {
   tarefaId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  prazoReferencia?: TarefaPrazoReferencia | null;
+  confirmarConflito?: boolean;
   changedByUserId: number;
 }
 

@@ -38,6 +38,7 @@ export type SortOrder = "asc" | "desc";
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
 export type DemandaInteressadoPapel = "solicitante" | "interessado";
 export type TarefaPendenteTipo = "fixa" | "livre";
+export type TarefaPrazoReferencia = "prazoInicial" | "prazoIntermediario" | "prazoFinal";
 export type DemandaSetorFluxoStatus = "ativo" | "concluido";
 export type DemandaComentarioFormato = "markdown";
 export type TimelineEventType =
@@ -221,6 +222,8 @@ export interface TarefaPendente {
   tipo: TarefaPendenteTipo;
   assuntoId: string | null;
   procedimentoId: string | null;
+  prazoReferencia: TarefaPrazoReferencia | null;
+  prazoData: string | null;
   setorDestino: Setor | null;
   geradaAutomaticamente: boolean;
   concluida: boolean;

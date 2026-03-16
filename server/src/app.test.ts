@@ -491,6 +491,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         tipo: "fixa",
         assuntoId,
         procedimentoId: `proc-${assuntoId}-1`,
+        prazoReferencia: null,
+        prazoData: null,
         setorDestino: null,
         geradaAutomaticamente: true,
         concluida: false,
@@ -725,6 +727,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       tipo: "fixa",
       assuntoId: assunto.id,
       procedimentoId: procedimento.id,
+      prazoReferencia: null,
+      prazoData: null,
       setorDestino: procedimento.setorDestino,
       geradaAutomaticamente: true,
       concluida: false,
@@ -985,6 +989,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       tipo: input.tipo,
       assuntoId: input.assuntoId ?? null,
       procedimentoId: input.procedimentoId ?? null,
+      prazoReferencia: input.prazoReferencia ?? null,
+      prazoData:
+        input.prazoReferencia === "prazoInicial"
+          ? record.prazoInicial
+          : input.prazoReferencia === "prazoIntermediario"
+            ? record.prazoIntermediario
+            : input.prazoReferencia === "prazoFinal"
+              ? record.prazoFinal
+              : null,
       setorDestino: input.setorDestinoId
         ? {
             id: input.setorDestinoId,
@@ -1006,7 +1019,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return tarefa;
   }
 
-  async updateTarefa(input: { preId: string; tarefaId: string; descricao: string; tipo: "fixa" | "livre" }) {
+  async updateTarefa(input: { preId: string; tarefaId: string; descricao: string; tipo: "fixa" | "livre"; prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null }) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {
       throw new Error("not found");
@@ -1023,6 +1036,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     tarefa.descricao = input.descricao;
     tarefa.tipo = input.tipo;
+    tarefa.prazoReferencia = input.prazoReferencia ?? null;
+    tarefa.prazoData =
+      input.prazoReferencia === "prazoInicial"
+        ? record.prazoInicial
+        : input.prazoReferencia === "prazoIntermediario"
+          ? record.prazoIntermediario
+          : input.prazoReferencia === "prazoFinal"
+            ? record.prazoFinal
+            : null;
     this.addAndamentoRecord(record, `Tarefa atualizada: ${tarefa.descricao}.`, "sistema");
     return tarefa;
   }

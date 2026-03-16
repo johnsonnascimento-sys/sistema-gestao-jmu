@@ -26,6 +26,7 @@ import type {
   SortOrder,
   StatusCount,
   TarefaPendente,
+  TarefaPrazoReferencia,
   TarefaPendenteTipo,
   TimelineEvent,
 } from "../types";
@@ -395,14 +396,27 @@ export function listPreDemandaTarefas(preId: string) {
   return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas`);
 }
 
-export function createPreDemandaTarefa(preId: string, payload: { descricao: string; tipo: TarefaPendenteTipo; setor_destino_id?: string | null }) {
+export function createPreDemandaTarefa(
+  preId: string,
+  payload: {
+    descricao: string;
+    tipo: TarefaPendenteTipo;
+    prazo_referencia?: TarefaPrazoReferencia | null;
+    confirmar_conflito?: boolean;
+    setor_destino_id?: string | null;
+  },
+) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePreDemandaTarefa(preId: string, tarefaId: string, payload: { descricao: string; tipo: TarefaPendenteTipo }) {
+export function updatePreDemandaTarefa(
+  preId: string,
+  tarefaId: string,
+  payload: { descricao: string; tipo: TarefaPendenteTipo; prazo_referencia?: TarefaPrazoReferencia | null; confirmar_conflito?: boolean },
+) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

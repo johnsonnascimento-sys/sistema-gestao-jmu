@@ -160,6 +160,8 @@ const andamentoDeleteSchema = z.object({
 const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
+  prazo_referencia: z.enum(PRAZO_FIELDS).optional().nullable(),
+  confirmar_conflito: z.boolean().optional(),
   setor_destino_id: z.string().uuid().optional().nullable(),
 });
 
@@ -596,6 +598,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       preId: params.preId,
       descricao: payload.descricao,
       tipo: payload.tipo,
+      prazoReferencia: payload.prazo_referencia ?? null,
+      confirmarConflito: payload.confirmar_conflito ?? false,
       setorDestinoId: payload.setor_destino_id ?? null,
       changedByUserId: request.user!.id,
     });
@@ -615,6 +619,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       tarefaId: params.tarefaId,
       descricao: payload.descricao,
       tipo: payload.tipo,
+      prazoReferencia: payload.prazo_referencia ?? null,
+      confirmarConflito: payload.confirmar_conflito ?? false,
       changedByUserId: request.user!.id,
     });
 

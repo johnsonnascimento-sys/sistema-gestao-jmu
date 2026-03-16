@@ -21,6 +21,7 @@ import type {
   Setor,
   SortOrder,
   TarefaPendente,
+  TarefaPrazoReferencia,
   TimelineEvent,
 } from "../domain/types";
 import type { DatabasePool } from "../db";
@@ -416,6 +417,8 @@ function mapTarefa(row: QueryResultRow): TarefaPendente {
     tipo: row.tipo as TarefaPendente["tipo"],
     assuntoId: row.assunto_id ? String(row.assunto_id) : null,
     procedimentoId: row.procedimento_id ? String(row.procedimento_id) : null,
+    prazoReferencia: row.prazo_referencia ? (String(row.prazo_referencia) as TarefaPrazoReferencia) : null,
+    prazoData: row.prazo_data ? new Date(row.prazo_data).toISOString().slice(0, 10) : null,
     setorDestino: mapSetor(row, "setor_destino"),
     geradaAutomaticamente: Boolean(row.gerada_automaticamente),
     concluida: Boolean(row.concluida),
@@ -790,7 +793,20 @@ async function getPreDemandaRowByPreId(queryable: Queryable, preId: string) {
 }
 
 async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
-  const result = await queryable.query("select id, pre_id from adminlog.pre_demanda where pre_id = $1 limit 1", [preId]);
+  const result = await queryable.query(
+    `
+      select
+        id,
+        pre_id,
+        prazo_inicial,
+        prazo_intermediario,
+        prazo_final
+      from adminlog.pre_demanda
+      where pre_id = $1
+      limit 1
+    `,
+    [preId],
+  );
   if (!result.rows[0]) {
     throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
   }
@@ -798,6 +814,9 @@ async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
   return {
     id: Number(result.rows[0].id),
     preId: String(result.rows[0].pre_id),
+    prazoInicial: result.rows[0].prazo_inicial ? new Date(result.rows[0].prazo_inicial).toISOString().slice(0, 10) : null,
+    prazoIntermediario: result.rows[0].prazo_intermediario ? new Date(result.rows[0].prazo_intermediario).toISOString().slice(0, 10) : null,
+    prazoFinal: result.rows[0].prazo_final ? new Date(result.rows[0].prazo_final).toISOString().slice(0, 10) : null,
   };
 }
 
@@ -1173,6 +1192,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           tarefa.ordem,
           tarefa.assunto_id,
           tarefa.procedimento_id,
+          tarefa.prazo_referencia,
+          case tarefa.prazo_referencia
+            when 'prazoInicial' then pd.prazo_inicial
+            when 'prazoIntermediario' then pd.prazo_intermediario
+            when 'prazoFinal' then pd.prazo_final
+            else null
+          end as prazo_data,
           tarefa.gerada_automaticamente,
           tarefa.concluida,
           tarefa.concluida_em,
@@ -1191,6 +1217,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           setor_destino.created_at as setor_destino_created_at,
           setor_destino.updated_at as setor_destino_updated_at
         from adminlog.tarefas_pendentes tarefa
+        inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
         left join adminlog.app_user concluida_por on concluida_por.id = tarefa.concluida_por_user_id
         left join adminlog.app_user created_by on created_by.id = tarefa.created_by_user_id
         left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
@@ -1900,6 +1927,95 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     });
   }
 
+  private resolveTarefaPrazoData(
+    demanda: { prazoInicial: string | null; prazoIntermediario: string | null; prazoFinal: string | null },
+    prazoReferencia: TarefaPrazoReferencia | null | undefined,
+  ) {
+    if (!prazoReferencia) {
+      return null;
+    }
+
+    if (prazoReferencia === "prazoInicial") {
+      return demanda.prazoInicial;
+    }
+
+    if (prazoReferencia === "prazoIntermediario") {
+      return demanda.prazoIntermediario;
+    }
+
+    return demanda.prazoFinal;
+  }
+
+  private getTarefaPrazoLabel(prazoReferencia: TarefaPrazoReferencia | null | undefined) {
+    if (prazoReferencia === "prazoInicial") {
+      return "Prazo inicial";
+    }
+
+    if (prazoReferencia === "prazoIntermediario") {
+      return "Prazo intermediario";
+    }
+
+    if (prazoReferencia === "prazoFinal") {
+      return "Prazo final";
+    }
+
+    return null;
+  }
+
+  private async assertTarefaPrazoConflict(params: {
+    client: PoolClient;
+    preDemandaId: number;
+    preId: string;
+    prazoReferencia: TarefaPrazoReferencia | null | undefined;
+    prazoData: string | null;
+    tarefaIdToIgnore?: string;
+    confirmarConflito?: boolean;
+  }) {
+    if (!params.prazoReferencia || !params.prazoData) {
+      return;
+    }
+
+    const result = await params.client.query(
+      `
+        select
+          tarefa.id,
+          tarefa.descricao,
+          tarefa.ordem,
+          tarefa.prazo_referencia
+        from adminlog.tarefas_pendentes tarefa
+        inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+        where tarefa.pre_demanda_id = $1
+          and tarefa.concluida = false
+          and ($2::uuid is null or tarefa.id <> $2::uuid)
+          and case tarefa.prazo_referencia
+            when 'prazoInicial' then pd.prazo_inicial
+            when 'prazoIntermediario' then pd.prazo_intermediario
+            when 'prazoFinal' then pd.prazo_final
+            else null
+          end = $3::date
+        order by tarefa.ordem asc, tarefa.created_at asc, tarefa.id asc
+      `,
+      [params.preDemandaId, params.tarefaIdToIgnore ?? null, params.prazoData],
+    );
+
+    if (!result.rows.length || params.confirmarConflito) {
+      return;
+    }
+
+    throw new AppError(409, "TAREFA_PRAZO_CONFLICT", "Ja existe outra tarefa pendente com este prazo no mesmo processo.", {
+      preId: params.preId,
+      prazoReferencia: params.prazoReferencia,
+      prazoLabel: this.getTarefaPrazoLabel(params.prazoReferencia),
+      prazoData: params.prazoData,
+      conflitos: result.rows.map((row) => ({
+        id: String(row.id),
+        descricao: String(row.descricao),
+        ordem: Number(row.ordem),
+        prazoReferencia: row.prazo_referencia ? String(row.prazo_referencia) : null,
+      })),
+    });
+  }
+
   async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
@@ -2340,6 +2456,18 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async createTarefa(input: CreateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const prazoData = this.resolveTarefaPrazoData(demanda, input.prazoReferencia);
+      if (input.prazoReferencia && !prazoData) {
+        throw new AppError(400, "TAREFA_PRAZO_INDISPONIVEL", `O ${this.getTarefaPrazoLabel(input.prazoReferencia)?.toLowerCase()} do processo ainda nao esta definido.`);
+      }
+      await this.assertTarefaPrazoConflict({
+        client,
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        prazoReferencia: input.prazoReferencia,
+        prazoData,
+        confirmarConflito: input.confirmarConflito,
+      });
       const orderResult = await client.query(
         `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
         [demanda.id],
@@ -2354,11 +2482,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             tipo,
             assunto_id,
             procedimento_id,
+            prazo_referencia,
             setor_destino_id,
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::uuid, $8, $9)
+          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7, $8::uuid, $9, $10)
           returning id
         `,
         [
@@ -2368,56 +2497,30 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           input.tipo,
           input.assuntoId ?? null,
           input.procedimentoId ?? null,
+          input.prazoReferencia ?? null,
           input.setorDestinoId ?? null,
           input.geradaAutomaticamente ?? false,
           input.changedByUserId,
         ],
       );
 
-      const result = await client.query(
-        `
-          select
-            tarefa.id,
-            $2::text as pre_id,
-            tarefa.ordem,
-            tarefa.descricao,
-            tarefa.tipo,
-            tarefa.assunto_id,
-            tarefa.procedimento_id,
-            tarefa.gerada_automaticamente,
-            tarefa.concluida,
-            tarefa.concluida_em,
-            tarefa.created_at,
-            concluida_por.id as concluida_por_id,
-            concluida_por.email as concluida_por_email,
-            concluida_por.name as concluida_por_name,
-            concluida_por.role as concluida_por_role,
-            created_by.id as created_by_id,
-            created_by.email as created_by_email,
-            created_by.name as created_by_name,
-            created_by.role as created_by_role,
-            setor_destino.id as setor_destino_id,
-            setor_destino.sigla as setor_destino_sigla,
-            setor_destino.nome_completo as setor_destino_nome_completo,
-            setor_destino.created_at as setor_destino_created_at,
-            setor_destino.updated_at as setor_destino_updated_at
-          from adminlog.tarefas_pendentes tarefa
-          left join adminlog.app_user concluida_por on concluida_por.id = tarefa.concluida_por_user_id
-          left join adminlog.app_user created_by on created_by.id = tarefa.created_by_user_id
-          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
-          where tarefa.id = $1::uuid
-          limit 1
-        `,
-        [inserted.rows[0].id, demanda.preId],
-      );
+      const tarefas = await this.loadTarefas(client, demanda.id, demanda.preId);
+      const tarefa = tarefas.find((item) => item.id === String(inserted.rows[0].id));
+      if (!tarefa) {
+        throw new AppError(500, "TAREFA_CREATE_FAILED", "Falha ao carregar a tarefa criada.");
+      }
 
-      return mapTarefa(result.rows[0]);
+      return tarefa;
     });
   }
 
   async updateTarefa(input: UpdateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const prazoData = this.resolveTarefaPrazoData(demanda, input.prazoReferencia);
+      if (input.prazoReferencia && !prazoData) {
+        throw new AppError(400, "TAREFA_PRAZO_INDISPONIVEL", `O ${this.getTarefaPrazoLabel(input.prazoReferencia)?.toLowerCase()} do processo ainda nao esta definido.`);
+      }
       const current = await client.query(
         `
           select id, concluida, descricao, tipo
@@ -2437,13 +2540,23 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(409, "TAREFA_NOT_EDITABLE", "Tarefas concluidas nao podem ser alteradas.");
       }
 
+      await this.assertTarefaPrazoConflict({
+        client,
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        prazoReferencia: input.prazoReferencia,
+        prazoData,
+        tarefaIdToIgnore: input.tarefaId,
+        confirmarConflito: input.confirmarConflito,
+      });
+
       await client.query(
         `
           update adminlog.tarefas_pendentes
-          set descricao = $3, tipo = $4
+          set descricao = $3, tipo = $4, prazo_referencia = $5
           where id = $1::uuid and pre_demanda_id = $2
         `,
-        [input.tarefaId, demanda.id, input.descricao, input.tipo],
+        [input.tarefaId, demanda.id, input.descricao, input.tipo, input.prazoReferencia ?? null],
       );
 
       await this.insertAndamento(client, {
