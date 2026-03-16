@@ -125,7 +125,6 @@ export interface ListPreDemandasParams {
 
 export interface CreatePreDemandaPayload {
   solicitante?: string;
-  pessoa_solicitante_id?: string | null;
   assunto: string;
   data_referencia: string;
   descricao?: string;

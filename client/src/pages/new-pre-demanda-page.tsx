@@ -38,7 +38,6 @@ export function NewPreDemandaPage() {
   const [entryType, setEntryType] = useState<EntryType>("eventual");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [form, setForm] = useState({
-    pessoa_solicitante_id: "",
     assunto: "",
     data_referencia: new Date().toISOString().slice(0, 10),
     descricao: "",
@@ -58,9 +57,6 @@ export function NewPreDemandaPage() {
   const [conflictPreId, setConflictPreId] = useState<string | null>(null);
   const [result, setResult] = useState<{ preId: string; idempotent: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [pessoaSearch, setPessoaSearch] = useState("");
-  const [pessoaResults, setPessoaResults] = useState<Pessoa[]>([]);
-  const [selectedPessoa, setSelectedPessoa] = useState<Pessoa | null>(null);
   const [interessadoSearch, setInteressadoSearch] = useState("");
   const [interessadoResults, setInteressadoResults] = useState<Pessoa[]>([]);
   const [selectedInteressados, setSelectedInteressados] = useState<Pessoa[]>([]);
@@ -73,7 +69,7 @@ export function NewPreDemandaPage() {
   const hasContinuousFrequency = Boolean(form.frequencia.trim());
   const requiresPrazo = !hasContinuousFrequency;
   const isSubmitBlocked =
-    isSubmitting || !form.pessoa_solicitante_id || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim()) || (requiresPrazo && !form.prazo_final);
+    isSubmitting || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim()) || (requiresPrazo && !form.prazo_final);
 
   useEffect(() => {
     void (async () => {
@@ -82,29 +78,6 @@ export function NewPreDemandaPage() {
       } catch {}
     })();
   }, []);
-
-  useEffect(() => {
-    if (pessoaSearch.trim().length < 2) {
-      setPessoaResults([]);
-      return;
-    }
-    let active = true;
-    void (async () => {
-      try {
-        const result = await listPessoas({ q: pessoaSearch, page: 1, pageSize: 8 });
-        if (active) {
-          setPessoaResults(result.items);
-        }
-      } catch {
-        if (active) {
-          setPessoaResults([]);
-        }
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [pessoaSearch]);
 
   useEffect(() => {
     if (interessadoSearch.trim().length < 2) {
@@ -129,7 +102,7 @@ export function NewPreDemandaPage() {
     return () => {
       active = false;
     };
-  }, [form.pessoa_solicitante_id, interessadoSearch, selectedInteressados]);
+  }, [interessadoSearch, selectedInteressados]);
 
   const frequenciaHint = useMemo(() => {
     if (form.frequencia === "Semanal" && form.frequencia_dias_semana.length) {
@@ -174,13 +147,6 @@ export function NewPreDemandaPage() {
     }));
   }
 
-  function selectPessoaPrincipal(pessoa: Pessoa) {
-    setSelectedPessoa(pessoa);
-    setPessoaSearch(pessoa.nome);
-    setPessoaResults([]);
-    setForm((current) => ({ ...current, pessoa_solicitante_id: pessoa.id }));
-  }
-
   function addInteressado(pessoa: Pessoa) {
     setSelectedInteressados((current) => [...current, pessoa]);
     setInteressadoSearch("");
@@ -200,7 +166,7 @@ export function NewPreDemandaPage() {
 
     try {
       const created = await createPreDemanda({
-        pessoa_solicitante_id: form.pessoa_solicitante_id,
+        solicitante: selectedInteressados[0]?.nome ?? undefined,
         assunto: form.assunto,
         data_referencia: form.data_referencia,
         descricao: form.descricao || undefined,
@@ -222,9 +188,7 @@ export function NewPreDemandaPage() {
 
       if (!created.idempotent && selectedInteressados.length > 0) {
         await Promise.all(
-          selectedInteressados
-            .filter((pessoa) => pessoa.id !== form.pessoa_solicitante_id)
-            .map((pessoa) =>
+          selectedInteressados.map((pessoa) =>
             addPreDemandaInteressado(created.preId, {
               interessado_id: pessoa.id,
               papel: "interessado",
@@ -261,23 +225,23 @@ export function NewPreDemandaPage() {
         <CardContent className="p-6">
           <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
-              <FormField label="Pessoa principal">
-                <Input onChange={(event) => setPessoaSearch(event.target.value)} placeholder="Buscar pessoa por nome, cargo, matrícula ou CPF" value={pessoaSearch} />
+              <FormField label="Pessoa interessada">
+                <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoa por nome, cargo, matrícula ou CPF" value={interessadoSearch} />
               </FormField>
-              {form.pessoa_solicitante_id ? (
+              {selectedInteressados.length > 0 ? (
                 <p className="text-sm font-medium text-emerald-700">
-                  Pessoa selecionada: {selectedPessoa?.nome ?? "Vinculada"}
+                  Primeira pessoa vinculada: {selectedInteressados[0]?.nome ?? "Vinculada"}
                 </p>
               ) : null}
-              {pessoaResults.length > 0 ? (
+              {interessadoResults.length > 0 ? (
                 <div className="grid gap-2">
-                  {pessoaResults.map((item) => (
+                  {interessadoResults.map((item) => (
                     <button
                       className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm ${
-                        form.pessoa_solicitante_id === item.id ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
+                        selectedInteressados.some((selected) => selected.id === item.id) ? "border-emerald-300 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                       key={item.id}
-                      onClick={() => selectPessoaPrincipal(item)}
+                      onClick={() => addInteressado(item)}
                       type="button"
                     >
                       <span>
@@ -292,7 +256,7 @@ export function NewPreDemandaPage() {
             </div>
 
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
-              <FormField label="Interessados">
+              <FormField label="Pessoas interessadas">
                 <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoas para vincular como interessadas" value={interessadoSearch} />
               </FormField>
 
@@ -310,7 +274,7 @@ export function NewPreDemandaPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">Nenhum interessado adicional selecionado.</p>
+                <p className="text-sm text-slate-500">Nenhuma pessoa interessada selecionada.</p>
               )}
 
               {interessadoResults.length > 0 ? (
@@ -557,3 +521,6 @@ function EntryOption({
     </label>
   );
 }
+
+
+

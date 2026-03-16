@@ -146,7 +146,6 @@ export function PreDemandaDetailPage() {
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
-  const [interessadoRole, setInteressadoRole] = useState<"solicitante" | "interessado">("interessado");
   const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", cargo: "", matricula: "", cpf: "" });
   const [processSearch, setProcessSearch] = useState("");
   const isSeiValid = isValidSei(associationForm.sei_numero);
@@ -487,7 +486,7 @@ export function PreDemandaDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
-              <SummaryItem label="Pessoa principal" value={record.pessoaPrincipal?.nome ?? record.solicitante} />
+              <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
               <SummaryItem label="Prazo inicial" value={record.prazoInicial ? new Date(record.prazoInicial).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Prazo intermediario" value={record.prazoIntermediario ? new Date(record.prazoIntermediario).toLocaleDateString("pt-BR") : "-"} />
@@ -507,16 +506,12 @@ export function PreDemandaDetailPage() {
               <CardDescription>Cadastro relacional das pessoas ligadas ao processo.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_180px_auto]">
+              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
                 <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoa..." value={interessadoSearch} />
-                <select className={selectClassName} onChange={(event) => setInteressadoRole(event.target.value as "solicitante" | "interessado")} value={interessadoRole}>
-                  <option value="interessado">Pessoa vinculada</option>
-                  <option value="solicitante">Pessoa principal</option>
-                </select>
                 <Button
                   onClick={() =>
                     interessadoResults[0]
-                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0].id, papel: interessadoRole }).then(() => undefined), "Pessoa vinculada.")
+                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0].id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")
                       : undefined
                   }
                   type="button"
@@ -535,7 +530,7 @@ export function PreDemandaDetailPage() {
                       <button
                         className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
                         key={item.id}
-                        onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: interessadoRole }).then(() => undefined), "Pessoa vinculada.")}
+                        onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")}
                         type="button"
                       >
                         <span>
@@ -569,7 +564,7 @@ export function PreDemandaDetailPage() {
                             matricula: newInteressadoForm.matricula || null,
                             cpf: newInteressadoForm.cpf || null,
                           });
-                          await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: interessadoRole });
+                          await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: "interessado" });
                           setNewInteressadoForm({ nome: "", cargo: "", matricula: "", cpf: "" });
                           setInteressadoSearch(created.nome);
                           setInteressadoResults([created]);
@@ -592,7 +587,7 @@ export function PreDemandaDetailPage() {
                     <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.interessado.id}>
                       <div>
                         <p className="font-semibold text-slate-950">{item.interessado.nome}</p>
-                        <p className="text-sm text-slate-500">{item.papel} - {item.interessado.cargo ?? item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
+                        <p className="text-sm text-slate-500">Interessado - {item.interessado.cargo ?? item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
                       </div>
                       <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Pessoa removida.")} size="sm" type="button" variant="ghost">
                         <X className="h-4 w-4" />
@@ -1285,12 +1280,9 @@ export function PreDemandaDetailPage() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Iniciar processo relacionado</DialogTitle>
-            <DialogDescription>Crie um novo processo relacionado usando a mesma pessoa principal do processo atual.</DialogDescription>
+            <DialogDescription>Crie um novo processo relacionado sem depender de solicitante vinculado.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <FormField label="Pessoa principal">
-              <Input disabled value={record?.pessoaPrincipal?.nome ?? "Vincule uma pessoa principal antes de criar relacionado"} />
-            </FormField>
             <FormField label="Assunto">
               <Input onChange={(event) => setRelatedForm((current) => ({ ...current, assunto: event.target.value }))} value={relatedForm.assunto} />
             </FormField>
@@ -1315,12 +1307,11 @@ export function PreDemandaDetailPage() {
               Cancelar
             </Button>
             <Button
-              disabled={!record?.pessoaPrincipal?.id || !relatedForm.prazo_final || relatedForm.assunto.trim().length < 3 || isSubmitting}
+              disabled={!relatedForm.prazo_final || relatedForm.assunto.trim().length < 3 || isSubmitting}
               onClick={() =>
                 void runMutation(
                   async () => {
                     const created = await createPreDemanda({
-                      pessoa_solicitante_id: record?.pessoaPrincipal?.id ?? null,
                       assunto: relatedForm.assunto,
                       data_referencia: relatedForm.data_referencia,
                       descricao: relatedForm.descricao,

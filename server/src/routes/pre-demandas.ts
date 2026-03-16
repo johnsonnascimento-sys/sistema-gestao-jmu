@@ -28,7 +28,6 @@ const metadataSchema = z
 
 const createSchema = z.object({
   solicitante: z.string().trim().min(3).optional(),
-  pessoa_solicitante_id: z.string().uuid().optional().nullable(),
   assunto: z.string().trim().min(3),
   data_referencia: z.string().date(),
   descricao: z.string().trim().max(4000).optional().nullable(),
@@ -42,10 +41,6 @@ const createSchema = z.object({
   assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
 })
-  .refine((value) => Boolean(value.pessoa_solicitante_id) || Boolean(value.solicitante?.trim()), {
-    message: "Informe a pessoa principal da demanda.",
-    path: ["pessoa_solicitante_id"],
-  })
   .refine((value) => {
     const hasContinuousFrequency = Boolean(
       value.metadata?.frequencia ||
@@ -117,7 +112,7 @@ const anotacoesSchema = z.object({
 
 const interessadoSchema = z.object({
   interessado_id: z.string().uuid(),
-  papel: z.enum(["solicitante", "interessado"]),
+  papel: z.literal("interessado").default("interessado"),
 });
 
 const assuntoLinkSchema = z.object({
@@ -226,7 +221,6 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
     const payload = createSchema.parse(request.body);
     const result = await preDemandaRepository.create({
       solicitante: emptyToNull(payload.solicitante) ?? undefined,
-      pessoaSolicitanteId: payload.pessoa_solicitante_id ?? null,
       assunto: payload.assunto,
       dataReferencia: payload.data_referencia,
       descricao: emptyToNull(payload.descricao),

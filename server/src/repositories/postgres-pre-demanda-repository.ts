@@ -98,7 +98,7 @@ const BASE_FROM = `
     from adminlog.demanda_interessados di
     inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
     where di.pre_demanda_id = pd.id
-    order by case when di.papel = 'solicitante' then 0 else 1 end, di.created_at desc, pessoa.nome asc
+    order by di.created_at desc, pessoa.nome asc
     limit 1
   ) pessoa_principal on true
   left join adminlog.setores setor on setor.id = pd.setor_atual_id
@@ -314,7 +314,7 @@ function mapDemandaInteressado(row: QueryResultRow): DemandaInteressado {
       createdAt: new Date(row.interessado_created_at).toISOString(),
       updatedAt: new Date(row.interessado_updated_at).toISOString(),
     },
-    papel: row.papel as DemandaInteressado["papel"],
+    papel: "interessado",
     linkedAt: new Date(row.created_at).toISOString(),
     linkedBy: mapActor(row, "linked_by"),
   };
@@ -1198,9 +1198,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.numeroJudicial = numerosJudiciais.find((item) => item.principal)?.numero ?? detail.numeroJudicial;
     detail.principalNumero = detail.currentAssociation?.seiNumero ?? detail.preId;
     detail.principalTipo = detail.currentAssociation ? "sei" : "demanda";
-    detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.interessados.find((item) => item.papel === "solicitante")?.interessado.nome ?? detail.solicitante;
+    detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.interessados[0]?.interessado.nome ?? detail.solicitante;
     if (!detail.pessoaPrincipal) {
-      detail.pessoaPrincipal = detail.interessados.find((item) => item.papel === "solicitante")?.interessado ?? detail.interessados[0]?.interessado ?? null;
+      detail.pessoaPrincipal = detail.interessados[0]?.interessado ?? null;
     }
 
     return detail;
@@ -1396,18 +1396,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo final e obrigatorio quando nao ha frequencia continua configurada.");
         }
 
-        let resolvedSolicitante = input.solicitante?.trim() ?? "";
-        if (input.pessoaSolicitanteId) {
-          const pessoaResult = await client.query("select nome from adminlog.interessados where id = $1::uuid limit 1", [input.pessoaSolicitanteId]);
-          if (!pessoaResult.rows[0]) {
-            throw new AppError(404, "PESSOA_NOT_FOUND", "Pessoa nao encontrada.");
-          }
-          resolvedSolicitante = String(pessoaResult.rows[0].nome);
-        }
-
-        if (!resolvedSolicitante) {
-          throw new AppError(400, "PESSOA_REQUIRED", "Selecione uma pessoa principal para a demanda.");
-        }
+        const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
 
         const defaultSetor = await this.resolveDefaultInitialSetor(client);
         if (!defaultSetor) {
@@ -1488,17 +1477,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           `,
           [preDemandaId, defaultSetor.id, input.createdByUserId],
         );
-
-        if (input.pessoaSolicitanteId) {
-          await client.query(
-            `
-              insert into adminlog.demanda_interessados (pre_demanda_id, interessado_id, papel, created_by_user_id)
-              values ($1, $2::uuid, 'solicitante', $3)
-              on conflict (pre_demanda_id, interessado_id) do nothing
-            `,
-            [preDemandaId, input.pessoaSolicitanteId, input.createdByUserId],
-          );
-        }
 
         if (input.seiNumero) {
           await client.query(
@@ -1583,6 +1561,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw error;
       }
 
+      const duplicateSolicitante = input.solicitante?.trim() || "Nao informado";
       const duplicate = await this.pool.query(
         `
           ${BASE_SELECT}
@@ -1591,7 +1570,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             and pd.data_referencia = $3::date
           limit 1
         `,
-        [input.solicitante ?? "", input.assunto, input.dataReferencia],
+        [duplicateSolicitante, input.assunto, input.dataReferencia],
       );
 
       if (!duplicate.rows[0]) {

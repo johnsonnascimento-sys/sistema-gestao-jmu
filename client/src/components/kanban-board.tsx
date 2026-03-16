@@ -66,7 +66,7 @@ export function KanbanBoard({
 
                     <div className="grid gap-2 text-sm text-slate-600">
                       <p>
-                        <span className="font-medium text-slate-950">Pessoa:</span> {item.pessoaPrincipal?.nome ?? item.solicitante}
+                        <span className="font-medium text-slate-950">Pessoa:</span> {item.pessoaPrincipal?.nome ?? "-"}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Setor:</span> {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}

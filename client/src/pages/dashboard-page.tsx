@@ -150,7 +150,7 @@ export function DashboardPage() {
           </div>
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
-          <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
+          <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
           <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
           <p>Envolvidos: {item.interessados.length}</p>
           <p>{formatPrazo(item)}</p>
@@ -316,7 +316,7 @@ export function DashboardPage() {
                       </div>
                     </div>
                     <div className="grid gap-1 text-sm text-slate-600">
-                      <p>{item.pessoaPrincipal?.nome ?? item.solicitante}</p>
+                      <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
                       <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
                       <p>{formatPrazo(item)}</p>
                       <p>{formatStructuredDeadlines(item)}</p>

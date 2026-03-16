@@ -1048,7 +1048,7 @@ export function PreDemandasPage() {
               <option value="updatedAt">Atualizacao</option>
               <option value="createdAt">Criacao</option>
               <option value="dataReferencia">Data de referencia</option>
-              <option value="solicitante">Pessoa principal</option>
+              <option value="solicitante">Pessoa vinculada</option>
               <option value="status">Status</option>
               <option value="prazoFinal">Prazo final</option>
               <option value="numeroJudicial">Numero judicial</option>
@@ -1157,7 +1157,7 @@ export function PreDemandasPage() {
                         <Link to={`/pre-demandas/${item.preId}`}>{item.principalNumero}</Link>
                         <div className="text-xs font-medium text-slate-500">{item.preId}</div>
                       </td>
-                      <td className="px-3 py-4">{item.pessoaPrincipal?.nome ?? item.solicitante}</td>
+                      <td className="px-3 py-4">{item.pessoaPrincipal?.nome ?? "-"}</td>
                       <td className="px-3 py-4">{item.assunto}</td>
                       <td className="px-3 py-4">
                         <div className="grid gap-1">
