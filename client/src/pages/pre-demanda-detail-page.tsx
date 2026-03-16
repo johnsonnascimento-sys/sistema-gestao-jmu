@@ -981,11 +981,16 @@ export function PreDemandaDetailPage() {
                 <Timeline
                   events={timeline}
                   renderActions={(event) => {
-                    if (event.type !== "andamento" || !editableAndamentoIds.has(event.id)) {
+                    if (event.type !== "andamento") {
                       return null;
                     }
 
-                    const andamento = editableAndamentos.get(event.id);
+                    const andamentoId = event.id.startsWith("andamento-") ? event.id.slice("andamento-".length) : event.id;
+                    if (!editableAndamentoIds.has(andamentoId)) {
+                      return null;
+                    }
+
+                    const andamento = editableAndamentos.get(andamentoId);
                     if (!andamento) {
                       return null;
                     }
