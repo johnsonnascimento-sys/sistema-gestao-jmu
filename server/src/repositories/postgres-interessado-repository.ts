@@ -27,6 +27,18 @@ function emptyToNull(value: string | null | undefined) {
   return value && value.length > 0 ? value : null;
 }
 
+function normalizeSearchTerm(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function buildNormalizedLikeExpression(column: string, index: number) {
+  return `translate(lower(coalesce(${column}, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
+}
+
 export class PostgresInteressadoRepository implements InteressadoRepository {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -35,9 +47,11 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
     const filters: string[] = [];
 
     if (params.q) {
-      values.push(`%${params.q}%`);
+      values.push(`%${normalizeSearchTerm(params.q)}%`);
       const index = values.length;
-      filters.push(`(nome ilike $${index} or coalesce(cargo, '') ilike $${index} or coalesce(matricula, '') ilike $${index} or coalesce(cpf, '') ilike $${index})`);
+      filters.push(
+        `(${buildNormalizedLikeExpression("nome", index)} or ${buildNormalizedLikeExpression("cargo", index)} or ${buildNormalizedLikeExpression("matricula", index)} or ${buildNormalizedLikeExpression("cpf", index)})`,
+      );
     }
 
     const where = filters.length ? `where ${filters.join(" and ")}` : "";

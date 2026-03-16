@@ -117,9 +117,7 @@ export function NewPreDemandaPage() {
         const result = await listPessoas({ q: interessadoSearch, page: 1, pageSize: 8 });
         if (active) {
           setInteressadoResults(
-            result.items.filter(
-              (item) => item.id !== form.pessoa_solicitante_id && !selectedInteressados.some((selected) => selected.id === item.id),
-            ),
+            result.items.filter((item) => !selectedInteressados.some((selected) => selected.id === item.id)),
           );
         }
       } catch {
@@ -180,7 +178,6 @@ export function NewPreDemandaPage() {
     setSelectedPessoa(pessoa);
     setPessoaSearch(pessoa.nome);
     setPessoaResults([]);
-    setSelectedInteressados((current) => current.filter((item) => item.id !== pessoa.id));
     setForm((current) => ({ ...current, pessoa_solicitante_id: pessoa.id }));
   }
 
@@ -225,12 +222,14 @@ export function NewPreDemandaPage() {
 
       if (!created.idempotent && selectedInteressados.length > 0) {
         await Promise.all(
-          selectedInteressados.map((pessoa) =>
+          selectedInteressados
+            .filter((pessoa) => pessoa.id !== form.pessoa_solicitante_id)
+            .map((pessoa) =>
             addPreDemandaInteressado(created.preId, {
               interessado_id: pessoa.id,
               papel: "interessado",
             }),
-          ),
+            ),
         );
       }
 
