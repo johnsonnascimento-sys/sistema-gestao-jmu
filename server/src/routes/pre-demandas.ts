@@ -95,7 +95,7 @@ const statusSchema = z.object({
 
 const patchCaseSchema = z
   .object({
-    assunto: z.string().trim().min(3).max(255).optional(),
+    assunto: z.string().trim().min(3).optional(),
     descricao: z.string().trim().max(4000).optional().nullable(),
     fonte: z.string().trim().max(120).optional().nullable(),
     observacoes: z.string().trim().max(4000).optional().nullable(),
