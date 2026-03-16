@@ -547,6 +547,12 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
             where sei_busca.pre_id = pd.pre_id
               and ${buildNormalizedLikeExpression("sei_busca.sei_numero", index)}
           )
+          or exists (
+            select 1
+            from adminlog.demanda_sei_vinculos sei_relacionado
+            where sei_relacionado.pre_demanda_id = pd.id
+              and ${buildNormalizedLikeExpression("sei_relacionado.sei_numero", index)}
+          )
         )`);
       }
 
@@ -569,6 +575,12 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
           from adminlog.pre_to_sei_link sei_busca
           where sei_busca.pre_id = pd.pre_id
             and regexp_replace(coalesce(sei_busca.sei_numero, ''), '\\D', '', 'g') like $${index}
+        )
+        or exists (
+          select 1
+          from adminlog.demanda_sei_vinculos sei_relacionado
+          where sei_relacionado.pre_demanda_id = pd.id
+            and regexp_replace(coalesce(sei_relacionado.sei_numero, ''), '\\D', '', 'g') like $${index}
         )
       )`);
     }
