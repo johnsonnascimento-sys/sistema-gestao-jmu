@@ -12,6 +12,7 @@ const DUE_STATES = ["overdue", "due_today", "due_soon", "none"] as const;
 const PRAZO_FIELDS = ["prazoInicial", "prazoIntermediario", "prazoFinal"] as const;
 const PRAZO_RECORTES = ["overdue", "today", "soon"] as const;
 const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
+const NUMERO_JUDICIAL_REGEX = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
 
 const metadataSchema = z
   .object({
@@ -27,6 +28,17 @@ const metadataSchema = z
   .optional()
   .nullable();
 
+const numeroJudicialSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    return normalizeNumeroJudicialValue(value);
+  },
+  z.string().regex(NUMERO_JUDICIAL_REGEX, "Número judicial inválido.").nullable().optional(),
+);
+
 const createSchema = z.object({
   solicitante: z.string().trim().min(3).optional(),
   assunto: z.string().trim().min(3),
@@ -38,7 +50,7 @@ const createSchema = z.object({
   prazo_intermediario: z.string().date().optional().nullable(),
   prazo_final: z.string().date().optional().nullable(),
   sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido.").optional().nullable(),
-  numero_judicial: z.string().trim().max(100).optional().nullable(),
+  numero_judicial: numeroJudicialSchema,
   assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
 })
@@ -102,7 +114,7 @@ const patchCaseSchema = z
     prazo_inicial: z.string().date().optional().nullable(),
     prazo_intermediario: z.string().date().optional().nullable(),
     prazo_final: z.string().date().optional().nullable(),
-    numero_judicial: z.string().trim().max(100).optional().nullable(),
+    numero_judicial: numeroJudicialSchema,
     metadata: metadataSchema,
   })
   .refine((value) => Object.keys(value).length > 0, "Informe ao menos um campo para atualizar.");
@@ -169,6 +181,24 @@ const documentoSchema = z.object({
 
 function emptyToNull(value: string | null | undefined) {
   return value && value.length > 0 ? value : null;
+}
+
+function normalizeNumeroJudicialValue(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length !== 20) {
+    return trimmed;
+  }
+
+  return `${digits.slice(0, 7)}-${digits.slice(7, 9)}.${digits.slice(9, 13)}.${digits.slice(13, 14)}.${digits.slice(14, 16)}.${digits.slice(16, 20)}`;
 }
 
 function normalizeMetadata(payload: z.infer<typeof metadataSchema>) {

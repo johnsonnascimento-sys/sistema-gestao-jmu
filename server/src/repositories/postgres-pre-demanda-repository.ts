@@ -170,6 +170,24 @@ const ALL_STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "enc
 const FILTERABLE_QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const DEFAULT_INITIAL_SETOR_SIGLA = "SETAD2A2CJM";
 
+function formatNumeroJudicialValue(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits.length !== 20) {
+    return trimmed;
+  }
+
+  return `${digits.slice(0, 7)}-${digits.slice(7, 9)}.${digits.slice(9, 13)}.${digits.slice(13, 14)}.${digits.slice(14, 16)}.${digits.slice(16, 20)}`;
+}
+
 function mapActor(row: QueryResultRow, prefix: string): AuditActor | null {
   if (row[`${prefix}_id`] === null || row[`${prefix}_id`] === undefined) {
     return null;
@@ -236,7 +254,7 @@ function mapSeiAssociationRow(row: QueryResultRow, preId: string): SeiAssociatio
 
 function mapNumeroJudicialRow(row: QueryResultRow) {
   return {
-    numero: String(row.numero_judicial),
+    numero: formatNumeroJudicialValue(String(row.numero_judicial)) ?? String(row.numero_judicial),
     principal: Boolean(row.principal),
     createdAt: new Date(row.created_at).toISOString(),
   };
@@ -259,7 +277,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
           updatedAt: new Date(row.pessoa_principal_updated_at).toISOString(),
         };
   const solicitante = pessoaPrincipal?.nome ?? String(row.solicitante);
-  const numeroJudicial = row.numero_judicial ? String(row.numero_judicial) : null;
+  const numeroJudicial = row.numero_judicial ? formatNumeroJudicialValue(String(row.numero_judicial)) : null;
 
   return {
     id: Number(row.id),
@@ -1400,7 +1418,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo final e obrigatorio quando nao ha frequencia continua configurada.");
         }
 
-        const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
+      const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
+      const numeroJudicial = formatNumeroJudicialValue(input.numeroJudicial);
 
         const defaultSetor = await this.resolveDefaultInitialSetor(client);
         if (!defaultSetor) {
@@ -1456,7 +1475,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             input.prazoInicial ?? null,
             input.prazoIntermediario ?? null,
             input.prazoFinal ?? null,
-            input.numeroJudicial ?? null,
+            numeroJudicial,
             defaultSetor.id,
             dbMetadata ? JSON.stringify(dbMetadata) : null,
             input.createdByUserId,
@@ -1517,7 +1536,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           );
         }
 
-        if (input.numeroJudicial) {
+        if (numeroJudicial) {
           await client.query(
             `
               insert into adminlog.demanda_numeros_judiciais (pre_demanda_id, numero_judicial, principal, created_by_user_id)
@@ -1525,7 +1544,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               on conflict (pre_demanda_id, numero_judicial) do update
               set principal = true
             `,
-            [preDemandaId, input.numeroJudicial, input.createdByUserId],
+            [preDemandaId, numeroJudicial, input.createdByUserId],
           );
         }
 
@@ -1650,6 +1669,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async updateCaseData(input: UpdatePreDemandaCaseDataInput) {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const metadata = input.metadata === undefined ? undefined : normalizeMetadataForDb(input.metadata);
+    const numeroJudicial = input.numeroJudicial === undefined ? undefined : formatNumeroJudicialValue(input.numeroJudicial);
     return inTransaction(this.pool, async (client) => {
       const demanda = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
       if (!demanda) {
@@ -1704,15 +1724,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           input.prazoIntermediario ?? null,
           input.prazoFinal !== undefined,
           input.prazoFinal ?? null,
-          input.numeroJudicial !== undefined,
-          input.numeroJudicial ?? null,
+          numeroJudicial !== undefined,
+          numeroJudicial ?? null,
           input.metadata !== undefined,
           metadata ? JSON.stringify(metadata) : null,
         ],
       );
 
-      if (input.numeroJudicial !== undefined) {
-        if (input.numeroJudicial) {
+      if (numeroJudicial !== undefined) {
+        if (numeroJudicial) {
           await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
           await client.query(
             `
@@ -1721,7 +1741,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               on conflict (pre_demanda_id, numero_judicial) do update
               set principal = true
             `,
-            [demanda.id, input.numeroJudicial],
+            [demanda.id, numeroJudicial],
           );
         } else {
           await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
@@ -1849,6 +1869,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async addNumeroJudicial(input: AddNumeroJudicialInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const numeroJudicial = formatNumeroJudicialValue(input.numeroJudicial);
+      if (!numeroJudicial) {
+        throw new AppError(400, "NUMERO_JUDICIAL_INVALID", "Numero judicial invalido.");
+      }
       await client.query("update adminlog.demanda_numeros_judiciais set principal = false where pre_demanda_id = $1", [demanda.id]);
       await client.query(
         `
@@ -1857,9 +1881,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           on conflict (pre_demanda_id, numero_judicial) do update
           set principal = true
         `,
-        [demanda.id, input.numeroJudicial, input.changedByUserId],
+        [demanda.id, numeroJudicial, input.changedByUserId],
       );
-      await client.query("update adminlog.pre_demanda set numero_judicial = $2 where id = $1", [demanda.id, input.numeroJudicial]);
+      await client.query("update adminlog.pre_demanda set numero_judicial = $2 where id = $1", [demanda.id, numeroJudicial]);
       return this.loadNumerosJudiciais(client, demanda.id);
     });
   }
@@ -1867,13 +1891,17 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const numeroJudicial = formatNumeroJudicialValue(input.numeroJudicial);
+      if (!numeroJudicial) {
+        throw new AppError(400, "NUMERO_JUDICIAL_INVALID", "Numero judicial invalido.");
+      }
       await client.query(
         `
           delete from adminlog.demanda_numeros_judiciais
           where pre_demanda_id = $1
             and numero_judicial = $2
         `,
-        [demanda.id, input.numeroJudicial],
+        [demanda.id, numeroJudicial],
       );
 
       const numeros = await this.loadNumerosJudiciais(client, demanda.id);

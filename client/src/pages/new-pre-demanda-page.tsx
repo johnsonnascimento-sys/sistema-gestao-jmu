@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { addPreDemandaInteressado, ApiError, appendRequestReference, createPreDemanda, formatAppError, listAssuntos, listPessoas } from "../lib/api";
 import type { Assunto, Pessoa } from "../types";
+import { formatNumeroJudicialInput, isValidNumeroJudicial } from "../lib/numero-judicial";
 import { formatSeiInput, isValidSei } from "../lib/sei";
 
 type EntryType = "existing" | "eventual" | "continuous";
@@ -64,13 +65,18 @@ export function NewPreDemandaPage() {
   const [assuntos, setAssuntos] = useState<Assunto[]>([]);
   const [selectedAssuntoIds, setSelectedAssuntoIds] = useState<string[]>([]);
   const isSeiValid = !form.sei_numero || isValidSei(form.sei_numero);
+  const isNumeroJudicialValid = !form.numero_judicial || isValidNumeroJudicial(form.numero_judicial);
   const isContinuous = entryType === "continuous";
   const showNumbers = entryType === "existing";
   const showAdvanced = advancedOpen || isContinuous;
   const hasContinuousFrequency = Boolean(form.frequencia.trim());
   const requiresPrazo = !hasContinuousFrequency;
   const isSubmitBlocked =
-    isSubmitting || (showNumbers && !isSeiValid) || (isContinuous && !form.frequencia.trim()) || (requiresPrazo && !form.prazo_final);
+    isSubmitting ||
+    (showNumbers && !isSeiValid) ||
+    !isNumeroJudicialValid ||
+    (isContinuous && !form.frequencia.trim()) ||
+    (requiresPrazo && !form.prazo_final);
 
   useEffect(() => {
     void (async () => {
@@ -347,8 +353,8 @@ export function NewPreDemandaPage() {
 
                 <FormField label="Número judicial">
                   <Input
-                    onChange={(event) => setForm((current) => ({ ...current, numero_judicial: event.target.value }))}
-                    placeholder="0001234-56.2026.9.99.9999"
+                    onChange={(event) => setForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) }))}
+                    placeholder="0000000-00.0000.0.00.0000"
                     value={form.numero_judicial}
                   />
                 </FormField>

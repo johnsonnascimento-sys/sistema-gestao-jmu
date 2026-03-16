@@ -62,6 +62,7 @@ import {
   updatePreDemandaStatus,
 } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
+import { formatNumeroJudicialInput, normalizeNumeroJudicialValue } from "../lib/numero-judicial";
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
@@ -170,7 +171,7 @@ export function PreDemandaDetailPage() {
         descricao: nextRecord.descricao ?? "",
         fonte: nextRecord.fonte ?? "",
         observacoes: nextRecord.observacoes ?? "",
-        numero_judicial: nextRecord.numeroJudicial ?? "",
+        numero_judicial: normalizeNumeroJudicialValue(nextRecord.numeroJudicial),
         prazo_inicial: nextRecord.prazoInicial ?? "",
         prazo_intermediario: nextRecord.prazoIntermediario ?? "",
         prazo_final: nextRecord.prazoFinal ?? "",
@@ -480,7 +481,9 @@ export function PreDemandaDetailPage() {
             <ToolbarActionButton icon={StickyNote} label="Anotacoes" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
             <ToolbarActionButton icon={CalendarClock} label="Prazos" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
             <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" variant="ghost" />
-            <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
+            {record.allowedNextStatuses.includes("encerrada") ? (
+              <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] px-4 py-3 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
             <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atalhos de status</span>
@@ -1125,7 +1128,7 @@ export function PreDemandaDetailPage() {
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, fonte: event.target.value }))} value={editForm.fonte} />
               </FormField>
               <FormField label="Numero judicial">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, numero_judicial: event.target.value }))} value={editForm.numero_judicial} />
+                <Input onChange={(event) => setEditForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) }))} placeholder="0000000-00.0000.0.00.0000" value={editForm.numero_judicial} />
               </FormField>
             </div>
             <div className="grid gap-4 md:grid-cols-2">

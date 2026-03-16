@@ -9,7 +9,7 @@ export function formatPreDemandaMutationError(error: unknown, fallback: string) 
     case "PRE_DEMANDA_NOT_FOUND":
       return appendRequestReference("O processo informado nao foi encontrado.", error.requestId);
     case "PRE_DEMANDA_STATUS_UNCHANGED":
-      return appendRequestReference("O processo ja se encontra nesse status.", error.requestId);
+      return appendRequestReference("O processo ja se encontra nesse status. Atualize a tela se necessario.", error.requestId);
     case "PRE_DEMANDA_STATUS_INVALID":
       return appendRequestReference(error.message || "A transicao de status nao e permitida para a situacao atual do processo.", error.requestId);
     case "PRE_DEMANDA_STATUS_REASON_REQUIRED":
