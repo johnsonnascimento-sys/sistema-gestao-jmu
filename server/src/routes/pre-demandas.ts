@@ -161,7 +161,9 @@ const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
   prazo_referencia: z.enum(PRAZO_FIELDS).optional().nullable(),
+  prazo_data: z.string().date().optional().nullable(),
   confirmar_conflito: z.boolean().optional(),
+  confirmar_alteracao_prazo: z.boolean().optional(),
   setor_destino_id: z.string().uuid().optional().nullable(),
 });
 
@@ -599,7 +601,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       descricao: payload.descricao,
       tipo: payload.tipo,
       prazoReferencia: payload.prazo_referencia ?? null,
+      prazoData: payload.prazo_data ?? null,
       confirmarConflito: payload.confirmar_conflito ?? false,
+      confirmarAlteracaoPrazo: payload.confirmar_alteracao_prazo ?? false,
       setorDestinoId: payload.setor_destino_id ?? null,
       changedByUserId: request.user!.id,
     });
@@ -620,7 +624,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       descricao: payload.descricao,
       tipo: payload.tipo,
       prazoReferencia: payload.prazo_referencia ?? null,
+      prazoData: payload.prazo_data ?? null,
       confirmarConflito: payload.confirmar_conflito ?? false,
+      confirmarAlteracaoPrazo: payload.confirmar_alteracao_prazo ?? false,
       changedByUserId: request.user!.id,
     });
 

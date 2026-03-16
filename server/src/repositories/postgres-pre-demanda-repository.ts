@@ -2016,6 +2016,63 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     });
   }
 
+  private async prepareTarefaPrazo(params: {
+    client: PoolClient;
+    demanda: { id: number; preId: string; prazoInicial: string | null; prazoIntermediario: string | null; prazoFinal: string | null };
+    prazoReferencia: TarefaPrazoReferencia | null | undefined;
+    prazoData?: string | null;
+    confirmarAlteracaoPrazo?: boolean;
+  }) {
+    if (!params.prazoReferencia) {
+      if (params.prazoData) {
+        throw new AppError(400, "TAREFA_PRAZO_INVALIDO", "Informe um tipo de prazo do processo antes de definir a data.");
+      }
+
+      return null;
+    }
+
+    const currentPrazoData = this.resolveTarefaPrazoData(params.demanda, params.prazoReferencia);
+    const nextPrazoData = params.prazoData ?? currentPrazoData;
+
+    if (!nextPrazoData) {
+      throw new AppError(400, "TAREFA_PRAZO_INDISPONIVEL", `Defina uma data para ${this.getTarefaPrazoLabel(params.prazoReferencia)?.toLowerCase()} do processo.`);
+    }
+
+    if (currentPrazoData && currentPrazoData !== nextPrazoData && !params.confirmarAlteracaoPrazo) {
+      throw new AppError(409, "TAREFA_PRAZO_CHANGE_CONFIRMATION", "Este prazo do processo ja possui uma data gravada. Confirme a alteracao para continuar.", {
+        preId: params.demanda.preId,
+        prazoReferencia: params.prazoReferencia,
+        prazoLabel: this.getTarefaPrazoLabel(params.prazoReferencia),
+        prazoDataAnterior: currentPrazoData,
+        prazoDataNova: nextPrazoData,
+      });
+    }
+
+    if (currentPrazoData !== nextPrazoData) {
+      const column =
+        params.prazoReferencia === "prazoInicial"
+          ? "prazo_inicial"
+          : params.prazoReferencia === "prazoIntermediario"
+            ? "prazo_intermediario"
+            : "prazo_final";
+
+      await params.client.query(
+        `update adminlog.pre_demanda set ${column} = $2::date, updated_at = now() where id = $1`,
+        [params.demanda.id, nextPrazoData],
+      );
+
+      if (params.prazoReferencia === "prazoInicial") {
+        params.demanda.prazoInicial = nextPrazoData;
+      } else if (params.prazoReferencia === "prazoIntermediario") {
+        params.demanda.prazoIntermediario = nextPrazoData;
+      } else {
+        params.demanda.prazoFinal = nextPrazoData;
+      }
+    }
+
+    return nextPrazoData;
+  }
+
   async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
@@ -2456,10 +2513,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async createTarefa(input: CreateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
-      const prazoData = this.resolveTarefaPrazoData(demanda, input.prazoReferencia);
-      if (input.prazoReferencia && !prazoData) {
-        throw new AppError(400, "TAREFA_PRAZO_INDISPONIVEL", `O ${this.getTarefaPrazoLabel(input.prazoReferencia)?.toLowerCase()} do processo ainda nao esta definido.`);
-      }
+      const prazoData = await this.prepareTarefaPrazo({
+        client,
+        demanda,
+        prazoReferencia: input.prazoReferencia,
+        prazoData: input.prazoData ?? null,
+        confirmarAlteracaoPrazo: input.confirmarAlteracaoPrazo,
+      });
       await this.assertTarefaPrazoConflict({
         client,
         preDemandaId: demanda.id,
@@ -2517,10 +2577,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async updateTarefa(input: UpdateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
-      const prazoData = this.resolveTarefaPrazoData(demanda, input.prazoReferencia);
-      if (input.prazoReferencia && !prazoData) {
-        throw new AppError(400, "TAREFA_PRAZO_INDISPONIVEL", `O ${this.getTarefaPrazoLabel(input.prazoReferencia)?.toLowerCase()} do processo ainda nao esta definido.`);
-      }
       const current = await client.query(
         `
           select id, concluida, descricao, tipo
@@ -2539,6 +2595,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       if (current.rows[0].concluida) {
         throw new AppError(409, "TAREFA_NOT_EDITABLE", "Tarefas concluidas nao podem ser alteradas.");
       }
+
+      const prazoData = await this.prepareTarefaPrazo({
+        client,
+        demanda,
+        prazoReferencia: input.prazoReferencia,
+        prazoData: input.prazoData ?? null,
+        confirmarAlteracaoPrazo: input.confirmarAlteracaoPrazo,
+      });
 
       await this.assertTarefaPrazoConflict({
         client,

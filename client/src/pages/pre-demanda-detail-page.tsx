@@ -90,12 +90,29 @@ type TaskConflictState = {
     descricao: string;
     tipo: "fixa" | "livre";
     prazo_referencia: TarefaPrazoReferencia | null;
+    prazo_data?: string | null;
     setor_destino_id?: string | null;
   };
   details: {
     prazoLabel?: string | null;
     prazoData?: string | null;
     conflitos?: Array<{ id: string; descricao: string; ordem: number; prazoReferencia?: string | null }>;
+  };
+};
+
+type TaskPrazoChangeState = {
+  mode: "create" | "edit";
+  payload: {
+    descricao: string;
+    tipo: "fixa" | "livre";
+    prazo_referencia: TarefaPrazoReferencia | null;
+    prazo_data: string | null;
+    setor_destino_id?: string | null;
+  };
+  details: {
+    prazoLabel?: string | null;
+    prazoDataAnterior?: string | null;
+    prazoDataNova?: string | null;
   };
 };
 
@@ -159,11 +176,12 @@ export function PreDemandaDetailPage() {
   const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
-  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia, setor_destino_id: "" });
+  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia, prazo_data: "", setor_destino_id: "" });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia });
+  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia, prazo_data: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [taskConflict, setTaskConflict] = useState<TaskConflictState | null>(null);
+  const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
@@ -284,7 +302,7 @@ export function PreDemandaDetailPage() {
 
   useEffect(() => {
     if (!editingTask) {
-      setEditTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "" });
+      setEditTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "", prazo_data: "" });
       return;
     }
 
@@ -292,6 +310,7 @@ export function PreDemandaDetailPage() {
       descricao: editingTask.descricao,
       tipo: editingTask.tipo,
       prazo_referencia: editingTask.prazoReferencia ?? "",
+      prazo_data: editingTask.prazoData ?? "",
     });
   }, [editingTask]);
 
@@ -339,13 +358,13 @@ export function PreDemandaDetailPage() {
   const taskPrazoOptions = useMemo(
     () => [
       { value: "", label: "Sem prazo vinculado", available: true },
-      { value: "prazoInicial" as const, label: `Prazo inicial${record?.prazoInicial ? ` (${new Date(record.prazoInicial).toLocaleDateString("pt-BR")})` : " (nao definido)"}`, available: Boolean(record?.prazoInicial) },
+      { value: "prazoInicial" as const, label: `Prazo inicial${record?.prazoInicial ? ` (${new Date(record.prazoInicial).toLocaleDateString("pt-BR")})` : " (nao definido)"}`, available: true },
       {
         value: "prazoIntermediario" as const,
         label: `Prazo intermediario${record?.prazoIntermediario ? ` (${new Date(record.prazoIntermediario).toLocaleDateString("pt-BR")})` : " (nao definido)"}`,
-        available: Boolean(record?.prazoIntermediario),
+        available: true,
       },
-      { value: "prazoFinal" as const, label: `Prazo final${record?.prazoFinal ? ` (${new Date(record.prazoFinal).toLocaleDateString("pt-BR")})` : " (nao definido)"}`, available: Boolean(record?.prazoFinal) },
+      { value: "prazoFinal" as const, label: `Prazo final${record?.prazoFinal ? ` (${new Date(record.prazoFinal).toLocaleDateString("pt-BR")})` : " (nao definido)"}`, available: true },
     ],
     [record?.prazoFinal, record?.prazoInicial, record?.prazoIntermediario],
   );
@@ -363,6 +382,15 @@ export function PreDemandaDetailPage() {
     }
 
     const details = error.details as TaskConflictState["details"];
+    return { mode, payload, details };
+  }
+
+  function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
+    if (!(error instanceof ApiError) || error.code !== "TAREFA_PRAZO_CHANGE_CONFIRMATION" || !error.details || typeof error.details !== "object") {
+      return null;
+    }
+
+    const details = error.details as TaskPrazoChangeState["details"];
     return { mode, payload, details };
   }
 
@@ -458,7 +486,7 @@ export function PreDemandaDetailPage() {
     }
   }
 
-  async function handleCreateTask(confirmarConflito = false) {
+  async function handleCreateTask(confirmarConflito = false, confirmarAlteracaoPrazo = false) {
     const payload = {
       descricao:
         taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor"
@@ -466,6 +494,7 @@ export function PreDemandaDetailPage() {
           : taskForm.descricao.trim(),
       tipo: taskForm.tipo,
       prazo_referencia: taskForm.prazo_referencia || null,
+      prazo_data: taskForm.prazo_data || null,
       setor_destino_id: taskForm.setor_destino_id || null,
     };
 
@@ -477,12 +506,19 @@ export function PreDemandaDetailPage() {
       await createPreDemandaTarefa(preId, {
         ...payload,
         confirmar_conflito: confirmarConflito,
+        confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
       await load();
       setTaskConflict(null);
-      setTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "", setor_destino_id: "" });
+      setTaskPrazoChange(null);
+      setTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "", prazo_data: "", setor_destino_id: "" });
       setMessage("Tarefa criada.");
     } catch (nextError) {
+      const prazoChange = getTaskPrazoChangeState(nextError, payload, "create");
+      if (prazoChange) {
+        setTaskPrazoChange(prazoChange);
+        return;
+      }
       const conflict = getTaskConflictState(nextError, payload, "create");
       if (conflict) {
         setTaskConflict(conflict);
@@ -494,7 +530,7 @@ export function PreDemandaDetailPage() {
     }
   }
 
-  async function handleUpdateTask(confirmarConflito = false) {
+  async function handleUpdateTask(confirmarConflito = false, confirmarAlteracaoPrazo = false) {
     if (!editingTask) {
       return;
     }
@@ -503,6 +539,7 @@ export function PreDemandaDetailPage() {
       descricao: editTaskForm.descricao.trim(),
       tipo: editTaskForm.tipo,
       prazo_referencia: editTaskForm.prazo_referencia || null,
+      prazo_data: editTaskForm.prazo_data || null,
     };
 
     setIsSubmitting(true);
@@ -513,12 +550,19 @@ export function PreDemandaDetailPage() {
       await updatePreDemandaTarefa(preId, editingTask.id, {
         ...payload,
         confirmar_conflito: confirmarConflito,
+        confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
       await load();
       setTaskConflict(null);
+      setTaskPrazoChange(null);
       setEditingTask(null);
       setMessage("Tarefa atualizada.");
     } catch (nextError) {
+      const prazoChange = getTaskPrazoChangeState(nextError, payload, "edit");
+      if (prazoChange) {
+        setTaskPrazoChange(prazoChange);
+        return;
+      }
       const conflict = getTaskConflictState(nextError, payload, "edit");
       if (conflict) {
         setTaskConflict(conflict);
@@ -862,21 +906,40 @@ export function PreDemandaDetailPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-[1fr_180px_240px_auto]">
+              <div className="grid gap-3 md:grid-cols-[1fr_180px_240px_170px_auto]">
                 <Input onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descreva a proxima tarefa" value={taskForm.descricao} />
                 <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, tipo: event.target.value as "fixa" | "livre" }))} value={taskForm.tipo}>
                   <option value="livre">Livre</option>
                   <option value="fixa">Fixa</option>
                 </select>
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, prazo_referencia: event.target.value as "" | TarefaPrazoReferencia }))} value={taskForm.prazo_referencia}>
+                <select
+                  className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
+                  onChange={(event) =>
+                    setTaskForm((current) => {
+                      const nextReferencia = event.target.value as "" | TarefaPrazoReferencia;
+                      const nextPrazoData =
+                        nextReferencia === "prazoInicial"
+                          ? record.prazoInicial ?? ""
+                          : nextReferencia === "prazoIntermediario"
+                            ? record.prazoIntermediario ?? ""
+                            : nextReferencia === "prazoFinal"
+                              ? record.prazoFinal ?? ""
+                              : "";
+
+                      return { ...current, prazo_referencia: nextReferencia, prazo_data: nextPrazoData };
+                    })
+                  }
+                  value={taskForm.prazo_referencia}
+                >
                   {taskPrazoOptions.map((option) => (
-                    <option disabled={!option.available} key={option.value || "sem-prazo"} value={option.value}>
+                    <option key={option.value || "sem-prazo"} value={option.value}>
                       {option.label}
                     </option>
                   ))}
                 </select>
+                <Input disabled={!taskForm.prazo_referencia} onChange={(event) => setTaskForm((current) => ({ ...current, prazo_data: event.target.value }))} type="date" value={taskForm.prazo_data} />
                 <Button
-                  disabled={taskForm.descricao.trim().length < 3 || (requiresTaskSetorDestino && !taskForm.setor_destino_id)}
+                  disabled={taskForm.descricao.trim().length < 3 || (requiresTaskSetorDestino && !taskForm.setor_destino_id) || (Boolean(taskForm.prazo_referencia) && !taskForm.prazo_data)}
                   onClick={() => void handleCreateTask()}
                   type="button"
                 >
@@ -886,7 +949,7 @@ export function PreDemandaDetailPage() {
 
               {taskForm.prazo_referencia ? (
                 <p className="text-xs text-slate-500">
-                  Esta tarefa ficara vinculada a {getPrazoLabel(taskForm.prazo_referencia).toLowerCase()} do processo.
+                  Esta tarefa ficara vinculada a {getPrazoLabel(taskForm.prazo_referencia).toLowerCase()} do processo e pode definir essa data.
                 </p>
               ) : null}
 
@@ -1703,13 +1766,34 @@ export function PreDemandaDetailPage() {
               </select>
             </FormField>
             <FormField label="Prazo do processo">
-              <select className={selectClassName} onChange={(event) => setEditTaskForm((current) => ({ ...current, prazo_referencia: event.target.value as "" | TarefaPrazoReferencia }))} value={editTaskForm.prazo_referencia}>
+              <select
+                className={selectClassName}
+                onChange={(event) =>
+                  setEditTaskForm((current) => {
+                    const nextReferencia = event.target.value as "" | TarefaPrazoReferencia;
+                    const nextPrazoData =
+                      nextReferencia === "prazoInicial"
+                        ? record.prazoInicial ?? ""
+                        : nextReferencia === "prazoIntermediario"
+                          ? record.prazoIntermediario ?? ""
+                          : nextReferencia === "prazoFinal"
+                            ? record.prazoFinal ?? ""
+                            : "";
+
+                    return { ...current, prazo_referencia: nextReferencia, prazo_data: nextPrazoData };
+                  })
+                }
+                value={editTaskForm.prazo_referencia}
+              >
                 {taskPrazoOptions.map((option) => (
-                  <option disabled={!option.available} key={`edit-${option.value || "sem-prazo"}`} value={option.value}>
+                  <option key={`edit-${option.value || "sem-prazo"}`} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
+            </FormField>
+            <FormField label="Data do prazo">
+              <Input disabled={!editTaskForm.prazo_referencia} onChange={(event) => setEditTaskForm((current) => ({ ...current, prazo_data: event.target.value }))} type="date" value={editTaskForm.prazo_data} />
             </FormField>
           </div>
           <DialogFooter>
@@ -1717,11 +1801,47 @@ export function PreDemandaDetailPage() {
               Cancelar
             </Button>
             <Button
-              disabled={!editingTask || editTaskForm.descricao.trim().length < 3 || isSubmitting}
+              disabled={!editingTask || editTaskForm.descricao.trim().length < 3 || isSubmitting || (Boolean(editTaskForm.prazo_referencia) && !editTaskForm.prazo_data)}
               onClick={() => (editingTask ? void handleUpdateTask() : undefined)}
               type="button"
             >
               Salvar alteraçoes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setTaskPrazoChange(null)} open={Boolean(taskPrazoChange)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar alteracao de prazo do processo</DialogTitle>
+            <DialogDescription>
+              {taskPrazoChange?.details.prazoLabel ?? "Este prazo"} ja possui uma data gravada neste processo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              Data anterior: {taskPrazoChange?.details.prazoDataAnterior ? new Date(taskPrazoChange.details.prazoDataAnterior).toLocaleDateString("pt-BR") : "-"}
+            </div>
+            <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              Nova data: {taskPrazoChange?.details.prazoDataNova ? new Date(taskPrazoChange.details.prazoDataNova).toLocaleDateString("pt-BR") : "-"}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setTaskPrazoChange(null)} type="button" variant="ghost">
+              Cancelar
+            </Button>
+            <Button
+              disabled={isSubmitting}
+              onClick={() => {
+                if (!taskPrazoChange) {
+                  return;
+                }
+                void (taskPrazoChange.mode === "create" ? handleCreateTask(false, true) : handleUpdateTask(false, true));
+              }}
+              type="button"
+            >
+              Confirmar alteracao
             </Button>
           </DialogFooter>
         </DialogContent>

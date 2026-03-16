@@ -198,7 +198,9 @@ export interface CreateTarefaInput {
   descricao: string;
   tipo: TarefaPendenteTipo;
   prazoReferencia?: TarefaPrazoReferencia | null;
+  prazoData?: string | null;
   confirmarConflito?: boolean;
+  confirmarAlteracaoPrazo?: boolean;
   assuntoId?: string | null;
   procedimentoId?: string | null;
   setorDestinoId?: string | null;
@@ -212,7 +214,9 @@ export interface UpdateTarefaInput {
   descricao: string;
   tipo: TarefaPendenteTipo;
   prazoReferencia?: TarefaPrazoReferencia | null;
+  prazoData?: string | null;
   confirmarConflito?: boolean;
+  confirmarAlteracaoPrazo?: boolean;
   changedByUserId: number;
 }
 
