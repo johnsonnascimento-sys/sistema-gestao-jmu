@@ -1962,60 +1962,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return null;
   }
 
-  private async assertTarefaPrazoConflict(params: {
-    client: PoolClient;
-    preDemandaId: number;
-    preId: string;
-    prazoReferencia: TarefaPrazoReferencia | null | undefined;
-    prazoData: string | null;
-    tarefaIdToIgnore?: string;
-    confirmarConflito?: boolean;
-  }) {
-    if (!params.prazoReferencia || !params.prazoData) {
-      return;
-    }
-
-    const result = await params.client.query(
-      `
-        select
-          tarefa.id,
-          tarefa.descricao,
-          tarefa.ordem,
-          tarefa.prazo_referencia
-        from adminlog.tarefas_pendentes tarefa
-        inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
-        where tarefa.pre_demanda_id = $1
-          and tarefa.concluida = false
-          and ($2::uuid is null or tarefa.id <> $2::uuid)
-          and case tarefa.prazo_referencia
-            when 'prazoInicial' then pd.prazo_inicial
-            when 'prazoIntermediario' then pd.prazo_intermediario
-            when 'prazoFinal' then pd.prazo_final
-            else null
-          end = $3::date
-        order by tarefa.ordem asc, tarefa.created_at asc, tarefa.id asc
-      `,
-      [params.preDemandaId, params.tarefaIdToIgnore ?? null, params.prazoData],
-    );
-
-    if (!result.rows.length || params.confirmarConflito) {
-      return;
-    }
-
-    throw new AppError(409, "TAREFA_PRAZO_CONFLICT", "Ja existe outra tarefa pendente com este prazo no mesmo processo.", {
-      preId: params.preId,
-      prazoReferencia: params.prazoReferencia,
-      prazoLabel: this.getTarefaPrazoLabel(params.prazoReferencia),
-      prazoData: params.prazoData,
-      conflitos: result.rows.map((row) => ({
-        id: String(row.id),
-        descricao: String(row.descricao),
-        ordem: Number(row.ordem),
-        prazoReferencia: row.prazo_referencia ? String(row.prazo_referencia) : null,
-      })),
-    });
-  }
-
   private async prepareTarefaPrazo(params: {
     client: PoolClient;
     demanda: { id: number; preId: string; prazoInicial: string | null; prazoIntermediario: string | null; prazoFinal: string | null };
@@ -2520,14 +2466,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         prazoData: input.prazoData ?? null,
         confirmarAlteracaoPrazo: input.confirmarAlteracaoPrazo,
       });
-      await this.assertTarefaPrazoConflict({
-        client,
-        preDemandaId: demanda.id,
-        preId: demanda.preId,
-        prazoReferencia: input.prazoReferencia,
-        prazoData,
-        confirmarConflito: input.confirmarConflito,
-      });
       const orderResult = await client.query(
         `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
         [demanda.id],
@@ -2602,16 +2540,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         prazoReferencia: input.prazoReferencia,
         prazoData: input.prazoData ?? null,
         confirmarAlteracaoPrazo: input.confirmarAlteracaoPrazo,
-      });
-
-      await this.assertTarefaPrazoConflict({
-        client,
-        preDemandaId: demanda.id,
-        preId: demanda.preId,
-        prazoReferencia: input.prazoReferencia,
-        prazoData,
-        tarefaIdToIgnore: input.tarefaId,
-        confirmarConflito: input.confirmarConflito,
       });
 
       await client.query(

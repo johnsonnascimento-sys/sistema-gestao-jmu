@@ -27,7 +27,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import {
-  ApiError,
   addPreDemandaAndamento,
   addPreDemandaAssunto,
   addPreDemandaInteressado,
@@ -83,22 +82,6 @@ const FIXED_TASKS = [
   "Envio para",
   "Retorno do setor",
 ];
-
-type TaskConflictState = {
-  mode: "create" | "edit";
-  payload: {
-    descricao: string;
-    tipo: "fixa" | "livre";
-    prazo_referencia: TarefaPrazoReferencia | null;
-    prazo_data?: string | null;
-    setor_destino_id?: string | null;
-  };
-  details: {
-    prazoLabel?: string | null;
-    prazoData?: string | null;
-    conflitos?: Array<{ id: string; descricao: string; ordem: number; prazoReferencia?: string | null }>;
-  };
-};
 
 type TaskPrazoChangeState = {
   mode: "create" | "edit";
@@ -180,7 +163,6 @@ export function PreDemandaDetailPage() {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia, prazo_data: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
-  const [taskConflict, setTaskConflict] = useState<TaskConflictState | null>(null);
   const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
@@ -376,21 +358,17 @@ export function PreDemandaDetailPage() {
     return "Sem prazo";
   }
 
-  function getTaskConflictState(error: unknown, payload: TaskConflictState["payload"], mode: "create" | "edit"): TaskConflictState | null {
-    if (!(error instanceof ApiError) || error.code !== "TAREFA_PRAZO_CONFLICT" || !error.details || typeof error.details !== "object") {
-      return null;
-    }
-
-    const details = error.details as TaskConflictState["details"];
-    return { mode, payload, details };
-  }
-
   function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
-    if (!(error instanceof ApiError) || error.code !== "TAREFA_PRAZO_CHANGE_CONFIRMATION" || !error.details || typeof error.details !== "object") {
+    if (!(error instanceof Error) || !("code" in error) || !("details" in error)) {
       return null;
     }
 
-    const details = error.details as TaskPrazoChangeState["details"];
+    const apiError = error as Error & { code?: string; details?: unknown };
+    if (apiError.code !== "TAREFA_PRAZO_CHANGE_CONFIRMATION" || !apiError.details || typeof apiError.details !== "object") {
+      return null;
+    }
+
+    const details = apiError.details as TaskPrazoChangeState["details"];
     return { mode, payload, details };
   }
 
@@ -486,7 +464,7 @@ export function PreDemandaDetailPage() {
     }
   }
 
-  async function handleCreateTask(confirmarConflito = false, confirmarAlteracaoPrazo = false) {
+  async function handleCreateTask(confirmarAlteracaoPrazo = false) {
     const payload = {
       descricao:
         taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor"
@@ -505,11 +483,9 @@ export function PreDemandaDetailPage() {
     try {
       await createPreDemandaTarefa(preId, {
         ...payload,
-        confirmar_conflito: confirmarConflito,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
       await load();
-      setTaskConflict(null);
       setTaskPrazoChange(null);
       setTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "", prazo_data: "", setor_destino_id: "" });
       setMessage("Tarefa criada.");
@@ -519,18 +495,13 @@ export function PreDemandaDetailPage() {
         setTaskPrazoChange(prazoChange);
         return;
       }
-      const conflict = getTaskConflictState(nextError, payload, "create");
-      if (conflict) {
-        setTaskConflict(conflict);
-      } else {
-        setError(formatPreDemandaMutationError(nextError, "Falha ao criar a tarefa."));
-      }
+      setError(formatPreDemandaMutationError(nextError, "Falha ao criar a tarefa."));
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  async function handleUpdateTask(confirmarConflito = false, confirmarAlteracaoPrazo = false) {
+  async function handleUpdateTask(confirmarAlteracaoPrazo = false) {
     if (!editingTask) {
       return;
     }
@@ -549,11 +520,9 @@ export function PreDemandaDetailPage() {
     try {
       await updatePreDemandaTarefa(preId, editingTask.id, {
         ...payload,
-        confirmar_conflito: confirmarConflito,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
       await load();
-      setTaskConflict(null);
       setTaskPrazoChange(null);
       setEditingTask(null);
       setMessage("Tarefa atualizada.");
@@ -563,12 +532,7 @@ export function PreDemandaDetailPage() {
         setTaskPrazoChange(prazoChange);
         return;
       }
-      const conflict = getTaskConflictState(nextError, payload, "edit");
-      if (conflict) {
-        setTaskConflict(conflict);
-      } else {
-        setError(formatPreDemandaMutationError(nextError, "Falha ao atualizar a tarefa."));
-      }
+      setError(formatPreDemandaMutationError(nextError, "Falha ao atualizar a tarefa."));
     } finally {
       setIsSubmitting(false);
     }
@@ -1837,51 +1801,11 @@ export function PreDemandaDetailPage() {
                 if (!taskPrazoChange) {
                   return;
                 }
-                void (taskPrazoChange.mode === "create" ? handleCreateTask(false, true) : handleUpdateTask(false, true));
+                void (taskPrazoChange.mode === "create" ? handleCreateTask(true) : handleUpdateTask(true));
               }}
               type="button"
             >
               Confirmar alteracao
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog onOpenChange={(open) => !open && setTaskConflict(null)} open={Boolean(taskConflict)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmar conflito de prazo</DialogTitle>
-            <DialogDescription>
-              Ja existe outra tarefa pendente usando {taskConflict?.details.prazoLabel?.toLowerCase() ?? "este prazo"} neste processo.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Prazo selecionado: {taskConflict?.details.prazoData ? new Date(taskConflict.details.prazoData).toLocaleDateString("pt-BR") : "-"}
-            </div>
-            <div className="grid gap-2">
-              {(taskConflict?.details.conflitos ?? []).map((item) => (
-                <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700" key={item.id}>
-                  <span className="font-semibold text-slate-950">#{item.ordem}</span> {item.descricao}
-                </div>
-              ))}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setTaskConflict(null)} type="button" variant="ghost">
-              Cancelar
-            </Button>
-            <Button
-              disabled={isSubmitting}
-              onClick={() => {
-                if (!taskConflict) {
-                  return;
-                }
-                void (taskConflict.mode === "create" ? handleCreateTask(true) : handleUpdateTask(true));
-              }}
-              type="button"
-            >
-              Confirmar mesmo assim
             </Button>
           </DialogFooter>
         </DialogContent>
