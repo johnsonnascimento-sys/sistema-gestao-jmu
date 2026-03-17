@@ -115,6 +115,25 @@ const BASE_FROM = `
     order by di.created_at desc, pessoa.nome asc
     limit 1
   ) pessoa_principal on true
+  left join lateral (
+    select json_agg(json_build_object(
+      'interessado', json_build_object(
+        'id', pessoa.id,
+        'nome', pessoa.nome,
+        'cargo', pessoa.cargo,
+        'matricula', pessoa.matricula,
+        'cpf', pessoa.cpf,
+        'dataNascimento', pessoa.data_nascimento,
+        'createdAt', pessoa.created_at,
+        'updatedAt', pessoa.updated_at
+      ),
+      'papel', di.papel,
+      'createdAt', di.created_at
+    )) as interessados_json
+    from adminlog.demanda_interessados di
+    inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
+    where di.pre_demanda_id = pd.id
+  ) all_interessados on true
   left join adminlog.setores setor on setor.id = pd.setor_atual_id
 `;
 
@@ -172,7 +191,8 @@ const BASE_SELECT = `
     linked_by.id as linked_by_id,
     linked_by.email as linked_by_email,
     linked_by.name as linked_by_name,
-    linked_by.role as linked_by_role
+    linked_by.role as linked_by_role,
+    all_interessados.interessados_json
   ${BASE_FROM}
 `;
 
@@ -333,7 +353,21 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     numerosJudiciais: numeroJudicial
       ? [{ numero: numeroJudicial, principal: true, createdAt: new Date(row.updated_at ?? row.created_at).toISOString() }]
       : [],
-    interessados: [],
+    interessados: row.interessados_json ? (row.interessados_json as any[]).map((i: any) => ({
+      interessado: {
+        id: String(i.interessado.id),
+        nome: String(i.interessado.nome),
+        cargo: i.interessado.cargo ? String(i.interessado.cargo) : null,
+        matricula: i.interessado.matricula ? String(i.interessado.matricula) : null,
+        cpf: i.interessado.cpf ? String(i.interessado.cpf) : null,
+        dataNascimento: i.interessado.dataNascimento ? (i.interessado.dataNascimento instanceof Date ? i.interessado.dataNascimento.toISOString().slice(0, 10) : new Date(i.interessado.dataNascimento).toISOString().slice(0, 10)) : null,
+        createdAt: i.interessado.createdAt instanceof Date ? i.interessado.createdAt.toISOString() : new Date(i.interessado.createdAt).toISOString(),
+        updatedAt: i.interessado.updatedAt instanceof Date ? i.interessado.updatedAt.toISOString() : new Date(i.interessado.updatedAt).toISOString(),
+      },
+      papel: String(i.papel) as any,
+      linkedAt: i.createdAt instanceof Date ? i.createdAt.toISOString() : new Date(i.createdAt).toISOString(),
+      linkedBy: null,
+    })) : [],
     vinculos: [],
     setoresAtivos: [],
     documentos: [],
