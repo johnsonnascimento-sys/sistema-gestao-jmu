@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, getDashboardSummary } from "../lib/api";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
@@ -73,38 +74,6 @@ export function DashboardPage() {
     aguardando_sei: buildAnalyticalTableHref({ status: "aguardando_sei" }),
     encerrada: buildAnalyticalTableHref({ status: "encerrada" }),
   };
-  const quickGroups = [
-    {
-      id: "criticas",
-      label: "Criticas",
-      value: summary.agingCriticalTotal,
-      href: buildAnalyticalTableHref({ preset: "criticas" }),
-    },
-    {
-      id: "vencidas",
-      label: "Prazos vencidos",
-      value: summary.overdueTotal,
-      href: buildAnalyticalTableHref({ preset: "prazos-vencidos" }),
-    },
-    {
-      id: "vence-hoje",
-      label: "Vence hoje",
-      value: summary.dueTodayTotal,
-      href: buildAnalyticalTableHref({ preset: "vence-hoje" }),
-    },
-    {
-      id: "na-semana",
-      label: "Vencem na semana",
-      value: summary.dueSoonTotal,
-      href: buildAnalyticalTableHref({ preset: "vencem-na-semana" }),
-    },
-    {
-      id: "sem-envolvidos",
-      label: "Sem envolvidos",
-      value: summary.withoutInteressadosTotal,
-      href: buildAnalyticalTableHref({ preset: "sem-envolvidos" }),
-    },
-  ];
 
   function formatPrazo(item: PreDemanda) {
     if (!item.prazoProcesso) {
@@ -127,35 +96,51 @@ export function DashboardPage() {
     return `Prazo em ${diffDays}d`;
   }
 
-  function renderQueueItem(item: PreDemanda) {
+  function renderQueueItem(item: PreDemanda, highlightType?: "urgent" | "payment") {
     const queueHealth = getQueueHealth(item);
+    
+    let borderStyle = "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.8))] shadow-[0_12px_28px_rgba(20,33,61,0.06)] hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)]";
+    let titleColor = "text-amber-600";
+    
+    if (highlightType === "urgent") {
+      borderStyle = "border-rose-300/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,228,230,0.9))] shadow-[0_14px_30px_rgba(190,24,93,0.12)] hover:shadow-[0_18px_36px_rgba(190,24,93,0.16)]";
+      titleColor = "text-rose-700";
+    } else if (highlightType === "payment") {
+      borderStyle = "border-amber-300/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,237,213,0.9))] shadow-[0_14px_30px_rgba(217,119,6,0.12)] hover:shadow-[0_18px_36px_rgba(217,119,6,0.16)]";
+      titleColor = "text-amber-700";
+    }
 
     return (
       <Link
-        className="grid gap-2 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.8))] p-4 shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)]"
+        className={`grid gap-2 rounded-[28px] border p-4 transition hover:-translate-y-0.5 ${borderStyle}`}
         key={item.preId}
         to={`/pre-demandas/${item.preId}`}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-600">{item.principalNumero}</p>
+            <p className={`text-xs font-bold uppercase tracking-[0.24em] ${titleColor}`}>{item.principalNumero}</p>
             <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {item.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
+            {item.metadata.envolvePagamento ? <span className="rounded-full bg-amber-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Pagamento</span> : null}
             <StatusPill status={item.status} />
-            <QueueHealthPill item={item} />
+            {highlightType !== "urgent" && highlightType !== "payment" && <QueueHealthPill item={item} />}
           </div>
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
           <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
           <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
-          <p>Envolvidos: {item.interessados.length}</p>
+          {highlightType !== "urgent" && highlightType !== "payment" && <p>Envolvidos: {item.interessados.length}</p>}
           <p>{formatPrazo(item)}</p>
           <p>{formatStructuredDeadlines(item)}</p>
           <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
-          <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
-          <p>{queueHealth.detail}</p>
+          {highlightType !== "urgent" && highlightType !== "payment" && (
+            <>
+              <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
+              <p className="font-medium text-slate-700">{queueHealth.detail}</p>
+            </>
+          )}
         </div>
       </Link>
     );
@@ -165,40 +150,44 @@ export function DashboardPage() {
     <section className="grid gap-6">
       <PageHeader
         actions={
-          <>
+          <div className="flex gap-2">
             <Button asChild variant="secondary">
-              <Link to="/pre-demandas?preset=aguardando-sei">Ver aguardando SEI</Link>
+              <Link to="/pre-demandas?preset=fila-operacional">Fila Operacional</Link>
             </Button>
             <Button asChild>
               <Link to="/pre-demandas/nova">Novo processo</Link>
             </Button>
-          </>
+          </div>
         }
-        description="Visao operacional dos processos, com atalhos para triagem e acompanhamento."
+        description="Visão operacional diária. Acompanhe gargalos, priorize urgências e acompanhe movimentos recentes."
         eyebrow="Visão geral"
         title="Dashboard do Gestor"
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-8">
+      <div className="flex flex-wrap gap-2 -mt-4">
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=aguardando-sei">Aguardando SEI</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=fila-parada">Fila Parada</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=criticas">Críticas</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white text-rose-600 border-rose-200"><Link to="/pre-demandas?preset=prazos-vencidos">Prazos Vencidos</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=ultimas-encerradas">Últimos Encerrados</Link></Button>
+        <Button asChild variant="ghost" size="sm" className="h-8"><Link to="/pre-demandas">Acessar Busca Avançada &rarr;</Link></Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8">
         {summary.counts.map((item) => (
           <MetricCard key={item.status} label={item.status.replace("_", " ")} to={statusMetricHref[item.status]} value={item.total} />
         ))}
         <MetricCard label="Paradas 2d+" to={buildAnalyticalTableHref({ queueHealth: "attention,critical", sortBy: "updatedAt", sortOrder: "asc" })} value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
         <MetricCard label="Críticas 5d+" to={buildAnalyticalTableHref({ preset: "criticas" })} value={summary.agingCriticalTotal} />
         <MetricCard label="Vence hoje" to={buildAnalyticalTableHref({ preset: "vence-hoje" })} value={summary.dueTodayTotal} />
-        <MetricCard label="Urgentes" to="/pre-demandas" value={summary.urgentTotal} />
-        <MetricCard label="Com pagamento" to={buildAnalyticalTableHref({ preset: "com-pagamento" })} value={summary.paymentMarkedTotal} />
         <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.deadlines.processo.dueSoonTotal} />
-        <MetricCard label="Prazos vencidos" to={buildAnalyticalTableHref({ preset: "prazos-vencidos" })} value={summary.deadlines.processo.overdueTotal} />
         <MetricCard label="Sem setor" to={buildAnalyticalTableHref({ preset: "sem-setor" })} value={summary.withoutSetorTotal} />
         <MetricCard label="Sem envolvidos" to={buildAnalyticalTableHref({ preset: "sem-envolvidos" })} value={summary.withoutInteressadosTotal} />
-        <MetricCard label="Reabertas 30d" to={buildAnalyticalTableHref({ preset: "reabertas-30d" })} value={summary.reopenedLast30Days} />
-        <MetricCard label="Encerradas 30d" to={buildAnalyticalTableHref({ preset: "encerradas-30d" })} value={summary.closedLast30Days} />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Radar de prazos</CardTitle>
+      <Card className="border-slate-200/60 bg-white/40">
+        <CardHeader className="pb-4">
+          <CardTitle>Radar de Prazos</CardTitle>
           <CardDescription>Prazos do processo, prazos das tarefas e consumo do prazo geral pelas tarefas pendentes.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-3">
@@ -232,13 +221,13 @@ export function DashboardPage() {
                   <p className="text-sm text-slate-500">{item.id === "tarefas" ? "tarefas pendentes com prazo" : "processos com prazo definido"}</p>
                 </div>
                 <div className="grid gap-2 text-sm text-slate-700">
-                  <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}>
+                  <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}>
                     Vencidos: {metrics.overdueTotal}
                   </Link>
-                  <Link className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "today" })}>
+                  <Link className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "today" })}>
                     Vence hoje: {metrics.dueTodayTotal}
                   </Link>
-                  <Link className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 hover:bg-sky-100" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "soon" })}>
+                  <Link className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 hover:bg-sky-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "soon" })}>
                     Na semana: {metrics.dueSoonTotal}
                   </Link>
                 </div>
@@ -248,41 +237,108 @@ export function DashboardPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Grupos rápidos da operação</CardTitle>
-          <CardDescription>Entradas diretas para os recortes com maior urgência operacional.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-4">
-          {quickGroups.map((group) => (
-            <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={group.id}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{group.label}</p>
-                  <h3 className="mt-2 text-3xl font-semibold text-slate-950">{group.value}</h3>
-                </div>
-                <Button asChild size="sm" variant="secondary">
-                  <Link to={group.href}>Abrir</Link>
-                </Button>
-              </div>
-            </article>
-          ))}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card>
-          <CardHeader>
-          <CardTitle>Últimas movimentações</CardTitle>
-          <CardDescription>A timeline recente do módulo pré-SEI/SEI.</CardDescription>
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <Card className="h-fit">
+          <CardHeader className="pb-4">
+            <CardTitle>Filas de Ação Imediata</CardTitle>
+            <CardDescription>Pendências ordenadas por nível de criticidade e gargalos operacionais.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3">
+          <CardContent>
+            <Tabs defaultValue="urgentes">
+              <TabsList className="mb-4 w-full flex-wrap justify-start bg-slate-100/50">
+                <TabsTrigger value="urgentes">Urgentes ({summary.urgentItems.length})</TabsTrigger>
+                <TabsTrigger value="pagamento">Pagamento ({summary.paymentMarkedItems.length})</TabsTrigger>
+                <TabsTrigger value="aguardando_sei">Aguardando SEI ({summary.awaitingSeiItems.length})</TabsTrigger>
+                <TabsTrigger value="parados">Processos Parados ({staleItems.length})</TabsTrigger>
+                <TabsTrigger value="pendencias">Pendências ({summary.dueSoonItems.length + summary.withoutSetorItems.length + summary.withoutInteressadosItems.length})</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="urgentes" className="grid gap-3">
+                {summary.urgentItems.length === 0 ? (
+                  <div className="py-8"><EmptyState description="Nenhum processo marcado como urgente para tratamento imediato." title="Zero Urgências" /></div>
+                ) : (
+                  summary.urgentItems.map((item) => renderQueueItem(item, "urgent"))
+                )}
+              </TabsContent>
+
+              <TabsContent value="pagamento" className="grid gap-3">
+                {summary.paymentMarkedItems.length === 0 ? (
+                  <div className="py-8"><EmptyState description="Nenhum processo assinalado com impacto de pagamento." title="Limpo" /></div>
+                ) : (
+                  summary.paymentMarkedItems.map((item) => renderQueueItem(item, "payment"))
+                )}
+              </TabsContent>
+
+              <TabsContent value="aguardando_sei" className="grid gap-3">
+                {summary.awaitingSeiItems.length === 0 ? (
+                  <div className="py-8"><EmptyState description="Nenhuma demanda aguardando abertura de processo SEI para seguir." title="Fila Limpa" /></div>
+                ) : (
+                  summary.awaitingSeiItems.map((item) => renderQueueItem(item))
+                )}
+              </TabsContent>
+
+              <TabsContent value="parados" className="grid gap-3">
+                {staleItems.length === 0 ? (
+                  <div className="py-8"><EmptyState description="Tudo fluindo regularmente. Fila pedindo andamento está zerada." title="Fluxo Contínuo" /></div>
+                ) : (
+                  staleItems.map((item) => renderQueueItem(item))
+                )}
+              </TabsContent>
+
+              <TabsContent value="pendencias" className="grid gap-6">
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between gap-3 text-slate-800">
+                    <p className="text-sm font-semibold">Prazos na semana ({summary.dueSoonItems.length})</p>
+                    <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=vencem-na-semana">Ver todos</Link>
+                  </div>
+                  {summary.dueSoonItems.length === 0 ? (
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum prazo iminente registrado.</p>
+                  ) : (
+                    summary.dueSoonItems.slice(0, 3).map((item) => renderQueueItem(item))
+                  )}
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between gap-3 text-slate-800">
+                    <p className="text-sm font-semibold">Sem setor atual ({summary.withoutSetorItems.length})</p>
+                    <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=sem-setor">Ver todos</Link>
+                  </div>
+                  {summary.withoutSetorItems.length === 0 ? (
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos já possuem setor.</p>
+                  ) : (
+                    summary.withoutSetorItems.slice(0, 3).map((item) => renderQueueItem(item))
+                  )}
+                </div>
+
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between gap-3 text-slate-800">
+                    <p className="text-sm font-semibold">Sem envolvidos ({summary.withoutInteressadosItems.length})</p>
+                    <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=sem-envolvidos">Ver todos</Link>
+                  </div>
+                  {summary.withoutInteressadosItems.length === 0 ? (
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos já possuem envolvidos vinculados.</p>
+                  ) : (
+                    summary.withoutInteressadosItems.slice(0, 3).map((item) => renderQueueItem(item))
+                  )}
+                </div>
+              </TabsContent>
+
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        <Card className="h-[800px] flex flex-col">
+          <CardHeader className="pb-4 shrink-0">
+            <CardTitle>Últimas Movimentações</CardTitle>
+            <CardDescription>A timeline recente da operação.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 overflow-y-auto pr-2 pb-6">
             {summary.recentTimeline.length === 0 ? (
-              <EmptyState description="As últimas criações, mudanças de status e vinculações SEI aparecerão aqui." title="Sem movimentações recentes" />
+              <EmptyState description="As últimas criações, mudanças de status e vinculações aparecerão aqui." title="Sem movimentações recentes" />
             ) : (
               summary.recentTimeline.map((event) => (
                 <Link
-                  className="flex flex-col gap-3 rounded-[28px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] p-4 shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)]"
+                  className="flex flex-col gap-3 rounded-[28px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] p-4 shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)] shrink-0"
                   key={event.id}
                   to={`/pre-demandas/${event.preId}`}
                 >
@@ -296,205 +352,13 @@ export function DashboardPage() {
                   <div className="grid gap-1 text-sm text-slate-500">
                     <p>{event.actor ? `${event.actor.name} (${event.actor.email})` : "Sistema"}</p>
                     <p>{new Date(event.occurredAt).toLocaleString("pt-BR")}</p>
-                    {event.motivo ? <p>{event.motivo}</p> : null}
+                    {event.motivo ? <p className="mt-1 font-medium text-slate-700">Nota: {event.motivo}</p> : null}
                   </div>
                 </Link>
               ))
             )}
           </CardContent>
         </Card>
-
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Processos urgentes</CardTitle>
-              <CardDescription>Casos marcados como urgentes para tratamento prioritário imediato.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {summary.urgentItems.length === 0 ? (
-                <EmptyState description="Quando um processo for marcado como urgente, ele aparece aqui com destaque prioritário." title="Nenhum processo urgente" />
-              ) : (
-                summary.urgentItems.map((item) => (
-                  <Link
-                    className="grid gap-2 rounded-[28px] border border-rose-300/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,228,230,0.9))] p-4 shadow-[0_14px_30px_rgba(190,24,93,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(190,24,93,0.16)]"
-                    key={`urgent-${item.preId}`}
-                    to={`/pre-demandas/${item.preId}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-700">{item.principalNumero}</p>
-                        <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
-                      </div>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span>
-                        <StatusPill status={item.status} />
-                      </div>
-                    </div>
-                    <div className="grid gap-1 text-sm text-slate-600">
-                      <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
-                      <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
-                      <p>{formatPrazo(item)}</p>
-                      <p>{formatStructuredDeadlines(item)}</p>
-                      <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Processos com pagamento</CardTitle>
-              <CardDescription>Processos com impacto financeiro marcado no metadata, em destaque para acompanhamento prioritario.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {summary.paymentMarkedItems.length === 0 ? (
-                <EmptyState description="Quando um processo tiver pagamento envolvido marcado, ele aparece aqui com destaque." title="Nenhum processo com pagamento" />
-              ) : (
-                summary.paymentMarkedItems.map((item) => (
-                  <Link
-                    className="grid gap-2 rounded-[28px] border border-amber-300/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,237,213,0.9))] p-4 shadow-[0_14px_30px_rgba(217,119,6,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(217,119,6,0.16)]"
-                    key={`payment-${item.preId}`}
-                    to={`/pre-demandas/${item.preId}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">{item.principalNumero}</p>
-                        <h3 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h3>
-                      </div>
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <span className="rounded-full bg-amber-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Pagamento</span>
-                        <StatusPill status={item.status} />
-                      </div>
-                    </div>
-                    <div className="grid gap-1 text-sm text-slate-600">
-                      <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
-                      <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
-                      <p>{formatPrazo(item)}</p>
-                      <p>{formatStructuredDeadlines(item)}</p>
-                      <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Processos parados</CardTitle>
-              <CardDescription>Processos ativos sem movimentacao recente, ordenados pela atualizacao mais antiga.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {staleItems.length === 0 ? (
-                <EmptyState description="Quando houver fila pedindo seguimento por falta de movimentação, ela aparecerá aqui." title="Nenhum processo parado" />
-              ) : (
-                staleItems.map(renderQueueItem)
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Fila aguardando SEI</CardTitle>
-              <CardDescription>Processos que pedem seguimento operacional imediato.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {summary.awaitingSeiItems.length === 0 ? (
-                <EmptyState description="Quando um processo entrar em acompanhamento ate nascer o processo, ele aparecera aqui." title="Nenhum processo aguardando SEI" />
-              ) : (
-                summary.awaitingSeiItems.map(renderQueueItem)
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Prazos e pendencias estruturais</CardTitle>
-              <CardDescription>Casos que pedem enriquecimento de case management antes de seguir o fluxo.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-950">Prazos na semana</p>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=vencem-na-semana">Abrir fila</Link>
-                  </Button>
-                </div>
-                {summary.dueSoonItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum prazo iminente registrado.</p>
-                ) : (
-                  summary.dueSoonItems.map(renderQueueItem)
-                )}
-              </div>
-
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-950">Sem setor atual</p>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=sem-setor">Ver fila</Link>
-                  </Button>
-                </div>
-                {summary.withoutSetorItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos ja possuem setor.</p>
-                ) : (
-                  summary.withoutSetorItems.map(renderQueueItem)
-                )}
-              </div>
-
-              <div className="grid gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-950">Sem envolvidos</p>
-                  <Button asChild size="sm" variant="ghost">
-                    <Link to="/pre-demandas?preset=sem-envolvidos">Ver fila</Link>
-                  </Button>
-                </div>
-                {summary.withoutInteressadosItems.length === 0 ? (
-                  <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos ja possuem envolvidos vinculados.</p>
-                ) : (
-                  summary.withoutInteressadosItems.map(renderQueueItem)
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Atalhos operacionais</CardTitle>
-              <CardDescription>Entradas rápidas para os fluxos do dia a dia.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=triagem-em-andamento">Fila em andamento</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=aguardando-sei">Fila aguardando SEI</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=fila-parada">Fila parada</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=criticas">Fila critica</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=prazos-vencidos">Prazos vencidos</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=ultimas-encerradas">Últimos encerrados</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=sem-setor">Sem setor</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link to="/pre-demandas?preset=fila-operacional">Fila operacional</Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link to="/pre-demandas">Abrir quadro completo</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </section>
   );
