@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ConfirmDialog } from "../components/confirm-dialog";
-import { KanbanBoard } from "../components/kanban-board";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
 import { QueueHealthPill } from "../components/queue-health-pill";
@@ -114,10 +113,6 @@ export function PreDemandasPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const metrics = useMemo(() => counts, [counts]);
-  const hiddenClosedCount = useMemo(
-    () => (resolvedState.view === "kanban" ? counts.find((item) => item.status === "encerrada")?.total ?? 0 : 0),
-    [counts, resolvedState.view],
-  );
   const selectedSetor = useMemo(() => setores.find((item) => item.id === resolvedState.setorAtualId) ?? null, [resolvedState.setorAtualId, setores]);
   const isWithoutSetorFocused = resolvedState.withoutSetor === "true" && !resolvedState.setorAtualId;
   const sectorSummaries = useMemo<SectorQueueSummary[]>(() => {
@@ -261,17 +256,9 @@ export function PreDemandasPage() {
     <section className="grid gap-6">
       <PageHeader
         actions={
-          <>
-            <Button onClick={() => updateView("kanban")} type="button" variant={resolvedState.view === "kanban" ? "primary" : "secondary"}>
-              Quadro Kanban
-            </Button>
-            <Button onClick={() => updateView("table")} type="button" variant={resolvedState.view === "table" ? "primary" : "secondary"}>
-              Tabela analitica
-            </Button>
-            <Button asChild>
-              <Link to="/pre-demandas/nova">Novo processo</Link>
-            </Button>
-          </>
+          <Button asChild>
+            <Link to="/pre-demandas/nova">Novo processo</Link>
+          </Button>
         }
         description="Filtre, ordene e aja sobre a fila operacional sem sair do quadro principal."
         eyebrow="Fila operacional"
@@ -417,77 +404,34 @@ export function PreDemandasPage() {
 
       <PreDemandasFilters resolvedState={resolvedState} setores={setores} searchParams={searchParams} setSearchParams={setSearchParams} />
 
-      {hiddenClosedCount > 0 ? (
-        <div className="flex flex-col items-start justify-between gap-3 rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.92))] px-4 py-4 text-sm text-amber-900 md:flex-row md:items-center">
-          <p>
-            {hiddenClosedCount} processo{hiddenClosedCount > 1 ? "s" : ""} encerrado{hiddenClosedCount > 1 ? "s" : ""} corresponde{hiddenClosedCount > 1 ? "m" : ""} aos filtros, mas aparece{hiddenClosedCount > 1 ? "m" : ""} apenas na tabela analitica.
-          </p>
-          <Button onClick={() => updateView("table")} type="button" variant="secondary">
-            Ver na tabela
-          </Button>
-        </div>
-      ) : null}
+      <PreDemandasTable
+        items={items}
+        sectorRiskById={sectorRiskById}
+        onQuickAction={(item, action) => {
+          if (action === "aguardando") {
+            setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false });
+            return;
+          }
 
-      {resolvedState.view === "kanban" ? (
-        <KanbanBoard
-          items={items}
-          sectorRiskById={sectorRiskById}
-          selectedSetorId={resolvedState.setorAtualId}
-          onQuickAction={(item, action) => {
-            if (action === "aguardando") {
-              setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false });
-              return;
-            }
+          if (action === "encerrar") {
+            setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true });
+            return;
+          }
 
-            if (action === "encerrar") {
-              setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true });
-              return;
-            }
+          const reopenStatus = getPreferredReopenStatus(item); 
 
-            const reopenStatus = getPreferredReopenStatus(item);
+          if (!reopenStatus) {
+            return;
+          }
 
-            if (!reopenStatus) {
-              return;
-            }
-
-            setQuickAction({
-              item,
-              nextStatus: reopenStatus,
-              label: "Reabrir processo",
-              requireReason: true,
-            });
-          }}
-        />
-      ) : (
-        <PreDemandasTable
-          items={items}
-          sectorRiskById={sectorRiskById}
-          onQuickAction={(item, action) => {
-            if (action === "aguardando") {
-              setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false });
-              return;
-            }
-
-            if (action === "encerrar") {
-              setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true });
-              return;
-            }
-
-            const reopenStatus = getPreferredReopenStatus(item);
-
-            if (!reopenStatus) {
-              return;
-            }
-
-            setQuickAction({
-              item,
-              nextStatus: reopenStatus,
-              label: "Reabrir processo",
-              requireReason: true,
-            });
-          }}
-        />
-      )}
+          setQuickAction({
+            item,
+            nextStatus: reopenStatus,
+            label: "Reabrir processo",
+            requireReason: true,
+          });
+        }}
+      />
 
       <div className="flex flex-col items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-4 py-3 text-sm text-slate-600 shadow-[0_12px_24px_rgba(20,33,61,0.05)] sm:flex-row">
         <span>

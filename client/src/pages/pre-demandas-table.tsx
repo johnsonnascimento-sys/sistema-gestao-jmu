@@ -59,7 +59,11 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                     <div className="text-xs font-medium text-slate-500">{item.preId}</div>
                     {item.metadata.urgente ? <div className="mt-2 inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">Urgente</div> : null}
                   </td>
-                  <td className="px-3 py-4">{item.pessoaPrincipal?.nome ?? "-"}</td>
+                  <td className="px-3 py-4">
+                    {item.interessados && item.interessados.length > 0 
+                      ? item.interessados.map(i => i.interessado.nome).join(", ") 
+                      : item.pessoaPrincipal?.nome ?? "-"}
+                  </td>
                   <td className="px-3 py-4">{item.assunto}</td>
                   <td className="px-3 py-4">
                     <div className="grid gap-1">

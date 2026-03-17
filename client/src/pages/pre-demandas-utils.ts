@@ -21,7 +21,7 @@ export const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: strin
 export const selectClassName =
   "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
 
-export type BoardView = "kanban" | "table";
+export type BoardView = "table";
 export type SavedViewId =
   | "fila-operacional"
   | "triagem-em-andamento"
@@ -112,7 +112,7 @@ export const SAVED_VIEWS: Array<{
       hasInteressados: "true",
       sortBy: "updatedAt",
       sortOrder: "desc",
-      view: "kanban",
+      view: "table",
     },
   },
   {
@@ -123,7 +123,7 @@ export const SAVED_VIEWS: Array<{
       statuses: ["em_andamento"],
       sortBy: "dataReferencia",
       sortOrder: "asc",
-      view: "kanban",
+      view: "table",
     },
   },
   {
@@ -381,7 +381,7 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     !searchParams.has("sortBy") &&
     !searchParams.has("sortOrder") &&
     !searchParams.has("page");
-  const defaultView: BoardView = isBlankSearch ? "table" : preset?.defaults.view ?? "kanban";
+  const defaultView: BoardView = "table";
 
   return {
     presetId: preset?.id ?? null,
@@ -403,6 +403,6 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
     sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? preset?.defaults.sortOrder ?? "desc",
     page: Number(searchParams.get("page") ?? "1"),
-    view: hasExplicitView ? (searchParams.get("view") === "table" ? "table" : "kanban") : defaultView,
+    view: "table",
   };
 }
