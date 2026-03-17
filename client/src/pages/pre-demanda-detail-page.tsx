@@ -165,7 +165,7 @@ export function PreDemandaDetailPage() {
   const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
-  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "" });
+  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
@@ -338,6 +338,11 @@ export function PreDemandaDetailPage() {
     return Array.from(new Set([...items, ...interessadoShortcuts]));
   }, [record]);
   const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor";
+  const requiresTaskSignaturePerson = taskForm.descricao.trim() === "Assinatura de pessoa";
+  const selectedSignaturePerson = useMemo(
+    () => record?.interessados.find((item) => item.interessado.id === taskForm.assinatura_interessado_id)?.interessado ?? null,
+    [record, taskForm.assinatura_interessado_id],
+  );
 
   function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
     if (!(error instanceof Error) || !("code" in error) || !("details" in error)) {
@@ -418,11 +423,16 @@ export function PreDemandaDetailPage() {
   }
 
   async function handleCreateTask(confirmarAlteracaoPrazo = false) {
+    const resolvedDescricao = requiresTaskSignaturePerson
+      ? selectedSignaturePerson
+        ? `Assinatura de ${selectedSignaturePerson.nome}`
+        : taskForm.descricao.trim()
+      : taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor"
+        ? `${taskForm.descricao.trim()} ${setores.find((item) => item.id === taskForm.setor_destino_id)?.sigla ?? ""}`.trim()
+        : taskForm.descricao.trim();
+
     const payload = {
-      descricao:
-        taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor"
-          ? `${taskForm.descricao.trim()} ${setores.find((item) => item.id === taskForm.setor_destino_id)?.sigla ?? ""}`.trim()
-          : taskForm.descricao.trim(),
+      descricao: resolvedDescricao,
       tipo: taskForm.tipo,
       prazo_conclusao: taskForm.prazo_conclusao,
       recorrencia_tipo: taskForm.recorrencia_tipo || null,
@@ -442,7 +452,7 @@ export function PreDemandaDetailPage() {
       });
       await load();
       setTaskPrazoChange(null);
-      setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "" });
+      setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
       setMessage("Tarefa criada.");
     } catch (nextError) {
       const prazoChange = getTaskPrazoChangeState(nextError, payload, "create");
@@ -827,26 +837,21 @@ export function PreDemandaDetailPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-[1fr_160px_170px_170px_auto]">
-                <Input onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descreva a proxima tarefa" value={taskForm.descricao} />
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, tipo: event.target.value as "fixa" | "livre" }))} value={taskForm.tipo}>
-                  <option value="livre">Livre</option>
-                  <option value="fixa">Fixa</option>
-                </select>
-                <Input max={record?.prazoProcesso ?? undefined} min={undefined} onChange={(event) => setTaskForm((current) => ({ ...current, prazo_conclusao: event.target.value }))} type="date" value={taskForm.prazo_conclusao} />
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: event.target.value === "mensal" ? current.recorrencia_dia_mes : "" }))} value={taskForm.recorrencia_tipo}>
-                  <option value="">Sem recorrencia</option>
-                  <option value="diaria">Diaria</option>
-                  <option value="semanal">Semanal</option>
-                  <option value="mensal">Mensal</option>
-                </select>
-                <Button
-                  disabled={taskForm.descricao.trim().length < 3 || !taskForm.prazo_conclusao || (requiresTaskSetorDestino && !taskForm.setor_destino_id)}
-                  onClick={() => void handleCreateTask()}
-                  type="button"
-                >
-                  Criar tarefa
-                </Button>
+              <div className="grid gap-3">
+                <Input className="w-full" onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descreva a proxima tarefa" value={taskForm.descricao} />
+                <div className="grid gap-3 md:grid-cols-[160px_170px_1fr]">
+                  <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, tipo: event.target.value as "fixa" | "livre" }))} value={taskForm.tipo}>
+                    <option value="livre">Livre</option>
+                    <option value="fixa">Fixa</option>
+                  </select>
+                  <Input max={record?.prazoProcesso ?? undefined} min={undefined} onChange={(event) => setTaskForm((current) => ({ ...current, prazo_conclusao: event.target.value }))} type="date" value={taskForm.prazo_conclusao} />
+                  <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: event.target.value === "mensal" ? current.recorrencia_dia_mes : "" }))} value={taskForm.recorrencia_tipo}>
+                    <option value="">Sem recorrencia</option>
+                    <option value="diaria">Diaria</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="mensal">Mensal</option>
+                  </select>
+                </div>
               </div>
               <p className="text-xs text-slate-500">Toda tarefa precisa de prazo de conclusao e nao pode passar de {record?.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "o prazo do processo"}.</p>
 
@@ -884,8 +889,26 @@ export function PreDemandaDetailPage() {
                 </div>
               ) : null}
 
+              {requiresTaskSignaturePerson ? (
+                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+                  <select
+                    className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
+                    onChange={(event) => setTaskForm((current) => ({ ...current, assinatura_interessado_id: event.target.value }))}
+                    value={taskForm.assinatura_interessado_id}
+                  >
+                    <option value="">Escolha a pessoa para assinatura</option>
+                    {record.interessados.map((item) => (
+                      <option key={item.interessado.id} value={item.interessado.id}>
+                        {item.interessado.nome}{item.interessado.cargo ? ` - ${item.interessado.cargo}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 md:self-center">A tarefa será nomeada automaticamente com o nome da pessoa.<br />Cadastre a pessoa em "Pessoas vinculadas" caso nao apareça.</p>
+                </div>
+              ) : null}
+
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value, tipo: "fixa", setor_destino_id: event.target.value === "Envio para" || event.target.value === "Retorno do setor" ? current.setor_destino_id : "" }))} value="">
+                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value, tipo: "fixa" as "fixa" | "livre", setor_destino_id: event.target.value === "Envio para" || event.target.value === "Retorno do setor" ? current.setor_destino_id : "", assinatura_interessado_id: "" }))} value="">
                   <option value="">Atalhos de tarefas</option>
                   {taskShortcutOptions.map((item) => (
                     <option key={item} value={item}>
@@ -898,12 +921,21 @@ export function PreDemandaDetailPage() {
 
               <div className="flex flex-wrap gap-2">
                 {taskShortcutOptions.slice(0, 6).map((item) => (
-                  <Button key={item} onClick={() => setTaskForm((current) => ({ ...current, descricao: item, tipo: "fixa", setor_destino_id: item === "Envio para" || item === "Retorno do setor" ? current.setor_destino_id : "" }))} size="sm" type="button" variant="outline">
+                  <Button key={item} onClick={() => setTaskForm((current) => ({ ...current, descricao: item, tipo: "fixa" as "fixa" | "livre", setor_destino_id: item === "Envio para" || item === "Retorno do setor" ? current.setor_destino_id : "", assinatura_interessado_id: "" }))} size="sm" type="button" variant="outline">
                     {item}
                   </Button>
                 ))}
               </div>
 
+              <div className="flex justify-end">
+                <Button
+                  disabled={taskForm.descricao.trim().length < 3 || !taskForm.prazo_conclusao || (requiresTaskSetorDestino && !taskForm.setor_destino_id) || (requiresTaskSignaturePerson && !taskForm.assinatura_interessado_id)}
+                  onClick={() => void handleCreateTask()}
+                  type="button"
+                >
+                  Criar tarefa
+                </Button>
+              </div>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="grid gap-3">
                   <p className="text-sm font-semibold text-slate-950">Pendentes</p>
