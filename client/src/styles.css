@@ -2,29 +2,26 @@
 
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  color: #14213d;
-  background:
-    radial-gradient(circle at top left, rgba(153, 51, 65, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(244, 181, 98, 0.18), transparent 24%),
-    linear-gradient(180deg, #faf3ee 0%, #f6eee8 52%, #f3ece6 100%);
+  color: #0f172a; /* slate-900 */
+  background: #f8fafc; /* slate-50 */
   line-height: 1.5;
   font-weight: 400;
 }
 
 html {
   min-height: 100%;
-  background: #f6eee8;
+  background: #f8fafc;
   scroll-behavior: smooth;
 }
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(153, 51, 65, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(244, 181, 98, 0.18), transparent 24%),
-    linear-gradient(180deg, #faf3ee 0%, #f6eee8 52%, #f3ece6 100%);
+  background: 
+    radial-gradient(circle at top left, rgba(79, 70, 229, 0.07), transparent 28%),
+    radial-gradient(circle at top right, rgba(124, 58, 237, 0.07), transparent 24%),
+    #f8fafc;
   background-attachment: fixed;
-  color: #2b1f24;
+  color: #0f172a;
   position: relative;
 }
 
@@ -33,23 +30,21 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(rgba(58, 32, 41, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(58, 32, 41, 0.028) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.26), transparent 72%);
-  opacity: 0.35;
+  background: 
+    linear-gradient(rgba(148, 163, 184, 0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.15), transparent 60%);
+  opacity: 0.6;
 }
 
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 12% 12%, rgba(244, 181, 98, 0.16), transparent 18%),
-    radial-gradient(circle at 88% 16%, rgba(153, 51, 65, 0.12), transparent 18%);
-  opacity: 0.9;
+/* Glassmorphism Panel generic structure */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
 }
 
 #root {
@@ -66,8 +61,8 @@ a {
 }
 
 ::selection {
-  background: rgba(153, 51, 65, 0.18);
-  color: #2b1f24;
+  background: rgba(79, 70, 229, 0.15); /* Indigo selection */
+  color: #0f172a;
 }
 
 button,
@@ -78,25 +73,7 @@ select {
 }
 
 .brand-text-gradient {
-  background: linear-gradient(135deg, #7f1d1d 0%, #9f1239 48%, #ea580c 100%);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 48%, #ec4899 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-
-.panel-noise {
-  position: relative;
-}
-
-.panel-noise::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at top right, rgba(244, 181, 98, 0.14), transparent 24%),
-    linear-gradient(rgba(58, 32, 41, 0.024) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(58, 32, 41, 0.024) 1px, transparent 1px);
-  background-size: auto, 40px 40px, 40px 40px;
-  opacity: 0.55;
 }

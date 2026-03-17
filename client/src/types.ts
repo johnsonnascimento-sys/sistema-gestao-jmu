@@ -25,7 +25,8 @@ export type AppPermission =
   | "admin.user.read"
   | "admin.user.create"
   | "admin.user.update"
-  | "admin.user.reset_password";
+  | "admin.user.reset_password"
+  | "admin.audit.read";
 export type PreDemandaSortBy =
   | "updatedAt"
   | "createdAt"
@@ -612,4 +613,16 @@ export interface AdminOpsSummary {
   operationalEvents: OperationalEvent[];
   operationalSummary: AdminOpsOperationalSummary;
   caseManagementReport: AdminOpsCaseManagementReport;
+}
+
+export interface GlobalAuditRecord {
+  type: "status" | "sei" | "user";
+  id: number;
+  preId: string;
+  valorAnterior: string | null;
+  valorNovo: string | null;
+  motivo: string | null;
+  observacoes: string | null;
+  registradoEm: string;
+  changedByName: string | null;
 }

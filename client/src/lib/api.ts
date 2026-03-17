@@ -15,6 +15,7 @@ import type {
   Norma,
   PreDemanda,
   PreDemandaAuditRecord,
+  GlobalAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaMetadata,
   QueueHealthConfig,
@@ -664,4 +665,8 @@ export function resetAdminUserPassword(id: number, password: string) {
     method: "POST",
     body: JSON.stringify({ password }),
   });
+}
+
+export function listAdminAudit(limit = 50) {
+  return request<GlobalAuditRecord[]>(`/api/admin/auditoria?limit=${limit}`);
 }

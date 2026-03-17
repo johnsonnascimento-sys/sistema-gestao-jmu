@@ -82,6 +82,17 @@ export function PreDemandasPage() {
   }
 
   useEffect(() => {
+    const handleUpdate = () => {
+      void load();
+    };
+
+    window.addEventListener("pre-demanda-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("pre-demanda-updated", handleUpdate);
+    };
+  }, [searchKey, load]);
+
+  useEffect(() => {
     void load();
   }, [searchKey]);
 

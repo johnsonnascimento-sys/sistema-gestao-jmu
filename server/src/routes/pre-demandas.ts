@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { emitPreDemandaUpdate } from "../lib/events";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
 import { AppError } from "../errors";
@@ -263,6 +264,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       createdByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: result.record.preId, type: "status", action: "create" });
+
     request.log.info(
       {
         userId: request.user?.id,
@@ -492,6 +495,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+
     return reply.send({
       ok: true,
       data: record,
@@ -509,6 +514,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+
     return reply.send({
       ok: true,
       data: record,
@@ -525,6 +532,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       dataHora: payload.data_hora ?? null,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
 
     return reply.status(201).send({
       ok: true,
@@ -544,6 +553,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "update" });
+
     return reply.send({
       ok: true,
       data: andamento,
@@ -559,6 +570,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       andamentoId: params.andamentoId,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "delete" });
 
     return reply.send({
       ok: true,
@@ -591,6 +604,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       setorDestinoId: payload.setor_destino_id ?? null,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "create" });
 
     return reply.status(201).send({
       ok: true,
@@ -672,6 +687,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
+
     return reply.status(201).send({
       ok: true,
       data: comentario,
@@ -688,6 +705,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       conteudo: payload.conteudo,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "update" });
 
     return reply.send({
       ok: true,
@@ -719,6 +738,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
+
     return reply.status(201).send({
       ok: true,
       data: documento,
@@ -741,6 +762,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       documentoId: params.documentoId,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "delete" });
+
     return reply.send({
       ok: true,
       data: documentos,
@@ -755,6 +779,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       tarefaId: params.tarefaId,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "update" });
 
     return reply.send({
       ok: true,
@@ -773,6 +799,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       observacoes: emptyToNull(payload.observacoes),
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
 
     request.log.info(
       {
@@ -800,6 +828,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       observacoes: emptyToNull(payload.observacoes),
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
 
     request.log.info(
       {

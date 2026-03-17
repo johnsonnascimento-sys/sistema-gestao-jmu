@@ -4,6 +4,7 @@ import { AppShell } from "./components/app-shell";
 import { RequireAuth } from "./components/require-auth";
 import { RequirePermission } from "./components/require-permission";
 import { AdminOperationsPage } from "./pages/admin-operations-page";
+import { AdminAuditPage } from "./pages/admin-audit-page";
 import { AdminUsersPage } from "./pages/admin-users-page";
 import { DashboardPage } from "./pages/dashboard-page";
 import { AssuntosPage } from "./pages/assuntos-page";
@@ -78,6 +79,14 @@ export function App() {
                   </RequirePermission>
                 }
                 path="/admin/operacoes"
+              />
+              <Route
+                element={
+                  <RequirePermission permission="admin.audit.read">
+                    <AdminAuditPage />
+                  </RequirePermission>
+                }
+                path="/admin/auditoria"
               />
             </Route>
           </Route>

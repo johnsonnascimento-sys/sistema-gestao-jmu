@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Reorder } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { ConfirmDialog } from "../components/confirm-dialog";
@@ -186,6 +187,22 @@ export function PreDemandaDetailPage() {
   }
 
   useEffect(() => {
+    const handleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const data = customEvent.detail;
+      // Se mudou ESTE processo, recarrega
+      if (data.preId === preId) {
+        void load();
+      }
+    };
+
+    window.addEventListener("pre-demanda-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("pre-demanda-updated", handleUpdate);
+    };
+  }, [preId]);
+
+  useEffect(() => {
     void load();
   }, [preId]);
 
@@ -330,27 +347,20 @@ export function PreDemandaDetailPage() {
     return { mode, payload, details };
   }
 
-  async function handleReorderPendingTasks(targetTaskId: string) {
-    if (!draggedTaskId || draggedTaskId === targetTaskId) {
-      return;
-    }
+  async function handleReorderPendingTasksMotion(newPendingTasks: typeof pendingTasks) {
+    setRecord((current) => {
+      if (!current) return current;
+      const completed = current.tarefasPendentes.filter((t) => t.concluida);
+      return {
+        ...current,
+        tarefasPendentes: [...newPendingTasks, ...completed],
+      };
+    });
 
-    const currentPendingIds = pendingTasks.map((task) => task.id);
-    const fromIndex = currentPendingIds.indexOf(draggedTaskId);
-    const toIndex = currentPendingIds.indexOf(targetTaskId);
-
-    if (fromIndex === -1 || toIndex === -1) {
-      setDraggedTaskId(null);
-      return;
-    }
-
-    const nextIds = [...currentPendingIds];
-    const [moved] = nextIds.splice(fromIndex, 1);
-    nextIds.splice(toIndex, 0, moved);
-    setDraggedTaskId(null);
     await runMutation(
       async () => {
-        const tarefas = await reorderPreDemandaTarefas(preId, nextIds);
+        const ids = newPendingTasks.map((t) => t.id);
+        const tarefas = await reorderPreDemandaTarefas(preId, ids);
         setRecord((current) => (current ? { ...current, tarefasPendentes: tarefas } : current));
       },
       "Checklist reorganizada.",
@@ -914,49 +924,48 @@ export function PreDemandaDetailPage() {
                   {pendingTasks.length === 0 ? (
                     <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhuma tarefa pendente.</p>
                   ) : (
-                    pendingTasks.map((task) => (
-                      <div
-                        className={`rounded-[22px] border border-slate-200 bg-white px-4 py-3 ${draggedTaskId === task.id ? "opacity-60" : ""}`}
-                        draggable
-                        key={task.id}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDragStart={() => setDraggedTaskId(task.id)}
-                        onDrop={() => void handleReorderPendingTasks(task.id)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <input
-                            className="mt-1 h-4 w-4 accent-slate-950"
-                            onChange={() =>
-                              void runMutation(
-                                () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
-                                formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
-                              )
-                            }
-                            type="checkbox"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <span className="block font-semibold text-slate-950">{task.descricao}</span>
-                            <span className="text-sm text-slate-500">{task.tipo}</span>
-                            {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {new Date(task.prazoConclusao).toLocaleDateString("pt-BR")}</span> : null}
-                            {formatRecorrenciaLabel(task) ? (
-                              <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-800 ring-1 ring-sky-200">
-                                {formatRecorrenciaLabel(task)}
-                              </span>
-                            ) : null}
-                            {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
-                            {task.geradaAutomaticamente ? <span className="mt-1 block text-xs text-slate-500">Gerada automaticamente pelo fluxo do assunto.</span> : null}
+                    <Reorder.Group axis="y" className="grid gap-3" onReorder={handleReorderPendingTasksMotion} values={pendingTasks}>
+                      {pendingTasks.map((task) => (
+                        <Reorder.Item key={task.id} value={task}>
+                          <div
+                            className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 cursor-grab active:cursor-grabbing backdrop-blur-xl hover:shadow-md transition-shadow"
+                          >
+                            <div className="flex items-start gap-3">
+                              <input
+                                className="mt-1 h-4 w-4 accent-slate-950"
+                                onChange={() =>
+                                  void runMutation(
+                                    () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+                                    formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
+                                  )
+                                }
+                                type="checkbox"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <span className="block font-semibold text-slate-950">{task.descricao}</span>
+                                <span className="text-sm text-slate-500">{task.tipo}</span>
+                                {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {new Date(task.prazoConclusao).toLocaleDateString("pt-BR")}</span> : null}
+                                {formatRecorrenciaLabel(task) ? (
+                                  <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-800 ring-1 ring-sky-200">
+                                    {formatRecorrenciaLabel(task)}
+                                  </span>
+                                ) : null}
+                                {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
+                                {task.geradaAutomaticamente ? <span className="mt-1 block text-xs text-slate-500">Gerada automaticamente pelo fluxo do assunto.</span> : null}
+                              </div>
+                              <div className="flex shrink-0 gap-2">
+                                <Button onClick={() => setEditingTask(task)} size="sm" type="button" variant="secondary">
+                                  Editar
+                                </Button>
+                                <Button onClick={() => setDeleteTask(task)} size="sm" type="button" variant="ghost">
+                                  Excluir
+                                </Button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex shrink-0 gap-2">
-                            <Button onClick={() => setEditingTask(task)} size="sm" type="button" variant="secondary">
-                              Editar
-                            </Button>
-                            <Button onClick={() => setDeleteTask(task)} size="sm" type="button" variant="ghost">
-                              Excluir
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                        </Reorder.Item>
+                      ))}
+                    </Reorder.Group>
                   )}
                 </div>
                 <div className="grid gap-3">

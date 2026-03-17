@@ -27,6 +27,7 @@ const ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     "admin.user.create",
     "admin.user.update",
     "admin.user.reset_password",
+    "admin.audit.read",
   ],
   operador: [
     "dashboard.read",

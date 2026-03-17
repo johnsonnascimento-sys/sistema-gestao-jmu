@@ -47,16 +47,29 @@ export function DashboardPage() {
     }
   }
 
+  async function loadDashboard() {
+    try {
+      setSummary(await getDashboardSummary());
+    } catch (nextError) {
+      setError(formatAppError(nextError, "Falha ao carregar dashboard."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    void (async () => {
-      try {
-        setSummary(await getDashboardSummary());
-      } catch (nextError) {
-        setError(formatAppError(nextError, "Falha ao carregar dashboard."));
-      } finally {
-        setLoading(false);
-      }
-    })();
+    void loadDashboard();
+  }, []);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      void loadDashboard();
+    };
+
+    window.addEventListener("pre-demanda-updated", handleUpdate);
+    return () => {
+      window.removeEventListener("pre-demanda-updated", handleUpdate);
+    };
   }, []);
 
   if (loading) {

@@ -24,7 +24,8 @@ export type AppPermission =
   | "admin.user.read"
   | "admin.user.create"
   | "admin.user.update"
-  | "admin.user.reset_password";
+  | "admin.user.reset_password"
+  | "admin.audit.read";
 
 export interface AuditActor {
   id: number;

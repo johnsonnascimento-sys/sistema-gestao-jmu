@@ -32,6 +32,8 @@ import { registerInteressadoRoutes } from "./routes/interessados";
 import { registerNormaRoutes } from "./routes/normas";
 import { registerPreDemandaRoutes } from "./routes/pre-demandas";
 import { registerSetorRoutes } from "./routes/setores";
+import { registerEventsRoutes } from "./routes/events";
+import { registerAuditRoutes } from "./routes/auditoria";
 import { createRuntimeStatus } from "./runtime";
 
 export interface AppDependencies {
@@ -137,8 +139,10 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   await registerSetorRoutes(app, { setorRepository });
   await registerNormaRoutes(app, { normaRepository });
   await registerPreDemandaRoutes(app, { preDemandaRepository, preDemandaTarefaRepository, preDemandaAndamentoRepository });
+  await registerEventsRoutes(app);
   await registerAdminOperationsRoutes(app, { config, pool, operationsStore, settingsRepository });
   await registerAdminUserRoutes(app, { userRepository });
+  await registerAuditRoutes(app, { pool });
 
   app.get("/api/health", async () => ({
     ok: true,
