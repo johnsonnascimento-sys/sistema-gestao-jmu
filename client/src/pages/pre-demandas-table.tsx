@@ -28,7 +28,7 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
             <thead className="text-slate-500">
               <tr>
                 <th className="px-3 py-3">Principal</th>
-                <th className="px-3 py-3">Pessoa</th>
+                <th className="px-3 py-3">Pessoa(s)</th>
                 <th className="px-3 py-3">Assunto</th>
                 <th className="px-3 py-3">Setor</th>
                 <th className="px-3 py-3">Status</th>
@@ -37,7 +37,6 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                 <th className="px-3 py-3">Proxima tarefa</th>
                 <th className="px-3 py-3">Sinal</th>
                 <th className="px-3 py-3">SEI</th>
-                <th className="px-3 py-3">Pessoa</th>
                 <th className="px-3 py-3">Data</th>
                 <th className="px-3 py-3">Acoes</th>
               </tr>
@@ -105,7 +104,6 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                     </span>
                   </td>
                   <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
-                  <td className="px-3 py-4">{item.interessados.length}</td>
                   <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
                   <td className="px-3 py-4">
                     <div className="flex flex-wrap gap-2">
