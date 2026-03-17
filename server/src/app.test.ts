@@ -682,7 +682,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (input.descricao !== undefined) record.descricao = input.descricao;
     if (input.fonte !== undefined) record.fonte = input.fonte;
     if (input.observacoes !== undefined) record.observacoes = input.observacoes;
-    if (input.prazoProcesso !== undefined) {
+    if (input.prazoProcesso !== undefined && input.prazoProcesso !== null) {
       const hasConflict = record.tarefasPendentes.some(
         (item) => !item.concluida && item.prazoConclusao && new Date(`${item.prazoConclusao}T00:00:00`).getTime() > new Date(`${input.prazoProcesso}T00:00:00`).getTime(),
       );
@@ -1041,7 +1041,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .filter((value): value is string => Boolean(value))
       .sort()[0] ?? null;
     record.proximoPrazoTarefa = nextPrazo;
-    record.sinalPrazoProcesso = nextPrazo === null ? "normal" : nextPrazo >= record.prazoProcesso ? "critico" : nextPrazo >= addDays(record.prazoProcesso, -2) ? "atencao" : "normal";
+    const prazoProcesso = record.prazoProcesso ?? tarefa.prazoConclusao ?? input.prazoConclusao;
+    record.sinalPrazoProcesso = nextPrazo === null ? "normal" : nextPrazo >= prazoProcesso ? "critico" : nextPrazo >= addDays(prazoProcesso, -2) ? "atencao" : "normal";
     return tarefa;
   }
 
