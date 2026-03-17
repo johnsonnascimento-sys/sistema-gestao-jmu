@@ -2,7 +2,7 @@ alter table if exists adminlog.pre_demanda
   add column if not exists prazo_processo date;
 
 update adminlog.pre_demanda
-set prazo_processo = prazo_final
+set prazo_processo = coalesce(prazo_final, prazo_inicial, data_referencia)
 where prazo_processo is null;
 
 do $$
@@ -12,7 +12,7 @@ begin
     from adminlog.pre_demanda
     where prazo_processo is null
   ) then
-    raise exception 'Existem processos sem prazo_final historico; nao foi possivel preencher prazo_processo.';
+    raise exception 'Existem processos sem prazo historico suficiente; nao foi possivel preencher prazo_processo.';
   end if;
 end $$;
 
