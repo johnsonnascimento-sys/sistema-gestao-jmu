@@ -23,7 +23,7 @@ alter table if exists adminlog.tarefas_pendentes
   add column if not exists recorrencia_dia_mes integer;
 
 update adminlog.tarefas_pendentes tarefa
-set prazo_conclusao = coalesce(tarefa.prazo_data, pd.prazo_processo)
+set prazo_conclusao = pd.prazo_processo
 from adminlog.pre_demanda pd
 where pd.id = tarefa.pre_demanda_id
   and tarefa.prazo_conclusao is null;
