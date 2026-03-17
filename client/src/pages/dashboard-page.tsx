@@ -99,20 +99,20 @@ export function DashboardPage() {
   function renderQueueItem(item: PreDemanda, highlightType?: "urgent" | "payment") {
     const queueHealth = getQueueHealth(item);
     
-    let borderStyle = "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.8))] shadow-[0_12px_28px_rgba(20,33,61,0.06)] hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)]";
-    let titleColor = "text-amber-600";
+    let borderStyle = "border-white/80 bg-gradient-to-br from-white/95 to-slate-50/80 backdrop-blur-lg shadow-md hover:shadow-xl hover:-translate-y-1";
+    let titleColor = "text-sky-600";
     
     if (highlightType === "urgent") {
-      borderStyle = "border-rose-300/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,228,230,0.9))] shadow-[0_14px_30px_rgba(190,24,93,0.12)] hover:shadow-[0_18px_36px_rgba(190,24,93,0.16)]";
-      titleColor = "text-rose-700";
+      borderStyle = "border-rose-200/80 bg-gradient-to-br from-rose-50/95 to-white/80 backdrop-blur-lg shadow-rose-100/50 shadow-md hover:shadow-xl hover:-translate-y-1";
+      titleColor = "text-rose-600";
     } else if (highlightType === "payment") {
-      borderStyle = "border-amber-300/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.98),rgba(255,237,213,0.9))] shadow-[0_14px_30px_rgba(217,119,6,0.12)] hover:shadow-[0_18px_36px_rgba(217,119,6,0.16)]";
-      titleColor = "text-amber-700";
+      borderStyle = "border-amber-200/80 bg-gradient-to-br from-amber-50/95 to-white/80 backdrop-blur-lg shadow-amber-100/50 shadow-md hover:shadow-xl hover:-translate-y-1";
+      titleColor = "text-amber-600";
     }
 
     return (
       <Link
-        className={`grid gap-2 rounded-[28px] border p-4 transition hover:-translate-y-0.5 ${borderStyle}`}
+        className={`relative grid gap-2 rounded-[24px] border px-5 py-4 transition-all duration-300 ${borderStyle}`}
         key={item.preId}
         to={`/pre-demandas/${item.preId}`}
       >
@@ -185,12 +185,12 @@ export function DashboardPage() {
         <MetricCard label="Sem envolvidos" to={buildAnalyticalTableHref({ preset: "sem-envolvidos" })} value={summary.withoutInteressadosTotal} />
       </div>
 
-      <Card className="border-slate-200/60 bg-white/40">
+      <Card className="border-white/60 bg-white/50 backdrop-blur-xl shadow-xl rounded-[32px] overflow-hidden">
         <CardHeader className="pb-4">
-          <CardTitle>Radar de Prazos</CardTitle>
-          <CardDescription>Prazos do processo, prazos das tarefas e consumo do prazo geral pelas tarefas pendentes.</CardDescription>
+          <CardTitle className="text-xl font-light tracking-tight text-slate-800">Radar de Prazos</CardTitle>
+          <CardDescription className="text-slate-500">Prazos do processo, tarefas e consumo do tempo geral.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-3">
+        <CardContent className="grid gap-4 xl:grid-cols-3">
           {[
             { id: "processo", label: "Prazo do processo", campo: "prazoProcesso", secondary: null },
             { id: "tarefas", label: "Prazos das tarefas", campo: "proximoPrazoTarefa", secondary: "totalPending" },
@@ -198,13 +198,14 @@ export function DashboardPage() {
           ].map((item) => {
             if (item.id === "sinal") {
               return (
-                <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={item.id}>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
-                    <h3 className="mt-2 text-2xl font-semibold text-slate-950">{summary.processosCriticosPrazo}</h3>
-                    <p className="text-sm text-slate-500">processos criticos</p>
+                <article className="group relative grid gap-3 overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-sky-50/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                    <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{summary.processosCriticosPrazo}</h3>
+                    <p className="text-sm font-medium text-slate-400">processos críticos</p>
                   </div>
-                  <div className="grid gap-2 text-sm text-slate-700">
+                  <div className="relative z-10 grid gap-2 text-sm text-slate-600">
                     <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2">Critico: {summary.processosCriticosPrazo}</div>
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2">Atencao: {summary.processosEmAtencaoPrazo}</div>
                     <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2">Normal: monitorado na fila do processo</div>
@@ -214,13 +215,14 @@ export function DashboardPage() {
             }
             const metrics = summary.deadlines[item.id as "processo" | "tarefas"];
             return (
-              <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={item.id}>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">{item.id === "tarefas" ? metrics.totalPending : metrics.totalDefined}</h3>
-                  <p className="text-sm text-slate-500">{item.id === "tarefas" ? "tarefas pendentes com prazo" : "processos com prazo definido"}</p>
+              <article className="group relative grid gap-3 overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
+                <div className="absolute inset-0 bg-gradient-to-br from-sky-50/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="relative z-10">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                  <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{item.id === "tarefas" ? metrics.totalPending : metrics.totalDefined}</h3>
+                  <p className="text-sm font-medium text-slate-400">{item.id === "tarefas" ? "tarefas pendentes com prazo" : "processos com prazo"}</p>
                 </div>
-                <div className="grid gap-2 text-sm text-slate-700">
+                <div className="relative z-10 grid gap-2 text-sm text-slate-600">
                   <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}>
                     Vencidos: {metrics.overdueTotal}
                   </Link>
@@ -238,10 +240,10 @@ export function DashboardPage() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <Card className="h-fit">
+        <Card className="h-fit rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="pb-4">
-            <CardTitle>Filas de Ação Imediata</CardTitle>
-            <CardDescription>Pendências ordenadas por nível de criticidade e gargalos operacionais.</CardDescription>
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Filas de Ação Imediata</CardTitle>
+            <CardDescription className="text-slate-500">Pendências ordenadas por criticidade.</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="urgentes">
@@ -327,18 +329,18 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="h-[800px] flex flex-col">
-          <CardHeader className="pb-4 shrink-0">
-            <CardTitle>Últimas Movimentações</CardTitle>
-            <CardDescription>A timeline recente da operação.</CardDescription>
+        <Card className="flex h-[800px] flex-col rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
+          <CardHeader className="shrink-0 pb-4">
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Últimas Movimentações</CardTitle>
+            <CardDescription className="text-slate-500">A timeline recente da operação.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 overflow-y-auto pr-2 pb-6">
             {summary.recentTimeline.length === 0 ? (
-              <EmptyState description="As últimas criações, mudanças de status e vinculações aparecerão aqui." title="Sem movimentações recentes" />
+              <EmptyState description="As últimas criações e mudanças aparecerão aqui." title="Sem movimentações recentes" />
             ) : (
               summary.recentTimeline.map((event) => (
                 <Link
-                  className="flex flex-col gap-3 rounded-[28px] border border-white/75 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] p-4 shadow-[0_12px_28px_rgba(20,33,61,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(20,33,61,0.1)] shrink-0"
+                  className="group relative flex flex-col gap-3 rounded-[24px] border border-white/80 bg-gradient-to-br from-white/95 to-slate-50/80 px-5 py-4 shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl shrink-0"
                   key={event.id}
                   to={`/pre-demandas/${event.preId}`}
                 >
