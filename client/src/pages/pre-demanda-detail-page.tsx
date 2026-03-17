@@ -11,7 +11,7 @@ import {
   UserPlus,
   X,
 } from "lucide-react";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { ConfirmDialog } from "../components/confirm-dialog";
@@ -24,6 +24,28 @@ import { Timeline } from "../components/timeline";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { DetailSectionCard, SummaryItem, ToolbarActionButton } from "./pre-demanda-detail-ui";
+import {
+  AndamentoCreateDialog,
+  AndamentoDeleteDialog,
+  AndamentoEditDialog,
+  TarefaDeleteDialog,
+  TarefaEditDialog,
+  TarefaPrazoChangeDialog,
+} from "./pre-demanda-detail-dialogs";
+import {
+  FIXED_TASKS,
+  formatBytes,
+  formatRecorrenciaLabel,
+  readFileAsBase64,
+  selectClassName,
+  StatusAction,
+  TaskPrazoChangeState,
+  toDateTimeLocalValue,
+  toIsoFromDateTimeLocal,
+  ToolbarDialog,
+  WEEKDAY_OPTIONS,
+} from "./pre-demanda-detail-types";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import {
@@ -67,56 +89,6 @@ import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLab
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
-
-type ToolbarDialog = null | "related" | "edit" | "send" | "link" | "notes" | "deadline" | "andamento";
-
-type StatusAction = {
-  nextStatus: PreDemandaStatus;
-  title: string;
-  requireReason: boolean;
-};
-
-const FIXED_TASKS = [
-  "Assinatura de pessoa",
-  "Definicao de audiencia",
-  "Envio para",
-  "Retorno do setor",
-];
-
-type TaskPrazoChangeState = {
-  mode: "create" | "edit";
-  payload: {
-    descricao: string;
-    tipo: "fixa" | "livre";
-    prazo_conclusao: string;
-    recorrencia_tipo?: TarefaRecorrenciaTipo | null;
-    recorrencia_dias_semana?: string[] | null;
-    recorrencia_dia_mes?: number | null;
-    setor_destino_id?: string | null;
-  };
-  details: {
-    prazoLabel?: string | null;
-    prazoDataAnterior?: string | null;
-    prazoDataNova?: string | null;
-  };
-};
-
-const WEEKDAY_OPTIONS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as const;
-const selectClassName =
-  "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
-
-function formatRecorrenciaLabel(task: Pick<TarefaPendente, "recorrenciaTipo" | "recorrenciaDiasSemana" | "recorrenciaDiaMes">) {
-  if (!task.recorrenciaTipo) {
-    return null;
-  }
-  if (task.recorrenciaTipo === "diaria") {
-    return "Recorrente diaria";
-  }
-  if (task.recorrenciaTipo === "semanal") {
-    return task.recorrenciaDiasSemana?.length ? `Recorrente semanal (${task.recorrenciaDiasSemana.join(", ")})` : "Recorrente semanal";
-  }
-  return task.recorrenciaDiaMes ? `Recorrente mensal (dia ${task.recorrenciaDiaMes})` : "Recorrente mensal";
-}
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
@@ -1098,7 +1070,7 @@ export function PreDemandaDetailPage() {
 
           <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.associacaoSei} title="Associacao PRE para SEI">
             <CardHeader>
-              <CardTitle>Associacao PRE para SEI</CardTitle>
+              <CardTitle>Associacao PRE para SEi</CardTitle>
               <CardDescription>Validacao e mascara seguem o backend para manter o vinculo confiavel.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -1794,119 +1766,5 @@ export function PreDemandaDetailPage() {
         title={statusAction?.title ?? "Alterar status"}
       />
     </section>
-  );
-}
-
-async function readFileAsBase64(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== "string") {
-        reject(new Error("Falha ao ler o ficheiro."));
-        return;
-      }
-      resolve(result.split(",")[1] ?? "");
-    };
-    reader.onerror = () => reject(new Error("Falha ao ler o ficheiro."));
-    reader.readAsDataURL(file);
-  });
-}
-
-function toDateTimeLocalValue(value: string | null | undefined) {
-  if (!value) {
-    return "";
-  }
-
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60000);
-  return local.toISOString().slice(0, 16);
-}
-
-function toIsoFromDateTimeLocal(value: string) {
-  return value ? new Date(value).toISOString() : null;
-}
-
-function formatBytes(value: number) {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function SummaryItem({ label, value, className }: { label: string; value: string; className?: string }) {
-  return (
-    <div className={className}>
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-slate-950">{value}</p>
-    </div>
-  );
-}
-
-function DetailSectionCard({
-  children,
-  defaultOpen = false,
-  summary,
-  title,
-}: {
-  children: ReactNode;
-  defaultOpen?: boolean;
-  summary?: string | null;
-  title: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <Card className={open ? "h-fit self-start" : "h-fit self-start overflow-hidden"}>
-      <button
-        aria-expanded={open}
-        className={`flex w-full items-center justify-between gap-3 text-left transition hover:bg-white/40 ${open ? "px-5 py-3.5" : "px-4 py-2.5"}`}
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
-        <div className="min-w-0">
-          <p className={`${open ? "text-sm" : "text-[0.82rem]"} font-semibold text-slate-950`}>{title}</p>
-          <p className={`truncate text-slate-500 ${open ? "mt-0.5 text-xs" : "text-[0.72rem]"}`}>{summary ?? "Sem resumo disponivel."}</p>
-        </div>
-        <div className={`flex shrink-0 items-center ${open ? "gap-3" : "gap-2"}`}>
-          {open ? (
-            <span className="rounded-full border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.16em] text-rose-800">
-              Em destaque
-            </span>
-          ) : null}
-          <span className={`flex items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 shadow-sm ${open ? "h-8 w-8" : "h-7 w-7"}`}>
-            <ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
-          </span>
-        </div>
-      </button>
-      {open ? children : null}
-    </Card>
-  );
-}
-
-function ToolbarActionButton({
-  icon: Icon,
-  label,
-  title,
-  onClick,
-  variant = "secondary",
-}: {
-  icon: typeof FilePlus2;
-  label: string;
-  title: string;
-  onClick: () => void;
-  variant?: "secondary" | "ghost";
-}) {
-  return (
-    <Button
-      className="h-auto min-w-[92px] flex-col rounded-[24px] border border-white/10 px-4 py-3 text-xs shadow-[0_12px_26px_rgba(20,33,61,0.12)]"
-      onClick={onClick}
-      title={title}
-      type="button"
-      variant={variant}
-    >
-      <Icon className="h-5 w-5" />
-      <span className="font-semibold">{label}</span>
-    </Button>
   );
 }

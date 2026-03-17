@@ -1,8 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ConfirmDialog } from "../components/confirm-dialog";
-import { FilterBar } from "../components/filter-bar";
-import { FormField } from "../components/form-field";
 import { KanbanBoard } from "../components/kanban-board";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
@@ -11,413 +9,24 @@ import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Input } from "../components/ui/input";
 import { formatAppError, listPreDemandas, listSetores, updatePreDemandaStatus } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
-import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, Setor, SortOrder, StatusCount } from "../types";
-
-const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
-  { value: "em_andamento", label: "Em andamento" },
-  { value: "aguardando_sei", label: "Aguardando SEI" },
-  { value: "encerrada", label: "Encerrado" },
-];
-
-const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: string }> = [
-  { value: "fresh", label: "No prazo" },
-  { value: "attention", label: "Atencao" },
-  { value: "critical", label: "Critica" },
-];
-
-const selectClassName =
-  "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
-
-type BoardView = "kanban" | "table";
-type SavedViewId =
-  | "fila-operacional"
-  | "triagem-em-andamento"
-  | "aguardando-sei"
-  | "fila-parada"
-  | "criticas"
-  | "vence-hoje"
-  | "prazos-vencidos"
-  | "vencem-na-semana"
-  | "com-pagamento"
-  | "sem-envolvidos"
-  | "sem-setor"
-  | "reabertas-30d"
-  | "encerradas-30d"
-  | "com-sei"
-  | "ultimas-encerradas";
-
-type QuickAction = {
-  item: PreDemanda;
-  nextStatus: PreDemandaStatus;
-  label: string;
-  requireReason: boolean;
-};
-
-type SectorQueueSummary = {
-  setorId: string | null;
-  sigla: string;
-  nome: string;
-  total: number;
-  overdue: number;
-  dueSoon: number;
-  criticalQueue: number;
-  attentionQueue: number;
-  withoutInteressados: number;
-  riskLevel: "normal" | "attention" | "critical";
-  riskScore: number;
-};
-
-type ResolvedSearchState = {
-  presetId: SavedViewId | null;
-  q: string;
-  statuses: string[];
-  queueHealth: QueueHealthLevel[];
-  dateFrom: string;
-  dateTo: string;
-  hasSei: "" | "true" | "false";
-  setorAtualId: string;
-  withoutSetor: "" | "true" | "false";
-  dueState: "" | "overdue" | "due_today" | "due_soon" | "none";
-  deadlineCampo: "" | "prazoProcesso" | "proximoPrazoTarefa";
-  prazoRecorte: "" | "overdue" | "today" | "soon";
-  paymentInvolved: "" | "true" | "false";
-  hasInteressados: "" | "true" | "false";
-  closedWithinDays: string;
-  reopenedWithinDays: string;
-  sortBy: PreDemandaSortBy;
-  sortOrder: SortOrder;
-  page: number;
-  view: BoardView;
-};
-
-const SAVED_VIEWS: Array<{
-  id: SavedViewId;
-  label: string;
-  description: string;
-  defaults: {
-    statuses?: string[];
-    queueHealth?: QueueHealthLevel[];
-    hasSei?: "" | "true" | "false";
-    setorAtualId?: string;
-    withoutSetor?: "" | "true" | "false";
-    dueState?: "" | "overdue" | "due_today" | "due_soon" | "none";
-    paymentInvolved?: "" | "true" | "false";
-    hasInteressados?: "" | "true" | "false";
-    closedWithinDays?: string;
-    reopenedWithinDays?: string;
-    sortBy: PreDemandaSortBy;
-    sortOrder: SortOrder;
-    view: BoardView;
-  };
-}> = [
-  {
-    id: "fila-operacional",
-    label: "Fila operacional",
-    description: "Processos em andamento e aguardando SEI no quadro principal.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      hasInteressados: "true",
-      sortBy: "updatedAt",
-      sortOrder: "desc",
-      view: "kanban",
-    },
-  },
-  {
-    id: "triagem-em-andamento",
-    label: "Em andamento",
-    description: "Processos em andamento, ordenados pela referencia mais antiga.",
-    defaults: {
-      statuses: ["em_andamento"],
-      sortBy: "dataReferencia",
-      sortOrder: "asc",
-      view: "kanban",
-    },
-  },
-  {
-    id: "aguardando-sei",
-    label: "Aguardando SEI",
-    description: "Fila para acompanhamento ate o numero SEI nascer.",
-    defaults: {
-      statuses: ["aguardando_sei"],
-      sortBy: "dataReferencia",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "fila-parada",
-    label: "Fila parada",
-    description: "Processos ativos com maior tempo sem movimentacao, ordenados pela atualizacao mais antiga.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      queueHealth: ["attention", "critical"],
-      sortBy: "updatedAt",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "criticas",
-    label: "Criticas",
-    description: "Processos ativos em risco maximo de fila, ordenados pela atualizacao mais antiga.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      queueHealth: ["critical"],
-      sortBy: "updatedAt",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "vence-hoje",
-    label: "Vence hoje",
-    description: "Processos ativos com prazo final vencendo hoje.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      dueState: "due_today",
-      sortBy: "prazoProcesso",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "prazos-vencidos",
-    label: "Prazos vencidos",
-    description: "Processos ativos com prazo final ja ultrapassado.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      dueState: "overdue",
-      sortBy: "prazoProcesso",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "vencem-na-semana",
-    label: "Vencem na semana",
-    description: "Processos ativos com prazo nos proximos 7 dias.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      dueState: "due_soon",
-      sortBy: "prazoProcesso",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "com-pagamento",
-    label: "Com pagamento",
-    description: "Processos com pagamento envolvido marcado no cadastro.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      paymentInvolved: "true",
-      sortBy: "updatedAt",
-      sortOrder: "desc",
-      view: "table",
-    },
-  },
-  {
-    id: "sem-envolvidos",
-    label: "Sem envolvidos",
-    description: "Processos ativos que ainda precisam de envolvidos vinculados.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      hasInteressados: "false",
-      sortBy: "updatedAt",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "sem-setor",
-    label: "Sem setor",
-    description: "Processos ativos ainda sem setor formalmente definido.",
-    defaults: {
-      statuses: ["em_andamento", "aguardando_sei"],
-      withoutSetor: "true",
-      sortBy: "updatedAt",
-      sortOrder: "asc",
-      view: "table",
-    },
-  },
-  {
-    id: "reabertas-30d",
-    label: "Reabertas 30d",
-    description: "Processos com reabertura registrada nos ultimos 30 dias.",
-    defaults: {
-      reopenedWithinDays: "30",
-      sortBy: "updatedAt",
-      sortOrder: "desc",
-      view: "table",
-    },
-  },
-  {
-    id: "encerradas-30d",
-    label: "Encerradas 30d",
-    description: "Processos com encerramento registrado nos ultimos 30 dias.",
-    defaults: {
-      closedWithinDays: "30",
-      sortBy: "updatedAt",
-      sortOrder: "desc",
-      view: "table",
-    },
-  },
-  {
-    id: "com-sei",
-    label: "Com SEI",
-    description: "Processos que ja possuem vinculacao valida.",
-    defaults: {
-      hasSei: "true",
-      sortBy: "updatedAt",
-      sortOrder: "desc",
-      view: "table",
-    },
-  },
-  {
-    id: "ultimas-encerradas",
-    label: "Ultimos encerrados",
-    description: "Fechamentos mais recentes para revisao ou conferencias.",
-    defaults: {
-      statuses: ["encerrada"],
-      sortBy: "updatedAt",
-      sortOrder: "desc",
-      view: "table",
-    },
-  },
-];
-
-function splitValues(value: string | null) {
-  return value?.split(",").map((item) => item.trim()).filter(Boolean) ?? [];
-}
-
-function getSavedView(presetId: string | null) {
-  const normalizedPresetId = presetId === "triagem-abertas" ? "triagem-em-andamento" : presetId;
-  return SAVED_VIEWS.find((item) => item.id === normalizedPresetId) ?? null;
-}
-
-function buildSectorQueueSearch(current: URLSearchParams, setorAtualId: string, dueState: "" | "overdue" | "due_today" | "due_soon" | "none") {
-  const next = new URLSearchParams(current);
-  next.set("setorAtualId", setorAtualId);
-  next.delete("withoutSetor");
-  next.set("view", "table");
-  next.set("page", "1");
-  next.set("sortBy", "updatedAt");
-  next.set("sortOrder", dueState === "overdue" ? "asc" : "desc");
-
-  if (dueState) {
-    next.set("dueState", dueState);
-  } else {
-    next.delete("dueState");
-  }
-
-  return `/pre-demandas?${next.toString()}`;
-}
-
-function buildWithoutSetorQueueSearch(current: URLSearchParams, dueState: "" | "overdue" | "due_today" | "due_soon" | "none", hasInteressados: "" | "true" | "false" = "") {
-  const next = new URLSearchParams(current);
-  next.delete("setorAtualId");
-  next.set("withoutSetor", "true");
-  next.set("view", "table");
-  next.set("page", "1");
-  next.set("sortBy", dueState ? "prazoProcesso" : "updatedAt");
-  next.set("sortOrder", dueState === "overdue" ? "asc" : "desc");
-
-  if (dueState) {
-    next.set("dueState", dueState);
-  } else {
-    next.delete("dueState");
-  }
-
-  if (hasInteressados) {
-    next.set("hasInteressados", hasInteressados);
-  } else {
-    next.delete("hasInteressados");
-  }
-
-  return `/pre-demandas?${next.toString()}`;
-}
-
-function buildQueueSearch(current: URLSearchParams, overrides: Record<string, string | null>) {
-  const next = new URLSearchParams(current);
-
-  Object.entries(overrides).forEach(([key, value]) => {
-    if (value === null || value === "") {
-      next.delete(key);
-      return;
-    }
-
-    next.set(key, value);
-  });
-
-  next.set("page", "1");
-  return `/pre-demandas?${next.toString()}`;
-}
-
-function getSectorRiskLevel(score: number) {
-  if (score >= 8) {
-    return "critical" as const;
-  }
-
-  if (score >= 4) {
-    return "attention" as const;
-  }
-
-  return "normal" as const;
-}
-
-function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState {
-  const preset = getSavedView(searchParams.get("preset"));
-  const hasExplicitView = searchParams.has("view");
-  const isBlankSearch =
-    !searchParams.get("preset") &&
-    !searchParams.has("q") &&
-    !searchParams.has("status") &&
-    !searchParams.has("queueHealth") &&
-    !searchParams.has("dateFrom") &&
-    !searchParams.has("dateTo") &&
-    !searchParams.has("hasSei") &&
-    !searchParams.has("setorAtualId") &&
-    !searchParams.has("withoutSetor") &&
-    !searchParams.has("dueState") &&
-    !searchParams.has("deadlineCampo") &&
-    !searchParams.has("prazoRecorte") &&
-    !searchParams.has("paymentInvolved") &&
-    !searchParams.has("hasInteressados") &&
-    !searchParams.has("closedWithinDays") &&
-    !searchParams.has("reopenedWithinDays") &&
-    !searchParams.has("sortBy") &&
-    !searchParams.has("sortOrder") &&
-    !searchParams.has("page");
-  const defaultView: BoardView = isBlankSearch ? "table" : preset?.defaults.view ?? "kanban";
-
-  return {
-    presetId: preset?.id ?? null,
-    q: searchParams.get("q") ?? "",
-    statuses: searchParams.has("status") ? splitValues(searchParams.get("status")) : preset?.defaults.statuses ?? [],
-    queueHealth: searchParams.has("queueHealth") ? (splitValues(searchParams.get("queueHealth")) as QueueHealthLevel[]) : preset?.defaults.queueHealth ?? [],
-    dateFrom: searchParams.get("dateFrom") ?? "",
-    dateTo: searchParams.get("dateTo") ?? "",
-    hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
-    setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
-    withoutSetor: searchParams.has("withoutSetor") ? ((searchParams.get("withoutSetor") as "true" | "false") ?? "") : preset?.defaults.withoutSetor ?? "",
-    dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_today" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
-    deadlineCampo: (searchParams.get("deadlineCampo") as ResolvedSearchState["deadlineCampo"] | null) ?? "",
-    prazoRecorte: (searchParams.get("prazoRecorte") as ResolvedSearchState["prazoRecorte"] | null) ?? "",
-    paymentInvolved: searchParams.has("paymentInvolved") ? ((searchParams.get("paymentInvolved") as "true" | "false") ?? "") : preset?.defaults.paymentInvolved ?? "",
-    hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
-    closedWithinDays: searchParams.get("closedWithinDays") ?? preset?.defaults.closedWithinDays ?? "",
-    reopenedWithinDays: searchParams.get("reopenedWithinDays") ?? preset?.defaults.reopenedWithinDays ?? "",
-    sortBy: (searchParams.get("sortBy") as PreDemandaSortBy | null) ?? preset?.defaults.sortBy ?? "updatedAt",
-    sortOrder: (searchParams.get("sortOrder") as SortOrder | null) ?? preset?.defaults.sortOrder ?? "desc",
-    page: Number(searchParams.get("page") ?? "1"),
-    view: hasExplicitView ? (searchParams.get("view") === "table" ? "table" : "kanban") : defaultView,
-  };
-}
+import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, Setor, SortOrder, StatusCount } from "../types";
+import { PreDemandasFilters } from "./pre-demandas-filters";
+import { PreDemandasTable } from "./pre-demandas-table";
+import {
+  BoardView,
+  QueueHealthLevel,
+  QuickAction,
+  ResolvedSearchState,
+  SectorQueueSummary,
+  buildSectorQueueSearch,
+  buildWithoutSetorQueueSearch,
+  getSectorRiskLevel,
+  resolveSearchState,
+} from "./pre-demandas-utils";
 
 export function PreDemandasPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -433,45 +42,7 @@ export function PreDemandasPage() {
   const searchKey = searchParams.toString();
   const resolvedState = useMemo(() => resolveSearchState(searchParams), [searchKey]);
 
-  const [query, setQuery] = useState(resolvedState.q);
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
-  const [selectedQueueHealth, setSelectedQueueHealth] = useState<QueueHealthLevel[]>(resolvedState.queueHealth);
-  const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
-  const [dateTo, setDateTo] = useState(resolvedState.dateTo);
-  const [hasSei, setHasSei] = useState(resolvedState.hasSei);
-  const [setorAtualId, setSetorAtualId] = useState(resolvedState.setorAtualId);
-  const [withoutSetor, setWithoutSetor] = useState(resolvedState.withoutSetor);
-  const [dueState, setDueState] = useState(resolvedState.dueState);
-  const [deadlineCampo, setDeadlineCampo] = useState(resolvedState.deadlineCampo);
-  const [prazoRecorte, setPrazoRecorte] = useState(resolvedState.prazoRecorte);
-  const [paymentInvolved, setPaymentInvolved] = useState(resolvedState.paymentInvolved);
-  const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
-  const [closedWithinDays, setClosedWithinDays] = useState(resolvedState.closedWithinDays);
-  const [reopenedWithinDays, setReopenedWithinDays] = useState(resolvedState.reopenedWithinDays);
-  const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
-  const [sortOrder, setSortOrder] = useState<SortOrder>(resolvedState.sortOrder);
 
-  const pageSize = 12;
-
-  useEffect(() => {
-    setQuery(resolvedState.q);
-    setSelectedStatuses(resolvedState.statuses);
-    setSelectedQueueHealth(resolvedState.queueHealth);
-    setDateFrom(resolvedState.dateFrom);
-    setDateTo(resolvedState.dateTo);
-    setHasSei(resolvedState.hasSei);
-    setSetorAtualId(resolvedState.setorAtualId);
-    setWithoutSetor(resolvedState.withoutSetor);
-    setDueState(resolvedState.dueState);
-    setDeadlineCampo(resolvedState.deadlineCampo);
-    setPrazoRecorte(resolvedState.prazoRecorte);
-    setPaymentInvolved(resolvedState.paymentInvolved);
-    setHasInteressados(resolvedState.hasInteressados);
-    setClosedWithinDays(resolvedState.closedWithinDays);
-    setReopenedWithinDays(resolvedState.reopenedWithinDays);
-    setSortBy(resolvedState.sortBy);
-    setSortOrder(resolvedState.sortOrder);
-  }, [searchKey, resolvedState]);
 
   async function load() {
     setLoading(true);
@@ -526,117 +97,9 @@ export function PreDemandasPage() {
     void loadSetorOptions();
   }, []);
 
-  function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const next = new URLSearchParams();
+  const pageSize = 12;
 
-    if (query.trim()) {
-      next.set("q", query.trim());
-    }
 
-    if (selectedStatuses.length) {
-      next.set("status", selectedStatuses.join(","));
-    }
-
-    if (selectedQueueHealth.length) {
-      next.set("queueHealth", selectedQueueHealth.join(","));
-    }
-
-    if (dateFrom) {
-      next.set("dateFrom", dateFrom);
-    }
-
-    if (dateTo) {
-      next.set("dateTo", dateTo);
-    }
-
-    if (hasSei) {
-      next.set("hasSei", hasSei);
-    }
-
-    if (setorAtualId) {
-      next.set("setorAtualId", setorAtualId);
-    }
-
-    if (withoutSetor) {
-      next.set("withoutSetor", withoutSetor);
-    }
-
-    if (dueState) {
-      next.set("dueState", dueState);
-    }
-
-    if (deadlineCampo) {
-      next.set("deadlineCampo", deadlineCampo);
-    }
-
-    if (prazoRecorte) {
-      next.set("prazoRecorte", prazoRecorte);
-    }
-
-    if (paymentInvolved) {
-      next.set("paymentInvolved", paymentInvolved);
-    }
-
-    if (hasInteressados) {
-      next.set("hasInteressados", hasInteressados);
-    }
-
-    if (closedWithinDays) {
-      next.set("closedWithinDays", closedWithinDays);
-    }
-
-    if (reopenedWithinDays) {
-      next.set("reopenedWithinDays", reopenedWithinDays);
-    }
-
-    next.set("sortBy", sortBy);
-    next.set("sortOrder", sortOrder);
-    next.set("view", resolvedState.view);
-    next.set("page", "1");
-    setSearchParams(next);
-  }
-
-  function updateView(nextView: BoardView) {
-    const next = new URLSearchParams(searchParams);
-    next.set("view", nextView);
-    setSearchParams(next);
-  }
-
-  function applyPreset(presetId: SavedViewId) {
-    const preset = getSavedView(presetId);
-
-    if (!preset) {
-      return;
-    }
-
-    const next = new URLSearchParams();
-    next.set("preset", presetId);
-    next.set("view", preset.defaults.view);
-    next.set("page", "1");
-    setSearchParams(next);
-  }
-
-  function clearFilters() {
-    setQuery("");
-    setSelectedStatuses([]);
-    setSelectedQueueHealth([]);
-    setDateFrom("");
-    setDateTo("");
-    setHasSei("");
-    setSetorAtualId("");
-    setWithoutSetor("");
-    setDueState("");
-    setDeadlineCampo("");
-    setPrazoRecorte("");
-    setPaymentInvolved("");
-    setHasInteressados("");
-    setClosedWithinDays("");
-    setReopenedWithinDays("");
-    setSortBy("updatedAt");
-    setSortOrder("desc");
-    setSearchParams(new URLSearchParams({ view: resolvedState.view, page: "1", sortBy: "updatedAt", sortOrder: "desc" }));
-  }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const metrics = useMemo(() => counts, [counts]);
@@ -766,6 +229,12 @@ export function PreDemandasPage() {
     ],
     [items],
   );
+  function updateView(view: BoardView) {
+    const next = new URLSearchParams(searchParams);
+    next.set("view", view);
+    setSearchParams(next);
+  }
+
   const firstVisibleItem = total === 0 ? 0 : (resolvedState.page - 1) * pageSize + 1;
   const lastVisibleItem = total === 0 ? 0 : Math.min(total, resolvedState.page * pageSize);
 
@@ -935,144 +404,7 @@ export function PreDemandasPage() {
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Visualizacoes salvas</CardTitle>
-          <CardDescription>Presets compartilhaveis por query string para os filtros mais usados da operacao.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-6">
-          {SAVED_VIEWS.map((preset) => (
-            <button
-              className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
-                resolvedState.presetId === preset.id
-                  ? "border-sky-300 bg-[linear-gradient(180deg,rgba(219,234,254,0.95),rgba(240,249,255,0.92))] text-sky-950 shadow-[0_14px_32px_rgba(14,165,233,0.12)]"
-                  : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,241,233,0.78))] text-slate-700 shadow-[0_12px_24px_rgba(20,33,61,0.05)] hover:border-sky-200 hover:bg-white"
-              }`}
-              key={preset.id}
-              onClick={() => applyPreset(preset.id)}
-              type="button"
-            >
-              <span className="text-sm font-semibold">{preset.label}</span>
-              <span className="text-xs text-slate-500">{preset.description}</span>
-            </button>
-          ))}
-        </CardContent>
-      </Card>
-
-      <form onSubmit={handleFilterSubmit}>
-        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
-          <FormField label="Buscar">
-            <Input onChange={(event) => setQuery(event.target.value)} placeholder="PROCESSO, SEI, pessoa ou assunto" value={query} />
-          </FormField>
-
-          <FormField hint="Multiplos estados." label="Status">
-            <select className={selectClassName} multiple onChange={(event) => setSelectedStatuses(Array.from(event.target.selectedOptions, (option) => option.value))} value={selectedStatuses}>
-              {STATUSES.map((status) => (
-                <option key={status.value} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          <FormField hint="Acompanhe itens parados ou no prazo." label="Saude da fila">
-            <select
-              className={selectClassName}
-              multiple
-              onChange={(event) => setSelectedQueueHealth(Array.from(event.target.selectedOptions, (option) => option.value as QueueHealthLevel))}
-              value={selectedQueueHealth}
-            >
-              {QUEUE_HEALTH_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          <FormField label="Data inicial">
-            <Input onChange={(event) => setDateFrom(event.target.value)} type="date" value={dateFrom} />
-          </FormField>
-
-          <FormField label="Data final">
-            <Input onChange={(event) => setDateTo(event.target.value)} type="date" value={dateTo} />
-          </FormField>
-
-          <FormField label="Presenca de SEI">
-            <select className={selectClassName} onChange={(event) => setHasSei(event.target.value as "" | "true" | "false")} value={hasSei}>
-              <option value="">Todos</option>
-              <option value="true">Com SEI</option>
-              <option value="false">Sem SEI</option>
-            </select>
-          </FormField>
-
-          <FormField label="Setor atual">
-            <select className={selectClassName} onChange={(event) => setSetorAtualId(event.target.value)} value={setorAtualId}>
-              <option value="">Todos</option>
-              {setores.map((setor) => (
-                <option key={setor.id} value={setor.id}>
-                  {setor.sigla}
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          <FormField label="Sem setor">
-            <select className={selectClassName} onChange={(event) => setWithoutSetor(event.target.value as "" | "true" | "false")} value={withoutSetor}>
-              <option value="">Todos</option>
-              <option value="true">Apenas sem setor</option>
-              <option value="false">Apenas com setor</option>
-            </select>
-          </FormField>
-
-          <FormField label="Prazo">
-            <select className={selectClassName} onChange={(event) => setDueState(event.target.value as "" | "overdue" | "due_today" | "due_soon" | "none")} value={dueState}>
-              <option value="">Todos</option>
-              <option value="overdue">Vencido</option>
-              <option value="due_today">Vence hoje</option>
-              <option value="due_soon">Na semana</option>
-              <option value="none">Sem prazo</option>
-            </select>
-          </FormField>
-
-          <FormField label="Envolvidos">
-            <select className={selectClassName} onChange={(event) => setHasInteressados(event.target.value as "" | "true" | "false")} value={hasInteressados}>
-              <option value="">Todos</option>
-              <option value="true">Com envolvidos</option>
-              <option value="false">Sem envolvidos</option>
-            </select>
-          </FormField>
-
-          <FormField label="Ordenacao">
-            <select className={selectClassName} onChange={(event) => setSortBy(event.target.value as PreDemandaSortBy)} value={sortBy}>
-              <option value="updatedAt">Atualizacao</option>
-              <option value="createdAt">Criacao</option>
-              <option value="dataReferencia">Data de referencia</option>
-              <option value="solicitante">Pessoa vinculada</option>
-              <option value="status">Status</option>
-              <option value="prazoProcesso">Prazo do processo</option>
-              <option value="proximoPrazoTarefa">Proxima tarefa</option>
-              <option value="numeroJudicial">Numero judicial</option>
-            </select>
-          </FormField>
-
-          <FormField label="Direcao">
-            <select className={selectClassName} onChange={(event) => setSortOrder(event.target.value as SortOrder)} value={sortOrder}>
-              <option value="desc">Mais recentes</option>
-              <option value="asc">Mais antigas</option>
-            </select>
-          </FormField>
-
-          <div className="flex items-end gap-3">
-            <Button className="w-full" type="submit">
-              Filtrar
-            </Button>
-            <Button onClick={clearFilters} type="button" variant="ghost">
-              Limpar
-            </Button>
-          </div>
-        </FilterBar>
-      </form>
+      <PreDemandasFilters resolvedState={resolvedState} setores={setores} searchParams={searchParams} setSearchParams={setSearchParams} />
 
       {hiddenClosedCount > 0 ? (
         <div className="flex flex-col items-start justify-between gap-3 rounded-[28px] border border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.92))] px-4 py-4 text-sm text-amber-900 md:flex-row md:items-center">
@@ -1116,135 +448,34 @@ export function PreDemandasPage() {
           }}
         />
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Tabela analitica</CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            {items.length === 0 ? (
-              <EmptyState description="Ajuste os filtros ou mude para outro preset para encontrar processos nesta fila." title="Nenhum processo encontrado" />
-            ) : (
-              <table className="min-w-full text-left text-sm">
-                <thead className="text-slate-500">
-                <tr>
-                  <th className="px-3 py-3">Principal</th>
-                  <th className="px-3 py-3">Pessoa</th>
-                  <th className="px-3 py-3">Assunto</th>
-                  <th className="px-3 py-3">Setor</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Fila</th>
-                  <th className="px-3 py-3">Prazo do processo</th>
-                  <th className="px-3 py-3">Proxima tarefa</th>
-                  <th className="px-3 py-3">Sinal</th>
-                  <th className="px-3 py-3">SEI</th>
-                  <th className="px-3 py-3">Envolvidos</th>
-                  <th className="px-3 py-3">Data</th>
-                  <th className="px-3 py-3">Acoes</th>
-                </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr
-                      className={`border-t ${
-                        item.setorAtual?.id && sectorRiskById[item.setorAtual.id] === "critical"
-                          ? "border-rose-200 bg-rose-50/40"
-                          : item.setorAtual?.id && sectorRiskById[item.setorAtual.id] === "attention"
-                            ? "border-amber-200 bg-amber-50/40"
-                            : "border-slate-200"
-                      }`}
-                      key={item.preId}
-                    >
-                      <td className="px-3 py-4 font-semibold text-slate-950">
-                        <Link to={`/pre-demandas/${item.preId}`}>{item.principalNumero}</Link>
-                        <div className="text-xs font-medium text-slate-500">{item.preId}</div>
-                        {item.metadata.urgente ? <div className="mt-2 inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">Urgente</div> : null}
-                      </td>
-                      <td className="px-3 py-4">{item.pessoaPrincipal?.nome ?? "-"}</td>
-                      <td className="px-3 py-4">{item.assunto}</td>
-                      <td className="px-3 py-4">
-                        <div className="grid gap-1">
-                          <span>{item.setorAtual ? item.setorAtual.sigla : "-"}</span>
-                          {item.setorAtual?.id && sectorRiskById[item.setorAtual.id] !== "normal" ? (
-                            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                              {sectorRiskById[item.setorAtual.id] === "critical" ? "Setor critico" : "Setor em atencao"}
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <StatusPill status={item.status} />
-                          {item.metadata.urgente ? <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-700 ring-1 ring-rose-200">Urgente</span> : null}
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">
-                        <div className="grid gap-2">
-                          <QueueHealthPill item={item} />
-                          <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-4">{item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "-"}</td>
-                      <td className="px-3 py-4">{item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas"}</td>
-                      <td className="px-3 py-4">
-                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
-                          item.sinalPrazoProcesso === "critico"
-                            ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
-                            : item.sinalPrazoProcesso === "atencao"
-                              ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                              : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"
-                        }`}
-                        >
-                          {item.sinalPrazoProcesso ?? "normal"}
-                        </span>
-                      </td>
-                      <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
-                      <td className="px-3 py-4">{item.interessados.length}</td>
-                      <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
-                      <td className="px-3 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Button asChild size="sm" variant="secondary">
-                            <Link to={`/pre-demandas/${item.preId}`}>Detalhe</Link>
-                          </Button>
-                          {item.allowedNextStatuses.includes("aguardando_sei") ? (
-                            <Button
-                              onClick={() => setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false })}
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              Aguardar SEI
-                            </Button>
-                          ) : null}
-                          {item.allowedNextStatuses.includes("encerrada") ? (
-                            <Button onClick={() => setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true })} size="sm" type="button" variant="ghost">
-                              Encerrar
-                            </Button>
-                          ) : item.status === "encerrada" && getPreferredReopenStatus(item) ? (
-                            <Button
-                              onClick={() =>
-                                setQuickAction({
-                                  item,
-                                  nextStatus: getPreferredReopenStatus(item)!,
-                                  label: "Reabrir processo",
-                                  requireReason: true,
-                                })
-                              }
-                              size="sm"
-                              type="button"
-                              variant="ghost"
-                            >
-                              Reabrir
-                            </Button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
+        <PreDemandasTable
+          items={items}
+          sectorRiskById={sectorRiskById}
+          onQuickAction={(item, action) => {
+            if (action === "aguardando") {
+              setQuickAction({ item, nextStatus: "aguardando_sei", label: "Marcar como aguardando SEI", requireReason: false });
+              return;
+            }
+
+            if (action === "encerrar") {
+              setQuickAction({ item, nextStatus: "encerrada", label: "Encerrar processo", requireReason: true });
+              return;
+            }
+
+            const reopenStatus = getPreferredReopenStatus(item);
+
+            if (!reopenStatus) {
+              return;
+            }
+
+            setQuickAction({
+              item,
+              nextStatus: reopenStatus,
+              label: "Reabrir processo",
+              requireReason: true,
+            });
+          }}
+        />
       )}
 
       <div className="flex flex-col items-center justify-between gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-4 py-3 text-sm text-slate-600 shadow-[0_12px_24px_rgba(20,33,61,0.05)] sm:flex-row">

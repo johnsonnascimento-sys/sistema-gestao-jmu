@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
 import { AppError } from "../errors";
-import type { PreDemandaRepository } from "../repositories/types";
+import type { PreDemandaRepository, PreDemandaAndamentoRepository, PreDemandaTarefaRepository } from "../repositories/types";
 
 const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
@@ -239,8 +239,12 @@ function parseQueueHealthLevels(input: string | string[] | undefined) {
   return normalized as QueueHealthLevel[];
 }
 
-export async function registerPreDemandaRoutes(app: FastifyInstance, options: { preDemandaRepository: PreDemandaRepository }) {
-  const { preDemandaRepository } = options;
+export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
+  preDemandaRepository: PreDemandaRepository,
+  preDemandaAndamentoRepository: PreDemandaAndamentoRepository,
+  preDemandaTarefaRepository: PreDemandaTarefaRepository
+}) {
+  const { preDemandaRepository, preDemandaAndamentoRepository, preDemandaTarefaRepository } = options;
 
   app.post("/api/pre-demandas", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (request, reply) => {
     const payload = createSchema.parse(request.body);
@@ -515,7 +519,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.post("/api/pre-demandas/:preId/andamentos", { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = andamentoSchema.parse(request.body);
-    const andamento = await preDemandaRepository.addAndamento({
+    const andamento = await preDemandaAndamentoRepository.addAndamento({
       preId: params.preId,
       descricao: payload.descricao,
       dataHora: payload.data_hora ?? null,
@@ -532,7 +536,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.patch("/api/pre-demandas/:preId/andamentos/:andamentoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), andamentoId: z.string().uuid() }).parse(request.params);
     const payload = andamentoSchema.parse(request.body);
-    const andamento = await preDemandaRepository.updateAndamento({
+    const andamento = await preDemandaAndamentoRepository.updateAndamento({
       preId: params.preId,
       andamentoId: params.andamentoId,
       descricao: payload.descricao,
@@ -550,7 +554,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.delete("/api/pre-demandas/:preId/andamentos/:andamentoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), andamentoId: z.string().uuid() }).parse(request.params);
     andamentoDeleteSchema.parse(request.body ?? {});
-    const result = await preDemandaRepository.removeAndamento({
+    const result = await preDemandaAndamentoRepository.removeAndamento({
       preId: params.preId,
       andamentoId: params.andamentoId,
       changedByUserId: request.user!.id,
@@ -565,7 +569,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
 
   app.get("/api/pre-demandas/:preId/tarefas", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
-    const tarefas = await preDemandaRepository.listTarefas(params.preId);
+    const tarefas = await preDemandaTarefaRepository.listTarefas(params.preId);
     return reply.send({
       ok: true,
       data: tarefas,
@@ -576,7 +580,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.post("/api/pre-demandas/:preId/tarefas", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = tarefaSchema.parse(request.body);
-    const tarefa = await preDemandaRepository.createTarefa({
+    const tarefa = await preDemandaTarefaRepository.createTarefa({
       preId: params.preId,
       descricao: payload.descricao,
       tipo: payload.tipo,
@@ -598,7 +602,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.patch("/api/pre-demandas/:preId/tarefas/:tarefaId", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
     const payload = tarefaSchema.parse(request.body);
-    const tarefa = await preDemandaRepository.updateTarefa({
+    const tarefa = await preDemandaTarefaRepository.updateTarefa({
       preId: params.preId,
       tarefaId: params.tarefaId,
       descricao: payload.descricao,
@@ -620,7 +624,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
   app.patch("/api/pre-demandas/:preId/tarefas/ordem", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = tarefaOrderSchema.parse(request.body);
-    const tarefas = await preDemandaRepository.reorderTarefas({
+    const tarefas = await preDemandaTarefaRepository.reorderTarefas({
       preId: params.preId,
       tarefaIds: payload.tarefa_ids,
       changedByUserId: request.user!.id,
@@ -635,7 +639,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
 
   app.delete("/api/pre-demandas/:preId/tarefas/:tarefaId", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
-    const result = await preDemandaRepository.removeTarefa({
+    const result = await preDemandaTarefaRepository.removeTarefa({
       preId: params.preId,
       tarefaId: params.tarefaId,
       changedByUserId: request.user!.id,
@@ -746,7 +750,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
 
   app.patch("/api/pre-demandas/:preId/tarefas/:tarefaId/concluir", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
-    const tarefa = await preDemandaRepository.concluirTarefa({
+    const tarefa = await preDemandaTarefaRepository.concluirTarefa({
       preId: params.preId,
       tarefaId: params.tarefaId,
       changedByUserId: request.user!.id,

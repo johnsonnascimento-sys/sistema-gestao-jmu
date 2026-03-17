@@ -426,6 +426,22 @@ export interface AssuntoRepository {
   update(input: UpdateAssuntoInput): Promise<Assunto>;
 }
 
+export interface PreDemandaAndamentoRepository {
+  listAndamentos(preId: string): Promise<Andamento[]>;
+  addAndamento(input: AddAndamentoInput): Promise<Andamento>;
+  updateAndamento(input: UpdateAndamentoInput): Promise<Andamento>;
+  removeAndamento(input: RemoveAndamentoInput): Promise<{ removedId: string }>;
+}
+
+export interface PreDemandaTarefaRepository {
+  listTarefas(preId: string): Promise<TarefaPendente[]>;
+  createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
+  updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
+  reorderTarefas(input: ReorderTarefasInput): Promise<TarefaPendente[]>;
+  removeTarefa(input: RemoveTarefaInput): Promise<{ removedId: string }>;
+  concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;
+}
+
 export interface PreDemandaRepository {
   create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult>;
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
@@ -443,15 +459,6 @@ export interface PreDemandaRepository {
   removeNumeroJudicial(input: RemoveNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
   tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;
   concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput): Promise<PreDemandaDetail>;
-  addAndamento(input: AddAndamentoInput): Promise<Andamento>;
-  updateAndamento(input: UpdateAndamentoInput): Promise<Andamento>;
-  removeAndamento(input: RemoveAndamentoInput): Promise<{ removedId: string }>;
-  listTarefas(preId: string): Promise<TarefaPendente[]>;
-  createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
-  updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
-  reorderTarefas(input: ReorderTarefasInput): Promise<TarefaPendente[]>;
-  removeTarefa(input: RemoveTarefaInput): Promise<{ removedId: string }>;
-  concluirTarefa(input: ConcluirTarefaInput): Promise<TarefaPendente>;
   listComentarios(preId: string): Promise<DemandaComentario[]>;
   createComentario(input: CreateComentarioInput): Promise<DemandaComentario>;
   updateComentario(input: UpdateComentarioInput): Promise<DemandaComentario>;
