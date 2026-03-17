@@ -1937,6 +1937,65 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     }
   }
 
+  private getProximaDataRecorrente(input: {
+    prazoConclusao: string;
+    recorrenciaTipo: TarefaRecorrenciaTipo | null;
+    recorrenciaDiasSemana: string[] | null;
+    recorrenciaDiaMes: number | null;
+  }) {
+    if (!input.recorrenciaTipo) {
+      return null;
+    }
+
+    const current = new Date(`${input.prazoConclusao}T00:00:00`);
+
+    if (input.recorrenciaTipo === "diaria") {
+      current.setDate(current.getDate() + 1);
+      return current.toISOString().slice(0, 10);
+    }
+
+    if (input.recorrenciaTipo === "semanal") {
+      const weekdayMap = new Map<string, number>([
+        ["dom", 0],
+        ["seg", 1],
+        ["ter", 2],
+        ["qua", 3],
+        ["qui", 4],
+        ["sex", 5],
+        ["sab", 6],
+      ]);
+      const targets = (input.recorrenciaDiasSemana ?? [])
+        .map((value) => weekdayMap.get(String(value).slice(0, 3).toLowerCase()))
+        .filter((value): value is number => value !== undefined)
+        .sort((left, right) => left - right);
+
+      if (!targets.length) {
+        current.setDate(current.getDate() + 7);
+        return current.toISOString().slice(0, 10);
+      }
+
+      for (let offset = 1; offset <= 7; offset += 1) {
+        const candidate = new Date(current);
+        candidate.setDate(candidate.getDate() + offset);
+        if (targets.includes(candidate.getDay())) {
+          return candidate.toISOString().slice(0, 10);
+        }
+      }
+    }
+
+    if (input.recorrenciaTipo === "mensal") {
+      const day = input.recorrenciaDiaMes ?? current.getDate();
+      const year = current.getUTCFullYear();
+      const month = current.getUTCMonth() + 1;
+      const nextMonthDate = new Date(Date.UTC(year, month, 1));
+      const lastDay = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
+      nextMonthDate.setUTCDate(Math.min(day, lastDay));
+      return nextMonthDate.toISOString().slice(0, 10);
+    }
+
+    return null;
+  }
+
   async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
@@ -2577,8 +2636,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       const demanda = await getResolvedPreDemanda(client, input.preId);
       const current = await client.query(
         `
-          select id, descricao, concluida
+          select id, descricao, concluida, tipo, ordem, assunto_id, procedimento_id
                , setor_destino_id
+               , prazo_conclusao, recorrencia_tipo, recorrencia_dias_semana, recorrencia_dia_mes, gerada_automaticamente
           from adminlog.tarefas_pendentes
           where id = $1::uuid and pre_demanda_id = $2
           limit 1
@@ -2603,6 +2663,71 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `,
         [input.tarefaId, demanda.id, input.changedByUserId],
       );
+
+      const proximaDataRecorrente = this.getProximaDataRecorrente({
+        prazoConclusao: new Date(current.rows[0].prazo_conclusao).toISOString().slice(0, 10),
+        recorrenciaTipo: current.rows[0].recorrencia_tipo ? (String(current.rows[0].recorrencia_tipo) as TarefaRecorrenciaTipo) : null,
+        recorrenciaDiasSemana: Array.isArray(current.rows[0].recorrencia_dias_semana)
+          ? current.rows[0].recorrencia_dias_semana.filter((item: unknown): item is string => typeof item === "string")
+          : null,
+        recorrenciaDiaMes: typeof current.rows[0].recorrencia_dia_mes === "number"
+          ? current.rows[0].recorrencia_dia_mes
+          : current.rows[0].recorrencia_dia_mes
+            ? Number(current.rows[0].recorrencia_dia_mes)
+            : null,
+      });
+
+      if (proximaDataRecorrente && new Date(`${proximaDataRecorrente}T00:00:00`).getTime() <= new Date(`${demanda.prazoProcesso}T00:00:00`).getTime()) {
+        const ordemResult = await client.query(
+          `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
+          [demanda.id],
+        );
+        const nextOrdem = Number(ordemResult.rows[0]?.max_ordem ?? current.rows[0].ordem ?? 0) + 1;
+
+        await client.query(
+          `
+            insert into adminlog.tarefas_pendentes (
+              pre_demanda_id,
+              ordem,
+              descricao,
+              tipo,
+              assunto_id,
+              procedimento_id,
+              prazo_conclusao,
+              recorrencia_tipo,
+              recorrencia_dias_semana,
+              recorrencia_dia_mes,
+              setor_destino_id,
+              gerada_automaticamente,
+              created_by_user_id
+            )
+            values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8, $9::jsonb, $10::int, $11::uuid, $12, $13)
+          `,
+          [
+            demanda.id,
+            nextOrdem,
+            String(current.rows[0].descricao),
+            String(current.rows[0].tipo),
+            current.rows[0].assunto_id ?? null,
+            current.rows[0].procedimento_id ?? null,
+            proximaDataRecorrente,
+            current.rows[0].recorrencia_tipo ?? null,
+            current.rows[0].recorrencia_dias_semana ? JSON.stringify(current.rows[0].recorrencia_dias_semana) : null,
+            current.rows[0].recorrencia_dia_mes ?? null,
+            current.rows[0].setor_destino_id ?? null,
+            Boolean(current.rows[0].gerada_automaticamente),
+            input.changedByUserId,
+          ],
+        );
+
+        await this.insertAndamento(client, {
+          preDemandaId: demanda.id,
+          preId: demanda.preId,
+          descricao: `Nova ocorrencia gerada para a tarefa recorrente ${String(current.rows[0].descricao)} com prazo em ${new Date(`${proximaDataRecorrente}T00:00:00`).toLocaleDateString("pt-BR")}.`,
+          tipo: "sistema",
+          createdByUserId: input.changedByUserId,
+        });
+      }
 
       if (current.rows[0].setor_destino_id) {
         await this.activateSetorFromTarefa(client, {

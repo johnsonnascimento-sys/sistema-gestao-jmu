@@ -96,6 +96,56 @@ function addDays(value: string, amount: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function getNextRecurringDate(input: {
+  prazoConclusao: string;
+  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+  recorrenciaDiasSemana?: string[] | null;
+  recorrenciaDiaMes?: number | null;
+}) {
+  if (!input.recorrenciaTipo) {
+    return null;
+  }
+
+  if (input.recorrenciaTipo === "diaria") {
+    return addDays(input.prazoConclusao, 1);
+  }
+
+  if (input.recorrenciaTipo === "semanal") {
+    const weekdayMap = new Map<string, number>([
+      ["dom", 0],
+      ["seg", 1],
+      ["ter", 2],
+      ["qua", 3],
+      ["qui", 4],
+      ["sex", 5],
+      ["sab", 6],
+    ]);
+    const targets = (input.recorrenciaDiasSemana ?? [])
+      .map((value) => weekdayMap.get(String(value).slice(0, 3).toLowerCase()))
+      .filter((value): value is number => value !== undefined)
+      .sort((left, right) => left - right);
+    if (!targets.length) {
+      return addDays(input.prazoConclusao, 7);
+    }
+    const current = new Date(`${input.prazoConclusao}T00:00:00`);
+    for (let offset = 1; offset <= 7; offset += 1) {
+      const candidate = new Date(current);
+      candidate.setDate(candidate.getDate() + offset);
+      if (targets.includes(candidate.getDay())) {
+        return candidate.toISOString().slice(0, 10);
+      }
+    }
+    return addDays(input.prazoConclusao, 7);
+  }
+
+  const current = new Date(`${input.prazoConclusao}T00:00:00`);
+  const day = input.recorrenciaDiaMes ?? current.getUTCDate();
+  const nextMonthDate = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 1, 1));
+  const lastDay = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
+  nextMonthDate.setUTCDate(Math.min(day, lastDay));
+  return nextMonthDate.toISOString().slice(0, 10);
+}
+
 class InMemoryUserRepository implements UserRepository {
   private users = new Map<number, AppUser>();
   private audit: AdminUserAuditRecord[] = [];
@@ -1160,6 +1210,27 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         });
       }
       this.addAndamentoRecord(record, `Processo remetido para ${tarefa.setorDestino.sigla}.`, "tramitacao");
+    }
+    const proximaData = getNextRecurringDate({
+      prazoConclusao: tarefa.prazoConclusao ?? record.prazoProcesso!,
+      recorrenciaTipo: tarefa.recorrenciaTipo ?? null,
+      recorrenciaDiasSemana: tarefa.recorrenciaDiasSemana ?? null,
+      recorrenciaDiaMes: tarefa.recorrenciaDiaMes ?? null,
+    });
+    if (proximaData && new Date(`${proximaData}T00:00:00`).getTime() <= new Date(`${record.prazoProcesso}T00:00:00`).getTime()) {
+      record.tarefasPendentes.push({
+        ...tarefa,
+        id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
+        ordem: record.tarefasPendentes.length + 1,
+        concluida: false,
+        concluidaEm: null,
+        concluidaPor: null,
+        prazoConclusao: proximaData,
+        prazoData: proximaData,
+        createdAt: new Date().toISOString(),
+      });
+      record.proximoPrazoTarefa = record.tarefasPendentes.filter((item) => !item.concluida).map((item) => item.prazoConclusao).filter((value): value is string => Boolean(value)).sort()[0] ?? null;
+      this.addAndamentoRecord(record, `Nova ocorrencia gerada para a tarefa recorrente ${tarefa.descricao}.`, "sistema");
     }
     this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
     return tarefa;
@@ -2307,6 +2378,71 @@ describe("Gestor JMU API", () => {
     expect(detail.statusCode).toBe(200);
     expect(detail.json().data.interessados.length).toBeGreaterThanOrEqual(1);
     expect(detail.json().data.tarefasPendentes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("generates the next occurrence when concluding a recurring task", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Carlos Recorrente",
+        assunto: "Fluxo recorrente",
+        data_referencia: "2026-03-10",
+        prazo_processo: "2026-03-20",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const preId = created.json().data.preId as string;
+
+    const tarefa = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/tarefas`,
+      headers: { cookie },
+      payload: {
+        descricao: "Revisar fila",
+        tipo: "livre",
+        prazo_conclusao: "2026-03-12",
+        recorrencia_tipo: "diaria",
+      },
+    });
+
+    expect(tarefa.statusCode).toBe(201);
+    const tarefaId = tarefa.json().data.id as string;
+
+    const concluida = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
+      headers: { cookie },
+    });
+
+    expect(concluida.statusCode).toBe(200);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie },
+    });
+
+    expect(detail.statusCode).toBe(200);
+    const tarefasPendentes = detail.json().data.tarefasPendentes.filter((item: { concluida: boolean }) => !item.concluida);
+    expect(
+      tarefasPendentes.some(
+        (item: { descricao: string; prazoConclusao: string; recorrenciaTipo: string }) =>
+          item.descricao === "Revisar fila" && item.prazoConclusao === "2026-03-13" && item.recorrenciaTipo === "diaria",
+      ),
+    ).toBe(true);
   });
 
   it("supports normas base repository CRUD", async () => {

@@ -105,6 +105,19 @@ const WEEKDAY_OPTIONS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"] as con
 const selectClassName =
   "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
 
+function formatRecorrenciaLabel(task: Pick<TarefaPendente, "recorrenciaTipo" | "recorrenciaDiasSemana" | "recorrenciaDiaMes">) {
+  if (!task.recorrenciaTipo) {
+    return null;
+  }
+  if (task.recorrenciaTipo === "diaria") {
+    return "Recorrente diaria";
+  }
+  if (task.recorrenciaTipo === "semanal") {
+    return task.recorrenciaDiasSemana?.length ? `Recorrente semanal (${task.recorrenciaDiasSemana.join(", ")})` : "Recorrente semanal";
+  }
+  return task.recorrenciaDiaMes ? `Recorrente mensal (dia ${task.recorrenciaDiaMes})` : "Recorrente mensal";
+}
+
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
   const navigate = useNavigate();
@@ -907,11 +920,25 @@ export function PreDemandaDetailPage() {
                         onDrop={() => void handleReorderPendingTasks(task.id)}
                       >
                         <div className="flex items-start gap-3">
-                          <input className="mt-1 h-4 w-4 accent-slate-950" onChange={() => void runMutation(() => concluirPreDemandaTarefa(preId, task.id).then(() => undefined), "Tarefa concluida.")} type="checkbox" />
+                          <input
+                            className="mt-1 h-4 w-4 accent-slate-950"
+                            onChange={() =>
+                              void runMutation(
+                                () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+                                formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
+                              )
+                            }
+                            type="checkbox"
+                          />
                           <div className="min-w-0 flex-1">
                             <span className="block font-semibold text-slate-950">{task.descricao}</span>
                             <span className="text-sm text-slate-500">{task.tipo}</span>
                             {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {new Date(task.prazoConclusao).toLocaleDateString("pt-BR")}</span> : null}
+                            {formatRecorrenciaLabel(task) ? (
+                              <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-800 ring-1 ring-sky-200">
+                                {formatRecorrenciaLabel(task)}
+                              </span>
+                            ) : null}
                             {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
                             {task.geradaAutomaticamente ? <span className="mt-1 block text-xs text-slate-500">Gerada automaticamente pelo fluxo do assunto.</span> : null}
                           </div>
@@ -938,6 +965,7 @@ export function PreDemandaDetailPage() {
                         <p className="font-semibold text-emerald-950">{task.descricao}</p>
                         <p className="text-sm text-emerald-800">Concluida em {task.concluidaEm ? new Date(task.concluidaEm).toLocaleString("pt-BR") : "-"}</p>
                         <p className="mt-1 text-xs text-emerald-900/80">{task.tipo}{task.concluidaPor ? ` • ${task.concluidaPor.name}` : ""}</p>
+                        {formatRecorrenciaLabel(task) ? <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-900">{formatRecorrenciaLabel(task)}</p> : null}
                       </div>
                     ))
                   )}
@@ -970,7 +998,7 @@ export function PreDemandaDetailPage() {
                             <tr className="border-t border-slate-200" key={`table-${task.id}`}>
                               <td className="px-4 py-3 font-semibold text-slate-950">{task.ordem}</td>
                               <td className="px-4 py-3 text-slate-950">{task.descricao}</td>
-                              <td className="px-4 py-3 text-slate-600">{task.tipo}</td>
+                              <td className="px-4 py-3 text-slate-600">{task.tipo}{formatRecorrenciaLabel(task) ? ` • ${formatRecorrenciaLabel(task)}` : ""}</td>
                               <td className="px-4 py-3 text-slate-600">{task.prazoConclusao ? new Date(task.prazoConclusao).toLocaleDateString("pt-BR") : "-"}</td>
                               <td className="px-4 py-3 text-slate-600">{task.setorDestino ? `${task.setorDestino.sigla} - ${task.setorDestino.nomeCompleto}` : "-"}</td>
                               <td className="px-4 py-3 text-slate-600">{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lançamento manual"}</td>
