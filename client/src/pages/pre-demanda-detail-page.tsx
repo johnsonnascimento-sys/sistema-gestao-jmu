@@ -146,6 +146,9 @@ export function PreDemandaDetailPage() {
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
+  const [signatureSearch, setSignatureSearch] = useState("");
+  const [signatureSearchResults, setSignatureSearchResults] = useState<Interessado[]>([]);
+  const [signatureExpanded, setSignatureExpanded] = useState(false);
   const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", cargo: "", matricula: "", cpf: "" });
   const [processSearch, setProcessSearch] = useState("");
   const isSeiValid = isValidSei(associationForm.sei_numero);
@@ -251,6 +254,23 @@ export function PreDemandaDetailPage() {
       active = false;
     };
   }, [interessadoSearch]);
+
+  useEffect(() => {
+    if (!signatureExpanded || signatureSearch.trim().length < 2) {
+      setSignatureSearchResults([]);
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const result = await listPessoas({ q: signatureSearch, page: 1, pageSize: 8 });
+        if (active) setSignatureSearchResults(result.items);
+      } catch {
+        if (active) setSignatureSearchResults([]);
+      }
+    })();
+    return () => { active = false; };
+  }, [signatureSearch, signatureExpanded]);
 
   useEffect(() => {
     if (!editingAndamento) {
@@ -872,20 +892,69 @@ export function PreDemandaDetailPage() {
               ) : null}
 
               {requiresTaskSignaturePerson ? (
-                <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                  <select
-                    className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
-                    onChange={(event) => setTaskForm((current) => ({ ...current, assinatura_interessado_id: event.target.value }))}
-                    value={taskForm.assinatura_interessado_id}
-                  >
-                    <option value="">Escolha a pessoa para assinatura</option>
-                    {record.interessados.map((item) => (
-                      <option key={item.interessado.id} value={item.interessado.id}>
-                        {item.interessado.nome}{item.interessado.cargo ? ` - ${item.interessado.cargo}` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-500 md:self-center">A tarefa será nomeada automaticamente com o nome da pessoa.<br />Cadastre a pessoa em "Pessoas vinculadas" caso nao apareça.</p>
+                <div className="grid gap-3">
+                  <div className="grid gap-2 rounded-[20px] border border-slate-200 bg-slate-50/80 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Pessoas vinculadas ao processo</p>
+                    {record.interessados.length === 0 ? (
+                      <p className="text-xs text-slate-400">Nenhuma pessoa vinculada a este processo.</p>
+                    ) : (
+                      <div className="grid gap-2">
+                        {record.interessados.map((item) => (
+                          <button
+                            className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${
+                              taskForm.assinatura_interessado_id === item.interessado.id
+                                ? "border-indigo-300 bg-indigo-50 text-indigo-900"
+                                : "border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40"
+                            }`}
+                            key={item.interessado.id}
+                            onClick={() => setTaskForm((current) => ({ ...current, assinatura_interessado_id: item.interessado.id }))}
+                            type="button"
+                          >
+                            <span className="font-medium">{item.interessado.nome}{item.interessado.cargo ? <span className="ml-1 text-xs font-normal text-slate-500">- {item.interessado.cargo}</span> : null}</span>
+                            {taskForm.assinatura_interessado_id === item.interessado.id ? <span className="text-xs font-semibold text-indigo-600">✓ Selecionado</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      className="mt-1 flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 transition-colors"
+                      onClick={() => { setSignatureExpanded(!signatureExpanded); setSignatureSearch(""); setSignatureSearchResults([]); }}
+                      type="button"
+                    >
+                      {signatureExpanded ? "▲ Recolher busca" : "▼ Buscar outra pessoa cadastrada"}
+                    </button>
+
+                    {signatureExpanded ? (
+                      <div className="grid gap-2">
+                        <input
+                          className="h-10 rounded-full border border-slate-200 bg-white px-4 text-sm"
+                          onChange={(e) => setSignatureSearch(e.target.value)}
+                          placeholder="Buscar por nome..."
+                          value={signatureSearch}
+                        />
+                        {signatureSearch.trim().length >= 2 && signatureSearchResults.length === 0 ? (
+                          <p className="text-xs text-slate-400">Nenhuma pessoa encontrada.</p>
+                        ) : null}
+                        {signatureSearchResults.map((item) => (
+                          <button
+                            className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${
+                              taskForm.assinatura_interessado_id === item.id
+                                ? "border-indigo-300 bg-indigo-50 text-indigo-900"
+                                : "border-slate-200 bg-white hover:border-indigo-200"
+                            }`}
+                            key={item.id}
+                            onClick={() => setTaskForm((current) => ({ ...current, assinatura_interessado_id: item.id }))}
+                            type="button"
+                          >
+                            <span className="font-medium">{item.nome}{item.cargo ? <span className="ml-1 text-xs font-normal text-slate-500">- {item.cargo}</span> : null}</span>
+                            {taskForm.assinatura_interessado_id === item.id ? <span className="text-xs font-semibold text-indigo-600">✓ Selecionado</span> : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-slate-500">A tarefa será nomeada automaticamente com o nome da pessoa selecionada.</p>
                 </div>
               ) : null}
 
