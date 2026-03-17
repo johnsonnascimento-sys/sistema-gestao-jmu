@@ -40,3 +40,8 @@ Você é o Arquiteto do "Sistema de Gestão JMU". Siga estas regras estritamente
 
 ## 5. Idioma
 - Documentação e código em **Português do Brasil (PT-BR)**.
+
+## 6. Padrões de Código (Clean Code / Modularidade)
+- **Evite Arquivos Monolíticos:** Qualquer arquivo (frontend ou backend) que passe de 500-800 linhas DEVE ser refatorado e dividido por responsabilidade.
+- **Separação de Preocupações (SoC):** Types, Helpers (utils), UI components e Repositórios de Banco de Dados devem viver isolados.
+- **Injeção de Dependências:** No Backend, injete módulos e repositórios separados nas rotas para manter a facilidade de teste e legibilidade.

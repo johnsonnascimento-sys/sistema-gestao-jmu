@@ -175,3 +175,22 @@ O painel de busca RAG é implementado no Appsmith (Fase 2) com 2 caminhos:
 Observação sobre modelos:
 - Com API key do Google AI Studio, o modelo usado para `embedContent` foi `models/gemini-embedding-001` com `outputDimensionality=768`.
 - `text-embedding-004` não estava disponível para `embedContent` no endpoint `v1beta` nesse setup.
+
+---
+
+## 7. Organização e Padrões de Código (Adicionado em 17/03/2026)
+
+Para manter a saúde do projeto ("Gestor JMU Web"), as seguintes diretrizes arquiteturais de código foram estabelecidas, evitando o padrão "God Object" que cresceu nas fases iniciais:
+
+### 7.1 Backend (Node.js/Typescript)
+- **Repositórios de Banco de Dados:** Não devem ultrapassar 1000 linhas. Funções complexas, como controle de `Tarefas` e `Andamentos` que pertencem a um contexto (`Pre-Demandas`), devem ser alocadas em repositórios isolados (ex: `postgres-pre-demanda-tarefa-repository.ts`).
+- **Injeção de Dependências:** Os arquivos de rotas recebem instâncias dos repositórios via injeção (`options` no `Fastify`), permitindo testabilidade e divisão fácil do banco.
+- **Arquivos Úteis (`utils`):** Transações genéricas e _mapeadores_ (DTOs / Row-to-Object) são mantidos em utilitários à parte (e.g. `postgres-pre-demanda-utils.ts`).
+
+### 7.2 Frontend (React)
+- **Componentização Avançada:** Arquivos de página originais (ex: `pre-demandas-page.tsx`) devem agir apenas como orquestradores de estado de alto nível.
+- **Fragmentação Funcional:** Toda interface visual e lógica derivada deve ser externalizada:
+  - Componentes React puros (ex: Tabelas, Inputs visuais) vão em arquivos `-ui` ou complemetares como `-table.tsx`.
+  - Formulários/Modais seguem isolados (ex: `-dialogs.tsx`).
+  - Funções de transformação de dados pura saem para arquivos utilitários (ex: `-utils.ts`).
+  - Constantes estáticas e `types` compartilhados ficam centralizados em `-types.ts`.
