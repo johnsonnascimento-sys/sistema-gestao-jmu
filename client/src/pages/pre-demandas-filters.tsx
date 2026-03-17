@@ -224,11 +224,11 @@ export function PreDemandasFilters({
             </select>
           </FormField>
 
-          <FormField label="Envolvidos">
+          <FormField label="Pessoa">
             <select className={selectClassName} onChange={(event) => setHasInteressados(event.target.value as "" | "true" | "false")} value={hasInteressados}>
               <option value="">Todos</option>
-              <option value="true">Com envolvidos</option>
-              <option value="false">Sem envolvidos</option>
+              <option value="true">Com pessoa</option>
+              <option value="false">Sem pessoa</option>
             </select>
           </FormField>
 

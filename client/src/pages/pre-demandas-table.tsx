@@ -37,7 +37,7 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                 <th className="px-3 py-3">Proxima tarefa</th>
                 <th className="px-3 py-3">Sinal</th>
                 <th className="px-3 py-3">SEI</th>
-                <th className="px-3 py-3">Envolvidos</th>
+                <th className="px-3 py-3">Pessoa</th>
                 <th className="px-3 py-3">Data</th>
                 <th className="px-3 py-3">Acoes</th>
               </tr>
