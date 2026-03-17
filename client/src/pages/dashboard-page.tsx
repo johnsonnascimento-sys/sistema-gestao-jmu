@@ -7,10 +7,13 @@ import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Skeleton } from "../components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, getDashboardSummary } from "../lib/api";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { motion } from "framer-motion";
 
 function buildAnalyticalTableHref(overrides: Record<string, string>) {
   const search = new URLSearchParams({ view: "table", page: "1", ...overrides });
@@ -57,7 +60,41 @@ export function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <LoadingState description="Estamos montando o resumo operacional do dia." title="Preparando dashboard" />;
+    return (
+      <section className="grid gap-6 animate-in fade-in duration-500">
+        <div className="flex justify-between items-start">
+          <div className="grid gap-3">
+            <Skeleton className="h-5 w-32 rounded-full" />
+            <Skeleton className="h-10 w-64 rounded-xl" />
+            <Skeleton className="h-4 w-96 rounded-full" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32 rounded-lg" />
+            <Skeleton className="h-10 w-32 rounded-lg" />
+          </div>
+        </div>
+        
+        <div className="flex gap-2 -mt-2">
+          <Skeleton className="h-8 w-32 rounded-full" />
+          <Skeleton className="h-8 w-28 rounded-full" />
+          <Skeleton className="h-8 w-32 rounded-full" />
+          <Skeleton className="h-8 w-24 rounded-full" />
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-[24px]" />
+          ))}
+        </div>
+
+        <Skeleton className="h-[200px] w-full rounded-[32px]" />
+
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <Skeleton className="h-[600px] rounded-[32px]" />
+          <Skeleton className="h-[600px] rounded-[32px]" />
+        </div>
+      </section>
+    );
   }
 
   if (error) {
@@ -147,33 +184,49 @@ export function DashboardPage() {
   }
 
   return (
-    <section className="grid gap-6">
-      <PageHeader
-        actions={
-          <div className="flex gap-2">
-            <Button asChild variant="secondary">
-              <Link to="/pre-demandas?preset=fila-operacional">Fila Operacional</Link>
-            </Button>
-            <Button asChild>
-              <Link to="/pre-demandas/nova">Novo processo</Link>
-            </Button>
-          </div>
-        }
-        description="Visão operacional diária. Acompanhe gargalos, priorize urgências e acompanhe movimentos recentes."
-        eyebrow="Visão geral"
-        title="Dashboard do Gestor"
-      />
+    <div className="grid gap-6">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      >
+        <PageHeader
+          actions={
+            <div className="flex gap-2">
+              <Button asChild variant="secondary">
+                <Link to="/pre-demandas?preset=fila-operacional">Fila Operacional</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/pre-demandas/nova">Novo processo</Link>
+              </Button>
+            </div>
+          }
+          description="Visão operacional diária. Acompanhe gargalos, priorize urgências e acompanhe movimentos recentes."
+          eyebrow="Visão geral"
+          title="Dashboard do Gestor"
+        />
+      </motion.div>
 
-      <div className="flex flex-wrap gap-2 -mt-4">
+      <motion.div 
+        className="flex flex-wrap gap-2 -mt-4"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
+      >
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=aguardando-sei">Aguardando SEI</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=fila-parada">Fila Parada</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=criticas">Críticas</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white text-rose-600 border-rose-200"><Link to="/pre-demandas?preset=prazos-vencidos">Prazos Vencidos</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=ultimas-encerradas">Últimos Encerrados</Link></Button>
         <Button asChild variant="ghost" size="sm" className="h-8"><Link to="/pre-demandas">Acessar Busca Avançada &rarr;</Link></Button>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8">
+      <motion.div 
+        className="grid gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2, ease: "easeOut" }}
+      >
         {summary.counts.map((item) => (
           <MetricCard key={item.status} label={item.status.replace("_", " ")} to={statusMetricHref[item.status]} value={item.total} />
         ))}
@@ -183,78 +236,153 @@ export function DashboardPage() {
         <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.deadlines.processo.dueSoonTotal} />
         <MetricCard label="Sem setor" to={buildAnalyticalTableHref({ preset: "sem-setor" })} value={summary.withoutSetorTotal} />
         <MetricCard label="Sem envolvidos" to={buildAnalyticalTableHref({ preset: "sem-envolvidos" })} value={summary.withoutInteressadosTotal} />
-      </div>
+      </motion.div>
 
-      <Card className="border-white/60 bg-white/50 backdrop-blur-xl shadow-xl rounded-[32px] overflow-hidden">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-light tracking-tight text-slate-800">Radar de Prazos</CardTitle>
-          <CardDescription className="text-slate-500">Prazos do processo, tarefas e consumo do tempo geral.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 xl:grid-cols-3">
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+      >
+        <Card className="border-white/60 bg-white/50 backdrop-blur-xl shadow-xl rounded-[32px] overflow-hidden">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Radar de Prazos</CardTitle>
+            <CardDescription className="text-slate-500">Prazos do processo, tarefas e consumo do tempo geral.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 xl:grid-cols-3">
           {[
             { id: "processo", label: "Prazo do processo", campo: "prazoProcesso", secondary: null },
             { id: "tarefas", label: "Prazos das tarefas", campo: "proximoPrazoTarefa", secondary: "totalPending" },
             { id: "sinal", label: "Consumo do prazo", campo: "prazoProcesso", secondary: "signal" },
           ].map((item) => {
             if (item.id === "sinal") {
+              const data = [
+                { name: 'Crítico', value: summary.processosCriticosPrazo, color: '#f43f5e' },
+                { name: 'Atenção', value: summary.processosEmAtencaoPrazo, color: '#f59e0b' },
+              ].filter(d => d.value > 0);
+              
+              const total = summary.processosCriticosPrazo + summary.processosEmAtencaoPrazo;
+
               return (
-                <article className="group relative grid gap-3 overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
+                <article className="group relative grid grid-cols-[1fr_100px] gap-3 items-center overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
                   <div className="absolute inset-0 bg-gradient-to-br from-sky-50/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  <div className="relative z-10">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
-                    <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{summary.processosCriticosPrazo}</h3>
-                    <p className="text-sm font-medium text-slate-400">processos críticos</p>
+                  <div className="relative z-10 flex flex-col h-full justify-between">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                      <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{summary.processosCriticosPrazo}</h3>
+                      <p className="text-sm font-medium text-slate-400">processos críticos</p>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-xs font-medium text-slate-600">
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Crítico: {summary.processosCriticosPrazo}</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Atenção: {summary.processosEmAtencaoPrazo}</div>
+                    </div>
                   </div>
-                  <div className="relative z-10 grid gap-2 text-sm text-slate-600">
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2">Critico: {summary.processosCriticosPrazo}</div>
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2">Atencao: {summary.processosEmAtencaoPrazo}</div>
-                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2">Normal: monitorado na fila do processo</div>
+                  <div className="relative z-10 h-[100px] w-[100px]">
+                    {total > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={data} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" stroke="none">
+                            {data.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} itemStyle={{ color: '#334155' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center rounded-full border border-dashed border-slate-300">
+                        <span className="text-[10px] font-medium text-slate-400">Zeradão!</span>
+                      </div>
+                    )}
                   </div>
                 </article>
               );
             }
             const metrics = summary.deadlines[item.id as "processo" | "tarefas"];
+            const data = [
+              { name: 'Vencidos', value: metrics.overdueTotal, color: '#f43f5e' },
+              { name: 'Vence hoje', value: metrics.dueTodayTotal, color: '#f59e0b' },
+              { name: 'Na semana', value: metrics.dueSoonTotal, color: '#0ea5e9' }
+            ].filter(d => d.value > 0);
+
+            const total = metrics.overdueTotal + metrics.dueTodayTotal + metrics.dueSoonTotal;
+
             return (
-              <article className="group relative grid gap-3 overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
+              <article className="group relative grid grid-cols-[1fr_100px] gap-3 items-center overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
                 <div className="absolute inset-0 bg-gradient-to-br from-sky-50/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                <div className="relative z-10">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
-                  <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{item.id === "tarefas" ? metrics.totalPending : metrics.totalDefined}</h3>
-                  <p className="text-sm font-medium text-slate-400">{item.id === "tarefas" ? "tarefas pendentes com prazo" : "processos com prazo"}</p>
+                <div className="relative z-10 flex flex-col h-full justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                    <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">
+                      {"totalPending" in metrics ? metrics.totalPending : metrics.totalDefined}
+                    </h3>
+                    <p className="text-xs font-medium text-slate-400">{"totalPending" in metrics ? "tarefas pendentes" : "processos com prazo"}</p>
+                  </div>
+                  <div className="mt-4 grid gap-2 text-xs font-medium text-slate-600">
+                    <Link className="flex w-fit items-center gap-2 hover:text-rose-600 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}><div className="w-2 h-2 rounded-full bg-rose-500"></div>Vencidos: {metrics.overdueTotal}</Link>
+                    <Link className="flex w-fit items-center gap-2 hover:text-amber-600 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "today" })}><div className="w-2 h-2 rounded-full bg-amber-500"></div>Vence hoje: {metrics.dueTodayTotal}</Link>
+                    <Link className="flex w-fit items-center gap-2 hover:text-sky-600 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "soon" })}><div className="w-2 h-2 rounded-full bg-sky-500"></div>Na semana: {metrics.dueSoonTotal}</Link>
+                  </div>
                 </div>
-                <div className="relative z-10 grid gap-2 text-sm text-slate-600">
-                  <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}>
-                    Vencidos: {metrics.overdueTotal}
-                  </Link>
-                  <Link className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "today" })}>
-                    Vence hoje: {metrics.dueTodayTotal}
-                  </Link>
-                  <Link className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 hover:bg-sky-100 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "soon" })}>
-                    Na semana: {metrics.dueSoonTotal}
-                  </Link>
+                <div className="relative z-10 h-[100px] w-[100px]">
+                  {total > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={data} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" stroke="none">
+                          {data.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} itemStyle={{ color: '#334155' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex h-full items-center justify-center rounded-full border border-dashed border-slate-300">
+                      <span className="text-[10px] font-medium text-slate-400">Tranquilo!</span>
+                    </div>
+                  )}
                 </div>
               </article>
             );
           })}
         </CardContent>
       </Card>
+    </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <motion.div 
+        className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
+      >
         <Card className="h-fit rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-light tracking-tight text-slate-800">Filas de Ação Imediata</CardTitle>
-            <CardDescription className="text-slate-500">Pendências ordenadas por criticidade.</CardDescription>
+            <CardDescription className="text-slate-500">Filas de trabalho prioritárias para desafogar a operação.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="urgentes">
-              <TabsList className="mb-4 w-full flex-wrap justify-start bg-slate-100/50">
-                <TabsTrigger value="urgentes">Urgentes ({summary.urgentItems.length})</TabsTrigger>
-                <TabsTrigger value="pagamento">Pagamento ({summary.paymentMarkedItems.length})</TabsTrigger>
-                <TabsTrigger value="aguardando_sei">Aguardando SEI ({summary.awaitingSeiItems.length})</TabsTrigger>
-                <TabsTrigger value="parados">Processos Parados ({staleItems.length})</TabsTrigger>
-                <TabsTrigger value="pendencias">Pendências ({summary.dueSoonItems.length + summary.withoutSetorItems.length + summary.withoutInteressadosItems.length})</TabsTrigger>
+          <CardContent className="p-0">
+            <Tabs defaultValue="urgentes" className="w-full">
+              <TabsList className="flex flex-wrap h-auto gap-2 p-4 justify-start bg-transparent">
+                <TabsTrigger value="urgentes" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
+                  <span>Urgentes</span>
+                  <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{summary.urgentItems.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="pagamento" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
+                  <span>Pagamento</span>
+                  <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{summary.paymentMarkedItems.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="aguardando_sei" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
+                  <span>Aguardando SEI</span>
+                  <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{summary.awaitingSeiItems.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="parados" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
+                  <span>Parados</span>
+                  <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{staleItems.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="pendencias" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
+                  <span>Pendências</span>
+                  <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{summary.dueSoonItems.length + summary.withoutSetorItems.length + summary.withoutInteressadosItems.length}</span>
+                </TabsTrigger>
               </TabsList>
-              
               <TabsContent value="urgentes" className="grid gap-3">
                 {summary.urgentItems.length === 0 ? (
                   <div className="py-8"><EmptyState description="Nenhum processo marcado como urgente para tratamento imediato." title="Zero Urgências" /></div>
@@ -361,7 +489,7 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </section>
+      </motion.div>
+    </div>
   );
 }
