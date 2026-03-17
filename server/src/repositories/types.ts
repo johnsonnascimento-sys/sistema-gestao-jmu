@@ -27,7 +27,6 @@ import type {
   SeiAssociation,
   SortOrder,
   TarefaPendente,
-  TarefaPrazoReferencia,
   TarefaPendenteTipo,
   TimelineEvent,
 } from "../domain/types";
@@ -62,6 +61,7 @@ export interface CreatePreDemandaInput {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
+  prazoProcesso: string;
   prazoInicial?: string | null;
   prazoIntermediario?: string | null;
   prazoFinal?: string | null;
@@ -109,6 +109,7 @@ export interface UpdatePreDemandaCaseDataInput {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
+  prazoProcesso?: string | null;
   prazoInicial?: string | null;
   prazoIntermediario?: string | null;
   prazoFinal?: string | null;
@@ -197,10 +198,12 @@ export interface CreateTarefaInput {
   preId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
-  prazoReferencia?: TarefaPrazoReferencia | null;
+  prazoConclusao: string;
+  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+  recorrenciaDiasSemana?: string[] | null;
+  recorrenciaDiaMes?: number | null;
+  prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null;
   prazoData?: string | null;
-  confirmarConflito?: boolean;
-  confirmarAlteracaoPrazo?: boolean;
   assuntoId?: string | null;
   procedimentoId?: string | null;
   setorDestinoId?: string | null;
@@ -213,10 +216,12 @@ export interface UpdateTarefaInput {
   tarefaId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
-  prazoReferencia?: TarefaPrazoReferencia | null;
+  prazoConclusao: string;
+  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+  recorrenciaDiasSemana?: string[] | null;
+  recorrenciaDiaMes?: number | null;
+  prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null;
   prazoData?: string | null;
-  confirmarConflito?: boolean;
-  confirmarAlteracaoPrazo?: boolean;
   changedByUserId: number;
 }
 
@@ -296,6 +301,7 @@ export interface ListPreDemandasParams {
   withoutSetor?: boolean;
   dueState?: "overdue" | "due_today" | "due_soon" | "none";
   prazoCampo?: "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+  deadlineCampo?: "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte?: "overdue" | "today" | "soon";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;

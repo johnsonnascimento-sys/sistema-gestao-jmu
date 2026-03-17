@@ -18,12 +18,9 @@ function buildAnalyticalTableHref(overrides: Record<string, string>) {
 
 function formatStructuredDeadlines(item: PreDemanda) {
   return [
-    { label: "Inicial", value: item.prazoInicial },
-    { label: "Intermediario", value: item.prazoIntermediario },
-    { label: "Final", value: item.prazoFinal },
-  ]
-    .map(({ label, value }) => `${label}: ${value ? new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR") : "-"}`)
-    .join(" | ");
+    `Prazo do processo: ${item.prazoProcesso ? new Date(`${item.prazoProcesso}T00:00:00`).toLocaleDateString("pt-BR") : "-"}`,
+    `Proxima tarefa: ${item.proximoPrazoTarefa ? new Date(`${item.proximoPrazoTarefa}T00:00:00`).toLocaleDateString("pt-BR") : "sem tarefas pendentes"}`,
+  ].join(" | ");
 }
 
 export function DashboardPage() {
@@ -110,11 +107,11 @@ export function DashboardPage() {
   ];
 
   function formatPrazo(item: PreDemanda) {
-    if (!item.prazoFinal) {
+    if (!item.prazoProcesso) {
       return "Sem prazo definido";
     }
 
-    const dueDate = new Date(`${item.prazoFinal}T00:00:00`);
+    const dueDate = new Date(`${item.prazoProcesso}T00:00:00`);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
@@ -191,8 +188,8 @@ export function DashboardPage() {
         <MetricCard label="Vence hoje" to={buildAnalyticalTableHref({ preset: "vence-hoje" })} value={summary.dueTodayTotal} />
         <MetricCard label="Urgentes" to="/pre-demandas" value={summary.urgentTotal} />
         <MetricCard label="Com pagamento" to={buildAnalyticalTableHref({ preset: "com-pagamento" })} value={summary.paymentMarkedTotal} />
-        <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.dueSoonTotal} />
-        <MetricCard label="Prazos vencidos" to={buildAnalyticalTableHref({ preset: "prazos-vencidos" })} value={summary.overdueTotal} />
+        <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.deadlines.processo.dueSoonTotal} />
+        <MetricCard label="Prazos vencidos" to={buildAnalyticalTableHref({ preset: "prazos-vencidos" })} value={summary.deadlines.processo.overdueTotal} />
         <MetricCard label="Sem setor" to={buildAnalyticalTableHref({ preset: "sem-setor" })} value={summary.withoutSetorTotal} />
         <MetricCard label="Sem envolvidos" to={buildAnalyticalTableHref({ preset: "sem-envolvidos" })} value={summary.withoutInteressadosTotal} />
         <MetricCard label="Reabertas 30d" to={buildAnalyticalTableHref({ preset: "reabertas-30d" })} value={summary.reopenedLast30Days} />
@@ -201,31 +198,47 @@ export function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Radar dos tres prazos</CardTitle>
-          <CardDescription>Resumo separado para prazo inicial, intermediario e final nos processos ativos.</CardDescription>
+          <CardTitle>Radar de prazos</CardTitle>
+          <CardDescription>Prazos do processo, prazos das tarefas e consumo do prazo geral pelas tarefas pendentes.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 xl:grid-cols-3">
           {[
-            { id: "prazoInicial", label: "Prazo inicial", campo: "prazoInicial" },
-            { id: "prazoIntermediario", label: "Prazo intermediario", campo: "prazoIntermediario" },
-            { id: "prazoFinal", label: "Prazo final", campo: "prazoFinal" },
+            { id: "processo", label: "Prazo do processo", campo: "prazoProcesso", secondary: null },
+            { id: "tarefas", label: "Prazos das tarefas", campo: "proximoPrazoTarefa", secondary: "totalPending" },
+            { id: "sinal", label: "Consumo do prazo", campo: "prazoProcesso", secondary: "signal" },
           ].map((item) => {
-            const metrics = summary.deadlines[item.id as keyof typeof summary.deadlines];
+            if (item.id === "sinal") {
+              return (
+                <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={item.id}>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
+                    <h3 className="mt-2 text-2xl font-semibold text-slate-950">{summary.processosCriticosPrazo}</h3>
+                    <p className="text-sm text-slate-500">processos criticos</p>
+                  </div>
+                  <div className="grid gap-2 text-sm text-slate-700">
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2">Critico: {summary.processosCriticosPrazo}</div>
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2">Atencao: {summary.processosEmAtencaoPrazo}</div>
+                    <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2">Normal: monitorado na fila do processo</div>
+                  </div>
+                </article>
+              );
+            }
+            const metrics = summary.deadlines[item.id as "processo" | "tarefas"];
             return (
               <article className="grid gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(240,246,249,0.88))] px-4 py-4 shadow-[0_14px_28px_rgba(20,33,61,0.06)]" key={item.id}>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.label}</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">{metrics.totalDefined}</h3>
-                  <p className="text-sm text-slate-500">processos com este prazo definido</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-slate-950">{item.id === "tarefas" ? metrics.totalPending : metrics.totalDefined}</h3>
+                  <p className="text-sm text-slate-500">{item.id === "tarefas" ? "tarefas pendentes com prazo" : "processos com prazo definido"}</p>
                 </div>
                 <div className="grid gap-2 text-sm text-slate-700">
-                  <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100" to={buildAnalyticalTableHref({ prazoCampo: item.campo, prazoRecorte: "overdue" })}>
+                  <Link className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 hover:bg-rose-100" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}>
                     Vencidos: {metrics.overdueTotal}
                   </Link>
-                  <Link className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100" to={buildAnalyticalTableHref({ prazoCampo: item.campo, prazoRecorte: "today" })}>
+                  <Link className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "today" })}>
                     Vence hoje: {metrics.dueTodayTotal}
                   </Link>
-                  <Link className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 hover:bg-sky-100" to={buildAnalyticalTableHref({ prazoCampo: item.campo, prazoRecorte: "soon" })}>
+                  <Link className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 hover:bg-sky-100" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "soon" })}>
                     Na semana: {metrics.dueSoonTotal}
                   </Link>
                 </div>

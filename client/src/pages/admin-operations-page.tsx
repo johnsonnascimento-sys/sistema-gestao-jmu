@@ -169,7 +169,7 @@ function buildWithoutSetorQueueHref(dueState: "" | "overdue" | "due_soon", hasIn
   const search = new URLSearchParams({
     preset: "sem-setor",
     view: "table",
-    sortBy: dueState ? "prazoFinal" : "updatedAt",
+    sortBy: dueState ? "prazoProcesso" : "updatedAt",
     sortOrder: dueState === "overdue" ? "asc" : "desc",
     page: "1",
   });

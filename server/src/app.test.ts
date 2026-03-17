@@ -90,6 +90,12 @@ import type {
   UserRepository,
 } from "./repositories/types";
 
+function addDays(value: string, amount: number) {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + amount);
+  return date.toISOString().slice(0, 10);
+}
+
 class InMemoryUserRepository implements UserRepository {
   private users = new Map<number, AppUser>();
   private audit: AdminUserAuditRecord[] = [];
@@ -377,12 +383,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       return { record: existing, idempotent: true, existingPreId: existing.preId };
     }
 
-    const hasContinuousFrequency = Boolean(
-      input.metadata?.frequencia ||
-        (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length) ||
-        input.metadata?.frequenciaDiaMes,
-    );
-    if (!hasContinuousFrequency && !input.prazoFinal) {
+    if (!input.prazoProcesso) {
       throw new Error("prazo required");
     }
     const initialStatus: PreDemandaStatus = "em_andamento";
@@ -402,9 +403,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       descricao: input.descricao ?? null,
       fonte: input.fonte ?? null,
       observacoes: input.observacoes ?? null,
-      prazoInicial: input.prazoInicial ?? null,
-      prazoIntermediario: input.prazoIntermediario ?? null,
-      prazoFinal: input.prazoFinal ?? null,
+      prazoProcesso: input.prazoProcesso,
+      proximoPrazoTarefa: (input.assuntoIds ?? []).length ? input.prazoProcesso : null,
+      sinalPrazoProcesso: (input.assuntoIds ?? []).length ? "critico" : "normal",
+      prazoInicial: null,
+      prazoIntermediario: null,
+      prazoFinal: input.prazoProcesso,
       dataConclusao: null,
       numeroJudicial: input.numeroJudicial ?? null,
       anotacoes: null,
@@ -491,8 +495,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         tipo: "fixa",
         assuntoId,
         procedimentoId: `proc-${assuntoId}-1`,
+        prazoConclusao: input.prazoProcesso,
+        recorrenciaTipo: null,
+        recorrenciaDiasSemana: null,
+        recorrenciaDiaMes: null,
         prazoReferencia: null,
-        prazoData: null,
+        prazoData: input.prazoProcesso,
         setorDestino: null,
         geradaAutomaticamente: true,
         concluida: false,
@@ -557,35 +565,35 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (params.dueState === "overdue") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      items = items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < today.getTime());
+      items = items.filter((item) => item.prazoProcesso && new Date(`${item.prazoProcesso}T00:00:00`).getTime() < today.getTime());
     }
 
     if (params.dueState === "due_today") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      items = items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() === today.getTime());
+      items = items.filter((item) => item.prazoProcesso && new Date(`${item.prazoProcesso}T00:00:00`).getTime() === today.getTime());
     }
 
     if (params.dueState === "due_soon") {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       items = items.filter((item) => {
-        if (!item.prazoFinal) {
+        if (!item.prazoProcesso) {
           return false;
         }
 
-        const diffDays = Math.round((new Date(`${item.prazoFinal}T00:00:00`).getTime() - today.getTime()) / 86400000);
+        const diffDays = Math.round((new Date(`${item.prazoProcesso}T00:00:00`).getTime() - today.getTime()) / 86400000);
         return diffDays >= 0 && diffDays <= 7;
       });
     }
 
     if (params.dueState === "none") {
-      items = items.filter((item) => item.prazoFinal === null);
+      items = items.filter((item) => item.prazoProcesso === null);
     }
 
-    if (params.prazoCampo && params.prazoRecorte) {
+    if (params.deadlineCampo && params.prazoRecorte) {
       const getPrazo = (item: PreDemandaDetail) =>
-        params.prazoCampo === "prazoInicial" ? item.prazoInicial : params.prazoCampo === "prazoIntermediario" ? item.prazoIntermediario : item.prazoFinal;
+        params.deadlineCampo === "proximoPrazoTarefa" ? item.proximoPrazoTarefa : item.prazoProcesso;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       items = items.filter((item) => {
@@ -674,9 +682,16 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (input.descricao !== undefined) record.descricao = input.descricao;
     if (input.fonte !== undefined) record.fonte = input.fonte;
     if (input.observacoes !== undefined) record.observacoes = input.observacoes;
-    if (input.prazoInicial !== undefined) record.prazoInicial = input.prazoInicial;
-    if (input.prazoIntermediario !== undefined) record.prazoIntermediario = input.prazoIntermediario;
-    if (input.prazoFinal !== undefined) record.prazoFinal = input.prazoFinal;
+    if (input.prazoProcesso !== undefined) {
+      const hasConflict = record.tarefasPendentes.some(
+        (item) => !item.concluida && item.prazoConclusao && new Date(`${item.prazoConclusao}T00:00:00`).getTime() > new Date(`${input.prazoProcesso}T00:00:00`).getTime(),
+      );
+      if (hasConflict) {
+        throw new Error("PRE_DEMANDA_PRAZO_CONFLITO_TAREFAS");
+      }
+      record.prazoProcesso = input.prazoProcesso;
+      record.prazoFinal = input.prazoProcesso;
+    }
     if (input.numeroJudicial !== undefined) record.numeroJudicial = input.numeroJudicial;
     if (input.numeroJudicial) {
       record.numerosJudiciais = [
@@ -727,8 +742,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       tipo: "fixa",
       assuntoId: assunto.id,
       procedimentoId: procedimento.id,
+      prazoConclusao: record.prazoProcesso,
+      recorrenciaTipo: null,
+      recorrenciaDiasSemana: null,
+      recorrenciaDiaMes: null,
       prazoReferencia: null,
-      prazoData: null,
+      prazoData: record.prazoProcesso,
       setorDestino: procedimento.setorDestino,
       geradaAutomaticamente: true,
       concluida: false,
@@ -980,6 +999,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     if (!record) {
       throw new Error("not found");
     }
+    if (new Date(`${input.prazoConclusao}T00:00:00`).getTime() > new Date(`${record.prazoProcesso}T00:00:00`).getTime()) {
+      throw new Error("prazo invalid");
+    }
 
     const tarefa: TarefaPendente = {
       id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
@@ -989,15 +1011,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       tipo: input.tipo,
       assuntoId: input.assuntoId ?? null,
       procedimentoId: input.procedimentoId ?? null,
-      prazoReferencia: input.prazoReferencia ?? null,
-      prazoData:
-        input.prazoReferencia === "prazoInicial"
-          ? record.prazoInicial
-          : input.prazoReferencia === "prazoIntermediario"
-            ? record.prazoIntermediario
-            : input.prazoReferencia === "prazoFinal"
-              ? record.prazoFinal
-              : null,
+      prazoConclusao: input.prazoConclusao,
+      recorrenciaTipo: input.recorrenciaTipo ?? null,
+      recorrenciaDiasSemana: input.recorrenciaDiasSemana ?? null,
+      recorrenciaDiaMes: input.recorrenciaDiaMes ?? null,
+      prazoReferencia: null,
+      prazoData: input.prazoConclusao,
       setorDestino: input.setorDestinoId
         ? {
             id: input.setorDestinoId,
@@ -1016,10 +1035,26 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
 
     record.tarefasPendentes.push(tarefa);
+    const nextPrazo = record.tarefasPendentes
+      .filter((item) => !item.concluida)
+      .map((item) => item.prazoConclusao)
+      .filter((value): value is string => Boolean(value))
+      .sort()[0] ?? null;
+    record.proximoPrazoTarefa = nextPrazo;
+    record.sinalPrazoProcesso = nextPrazo === null ? "normal" : nextPrazo >= record.prazoProcesso ? "critico" : nextPrazo >= addDays(record.prazoProcesso, -2) ? "atencao" : "normal";
     return tarefa;
   }
 
-  async updateTarefa(input: { preId: string; tarefaId: string; descricao: string; tipo: "fixa" | "livre"; prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null }) {
+  async updateTarefa(input: {
+    preId: string;
+    tarefaId: string;
+    descricao: string;
+    tipo: "fixa" | "livre";
+    prazoConclusao: string;
+    recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+    recorrenciaDiasSemana?: string[] | null;
+    recorrenciaDiaMes?: number | null;
+  }) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {
       throw new Error("not found");
@@ -1036,15 +1071,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     tarefa.descricao = input.descricao;
     tarefa.tipo = input.tipo;
-    tarefa.prazoReferencia = input.prazoReferencia ?? null;
-    tarefa.prazoData =
-      input.prazoReferencia === "prazoInicial"
-        ? record.prazoInicial
-        : input.prazoReferencia === "prazoIntermediario"
-          ? record.prazoIntermediario
-          : input.prazoReferencia === "prazoFinal"
-            ? record.prazoFinal
-            : null;
+    if (new Date(`${input.prazoConclusao}T00:00:00`).getTime() > new Date(`${record.prazoProcesso}T00:00:00`).getTime()) {
+      throw new Error("prazo invalid");
+    }
+    tarefa.prazoConclusao = input.prazoConclusao;
+    tarefa.recorrenciaTipo = input.recorrenciaTipo ?? null;
+    tarefa.recorrenciaDiasSemana = input.recorrenciaDiasSemana ?? null;
+    tarefa.recorrenciaDiaMes = input.recorrenciaDiaMes ?? null;
+    tarefa.prazoReferencia = null;
+    tarefa.prazoData = input.prazoConclusao;
     this.addAndamentoRecord(record, `Tarefa atualizada: ${tarefa.descricao}.`, "sistema");
     return tarefa;
   }
@@ -1440,54 +1475,48 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return {
       counts,
       deadlines: {
-        prazoInicial: {
-          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial && new Date(`${item.prazoInicial}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial && new Date(`${item.prazoInicial}T00:00:00`).getTime() === new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial).filter((item) => {
+        processo: {
+          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso && new Date(`${item.prazoProcesso}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso === new Date().toISOString().slice(0, 10)).length,
+          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso).filter((item) => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const value = new Date(`${item.prazoInicial}T00:00:00`).getTime();
+            const value = new Date(`${item.prazoProcesso}T00:00:00`).getTime();
             return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
           }).length,
-          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoInicial).length,
+          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso).length,
         },
-        prazoIntermediario: {
-          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario && new Date(`${item.prazoIntermediario}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario && new Date(`${item.prazoIntermediario}T00:00:00`).getTime() === new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario).filter((item) => {
+        tarefas: {
+          overdueTotal: this.records.flatMap((item) => item.tarefasPendentes).filter((item) => !item.concluida && item.prazoConclusao && new Date(`${item.prazoConclusao}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+          dueTodayTotal: this.records.flatMap((item) => item.tarefasPendentes).filter((item) => !item.concluida && item.prazoConclusao === new Date().toISOString().slice(0, 10)).length,
+          dueSoonTotal: this.records.flatMap((item) => item.tarefasPendentes).filter((item) => {
+            if (item.concluida || !item.prazoConclusao) {
+              return false;
+            }
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            const value = new Date(`${item.prazoIntermediario}T00:00:00`).getTime();
+            const value = new Date(`${item.prazoConclusao}T00:00:00`).getTime();
             return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
           }).length,
-          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoIntermediario).length,
-        },
-        prazoFinal: {
-          overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-          dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() === new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
-          dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal).filter((item) => {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const value = new Date(`${item.prazoFinal}T00:00:00`).getTime();
-            return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
-          }).length,
-          totalDefined: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal).length,
+          totalPending: this.records.flatMap((item) => item.tarefasPendentes).filter((item) => !item.concluida).length,
         },
       },
       reopenedLast30Days: this.statusAudit.filter((item) => item.statusAnterior === "encerrada" && item.statusNovo !== "encerrada").length,
       closedLast30Days: this.statusAudit.filter((item) => item.statusNovo === "encerrada").length,
       agingAttentionTotal: this.records.filter((item) => item.queueHealth.level === "attention").length,
       agingCriticalTotal: this.records.filter((item) => item.queueHealth.level === "critical").length,
-      dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal === new Date().toISOString().slice(0, 10)).length,
-      dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal !== null).length,
-      overdueTotal: 0,
+      dueTodayTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso === new Date().toISOString().slice(0, 10)).length,
+      dueSoonTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso !== null).length,
+      overdueTotal: this.records.filter((item) => item.status !== "encerrada" && item.prazoProcesso && new Date(`${item.prazoProcesso}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
       paymentMarkedTotal: this.records.filter((item) => item.status !== "encerrada" && item.metadata.pagamentoEnvolvido === true).length,
       urgentTotal: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).length,
       withoutSetorTotal: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).length,
       withoutInteressadosTotal: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).length,
+      processosEmAtencaoPrazo: this.records.filter((item) => item.status !== "encerrada" && item.sinalPrazoProcesso === "atencao").length,
+      processosCriticosPrazo: this.records.filter((item) => item.status !== "encerrada" && item.sinalPrazoProcesso === "critico").length,
       staleItems,
       awaitingSeiItems,
-      dueSoonItems: this.records.filter((item) => item.status !== "encerrada" && item.prazoFinal !== null).slice(0, 5),
+      dueSoonItems: this.records.filter((item) => item.status !== "encerrada" && (item.proximoPrazoTarefa !== null || item.prazoProcesso !== null)).slice(0, 5),
       paymentMarkedItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.pagamentoEnvolvido === true).slice(0, 5),
       urgentItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).slice(0, 5),
       withoutSetorItems: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).slice(0, 5),
@@ -1953,7 +1982,7 @@ describe("Gestor JMU API", () => {
         solicitante: "Maria Silva",
         assunto: "Abertura de procedimento",
         data_referencia: "2026-03-09",
-        prazo_final: "2026-03-20",
+        prazo_processo: "2026-03-20",
         descricao: "Registro inicial",
         fonte: "whatsapp",
       },
@@ -1971,7 +2000,7 @@ describe("Gestor JMU API", () => {
         solicitante: "Maria Silva",
         assunto: "Abertura de procedimento",
         data_referencia: "2026-03-09",
-        prazo_final: "2026-03-20",
+        prazo_processo: "2026-03-20",
       },
     });
 
@@ -2204,17 +2233,16 @@ describe("Gestor JMU API", () => {
       url: "/api/pre-demandas/PRE-2026-001",
       headers: { cookie: adminCookie },
       payload: {
-        prazo_final: "2026-03-20",
+        prazo_processo: "2026-03-20",
         numero_judicial: "0001234-56.2026.9.99.9999",
         metadata: {
-          frequencia: "mensal",
           pagamento_envolvido: true,
         },
       },
     });
 
     expect(casePatch.statusCode).toBe(200);
-    expect(casePatch.json().data.prazoFinal).toBe("2026-03-20");
+    expect(casePatch.json().data.prazoProcesso).toBe("2026-03-20");
     expect(casePatch.json().data.metadata.pagamentoEnvolvido).toBe(true);
 
     const tarefa = await app.inject({
@@ -2224,6 +2252,7 @@ describe("Gestor JMU API", () => {
       payload: {
         descricao: "Aguardar assinatura",
         tipo: "fixa",
+        prazo_conclusao: "2026-03-20",
       },
     });
 

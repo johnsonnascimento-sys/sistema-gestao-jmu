@@ -83,7 +83,7 @@ type ResolvedSearchState = {
   setorAtualId: string;
   withoutSetor: "" | "true" | "false";
   dueState: "" | "overdue" | "due_today" | "due_soon" | "none";
-  prazoCampo: "" | "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+  deadlineCampo: "" | "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte: "" | "overdue" | "today" | "soon";
   paymentInvolved: "" | "true" | "false";
   hasInteressados: "" | "true" | "false";
@@ -180,7 +180,7 @@ const SAVED_VIEWS: Array<{
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       dueState: "due_today",
-      sortBy: "prazoFinal",
+      sortBy: "prazoProcesso",
       sortOrder: "asc",
       view: "table",
     },
@@ -192,7 +192,7 @@ const SAVED_VIEWS: Array<{
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       dueState: "overdue",
-      sortBy: "prazoFinal",
+      sortBy: "prazoProcesso",
       sortOrder: "asc",
       view: "table",
     },
@@ -204,7 +204,7 @@ const SAVED_VIEWS: Array<{
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       dueState: "due_soon",
-      sortBy: "prazoFinal",
+      sortBy: "prazoProcesso",
       sortOrder: "asc",
       view: "table",
     },
@@ -324,7 +324,7 @@ function buildWithoutSetorQueueSearch(current: URLSearchParams, dueState: "" | "
   next.set("withoutSetor", "true");
   next.set("view", "table");
   next.set("page", "1");
-  next.set("sortBy", dueState ? "prazoFinal" : "updatedAt");
+  next.set("sortBy", dueState ? "prazoProcesso" : "updatedAt");
   next.set("sortOrder", dueState === "overdue" ? "asc" : "desc");
 
   if (dueState) {
@@ -384,7 +384,7 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     !searchParams.has("setorAtualId") &&
     !searchParams.has("withoutSetor") &&
     !searchParams.has("dueState") &&
-    !searchParams.has("prazoCampo") &&
+    !searchParams.has("deadlineCampo") &&
     !searchParams.has("prazoRecorte") &&
     !searchParams.has("paymentInvolved") &&
     !searchParams.has("hasInteressados") &&
@@ -406,7 +406,7 @@ function resolveSearchState(searchParams: URLSearchParams): ResolvedSearchState 
     setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
     withoutSetor: searchParams.has("withoutSetor") ? ((searchParams.get("withoutSetor") as "true" | "false") ?? "") : preset?.defaults.withoutSetor ?? "",
     dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_today" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
-    prazoCampo: (searchParams.get("prazoCampo") as ResolvedSearchState["prazoCampo"] | null) ?? "",
+    deadlineCampo: (searchParams.get("deadlineCampo") as ResolvedSearchState["deadlineCampo"] | null) ?? "",
     prazoRecorte: (searchParams.get("prazoRecorte") as ResolvedSearchState["prazoRecorte"] | null) ?? "",
     paymentInvolved: searchParams.has("paymentInvolved") ? ((searchParams.get("paymentInvolved") as "true" | "false") ?? "") : preset?.defaults.paymentInvolved ?? "",
     hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
@@ -442,7 +442,7 @@ export function PreDemandasPage() {
   const [setorAtualId, setSetorAtualId] = useState(resolvedState.setorAtualId);
   const [withoutSetor, setWithoutSetor] = useState(resolvedState.withoutSetor);
   const [dueState, setDueState] = useState(resolvedState.dueState);
-  const [prazoCampo, setPrazoCampo] = useState(resolvedState.prazoCampo);
+  const [deadlineCampo, setDeadlineCampo] = useState(resolvedState.deadlineCampo);
   const [prazoRecorte, setPrazoRecorte] = useState(resolvedState.prazoRecorte);
   const [paymentInvolved, setPaymentInvolved] = useState(resolvedState.paymentInvolved);
   const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
@@ -463,7 +463,7 @@ export function PreDemandasPage() {
     setSetorAtualId(resolvedState.setorAtualId);
     setWithoutSetor(resolvedState.withoutSetor);
     setDueState(resolvedState.dueState);
-    setPrazoCampo(resolvedState.prazoCampo);
+    setDeadlineCampo(resolvedState.deadlineCampo);
     setPrazoRecorte(resolvedState.prazoRecorte);
     setPaymentInvolved(resolvedState.paymentInvolved);
     setHasInteressados(resolvedState.hasInteressados);
@@ -487,7 +487,7 @@ export function PreDemandasPage() {
         setorAtualId: resolvedState.setorAtualId || undefined,
         withoutSetor: resolvedState.withoutSetor ? resolvedState.withoutSetor === "true" : undefined,
         dueState: resolvedState.dueState || undefined,
-        prazoCampo: resolvedState.prazoCampo || undefined,
+        deadlineCampo: resolvedState.deadlineCampo || undefined,
         prazoRecorte: resolvedState.prazoRecorte || undefined,
         paymentInvolved: resolvedState.paymentInvolved ? resolvedState.paymentInvolved === "true" : undefined,
         hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
@@ -566,8 +566,8 @@ export function PreDemandasPage() {
       next.set("dueState", dueState);
     }
 
-    if (prazoCampo) {
-      next.set("prazoCampo", prazoCampo);
+    if (deadlineCampo) {
+      next.set("deadlineCampo", deadlineCampo);
     }
 
     if (prazoRecorte) {
@@ -627,7 +627,7 @@ export function PreDemandasPage() {
     setSetorAtualId("");
     setWithoutSetor("");
     setDueState("");
-    setPrazoCampo("");
+    setDeadlineCampo("");
     setPrazoRecorte("");
     setPaymentInvolved("");
     setHasInteressados("");
@@ -673,8 +673,8 @@ export function PreDemandasPage() {
         current.withoutInteressados += 1;
       }
 
-      if (item.prazoFinal) {
-        const dueDate = new Date(item.prazoFinal);
+      if (item.prazoProcesso) {
+        const dueDate = new Date(item.prazoProcesso);
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
         const dueDateOnly = new Date(dueDate);
@@ -728,22 +728,22 @@ export function PreDemandasPage() {
       {
         id: "vencidas",
         label: "Prazos vencidos",
-        description: "Processos ativos com prazo final ja ultrapassado.",
-        value: items.filter((item) => item.prazoFinal && new Date(`${item.prazoFinal}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
+        description: "Processos ativos com prazo do processo ja ultrapassado.",
+        value: items.filter((item) => item.prazoProcesso && new Date(`${item.prazoProcesso}T00:00:00`).getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()).length,
         href: "/pre-demandas?preset=prazos-vencidos",
       },
       {
         id: "na-semana",
         label: "Vencem na semana",
-        description: "Processos ativos que exigem seguimento antes do prazo final.",
+        description: "Processos ativos que exigem seguimento antes do prazo do processo.",
         value: items.filter((item) => {
-          if (!item.prazoFinal) {
+          if (!item.prazoProcesso) {
             return false;
           }
 
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          const dueDate = new Date(`${item.prazoFinal}T00:00:00`);
+          const dueDate = new Date(`${item.prazoProcesso}T00:00:00`);
           const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
           return diffDays >= 0 && diffDays <= 7;
         }).length,
@@ -1050,7 +1050,8 @@ export function PreDemandasPage() {
               <option value="dataReferencia">Data de referencia</option>
               <option value="solicitante">Pessoa vinculada</option>
               <option value="status">Status</option>
-              <option value="prazoFinal">Prazo final</option>
+              <option value="prazoProcesso">Prazo do processo</option>
+              <option value="proximoPrazoTarefa">Proxima tarefa</option>
               <option value="numeroJudicial">Numero judicial</option>
             </select>
           </FormField>
@@ -1132,9 +1133,9 @@ export function PreDemandasPage() {
                   <th className="px-3 py-3">Setor</th>
                   <th className="px-3 py-3">Status</th>
                   <th className="px-3 py-3">Fila</th>
-                  <th className="px-3 py-3">Prazo inicial</th>
-                  <th className="px-3 py-3">Prazo intermediario</th>
-                  <th className="px-3 py-3">Prazo final</th>
+                  <th className="px-3 py-3">Prazo do processo</th>
+                  <th className="px-3 py-3">Proxima tarefa</th>
+                  <th className="px-3 py-3">Sinal</th>
                   <th className="px-3 py-3">SEI</th>
                   <th className="px-3 py-3">Envolvidos</th>
                   <th className="px-3 py-3">Data</th>
@@ -1182,9 +1183,20 @@ export function PreDemandasPage() {
                           <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-4">{item.prazoInicial ? new Date(item.prazoInicial).toLocaleDateString("pt-BR") : "-"}</td>
-                      <td className="px-3 py-4">{item.prazoIntermediario ? new Date(item.prazoIntermediario).toLocaleDateString("pt-BR") : "-"}</td>
-                      <td className="px-3 py-4">{item.prazoFinal ? new Date(item.prazoFinal).toLocaleDateString("pt-BR") : "-"}</td>
+                      <td className="px-3 py-4">{item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "-"}</td>
+                      <td className="px-3 py-4">{item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas"}</td>
+                      <td className="px-3 py-4">
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
+                          item.sinalPrazoProcesso === "critico"
+                            ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
+                            : item.sinalPrazoProcesso === "atencao"
+                              ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+                              : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"
+                        }`}
+                        >
+                          {item.sinalPrazoProcesso ?? "normal"}
+                        </span>
+                      </td>
                       <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
                       <td className="px-3 py-4">{item.interessados.length}</td>
                       <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>

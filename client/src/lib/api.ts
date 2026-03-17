@@ -26,7 +26,7 @@ import type {
   SortOrder,
   StatusCount,
   TarefaPendente,
-  TarefaPrazoReferencia,
+  TarefaRecorrenciaTipo,
   TarefaPendenteTipo,
   TimelineEvent,
 } from "../types";
@@ -112,7 +112,7 @@ export interface ListPreDemandasParams {
   setorAtualId?: string;
   withoutSetor?: boolean;
   dueState?: "overdue" | "due_today" | "due_soon" | "none";
-  prazoCampo?: "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+  deadlineCampo?: "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte?: "overdue" | "today" | "soon";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;
@@ -131,9 +131,7 @@ export interface CreatePreDemandaPayload {
   descricao?: string;
   fonte?: string;
   observacoes?: string;
-  prazo_inicial?: string | null;
-  prazo_intermediario?: string | null;
-  prazo_final?: string | null;
+  prazo_processo: string;
   sei_numero?: string | null;
   numero_judicial?: string | null;
   assunto_ids?: string[];
@@ -153,14 +151,9 @@ export interface UpdatePreDemandaCasePayload {
   descricao?: string | null;
   fonte?: string | null;
   observacoes?: string | null;
-  prazo_inicial?: string | null;
-  prazo_intermediario?: string | null;
-  prazo_final?: string | null;
+  prazo_processo?: string | null;
   numero_judicial?: string | null;
   metadata?: {
-    frequencia?: string | null;
-    frequencia_dias_semana?: string[] | null;
-    frequencia_dia_mes?: number | null;
     pagamento_envolvido?: boolean | null;
     urgente?: boolean | null;
     audiencia_data?: string | null;
@@ -245,7 +238,7 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   if (params.setorAtualId) searchParams.set("setorAtualId", params.setorAtualId);
   if (params.withoutSetor !== undefined) searchParams.set("withoutSetor", String(params.withoutSetor));
   if (params.dueState) searchParams.set("dueState", params.dueState);
-  if (params.prazoCampo) searchParams.set("prazoCampo", params.prazoCampo);
+  if (params.deadlineCampo) searchParams.set("deadlineCampo", params.deadlineCampo);
   if (params.prazoRecorte) searchParams.set("prazoRecorte", params.prazoRecorte);
   if (params.paymentInvolved !== undefined) searchParams.set("paymentInvolved", String(params.paymentInvolved));
   if (params.hasInteressados !== undefined) searchParams.set("hasInteressados", String(params.hasInteressados));
@@ -401,10 +394,10 @@ export function createPreDemandaTarefa(
   payload: {
     descricao: string;
     tipo: TarefaPendenteTipo;
-    prazo_referencia?: TarefaPrazoReferencia | null;
-    prazo_data?: string | null;
-    confirmar_conflito?: boolean;
-    confirmar_alteracao_prazo?: boolean;
+    prazo_conclusao: string;
+    recorrencia_tipo?: TarefaRecorrenciaTipo | null;
+    recorrencia_dias_semana?: string[] | null;
+    recorrencia_dia_mes?: number | null;
     setor_destino_id?: string | null;
   },
 ) {
@@ -420,10 +413,10 @@ export function updatePreDemandaTarefa(
   payload: {
     descricao: string;
     tipo: TarefaPendenteTipo;
-    prazo_referencia?: TarefaPrazoReferencia | null;
-    prazo_data?: string | null;
-    confirmar_conflito?: boolean;
-    confirmar_alteracao_prazo?: boolean;
+    prazo_conclusao: string;
+    recorrencia_tipo?: TarefaRecorrenciaTipo | null;
+    recorrencia_dias_semana?: string[] | null;
+    recorrencia_dia_mes?: number | null;
   },
 ) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {

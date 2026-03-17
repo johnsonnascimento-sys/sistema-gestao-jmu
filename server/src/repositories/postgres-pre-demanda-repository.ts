@@ -21,7 +21,7 @@ import type {
   Setor,
   SortOrder,
   TarefaPendente,
-  TarefaPrazoReferencia,
+  TarefaRecorrenciaTipo,
   TimelineEvent,
 } from "../domain/types";
 import type { DatabasePool } from "../db";
@@ -87,6 +87,19 @@ const BASE_FROM = `
   left join adminlog.app_user created_by on created_by.id = pd.created_by_user_id
   left join adminlog.app_user linked_by on linked_by.id = pts.linked_by_user_id
   left join lateral (
+    select min(tarefa.prazo_conclusao) as proximo_prazo_tarefa
+    from adminlog.tarefas_pendentes tarefa
+    where tarefa.pre_demanda_id = pd.id
+      and tarefa.concluida = false
+  ) prox_tarefa on true
+  left join lateral (
+    select count(*)::int as tarefas_vencidas
+    from adminlog.tarefas_pendentes tarefa
+    where tarefa.pre_demanda_id = pd.id
+      and tarefa.concluida = false
+      and tarefa.prazo_conclusao < current_date
+  ) tarefas_sinal on true
+  left join lateral (
     select
       pessoa.id as pessoa_principal_id,
       pessoa.nome as pessoa_principal_nome,
@@ -116,9 +129,7 @@ const BASE_SELECT = `
     pd.descricao,
     pd.fonte,
     pd.observacoes,
-    pd.prazo_inicial,
-    pd.prazo_intermediario,
-    pd.prazo_final,
+    pd.prazo_processo,
     pd.data_conclusao,
     pd.numero_judicial,
     pd.anotacoes,
@@ -150,6 +161,14 @@ const BASE_SELECT = `
     pts.updated_at as link_updated_at,
     pts.observacoes as link_observacoes,
     pts.linked_by_user_id,
+    prox_tarefa.proximo_prazo_tarefa,
+    case
+      when tarefas_sinal.tarefas_vencidas > 0 then 'critico'
+      when prox_tarefa.proximo_prazo_tarefa is null then 'normal'
+      when prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo then 'critico'
+      when prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days' then 'atencao'
+      else 'normal'
+    end as sinal_prazo_processo,
     linked_by.id as linked_by_id,
     linked_by.email as linked_by_email,
     linked_by.name as linked_by_name,
@@ -163,7 +182,9 @@ const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
   dataReferencia: "pd.data_referencia",
   solicitante: "pd.solicitante",
   status: "pd.status",
-  prazoFinal: "pd.prazo_final",
+  prazoFinal: "pd.prazo_processo",
+  prazoProcesso: "pd.prazo_processo",
+  proximoPrazoTarefa: "prox_tarefa.proximo_prazo_tarefa",
   numeroJudicial: "pd.numero_judicial",
 };
 
@@ -293,9 +314,9 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     descricao: row.descricao ? String(row.descricao) : null,
     fonte: row.fonte ? String(row.fonte) : null,
     observacoes: row.observacoes ? String(row.observacoes) : null,
-    prazoInicial: row.prazo_inicial ? new Date(row.prazo_inicial).toISOString().slice(0, 10) : null,
-    prazoIntermediario: row.prazo_intermediario ? new Date(row.prazo_intermediario).toISOString().slice(0, 10) : null,
-    prazoFinal: row.prazo_final ? new Date(row.prazo_final).toISOString().slice(0, 10) : null,
+    prazoProcesso: new Date(row.prazo_processo).toISOString().slice(0, 10),
+    proximoPrazoTarefa: row.proximo_prazo_tarefa ? new Date(row.proximo_prazo_tarefa).toISOString().slice(0, 10) : null,
+    sinalPrazoProcesso: row.sinal_prazo_processo as PreDemandaDetail["sinalPrazoProcesso"],
     dataConclusao: row.data_conclusao ? new Date(row.data_conclusao).toISOString().slice(0, 10) : null,
     numeroJudicial,
     anotacoes: row.anotacoes ? String(row.anotacoes) : null,
@@ -417,8 +438,10 @@ function mapTarefa(row: QueryResultRow): TarefaPendente {
     tipo: row.tipo as TarefaPendente["tipo"],
     assuntoId: row.assunto_id ? String(row.assunto_id) : null,
     procedimentoId: row.procedimento_id ? String(row.procedimento_id) : null,
-    prazoReferencia: row.prazo_referencia ? (String(row.prazo_referencia) as TarefaPrazoReferencia) : null,
-    prazoData: row.prazo_data ? new Date(row.prazo_data).toISOString().slice(0, 10) : null,
+    prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
+    recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as TarefaRecorrenciaTipo) : null,
+    recorrenciaDiasSemana: Array.isArray(row.recorrencia_dias_semana) ? row.recorrencia_dias_semana.filter((item): item is string => typeof item === "string") : null,
+    recorrenciaDiaMes: typeof row.recorrencia_dia_mes === "number" ? row.recorrencia_dia_mes : row.recorrencia_dia_mes ? Number(row.recorrencia_dia_mes) : null,
     setorDestino: mapSetor(row, "setor_destino"),
     geradaAutomaticamente: Boolean(row.gerada_automaticamente),
     concluida: Boolean(row.concluida),
@@ -668,25 +691,24 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
   }
 
   if (params.dueState === "overdue") {
-    clauses.push("pd.prazo_final is not null and pd.prazo_final < current_date");
+    clauses.push("pd.prazo_processo < current_date");
   }
   if (params.dueState === "due_today") {
-    clauses.push("pd.prazo_final = current_date");
+    clauses.push("pd.prazo_processo = current_date");
   }
   if (params.dueState === "due_soon") {
-    clauses.push("pd.prazo_final is not null and pd.prazo_final between current_date and current_date + interval '7 days'");
+    clauses.push("pd.prazo_processo between current_date and current_date + interval '7 days'");
   }
   if (params.dueState === "none") {
-    clauses.push("pd.prazo_final is null");
+    clauses.push("false");
   }
 
-  if (params.prazoCampo && params.prazoRecorte) {
+  if (params.deadlineCampo && params.prazoRecorte) {
     const columnMap = {
-      prazoInicial: "pd.prazo_inicial",
-      prazoIntermediario: "pd.prazo_intermediario",
-      prazoFinal: "pd.prazo_final",
+      prazoProcesso: "pd.prazo_processo",
+      proximoPrazoTarefa: "prox_tarefa.proximo_prazo_tarefa",
     } as const;
-    const column = columnMap[params.prazoCampo];
+    const column = columnMap[params.deadlineCampo];
 
     if (params.prazoRecorte === "overdue") {
       clauses.push(`${column} is not null and ${column} < current_date`);
@@ -798,9 +820,7 @@ async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
       select
         id,
         pre_id,
-        prazo_inicial,
-        prazo_intermediario,
-        prazo_final
+        prazo_processo
       from adminlog.pre_demanda
       where pre_id = $1
       limit 1
@@ -814,9 +834,7 @@ async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
   return {
     id: Number(result.rows[0].id),
     preId: String(result.rows[0].pre_id),
-    prazoInicial: result.rows[0].prazo_inicial ? new Date(result.rows[0].prazo_inicial).toISOString().slice(0, 10) : null,
-    prazoIntermediario: result.rows[0].prazo_intermediario ? new Date(result.rows[0].prazo_intermediario).toISOString().slice(0, 10) : null,
-    prazoFinal: result.rows[0].prazo_final ? new Date(result.rows[0].prazo_final).toISOString().slice(0, 10) : null,
+    prazoProcesso: new Date(result.rows[0].prazo_processo).toISOString().slice(0, 10),
   };
 }
 
@@ -1192,13 +1210,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           tarefa.ordem,
           tarefa.assunto_id,
           tarefa.procedimento_id,
-          tarefa.prazo_referencia,
-          case tarefa.prazo_referencia
-            when 'prazoInicial' then pd.prazo_inicial
-            when 'prazoIntermediario' then pd.prazo_intermediario
-            when 'prazoFinal' then pd.prazo_final
-            else null
-          end as prazo_data,
+          tarefa.prazo_conclusao,
+          tarefa.recorrencia_tipo,
+          tarefa.recorrencia_dias_semana,
+          tarefa.recorrencia_dia_mes,
           tarefa.gerada_automaticamente,
           tarefa.concluida,
           tarefa.concluida_em,
@@ -1217,7 +1232,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           setor_destino.created_at as setor_destino_created_at,
           setor_destino.updated_at as setor_destino_updated_at
         from adminlog.tarefas_pendentes tarefa
-        inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
         left join adminlog.app_user concluida_por on concluida_por.id = tarefa.concluida_por_user_id
         left join adminlog.app_user created_by on created_by.id = tarefa.created_by_user_id
         left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
@@ -1317,7 +1331,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async syncAssuntoProcedimentoTarefas(
     queryable: Queryable,
-    input: { preDemandaId: number; preId: string; assuntoId: string; changedByUserId: number },
+    input: { preDemandaId: number; preId: string; assuntoId: string; prazoProcesso: string; changedByUserId: number },
   ) {
     const assuntoResult = await queryable.query(
       `
@@ -1352,11 +1366,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             tipo,
             assunto_id,
             procedimento_id,
+            prazo_conclusao,
             setor_destino_id,
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, 'fixa', $3::uuid, $4::uuid, $5::uuid, true, $6)
+          values ($1, $2, 'fixa', $3::uuid, $4::uuid, $5::date, $6::uuid, true, $7)
           on conflict (pre_demanda_id, procedimento_id) where procedimento_id is not null do nothing
         `,
         [
@@ -1364,6 +1379,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           `[${String(assuntoResult.rows[0].nome)}] ${Number(procedimento.ordem)}. ${String(procedimento.descricao)}`,
           input.assuntoId,
           String(procedimento.id),
+          input.prazoProcesso,
           procedimento.setor_destino_id ? String(procedimento.setor_destino_id) : null,
           input.changedByUserId,
         ],
@@ -1438,23 +1454,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const dbMetadata = normalizeMetadataForDb(input.metadata ?? null);
-    const hasContinuousFrequency = Boolean(
-      input.metadata?.frequencia ||
-        (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length) ||
-        input.metadata?.frequenciaDiaMes,
-    );
     const initialStatus: PreDemandaStatus = "em_andamento";
 
     try {
       const preId = await inTransaction(this.pool, async (client) => {
-        const hasExplicitContinuousFrequency = Boolean(
-          input.metadata?.frequencia ||
-            (input.metadata?.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length > 0) ||
-            input.metadata?.frequenciaDiaMes,
-        );
-
-        if (!hasExplicitContinuousFrequency && !input.prazoFinal) {
-          throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo final e obrigatorio quando nao ha frequencia continua configurada.");
+        if (!input.prazoProcesso) {
+          throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
         }
 
       const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
@@ -1476,9 +1481,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             descricao,
             fonte,
             observacoes,
-            prazo_inicial,
-            prazo_intermediario,
-            prazo_final,
+            prazo_processo,
             numero_judicial,
             setor_atual_id,
               metadata,
@@ -1494,12 +1497,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               $6,
               $7,
               $8::date,
-              $9::date,
-              $10::date,
-              $11,
-              $12::uuid,
-              coalesce($13::jsonb, '{}'::jsonb),
-              $14
+              $9,
+              $10::uuid,
+              coalesce($11::jsonb, '{}'::jsonb),
+              $12
             )
             returning id, pre_id
           `,
@@ -1511,9 +1512,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             input.descricao ?? null,
             input.fonte ?? null,
             input.observacoes ?? null,
-            input.prazoInicial ?? null,
-            input.prazoIntermediario ?? null,
-            input.prazoFinal ?? null,
+            input.prazoProcesso,
             numeroJudicial,
             defaultSetor.id,
             dbMetadata ? JSON.stringify(dbMetadata) : null,
@@ -1600,6 +1599,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             preDemandaId,
             preId: nextPreId,
             assuntoId,
+            prazoProcesso: input.prazoProcesso,
             changedByUserId: input.createdByUserId,
           });
         }
@@ -1715,22 +1715,27 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
       }
 
-      const hasContinuousFrequency =
-        input.metadata === undefined
-          ? Boolean(
-              demanda.metadata.frequencia ||
-                (demanda.metadata.frequenciaDiasSemana && demanda.metadata.frequenciaDiasSemana.length > 0) ||
-                demanda.metadata.frequenciaDiaMes,
-            )
-          : Boolean(
-              input.metadata.frequencia ||
-                (input.metadata.frequenciaDiasSemana && input.metadata.frequenciaDiasSemana.length > 0) ||
-                input.metadata.frequenciaDiaMes,
-            );
+      const effectivePrazoProcesso = input.prazoProcesso !== undefined ? input.prazoProcesso : demanda.prazoProcesso;
+      if (!effectivePrazoProcesso) {
+        throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
+      }
 
-      const effectivePrazoFinal = input.prazoFinal !== undefined ? input.prazoFinal : demanda.prazoFinal;
-      if (!hasContinuousFrequency && !effectivePrazoFinal) {
-        throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo final e obrigatorio quando nao ha frequencia continua configurada.");
+      if (input.prazoProcesso !== undefined) {
+        const conflitoTarefas = await client.query(
+          `
+            select 1
+            from adminlog.tarefas_pendentes
+            where pre_demanda_id = $1
+              and concluida = false
+              and prazo_conclusao > $2::date
+            limit 1
+          `,
+          [demanda.id, effectivePrazoProcesso],
+        );
+
+        if (conflitoTarefas.rows[0]) {
+          throw new AppError(400, "PRE_DEMANDA_PRAZO_CONFLITO_TAREFAS", "Existem tarefas com prazo posterior ao prazo geral do processo.");
+        }
       }
 
       await client.query(
@@ -1741,11 +1746,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             descricao = case when $3::boolean then $4 else descricao end,
             fonte = case when $5::boolean then $6 else fonte end,
             observacoes = case when $7::boolean then $8 else observacoes end,
-            prazo_inicial = case when $9::boolean then $10::date else prazo_inicial end,
-            prazo_intermediario = case when $11::boolean then $12::date else prazo_intermediario end,
-            prazo_final = case when $13::boolean then $14::date else prazo_final end,
-            numero_judicial = case when $15::boolean then $16 else numero_judicial end,
-            metadata = case when $17::boolean then coalesce(metadata, '{}'::jsonb) || coalesce($18::jsonb, '{}'::jsonb) else metadata end
+            prazo_processo = case when $9::boolean then $10::date else prazo_processo end,
+            numero_judicial = case when $11::boolean then $12 else numero_judicial end,
+            metadata = case when $13::boolean then coalesce(metadata, '{}'::jsonb) || coalesce($14::jsonb, '{}'::jsonb) else metadata end
           where pre_id = $1
         `,
         [
@@ -1757,12 +1760,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           input.fonte ?? null,
           input.observacoes !== undefined,
           input.observacoes ?? null,
-          input.prazoInicial !== undefined,
-          input.prazoInicial ?? null,
-          input.prazoIntermediario !== undefined,
-          input.prazoIntermediario ?? null,
-          input.prazoFinal !== undefined,
-          input.prazoFinal ?? null,
+          input.prazoProcesso !== undefined,
+          input.prazoProcesso ?? null,
           numeroJudicial !== undefined,
           numeroJudicial ?? null,
           input.metadata !== undefined,
@@ -1844,6 +1843,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         preDemandaId: demanda.id,
         preId: demanda.preId,
         assuntoId: input.assuntoId,
+        prazoProcesso: demanda.prazoProcesso,
         changedByUserId: input.changedByUserId,
       });
 
@@ -1927,96 +1927,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     });
   }
 
-  private resolveTarefaPrazoData(
-    demanda: { prazoInicial: string | null; prazoIntermediario: string | null; prazoFinal: string | null },
-    prazoReferencia: TarefaPrazoReferencia | null | undefined,
-  ) {
-    if (!prazoReferencia) {
-      return null;
+  private validatePrazoConclusaoTarefa(demanda: { prazoProcesso: string }, prazoConclusao: string) {
+    if (!prazoConclusao) {
+      throw new AppError(400, "TAREFA_PRAZO_REQUIRED", "Toda tarefa precisa ter prazo de conclusao.");
     }
 
-    if (prazoReferencia === "prazoInicial") {
-      return demanda.prazoInicial;
+    if (new Date(`${prazoConclusao}T00:00:00`).getTime() > new Date(`${demanda.prazoProcesso}T00:00:00`).getTime()) {
+      throw new AppError(400, "TAREFA_PRAZO_FORA_DO_PROCESSO", "O prazo da tarefa nao pode ser maior que o prazo do processo.");
     }
-
-    if (prazoReferencia === "prazoIntermediario") {
-      return demanda.prazoIntermediario;
-    }
-
-    return demanda.prazoFinal;
-  }
-
-  private getTarefaPrazoLabel(prazoReferencia: TarefaPrazoReferencia | null | undefined) {
-    if (prazoReferencia === "prazoInicial") {
-      return "Prazo inicial";
-    }
-
-    if (prazoReferencia === "prazoIntermediario") {
-      return "Prazo intermediario";
-    }
-
-    if (prazoReferencia === "prazoFinal") {
-      return "Prazo final";
-    }
-
-    return null;
-  }
-
-  private async prepareTarefaPrazo(params: {
-    client: PoolClient;
-    demanda: { id: number; preId: string; prazoInicial: string | null; prazoIntermediario: string | null; prazoFinal: string | null };
-    prazoReferencia: TarefaPrazoReferencia | null | undefined;
-    prazoData?: string | null;
-    confirmarAlteracaoPrazo?: boolean;
-  }) {
-    if (!params.prazoReferencia) {
-      if (params.prazoData) {
-        throw new AppError(400, "TAREFA_PRAZO_INVALIDO", "Informe um tipo de prazo do processo antes de definir a data.");
-      }
-
-      return null;
-    }
-
-    const currentPrazoData = this.resolveTarefaPrazoData(params.demanda, params.prazoReferencia);
-    const nextPrazoData = params.prazoData ?? currentPrazoData;
-
-    if (!nextPrazoData) {
-      throw new AppError(400, "TAREFA_PRAZO_INDISPONIVEL", `Defina uma data para ${this.getTarefaPrazoLabel(params.prazoReferencia)?.toLowerCase()} do processo.`);
-    }
-
-    if (currentPrazoData && currentPrazoData !== nextPrazoData && !params.confirmarAlteracaoPrazo) {
-      throw new AppError(409, "TAREFA_PRAZO_CHANGE_CONFIRMATION", "Este prazo do processo ja possui uma data gravada. Confirme a alteracao para continuar.", {
-        preId: params.demanda.preId,
-        prazoReferencia: params.prazoReferencia,
-        prazoLabel: this.getTarefaPrazoLabel(params.prazoReferencia),
-        prazoDataAnterior: currentPrazoData,
-        prazoDataNova: nextPrazoData,
-      });
-    }
-
-    if (currentPrazoData !== nextPrazoData) {
-      const column =
-        params.prazoReferencia === "prazoInicial"
-          ? "prazo_inicial"
-          : params.prazoReferencia === "prazoIntermediario"
-            ? "prazo_intermediario"
-            : "prazo_final";
-
-      await params.client.query(
-        `update adminlog.pre_demanda set ${column} = $2::date, updated_at = now() where id = $1`,
-        [params.demanda.id, nextPrazoData],
-      );
-
-      if (params.prazoReferencia === "prazoInicial") {
-        params.demanda.prazoInicial = nextPrazoData;
-      } else if (params.prazoReferencia === "prazoIntermediario") {
-        params.demanda.prazoIntermediario = nextPrazoData;
-      } else {
-        params.demanda.prazoFinal = nextPrazoData;
-      }
-    }
-
-    return nextPrazoData;
   }
 
   async removeNumeroJudicial(input: RemoveNumeroJudicialInput) {
@@ -2459,13 +2377,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async createTarefa(input: CreateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
-      const prazoData = await this.prepareTarefaPrazo({
-        client,
-        demanda,
-        prazoReferencia: input.prazoReferencia,
-        prazoData: input.prazoData ?? null,
-        confirmarAlteracaoPrazo: input.confirmarAlteracaoPrazo,
-      });
+      this.validatePrazoConclusaoTarefa(demanda, input.prazoConclusao);
       const orderResult = await client.query(
         `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
         [demanda.id],
@@ -2480,12 +2392,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             tipo,
             assunto_id,
             procedimento_id,
-            prazo_referencia,
+            prazo_conclusao,
+            recorrencia_tipo,
+            recorrencia_dias_semana,
+            recorrencia_dia_mes,
             setor_destino_id,
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7, $8::uuid, $9, $10)
+          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8, $9::jsonb, $10::int, $11::uuid, $12, $13)
           returning id
         `,
         [
@@ -2495,7 +2410,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           input.tipo,
           input.assuntoId ?? null,
           input.procedimentoId ?? null,
-          input.prazoReferencia ?? null,
+          input.prazoConclusao,
+          input.recorrenciaTipo ?? null,
+          input.recorrenciaDiasSemana ? JSON.stringify(input.recorrenciaDiasSemana) : null,
+          input.recorrenciaDiaMes ?? null,
           input.setorDestinoId ?? null,
           input.geradaAutomaticamente ?? false,
           input.changedByUserId,
@@ -2534,21 +2452,24 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(409, "TAREFA_NOT_EDITABLE", "Tarefas concluidas nao podem ser alteradas.");
       }
 
-      const prazoData = await this.prepareTarefaPrazo({
-        client,
-        demanda,
-        prazoReferencia: input.prazoReferencia,
-        prazoData: input.prazoData ?? null,
-        confirmarAlteracaoPrazo: input.confirmarAlteracaoPrazo,
-      });
+      this.validatePrazoConclusaoTarefa(demanda, input.prazoConclusao);
 
       await client.query(
         `
           update adminlog.tarefas_pendentes
-          set descricao = $3, tipo = $4, prazo_referencia = $5
+          set descricao = $3, tipo = $4, prazo_conclusao = $5::date, recorrencia_tipo = $6, recorrencia_dias_semana = $7::jsonb, recorrencia_dia_mes = $8::int
           where id = $1::uuid and pre_demanda_id = $2
         `,
-        [input.tarefaId, demanda.id, input.descricao, input.tipo, input.prazoReferencia ?? null],
+        [
+          input.tarefaId,
+          demanda.id,
+          input.descricao,
+          input.tipo,
+          input.prazoConclusao,
+          input.recorrenciaTipo ?? null,
+          input.recorrenciaDiasSemana ? JSON.stringify(input.recorrenciaDiasSemana) : null,
+          input.recorrenciaDiaMes ?? null,
+        ],
       );
 
       await this.insertAndamento(client, {
@@ -3551,17 +3472,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_final is not null
-                and pd.prazo_final < current_date
+                and pd.prazo_processo < current_date
             )::int as overdue_total,
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_final = current_date
+                and pd.prazo_processo = current_date
             )::int as due_today_total,
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_final is not null
-                and pd.prazo_final between current_date and current_date + interval '7 days'
+                and pd.prazo_processo between current_date and current_date + interval '7 days'
             )::int as due_soon_total,
             count(*) filter (
               where pd.status <> 'encerrada'
@@ -3585,50 +3504,61 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             )::int as without_interessados_total,
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_inicial is not null
-            )::int as prazo_inicial_defined_total,
+                and pd.prazo_processo is not null
+            )::int as prazo_processo_defined_total,
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_inicial < current_date
-            )::int as prazo_inicial_overdue_total,
+                and exists (
+                  select 1
+                  from adminlog.tarefas_pendentes tarefa
+                  where tarefa.pre_demanda_id = pd.id
+                    and tarefa.concluida = false
+                    and tarefa.prazo_conclusao < current_date
+                )
+            )::int as tarefas_overdue_total,
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_inicial = current_date
-            )::int as prazo_inicial_due_today_total,
+                and exists (
+                  select 1
+                  from adminlog.tarefas_pendentes tarefa
+                  where tarefa.pre_demanda_id = pd.id
+                    and tarefa.concluida = false
+                    and tarefa.prazo_conclusao = current_date
+                )
+            )::int as tarefas_due_today_total,
             count(*) filter (
               where pd.status <> 'encerrada'
-                and pd.prazo_inicial between current_date and current_date + interval '7 days'
-            )::int as prazo_inicial_due_soon_total,
-            count(*) filter (
-              where pd.status <> 'encerrada'
-                and pd.prazo_intermediario is not null
-            )::int as prazo_intermediario_defined_total,
-            count(*) filter (
-              where pd.status <> 'encerrada'
-                and pd.prazo_intermediario < current_date
-            )::int as prazo_intermediario_overdue_total,
-            count(*) filter (
-              where pd.status <> 'encerrada'
-                and pd.prazo_intermediario = current_date
-            )::int as prazo_intermediario_due_today_total,
-            count(*) filter (
-              where pd.status <> 'encerrada'
-                and pd.prazo_intermediario between current_date and current_date + interval '7 days'
-            )::int as prazo_intermediario_due_soon_total,
-            count(*) filter (
-              where pd.status <> 'encerrada'
-                and pd.prazo_final is not null
-            )::int as prazo_final_defined_total
+                and exists (
+                  select 1
+                  from adminlog.tarefas_pendentes tarefa
+                  where tarefa.pre_demanda_id = pd.id
+                    and tarefa.concluida = false
+                    and tarefa.prazo_conclusao between current_date and current_date + interval '7 days'
+                )
+            )::int as tarefas_due_soon_total,
+            coalesce(sum((
+              select count(*)
+              from adminlog.tarefas_pendentes tarefa
+              where tarefa.pre_demanda_id = pd.id
+                and tarefa.concluida = false
+            )), 0)::int as tarefas_pending_total,
+            count(*) filter (where pd.status <> 'encerrada' and prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days' and prox_tarefa.proximo_prazo_tarefa < pd.prazo_processo)::int as processos_em_atencao_prazo,
+            count(*) filter (where pd.status <> 'encerrada' and (prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo or exists (select 1 from adminlog.tarefas_pendentes tarefa where tarefa.pre_demanda_id = pd.id and tarefa.concluida = false and tarefa.prazo_conclusao < current_date)))::int as processos_criticos_prazo
           from adminlog.pre_demanda pd
+          left join lateral (
+            select min(tarefa.prazo_conclusao) as proximo_prazo_tarefa
+            from adminlog.tarefas_pendentes tarefa
+            where tarefa.pre_demanda_id = pd.id
+              and tarefa.concluida = false
+          ) prox_tarefa on true
         `,
       ),
       this.pool.query(
         `
           ${BASE_SELECT}
           where pd.status <> 'encerrada'
-            and pd.prazo_final is not null
-            and pd.prazo_final between current_date and current_date + interval '7 days'
-          order by pd.prazo_final asc, pd.updated_at asc, pd.id asc
+            and coalesce(prox_tarefa.proximo_prazo_tarefa, pd.prazo_processo) between current_date and current_date + interval '7 days'
+          order by coalesce(prox_tarefa.proximo_prazo_tarefa, pd.prazo_processo) asc, pd.updated_at asc, pd.id asc
           limit 5
         `,
       ),
@@ -3637,7 +3567,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           ${BASE_SELECT}
           where pd.status <> 'encerrada'
             and coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = true
-          order by pd.prazo_final asc nulls last, pd.updated_at asc, pd.id asc
+          order by pd.prazo_processo asc nulls last, pd.updated_at asc, pd.id asc
           limit 5
         `,
       ),
@@ -3646,7 +3576,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           ${BASE_SELECT}
           where pd.status <> 'encerrada'
             and coalesce((pd.metadata ->> 'urgente')::boolean, false) = true
-          order by pd.prazo_final asc nulls last, pd.updated_at asc, pd.id asc
+          order by pd.prazo_processo asc nulls last, pd.updated_at asc, pd.id asc
           limit 5
         `,
       ),
@@ -3678,25 +3608,21 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return {
       counts,
       deadlines: {
-        prazoInicial: {
-          overdueTotal: Number(caseSignalsResult.rows[0]?.prazo_inicial_overdue_total ?? 0),
-          dueTodayTotal: Number(caseSignalsResult.rows[0]?.prazo_inicial_due_today_total ?? 0),
-          dueSoonTotal: Number(caseSignalsResult.rows[0]?.prazo_inicial_due_soon_total ?? 0),
-          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_inicial_defined_total ?? 0),
-        },
-        prazoIntermediario: {
-          overdueTotal: Number(caseSignalsResult.rows[0]?.prazo_intermediario_overdue_total ?? 0),
-          dueTodayTotal: Number(caseSignalsResult.rows[0]?.prazo_intermediario_due_today_total ?? 0),
-          dueSoonTotal: Number(caseSignalsResult.rows[0]?.prazo_intermediario_due_soon_total ?? 0),
-          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_intermediario_defined_total ?? 0),
-        },
-        prazoFinal: {
+        processo: {
           overdueTotal: Number(caseSignalsResult.rows[0]?.overdue_total ?? 0),
           dueTodayTotal: Number(caseSignalsResult.rows[0]?.due_today_total ?? 0),
           dueSoonTotal: Number(caseSignalsResult.rows[0]?.due_soon_total ?? 0),
-          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_final_defined_total ?? 0),
+          totalDefined: Number(caseSignalsResult.rows[0]?.prazo_processo_defined_total ?? 0),
+        },
+        tarefas: {
+          overdueTotal: Number(caseSignalsResult.rows[0]?.tarefas_overdue_total ?? 0),
+          dueTodayTotal: Number(caseSignalsResult.rows[0]?.tarefas_due_today_total ?? 0),
+          dueSoonTotal: Number(caseSignalsResult.rows[0]?.tarefas_due_soon_total ?? 0),
+          totalPending: Number(caseSignalsResult.rows[0]?.tarefas_pending_total ?? 0),
         },
       },
+      processosEmAtencaoPrazo: Number(caseSignalsResult.rows[0]?.processos_em_atencao_prazo ?? 0),
+      processosCriticosPrazo: Number(caseSignalsResult.rows[0]?.processos_criticos_prazo ?? 0),
       reopenedLast30Days: Number(lifecycleMetricsResult.rows[0]?.reopened_last_30_days ?? 0),
       closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
       agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),

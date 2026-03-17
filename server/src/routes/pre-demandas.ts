@@ -6,19 +6,16 @@ import type { PreDemandaRepository } from "../repositories/types";
 
 const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
-const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoFinal", "numeroJudicial"];
+const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoProcesso", "proximoPrazoTarefa", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
 const DUE_STATES = ["overdue", "due_today", "due_soon", "none"] as const;
-const PRAZO_FIELDS = ["prazoInicial", "prazoIntermediario", "prazoFinal"] as const;
+const DEADLINE_FIELDS = ["prazoProcesso", "proximoPrazoTarefa"] as const;
 const PRAZO_RECORTES = ["overdue", "today", "soon"] as const;
 const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
 const NUMERO_JUDICIAL_REGEX = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
 
 const metadataSchema = z
   .object({
-    frequencia: z.string().trim().max(120).optional().nullable(),
-    frequencia_dias_semana: z.array(z.string().trim().min(3).max(16)).max(7).optional().nullable(),
-    frequencia_dia_mes: z.number().int().min(1).max(31).optional().nullable(),
     pagamento_envolvido: z.boolean().optional().nullable(),
     urgente: z.boolean().optional().nullable(),
     audiencia_data: z.string().date().optional().nullable(),
@@ -46,25 +43,17 @@ const createSchema = z.object({
   descricao: z.string().trim().max(4000).optional().nullable(),
   fonte: z.string().trim().max(120).optional().nullable(),
   observacoes: z.string().trim().max(4000).optional().nullable(),
-  prazo_inicial: z.string().date().optional().nullable(),
-  prazo_intermediario: z.string().date().optional().nullable(),
-  prazo_final: z.string().date().optional().nullable(),
+  prazo_processo: z.string().date(),
   sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido.").optional().nullable(),
   numero_judicial: numeroJudicialSchema,
   assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
 })
   .refine((value) => {
-    const hasContinuousFrequency = Boolean(
-      value.metadata?.frequencia ||
-        (value.metadata?.frequencia_dias_semana && value.metadata.frequencia_dias_semana.length) ||
-        value.metadata?.frequencia_dia_mes,
-    );
-
-    return hasContinuousFrequency || Boolean(value.prazo_final);
+    return Boolean(value.prazo_processo);
   }, {
     message: "Prazo final é obrigatório quando a demanda não possui frequência contínua.",
-    path: ["prazo_final"],
+    path: ["prazo_processo"],
   });
 
 const listSchema = z.object({
@@ -77,7 +66,7 @@ const listSchema = z.object({
   setorAtualId: z.string().uuid().optional(),
   withoutSetor: z.enum(["true", "false"]).optional(),
   dueState: z.enum(DUE_STATES).optional(),
-  prazoCampo: z.enum(PRAZO_FIELDS).optional(),
+  deadlineCampo: z.enum(DEADLINE_FIELDS).optional(),
   prazoRecorte: z.enum(PRAZO_RECORTES).optional(),
   paymentInvolved: z.enum(["true", "false"]).optional(),
   hasInteressados: z.enum(["true", "false"]).optional(),
@@ -111,9 +100,7 @@ const patchCaseSchema = z
     descricao: z.string().trim().max(4000).optional().nullable(),
     fonte: z.string().trim().max(120).optional().nullable(),
     observacoes: z.string().trim().max(4000).optional().nullable(),
-    prazo_inicial: z.string().date().optional().nullable(),
-    prazo_intermediario: z.string().date().optional().nullable(),
-    prazo_final: z.string().date().optional().nullable(),
+    prazo_processo: z.string().date().optional().nullable(),
     numero_judicial: numeroJudicialSchema,
     metadata: metadataSchema,
   })
@@ -160,10 +147,10 @@ const andamentoDeleteSchema = z.object({
 const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
-  prazo_referencia: z.enum(PRAZO_FIELDS).optional().nullable(),
-  prazo_data: z.string().date().optional().nullable(),
-  confirmar_conflito: z.boolean().optional(),
-  confirmar_alteracao_prazo: z.boolean().optional(),
+  prazo_conclusao: z.string().date(),
+  recorrencia_tipo: z.enum(["diaria", "semanal", "mensal"]).optional().nullable(),
+  recorrencia_dias_semana: z.array(z.string().trim().min(3).max(16)).max(7).optional().nullable(),
+  recorrencia_dia_mes: z.number().int().min(1).max(31).optional().nullable(),
   setor_destino_id: z.string().uuid().optional().nullable(),
 });
 
@@ -211,9 +198,6 @@ function normalizeMetadata(payload: z.infer<typeof metadataSchema>) {
   }
 
   return {
-    frequencia: emptyToNull(payload.frequencia),
-    frequenciaDiasSemana: payload.frequencia_dias_semana?.length ? payload.frequencia_dias_semana : null,
-    frequenciaDiaMes: payload.frequencia_dia_mes ?? null,
     pagamentoEnvolvido: payload.pagamento_envolvido ?? null,
     urgente: payload.urgente ?? null,
     audienciaData: payload.audiencia_data ?? null,
@@ -267,9 +251,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       descricao: emptyToNull(payload.descricao),
       fonte: emptyToNull(payload.fonte),
       observacoes: emptyToNull(payload.observacoes),
-      prazoInicial: payload.prazo_inicial ?? null,
-      prazoIntermediario: payload.prazo_intermediario ?? null,
-      prazoFinal: payload.prazo_final ?? null,
+      prazoProcesso: payload.prazo_processo,
       seiNumero: emptyToNull(payload.sei_numero),
       numeroJudicial: emptyToNull(payload.numero_judicial),
       assuntoIds: payload.assunto_ids,
@@ -313,7 +295,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
         setorAtualId: query.setorAtualId,
         withoutSetor: query.withoutSetor ? query.withoutSetor === "true" : undefined,
         dueState: query.dueState,
-        prazoCampo: query.prazoCampo,
+        deadlineCampo: query.deadlineCampo,
         prazoRecorte: query.prazoRecorte,
         paymentInvolved: query.paymentInvolved ? query.paymentInvolved === "true" : undefined,
         hasInteressados: query.hasInteressados ? query.hasInteressados === "true" : undefined,
@@ -383,9 +365,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       descricao: payload.descricao === undefined ? undefined : emptyToNull(payload.descricao),
       fonte: payload.fonte === undefined ? undefined : emptyToNull(payload.fonte),
       observacoes: payload.observacoes === undefined ? undefined : emptyToNull(payload.observacoes),
-      prazoInicial: payload.prazo_inicial === undefined ? undefined : payload.prazo_inicial,
-      prazoIntermediario: payload.prazo_intermediario === undefined ? undefined : payload.prazo_intermediario,
-      prazoFinal: payload.prazo_final === undefined ? undefined : payload.prazo_final,
+      prazoProcesso: payload.prazo_processo === undefined ? undefined : payload.prazo_processo,
       numeroJudicial: payload.numero_judicial === undefined ? undefined : emptyToNull(payload.numero_judicial),
       metadata: normalizeMetadata(payload.metadata),
     });
@@ -600,10 +580,10 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       preId: params.preId,
       descricao: payload.descricao,
       tipo: payload.tipo,
-      prazoReferencia: payload.prazo_referencia ?? null,
-      prazoData: payload.prazo_data ?? null,
-      confirmarConflito: payload.confirmar_conflito ?? false,
-      confirmarAlteracaoPrazo: payload.confirmar_alteracao_prazo ?? false,
+      prazoConclusao: payload.prazo_conclusao,
+      recorrenciaTipo: payload.recorrencia_tipo ?? null,
+      recorrenciaDiasSemana: payload.recorrencia_dias_semana ?? null,
+      recorrenciaDiaMes: payload.recorrencia_dia_mes ?? null,
       setorDestinoId: payload.setor_destino_id ?? null,
       changedByUserId: request.user!.id,
     });
@@ -623,10 +603,10 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
       tarefaId: params.tarefaId,
       descricao: payload.descricao,
       tipo: payload.tipo,
-      prazoReferencia: payload.prazo_referencia ?? null,
-      prazoData: payload.prazo_data ?? null,
-      confirmarConflito: payload.confirmar_conflito ?? false,
-      confirmarAlteracaoPrazo: payload.confirmar_alteracao_prazo ?? false,
+      prazoConclusao: payload.prazo_conclusao,
+      recorrenciaTipo: payload.recorrencia_tipo ?? null,
+      recorrenciaDiasSemana: payload.recorrencia_dias_semana ?? null,
+      recorrenciaDiaMes: payload.recorrencia_dia_mes ?? null,
       changedByUserId: request.user!.id,
     });
 

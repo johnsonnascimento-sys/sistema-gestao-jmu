@@ -86,7 +86,10 @@ export function KanbanBoard({
                         <span className="font-medium text-slate-950">Data:</span> {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Prazo:</span> {item.prazoFinal ? new Date(item.prazoFinal).toLocaleDateString("pt-BR") : "Nao definido"}
+                        <span className="font-medium text-slate-950">Prazo do processo:</span> {item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "Nao definido"}
+                      </p>
+                      <p>
+                        <span className="font-medium text-slate-950">Proxima tarefa:</span> {item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas pendentes"}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}

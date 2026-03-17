@@ -33,12 +33,14 @@ export type PreDemandaSortBy =
   | "solicitante"
   | "status"
   | "prazoFinal"
+  | "prazoProcesso"
+  | "proximoPrazoTarefa"
   | "numeroJudicial";
 export type SortOrder = "asc" | "desc";
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
 export type DemandaInteressadoPapel = "solicitante" | "interessado";
 export type TarefaPendenteTipo = "fixa" | "livre";
-export type TarefaPrazoReferencia = "prazoInicial" | "prazoIntermediario" | "prazoFinal";
+export type TarefaRecorrenciaTipo = "diaria" | "semanal" | "mensal";
 export type DemandaSetorFluxoStatus = "ativo" | "concluido";
 export type DemandaComentarioFormato = "markdown";
 export type TimelineEventType =
@@ -222,8 +224,12 @@ export interface TarefaPendente {
   tipo: TarefaPendenteTipo;
   assuntoId: string | null;
   procedimentoId: string | null;
-  prazoReferencia: TarefaPrazoReferencia | null;
-  prazoData: string | null;
+  prazoConclusao?: string;
+  recorrenciaTipo?: TarefaRecorrenciaTipo | null;
+  recorrenciaDiasSemana?: string[] | null;
+  recorrenciaDiaMes?: number | null;
+  prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null;
+  prazoData?: string | null;
   setorDestino: Setor | null;
   geradaAutomaticamente: boolean;
   concluida: boolean;
@@ -310,9 +316,12 @@ export interface PreDemanda {
   descricao: string | null;
   fonte: string | null;
   observacoes: string | null;
-  prazoInicial: string | null;
-  prazoIntermediario: string | null;
-  prazoFinal: string | null;
+  prazoProcesso: string;
+  proximoPrazoTarefa: string | null;
+  sinalPrazoProcesso: "normal" | "atencao" | "critico";
+  prazoInicial?: string | null;
+  prazoIntermediario?: string | null;
+  prazoFinal?: string | null;
   dataConclusao: string | null;
   numeroJudicial: string | null;
   anotacoes: string | null;
@@ -371,10 +380,14 @@ export interface StatusCount {
 export interface PreDemandaDashboardSummary {
   counts: StatusCount[];
   deadlines: {
-    prazoInicial: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
-    prazoIntermediario: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
-    prazoFinal: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    processo: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    tarefas: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalPending: number };
+    prazoInicial?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    prazoIntermediario?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
+    prazoFinal?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
   };
+  processosEmAtencaoPrazo: number;
+  processosCriticosPrazo: number;
   reopenedLast30Days: number;
   closedLast30Days: number;
   agingAttentionTotal: number;

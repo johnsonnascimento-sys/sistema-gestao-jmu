@@ -66,7 +66,7 @@ import { formatNumeroJudicialInput, normalizeNumeroJudicialValue } from "../lib/
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaPrazoReferencia, TimelineEvent } from "../types";
+import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
 
 type ToolbarDialog = null | "related" | "edit" | "send" | "link" | "notes" | "deadline" | "andamento";
 
@@ -88,8 +88,10 @@ type TaskPrazoChangeState = {
   payload: {
     descricao: string;
     tipo: "fixa" | "livre";
-    prazo_referencia: TarefaPrazoReferencia | null;
-    prazo_data: string | null;
+    prazo_conclusao: string;
+    recorrencia_tipo?: TarefaRecorrenciaTipo | null;
+    recorrencia_dias_semana?: string[] | null;
+    recorrencia_dia_mes?: number | null;
     setor_destino_id?: string | null;
   };
   details: {
@@ -130,12 +132,7 @@ export function PreDemandaDetailPage() {
     fonte: "",
     observacoes: "",
     numero_judicial: "",
-    prazo_inicial: "",
-    prazo_intermediario: "",
-    prazo_final: "",
-    frequencia: "",
-    frequencia_dias_semana: [] as string[],
-    frequencia_dia_mes: "",
+    prazo_processo: "",
     pagamento_envolvido: false,
     urgente: false,
     audiencia_data: "",
@@ -145,23 +142,19 @@ export function PreDemandaDetailPage() {
     assunto: "",
     data_referencia: new Date().toISOString().slice(0, 10),
     descricao: "",
-    prazo_inicial: "",
-    prazo_intermediario: "",
-    prazo_final: "",
+    prazo_processo: "",
   });
   const [notesForm, setNotesForm] = useState("");
   const [deadlineForm, setDeadlineForm] = useState({
-    prazo_inicial: "",
-    prazo_intermediario: "",
-    prazo_final: "",
+    prazo_processo: "",
   });
   const [tramitarSetorIds, setTramitarSetorIds] = useState<string[]>([]);
   const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
-  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia, prazo_data: "", setor_destino_id: "" });
+  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "" });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_referencia: "" as "" | TarefaPrazoReferencia, prazo_data: "" });
+  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
   const [commentForm, setCommentForm] = useState("");
@@ -189,12 +182,7 @@ export function PreDemandaDetailPage() {
         fonte: nextRecord.fonte ?? "",
         observacoes: nextRecord.observacoes ?? "",
         numero_judicial: normalizeNumeroJudicialValue(nextRecord.numeroJudicial),
-        prazo_inicial: nextRecord.prazoInicial ?? "",
-        prazo_intermediario: nextRecord.prazoIntermediario ?? "",
-        prazo_final: nextRecord.prazoFinal ?? "",
-        frequencia: nextRecord.metadata.frequencia ?? "",
-        frequencia_dias_semana: nextRecord.metadata.frequenciaDiasSemana ?? [],
-        frequencia_dia_mes: nextRecord.metadata.frequenciaDiaMes ? String(nextRecord.metadata.frequenciaDiaMes) : "",
+        prazo_processo: nextRecord.prazoProcesso ?? "",
         pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
         urgente: nextRecord.metadata.urgente ?? false,
         audiencia_data: nextRecord.metadata.audienciaData ?? "",
@@ -202,9 +190,7 @@ export function PreDemandaDetailPage() {
       });
       setNotesForm(nextRecord.anotacoes ?? "");
       setDeadlineForm({
-        prazo_inicial: nextRecord.prazoInicial ?? "",
-        prazo_intermediario: nextRecord.prazoIntermediario ?? "",
-        prazo_final: nextRecord.prazoFinal ?? "",
+        prazo_processo: nextRecord.prazoProcesso ?? "",
       });
       setError("");
     } catch (nextError) {
@@ -284,15 +270,17 @@ export function PreDemandaDetailPage() {
 
   useEffect(() => {
     if (!editingTask) {
-      setEditTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "", prazo_data: "" });
+      setEditTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "" });
       return;
     }
 
     setEditTaskForm({
       descricao: editingTask.descricao,
       tipo: editingTask.tipo,
-      prazo_referencia: editingTask.prazoReferencia ?? "",
-      prazo_data: editingTask.prazoData ?? "",
+      prazo_conclusao: editingTask.prazoConclusao ?? "",
+      recorrencia_tipo: editingTask.recorrenciaTipo ?? "",
+      recorrencia_dias_semana: editingTask.recorrenciaDiasSemana ?? [],
+      recorrencia_dia_mes: editingTask.recorrenciaDiaMes ? String(editingTask.recorrenciaDiaMes) : "",
     });
   }, [editingTask]);
 
@@ -337,26 +325,6 @@ export function PreDemandaDetailPage() {
     return Array.from(new Set([...items, ...interessadoShortcuts]));
   }, [record]);
   const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor";
-  const taskPrazoOptions = useMemo(
-    () => [
-      { value: "", label: "Sem prazo vinculado", available: true },
-      { value: "prazoInicial" as const, label: `Prazo inicial${record?.prazoInicial ? ` (${new Date(record.prazoInicial).toLocaleDateString("pt-BR")})` : " (nao definido)"}`, available: true },
-      {
-        value: "prazoIntermediario" as const,
-        label: `Prazo intermediario${record?.prazoIntermediario ? ` (${new Date(record.prazoIntermediario).toLocaleDateString("pt-BR")})` : " (nao definido)"}`,
-        available: true,
-      },
-      { value: "prazoFinal" as const, label: `Prazo final${record?.prazoFinal ? ` (${new Date(record.prazoFinal).toLocaleDateString("pt-BR")})` : " (nao definido)"}`, available: true },
-    ],
-    [record?.prazoFinal, record?.prazoInicial, record?.prazoIntermediario],
-  );
-
-  function getPrazoLabel(value: TarefaPrazoReferencia | null | undefined) {
-    if (value === "prazoInicial") return "Prazo inicial";
-    if (value === "prazoIntermediario") return "Prazo intermediario";
-    if (value === "prazoFinal") return "Prazo final";
-    return "Sem prazo";
-  }
 
   function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
     if (!(error instanceof Error) || !("code" in error) || !("details" in error)) {
@@ -402,21 +370,11 @@ export function PreDemandaDetailPage() {
     () => assuntosCatalogo.filter((item) => !record?.assuntos.some((linked) => linked.assunto.id === item.id)),
     [assuntosCatalogo, record],
   );
-  const frequencySummary = useMemo(() => {
-    if (!record?.metadata.frequencia) return "-";
-    if (record.metadata.frequencia === "Semanal" && record.metadata.frequenciaDiasSemana?.length) {
-      return `Semanal (${record.metadata.frequenciaDiasSemana.join(", ")})`;
-    }
-    if (record.metadata.frequencia === "Mensal" && record.metadata.frequenciaDiaMes) {
-      return `Mensal (dia ${record.metadata.frequenciaDiaMes})`;
-    }
-    return record.metadata.frequencia;
-  }, [record]);
   const sectionSummaries = useMemo(
     () =>
       record
         ? {
-            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo final ${record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"}`,
+            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo do processo ${record.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "-"}`,
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
             setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
@@ -430,24 +388,6 @@ export function PreDemandaDetailPage() {
         : null,
     [completedTasks.length, nextAction.title, pendingTasks.length, queueHealth?.summary, record, timeline.length],
   );
-
-  function updateEditFrequencia(nextValue: string) {
-    setEditForm((current) => ({
-      ...current,
-      frequencia: nextValue,
-      frequencia_dias_semana: nextValue === "Semanal" ? current.frequencia_dias_semana : [],
-      frequencia_dia_mes: nextValue === "Mensal" ? current.frequencia_dia_mes : "",
-    }));
-  }
-
-  function toggleEditWeekday(day: string) {
-    setEditForm((current) => ({
-      ...current,
-      frequencia_dias_semana: current.frequencia_dias_semana.includes(day)
-        ? current.frequencia_dias_semana.filter((item) => item !== day)
-        : [...current.frequencia_dias_semana, day],
-    }));
-  }
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
     setIsSubmitting(true);
@@ -471,8 +411,10 @@ export function PreDemandaDetailPage() {
           ? `${taskForm.descricao.trim()} ${setores.find((item) => item.id === taskForm.setor_destino_id)?.sigla ?? ""}`.trim()
           : taskForm.descricao.trim(),
       tipo: taskForm.tipo,
-      prazo_referencia: taskForm.prazo_referencia || null,
-      prazo_data: taskForm.prazo_data || null,
+      prazo_conclusao: taskForm.prazo_conclusao,
+      recorrencia_tipo: taskForm.recorrencia_tipo || null,
+      recorrencia_dias_semana: taskForm.recorrencia_tipo === "semanal" ? taskForm.recorrencia_dias_semana : null,
+      recorrencia_dia_mes: taskForm.recorrencia_tipo === "mensal" && taskForm.recorrencia_dia_mes ? Number(taskForm.recorrencia_dia_mes) : null,
       setor_destino_id: taskForm.setor_destino_id || null,
     };
 
@@ -487,7 +429,7 @@ export function PreDemandaDetailPage() {
       });
       await load();
       setTaskPrazoChange(null);
-      setTaskForm({ descricao: "", tipo: "livre", prazo_referencia: "", prazo_data: "", setor_destino_id: "" });
+      setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "" });
       setMessage("Tarefa criada.");
     } catch (nextError) {
       const prazoChange = getTaskPrazoChangeState(nextError, payload, "create");
@@ -509,8 +451,10 @@ export function PreDemandaDetailPage() {
     const payload = {
       descricao: editTaskForm.descricao.trim(),
       tipo: editTaskForm.tipo,
-      prazo_referencia: editTaskForm.prazo_referencia || null,
-      prazo_data: editTaskForm.prazo_data || null,
+      prazo_conclusao: editTaskForm.prazo_conclusao,
+      recorrencia_tipo: editTaskForm.recorrencia_tipo || null,
+      recorrencia_dias_semana: editTaskForm.recorrencia_tipo === "semanal" ? editTaskForm.recorrencia_dias_semana : null,
+      recorrencia_dia_mes: editTaskForm.recorrencia_tipo === "mensal" && editTaskForm.recorrencia_dia_mes ? Number(editTaskForm.recorrencia_dia_mes) : null,
     };
 
     setIsSubmitting(true);
@@ -647,13 +591,13 @@ export function PreDemandaDetailPage() {
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
               <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
-              <SummaryItem label="Prazo inicial" value={record.prazoInicial ? new Date(record.prazoInicial).toLocaleDateString("pt-BR") : "-"} />
-              <SummaryItem label="Prazo intermediario" value={record.prazoIntermediario ? new Date(record.prazoIntermediario).toLocaleDateString("pt-BR") : "-"} />
-              <SummaryItem label="Prazo final" value={record.prazoFinal ? new Date(record.prazoFinal).toLocaleDateString("pt-BR") : "-"} />
+              <SummaryItem label="Prazo do processo" value={record.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "-"} />
+              <SummaryItem label="Proxima tarefa" value={record.proximoPrazoTarefa ? new Date(record.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas pendentes"} />
+              <SummaryItem label="Sinal de prazo" value={record.sinalPrazoProcesso ?? "normal"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
-              <SummaryItem label="Frequencia" value={frequencySummary} />
+              <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
               <SummaryItem label="Data da audiencia" value={record.metadata.audienciaData ? new Date(record.metadata.audienciaData).toLocaleDateString("pt-BR") : "-"} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
               <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
@@ -870,51 +814,43 @@ export function PreDemandaDetailPage() {
                 ) : null}
               </div>
 
-              <div className="grid gap-3 md:grid-cols-[1fr_180px_240px_170px_auto]">
+              <div className="grid gap-3 md:grid-cols-[1fr_160px_170px_170px_auto]">
                 <Input onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descreva a proxima tarefa" value={taskForm.descricao} />
                 <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, tipo: event.target.value as "fixa" | "livre" }))} value={taskForm.tipo}>
                   <option value="livre">Livre</option>
                   <option value="fixa">Fixa</option>
                 </select>
-                <select
-                  className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
-                  onChange={(event) =>
-                    setTaskForm((current) => {
-                      const nextReferencia = event.target.value as "" | TarefaPrazoReferencia;
-                      const nextPrazoData =
-                        nextReferencia === "prazoInicial"
-                          ? record.prazoInicial ?? ""
-                          : nextReferencia === "prazoIntermediario"
-                            ? record.prazoIntermediario ?? ""
-                            : nextReferencia === "prazoFinal"
-                              ? record.prazoFinal ?? ""
-                              : "";
-
-                      return { ...current, prazo_referencia: nextReferencia, prazo_data: nextPrazoData };
-                    })
-                  }
-                  value={taskForm.prazo_referencia}
-                >
-                  {taskPrazoOptions.map((option) => (
-                    <option key={option.value || "sem-prazo"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
+                <Input max={record?.prazoProcesso ?? undefined} min={undefined} onChange={(event) => setTaskForm((current) => ({ ...current, prazo_conclusao: event.target.value }))} type="date" value={taskForm.prazo_conclusao} />
+                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: event.target.value === "mensal" ? current.recorrencia_dia_mes : "" }))} value={taskForm.recorrencia_tipo}>
+                  <option value="">Sem recorrencia</option>
+                  <option value="diaria">Diaria</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensal">Mensal</option>
                 </select>
-                <Input disabled={!taskForm.prazo_referencia} onChange={(event) => setTaskForm((current) => ({ ...current, prazo_data: event.target.value }))} type="date" value={taskForm.prazo_data} />
                 <Button
-                  disabled={taskForm.descricao.trim().length < 3 || (requiresTaskSetorDestino && !taskForm.setor_destino_id) || (Boolean(taskForm.prazo_referencia) && !taskForm.prazo_data)}
+                  disabled={taskForm.descricao.trim().length < 3 || !taskForm.prazo_conclusao || (requiresTaskSetorDestino && !taskForm.setor_destino_id)}
                   onClick={() => void handleCreateTask()}
                   type="button"
                 >
                   Criar tarefa
                 </Button>
               </div>
+              <p className="text-xs text-slate-500">Toda tarefa precisa de prazo de conclusao e nao pode passar de {record?.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "o prazo do processo"}.</p>
 
-              {taskForm.prazo_referencia ? (
-                <p className="text-xs text-slate-500">
-                  Esta tarefa ficara vinculada a {getPrazoLabel(taskForm.prazo_referencia).toLowerCase()} do processo e pode definir essa data.
-                </p>
+              {taskForm.recorrencia_tipo === "semanal" ? (
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAY_OPTIONS.map((item) => (
+                    <Button key={item} onClick={() => setTaskForm((current) => ({ ...current, recorrencia_dias_semana: current.recorrencia_dias_semana.includes(item) ? current.recorrencia_dias_semana.filter((value) => value !== item) : [...current.recorrencia_dias_semana, item] }))} size="sm" type="button" variant={taskForm.recorrencia_dias_semana.includes(item) ? "primary" : "outline"}>
+                      {item}
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+
+              {taskForm.recorrencia_tipo === "mensal" ? (
+                <FormField label="Dia do mes">
+                  <Input max="31" min="1" onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_dia_mes: event.target.value }))} type="number" value={taskForm.recorrencia_dia_mes} />
+                </FormField>
               ) : null}
 
               {requiresTaskSetorDestino ? (
@@ -936,7 +872,7 @@ export function PreDemandaDetailPage() {
               ) : null}
 
               <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value, tipo: "fixa", setor_destino_id: event.target.value === "Envio para" || event.target.value === "Retorno do setor" ? current.setor_destino_id : "", prazo_referencia: current.prazo_referencia }))} value="">
+                <select className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm" onChange={(event) => setTaskForm((current) => ({ ...current, descricao: event.target.value, tipo: "fixa", setor_destino_id: event.target.value === "Envio para" || event.target.value === "Retorno do setor" ? current.setor_destino_id : "" }))} value="">
                   <option value="">Atalhos de tarefas</option>
                   {taskShortcutOptions.map((item) => (
                     <option key={item} value={item}>
@@ -949,7 +885,7 @@ export function PreDemandaDetailPage() {
 
               <div className="flex flex-wrap gap-2">
                 {taskShortcutOptions.slice(0, 6).map((item) => (
-                  <Button key={item} onClick={() => setTaskForm((current) => ({ ...current, descricao: item, tipo: "fixa", setor_destino_id: item === "Envio para" || item === "Retorno do setor" ? current.setor_destino_id : "", prazo_referencia: current.prazo_referencia }))} size="sm" type="button" variant="outline">
+                  <Button key={item} onClick={() => setTaskForm((current) => ({ ...current, descricao: item, tipo: "fixa", setor_destino_id: item === "Envio para" || item === "Retorno do setor" ? current.setor_destino_id : "" }))} size="sm" type="button" variant="outline">
                     {item}
                   </Button>
                 ))}
@@ -975,7 +911,7 @@ export function PreDemandaDetailPage() {
                           <div className="min-w-0 flex-1">
                             <span className="block font-semibold text-slate-950">{task.descricao}</span>
                             <span className="text-sm text-slate-500">{task.tipo}</span>
-                            {task.prazoReferencia && task.prazoData ? <span className="block text-xs text-slate-500">{getPrazoLabel(task.prazoReferencia)}: {new Date(task.prazoData).toLocaleDateString("pt-BR")}</span> : null}
+                            {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {new Date(task.prazoConclusao).toLocaleDateString("pt-BR")}</span> : null}
                             {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
                             {task.geradaAutomaticamente ? <span className="mt-1 block text-xs text-slate-500">Gerada automaticamente pelo fluxo do assunto.</span> : null}
                           </div>
@@ -1035,7 +971,7 @@ export function PreDemandaDetailPage() {
                               <td className="px-4 py-3 font-semibold text-slate-950">{task.ordem}</td>
                               <td className="px-4 py-3 text-slate-950">{task.descricao}</td>
                               <td className="px-4 py-3 text-slate-600">{task.tipo}</td>
-                              <td className="px-4 py-3 text-slate-600">{task.prazoReferencia && task.prazoData ? `${getPrazoLabel(task.prazoReferencia)} - ${new Date(task.prazoData).toLocaleDateString("pt-BR")}` : "-"}</td>
+                              <td className="px-4 py-3 text-slate-600">{task.prazoConclusao ? new Date(task.prazoConclusao).toLocaleDateString("pt-BR") : "-"}</td>
                               <td className="px-4 py-3 text-slate-600">{task.setorDestino ? `${task.setorDestino.sigla} - ${task.setorDestino.nomeCompleto}` : "-"}</td>
                               <td className="px-4 py-3 text-slate-600">{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lançamento manual"}</td>
                             </tr>
@@ -1279,51 +1215,13 @@ export function PreDemandaDetailPage() {
               </FormField>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Prazo inicial">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={editForm.prazo_inicial} />
+              <FormField label="Prazo do processo">
+                <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_processo: event.target.value }))} type="date" value={editForm.prazo_processo} />
               </FormField>
-              <FormField label="Prazo intermediario">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={editForm.prazo_intermediario} />
-              </FormField>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Prazo final">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={editForm.prazo_final} />
-              </FormField>
-              <FormField label="Frequencia">
-                <select className={selectClassName} onChange={(event) => updateEditFrequencia(event.target.value)} value={editForm.frequencia}>
-                  <option value="">Selecione a frequencia</option>
-                  <option value="Diaria">Diaria</option>
-                  <option value="Semanal">Semanal</option>
-                  <option value="Mensal">Mensal</option>
-                  <option value="Eventual">Eventual</option>
-                </select>
+              <FormField label="Recorrencia">
+                <Input disabled value="A recorrencia agora e definida por tarefa" />
               </FormField>
             </div>
-            {editForm.frequencia === "Semanal" ? (
-              <div className="grid gap-3">
-                <p className="text-sm font-medium text-slate-950">Dias da semana</p>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAY_OPTIONS.map((item) => (
-                    <Button
-                      className={editForm.frequencia_dias_semana.includes(item) ? "border-transparent bg-gradient-to-r from-blue-800 to-teal-600 text-white ring-0" : ""}
-                      key={item}
-                      onClick={() => toggleEditWeekday(item)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {item}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {editForm.frequencia === "Mensal" ? (
-              <FormField label="Dia do mes (1-31)">
-                <Input max="31" min="1" onChange={(event) => setEditForm((current) => ({ ...current, frequencia_dia_mes: event.target.value }))} type="number" value={editForm.frequencia_dia_mes} />
-              </FormField>
-            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Data da audiencia">
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, audiencia_data: event.target.value }))} type="date" value={editForm.audiencia_data} />
@@ -1364,14 +1262,9 @@ export function PreDemandaDetailPage() {
                       descricao: editForm.descricao || null,
                       fonte: editForm.fonte || null,
                       observacoes: editForm.observacoes || null,
-                      prazo_inicial: editForm.prazo_inicial || null,
-                      prazo_intermediario: editForm.prazo_intermediario || null,
-                      prazo_final: editForm.prazo_final || null,
+                      prazo_processo: editForm.prazo_processo || null,
                       numero_judicial: editForm.numero_judicial || null,
                       metadata: {
-                        frequencia: editForm.frequencia || null,
-                        frequencia_dias_semana: editForm.frequencia === "Semanal" ? editForm.frequencia_dias_semana : null,
-                        frequencia_dia_mes: editForm.frequencia === "Mensal" && editForm.frequencia_dia_mes ? Number(editForm.frequencia_dia_mes) : null,
                         pagamento_envolvido: editForm.pagamento_envolvido,
                         urgente: editForm.urgente,
                         audiencia_data: editForm.audiencia_data || null,
@@ -1471,18 +1364,12 @@ export function PreDemandaDetailPage() {
       <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "deadline"}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Controle de prazos</DialogTitle>
-            <DialogDescription>Defina, altere ou remova os tres prazos estruturados do processo.</DialogDescription>
+            <DialogTitle>Prazo do processo</DialogTitle>
+            <DialogDescription>Defina a data-limite geral. Nenhuma tarefa pode ultrapassar este prazo.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <FormField label="Prazo inicial">
-              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={deadlineForm.prazo_inicial} />
-            </FormField>
-            <FormField label="Prazo intermediario">
-              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={deadlineForm.prazo_intermediario} />
-            </FormField>
-            <FormField label="Prazo final">
-              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={deadlineForm.prazo_final} />
+            <FormField label="Prazo do processo">
+              <Input onChange={(event) => setDeadlineForm((current) => ({ ...current, prazo_processo: event.target.value }))} type="date" value={deadlineForm.prazo_processo} />
             </FormField>
           </div>
           <DialogFooter>
@@ -1495,9 +1382,7 @@ export function PreDemandaDetailPage() {
                 void runMutation(
                   () =>
                     updatePreDemandaCase(preId, {
-                      prazo_inicial: deadlineForm.prazo_inicial || null,
-                      prazo_intermediario: deadlineForm.prazo_intermediario || null,
-                      prazo_final: deadlineForm.prazo_final || null,
+                      prazo_processo: deadlineForm.prazo_processo || null,
                     }).then(() => setToolbarDialog(null)),
                   "Prazos atualizados.",
                 )
@@ -1546,14 +1431,8 @@ export function PreDemandaDetailPage() {
             <FormField label="Data de referencia">
               <Input onChange={(event) => setRelatedForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={relatedForm.data_referencia} />
             </FormField>
-            <FormField label="Prazo inicial">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_inicial: event.target.value }))} type="date" value={relatedForm.prazo_inicial} />
-            </FormField>
-            <FormField label="Prazo intermediario">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_intermediario: event.target.value }))} type="date" value={relatedForm.prazo_intermediario} />
-            </FormField>
-            <FormField label="Prazo final">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_final: event.target.value }))} type="date" value={relatedForm.prazo_final} />
+            <FormField label="Prazo do processo">
+              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_processo: event.target.value }))} type="date" value={relatedForm.prazo_processo} />
             </FormField>
             <FormField label="Descricao">
               <Textarea onChange={(event) => setRelatedForm((current) => ({ ...current, descricao: event.target.value }))} rows={4} value={relatedForm.descricao} />
@@ -1564,7 +1443,7 @@ export function PreDemandaDetailPage() {
               Cancelar
             </Button>
             <Button
-              disabled={!relatedForm.prazo_final || relatedForm.assunto.trim().length < 3 || isSubmitting}
+              disabled={!relatedForm.prazo_processo || relatedForm.assunto.trim().length < 3 || isSubmitting}
               onClick={() =>
                 void runMutation(
                   async () => {
@@ -1572,9 +1451,7 @@ export function PreDemandaDetailPage() {
                       assunto: relatedForm.assunto,
                       data_referencia: relatedForm.data_referencia,
                       descricao: relatedForm.descricao,
-                      prazo_inicial: relatedForm.prazo_inicial || null,
-                      prazo_intermediario: relatedForm.prazo_intermediario || null,
-                      prazo_final: relatedForm.prazo_final,
+                      prazo_processo: relatedForm.prazo_processo,
                     });
                     await addPreDemandaVinculo(preId, created.preId);
                     navigate(`/pre-demandas/${created.preId}`);
@@ -1729,43 +1606,26 @@ export function PreDemandaDetailPage() {
                 <option value="fixa">Fixa</option>
               </select>
             </FormField>
-            <FormField label="Prazo do processo">
-              <select
-                className={selectClassName}
-                onChange={(event) =>
-                  setEditTaskForm((current) => {
-                    const nextReferencia = event.target.value as "" | TarefaPrazoReferencia;
-                    const nextPrazoData =
-                      nextReferencia === "prazoInicial"
-                        ? record.prazoInicial ?? ""
-                        : nextReferencia === "prazoIntermediario"
-                          ? record.prazoIntermediario ?? ""
-                          : nextReferencia === "prazoFinal"
-                            ? record.prazoFinal ?? ""
-                            : "";
-
-                    return { ...current, prazo_referencia: nextReferencia, prazo_data: nextPrazoData };
-                  })
-                }
-                value={editTaskForm.prazo_referencia}
-              >
-                {taskPrazoOptions.map((option) => (
-                  <option key={`edit-${option.value || "sem-prazo"}`} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+            <FormField label="Prazo de conclusao">
+              <Input max={record?.prazoProcesso ?? undefined} onChange={(event) => setEditTaskForm((current) => ({ ...current, prazo_conclusao: event.target.value }))} type="date" value={editTaskForm.prazo_conclusao} />
+            </FormField>
+            <FormField label="Recorrencia">
+              <select className={selectClassName} onChange={(event) => setEditTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: event.target.value === "mensal" ? current.recorrencia_dia_mes : "" }))} value={editTaskForm.recorrencia_tipo}>
+                <option value="">Sem recorrencia</option>
+                <option value="diaria">Diaria</option>
+                <option value="semanal">Semanal</option>
+                <option value="mensal">Mensal</option>
               </select>
             </FormField>
-            <FormField label="Data do prazo">
-              <Input disabled={!editTaskForm.prazo_referencia} onChange={(event) => setEditTaskForm((current) => ({ ...current, prazo_data: event.target.value }))} type="date" value={editTaskForm.prazo_data} />
-            </FormField>
+            {editTaskForm.recorrencia_tipo === "semanal" ? <div className="col-span-2 flex flex-wrap gap-2">{WEEKDAY_OPTIONS.map((item) => <Button key={`edit-${item}`} onClick={() => setEditTaskForm((current) => ({ ...current, recorrencia_dias_semana: current.recorrencia_dias_semana.includes(item) ? current.recorrencia_dias_semana.filter((value) => value !== item) : [...current.recorrencia_dias_semana, item] }))} size="sm" type="button" variant={editTaskForm.recorrencia_dias_semana.includes(item) ? "primary" : "outline"}>{item}</Button>)}</div> : null}
+            {editTaskForm.recorrencia_tipo === "mensal" ? <FormField label="Dia do mes"><Input max="31" min="1" onChange={(event) => setEditTaskForm((current) => ({ ...current, recorrencia_dia_mes: event.target.value }))} type="number" value={editTaskForm.recorrencia_dia_mes} /></FormField> : null}
           </div>
           <DialogFooter>
             <Button onClick={() => setEditingTask(null)} type="button" variant="ghost">
               Cancelar
             </Button>
             <Button
-              disabled={!editingTask || editTaskForm.descricao.trim().length < 3 || isSubmitting || (Boolean(editTaskForm.prazo_referencia) && !editTaskForm.prazo_data)}
+              disabled={!editingTask || editTaskForm.descricao.trim().length < 3 || isSubmitting || !editTaskForm.prazo_conclusao}
               onClick={() => (editingTask ? void handleUpdateTask() : undefined)}
               type="button"
             >
