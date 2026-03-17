@@ -83,19 +83,21 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                       <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-4">{item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "-"}</td>
-                  <td className="px-3 py-4">{item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas"}</td>
+                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "-"}</td>
+                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas"}</td>
                   <td className="px-3 py-4">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
-                        item.sinalPrazoProcesso === "critico"
-                          ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
-                          : item.sinalPrazoProcesso === "atencao"
-                            ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                            : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"
+                        item.status === "encerrada"
+                          ? "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
+                          : item.sinalPrazoProcesso === "critico"
+                            ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
+                            : item.sinalPrazoProcesso === "atencao"
+                              ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+                              : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"
                       }`}
                     >
-                      {item.sinalPrazoProcesso ?? "normal"}
+                      {item.status === "encerrada" ? "-" : item.sinalPrazoProcesso ?? "normal"}
                     </span>
                   </td>
                   <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>

@@ -21,9 +21,10 @@ function buildAnalyticalTableHref(overrides: Record<string, string>) {
 }
 
 function formatStructuredDeadlines(item: PreDemanda) {
+  const isClosed = item.status === "encerrada";
   return [
-    `Prazo do processo: ${item.prazoProcesso ? new Date(`${item.prazoProcesso}T00:00:00`).toLocaleDateString("pt-BR") : "-"}`,
-    `Proxima tarefa: ${item.proximoPrazoTarefa ? new Date(`${item.proximoPrazoTarefa}T00:00:00`).toLocaleDateString("pt-BR") : "sem tarefas pendentes"}`,
+    `Prazo do processo: ${isClosed ? "-" : item.prazoProcesso ? new Date(`${item.prazoProcesso}T00:00:00`).toLocaleDateString("pt-BR") : "-"}`,
+    `Proxima tarefa: ${isClosed ? "-" : item.proximoPrazoTarefa ? new Date(`${item.proximoPrazoTarefa}T00:00:00`).toLocaleDateString("pt-BR") : "sem tarefas pendentes"}`,
   ].join(" | ");
 }
 

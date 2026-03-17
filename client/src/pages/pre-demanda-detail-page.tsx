@@ -374,7 +374,7 @@ export function PreDemandaDetailPage() {
     () =>
       record
         ? {
-            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"} • prazo do processo ${record.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "-"}`,
+            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${new Date(record.prazoProcesso).toLocaleDateString("pt-BR")}` : ""}`,
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
             setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
@@ -596,9 +596,9 @@ export function PreDemandaDetailPage() {
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
               <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
-              <SummaryItem label="Prazo do processo" value={record.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "-"} />
-              <SummaryItem label="Proxima tarefa" value={record.proximoPrazoTarefa ? new Date(record.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas pendentes"} />
-              <SummaryItem label="Sinal de prazo" value={record.sinalPrazoProcesso ?? "normal"} />
+              <SummaryItem label="Prazo do processo" value={record.status === "encerrada" ? "-" : record.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "-"} />
+              <SummaryItem label="Proxima tarefa" value={record.status === "encerrada" ? "-" : record.proximoPrazoTarefa ? new Date(record.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas pendentes"} />
+              <SummaryItem label="Sinal de prazo" value={record.status === "encerrada" ? "-" : record.sinalPrazoProcesso ?? "normal"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
