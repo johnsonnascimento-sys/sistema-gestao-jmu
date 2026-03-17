@@ -744,6 +744,8 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
     } as const;
     const column = columnMap[params.deadlineCampo];
 
+    clauses.push("pd.status <> 'encerrada'");
+
     if (params.prazoRecorte === "overdue") {
       clauses.push(`${column} is not null and ${column} < current_date`);
     }
