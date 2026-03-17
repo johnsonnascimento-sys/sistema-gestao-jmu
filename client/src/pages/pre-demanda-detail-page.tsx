@@ -149,6 +149,7 @@ export function PreDemandaDetailPage() {
   const [signatureSearch, setSignatureSearch] = useState("");
   const [signatureSearchResults, setSignatureSearchResults] = useState<Interessado[]>([]);
   const [signatureExpanded, setSignatureExpanded] = useState(false);
+  const [signatureSelectedName, setSignatureSelectedName] = useState("");
   const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", cargo: "", matricula: "", cpf: "" });
   const [processSearch, setProcessSearch] = useState("");
   const isSeiValid = isValidSei(associationForm.sei_numero);
@@ -348,10 +349,12 @@ export function PreDemandaDetailPage() {
   }, [record]);
   const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor";
   const requiresTaskSignaturePerson = taskForm.descricao.trim() === "Assinatura de pessoa";
-  const selectedSignaturePerson = useMemo(
-    () => record?.interessados.find((item) => item.interessado.id === taskForm.assinatura_interessado_id)?.interessado ?? null,
-    [record, taskForm.assinatura_interessado_id],
-  );
+  const selectedSignaturePerson = useMemo(() => {
+    const fromInteressados = record?.interessados.find((item) => item.interessado.id === taskForm.assinatura_interessado_id)?.interessado ?? null;
+    if (fromInteressados) return fromInteressados;
+    if (taskForm.assinatura_interessado_id && signatureSelectedName) return { nome: signatureSelectedName } as { nome: string };
+    return null;
+  }, [record, taskForm.assinatura_interessado_id, signatureSelectedName]);
 
   function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
     if (!(error instanceof Error) || !("code" in error) || !("details" in error)) {
@@ -907,7 +910,7 @@ export function PreDemandaDetailPage() {
                                 : "border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40"
                             }`}
                             key={item.interessado.id}
-                            onClick={() => setTaskForm((current) => ({ ...current, assinatura_interessado_id: item.interessado.id }))}
+                            onClick={() => { setTaskForm((current) => ({ ...current, assinatura_interessado_id: item.interessado.id })); setSignatureSelectedName(""); }}
                             type="button"
                           >
                             <span className="font-medium">{item.interessado.nome}{item.interessado.cargo ? <span className="ml-1 text-xs font-normal text-slate-500">- {item.interessado.cargo}</span> : null}</span>
@@ -944,7 +947,7 @@ export function PreDemandaDetailPage() {
                                 : "border-slate-200 bg-white hover:border-indigo-200"
                             }`}
                             key={item.id}
-                            onClick={() => setTaskForm((current) => ({ ...current, assinatura_interessado_id: item.id }))}
+                            onClick={() => { setTaskForm((current) => ({ ...current, assinatura_interessado_id: item.id })); setSignatureSelectedName(item.nome); }}
                             type="button"
                           >
                             <span className="font-medium">{item.nome}{item.cargo ? <span className="ml-1 text-xs font-normal text-slate-500">- {item.cargo}</span> : null}</span>
