@@ -207,6 +207,18 @@ export function NewPreDemandaPage() {
               </div>
             </div>
 
+            {showNumbers ? (
+              <div className="md:col-span-2 grid gap-4 md:grid-cols-2">
+                <FormField label="Numero SEI">
+                  <Input onChange={(event) => setForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={form.sei_numero} />
+                </FormField>
+
+                <FormField label="Numero judicial">
+                  <Input onChange={(event) => setForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) ?? "" }))} placeholder="0000000-00.0000.0.00.0000" value={form.numero_judicial} />
+                </FormField>
+              </div>
+            ) : null}
+
             <FormField label="Assunto">
               <Input onChange={(event) => setForm((current) => ({ ...current, assunto: event.target.value }))} value={form.assunto} />
             </FormField>
@@ -259,18 +271,6 @@ export function NewPreDemandaPage() {
             <FormField className="md:col-span-2" label="Observacoes">
               <Textarea onChange={(event) => setForm((current) => ({ ...current, observacoes: event.target.value }))} rows={4} value={form.observacoes} />
             </FormField>
-
-            {showNumbers ? (
-              <>
-                <FormField label="Numero SEI" hint={<code>000181/26-02.227</code>}>
-                  <Input onChange={(event) => setForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={form.sei_numero} />
-                </FormField>
-
-                <FormField label="Numero judicial">
-                  <Input onChange={(event) => setForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) ?? "" }))} placeholder="0000000-00.0000.0.00.0000" value={form.numero_judicial} />
-                </FormField>
-              </>
-            ) : null}
 
             <div className="md:col-span-2 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,241,233,0.82))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <div className="flex items-center justify-between gap-3">
