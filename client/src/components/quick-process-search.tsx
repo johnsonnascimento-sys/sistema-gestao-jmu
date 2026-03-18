@@ -79,13 +79,13 @@ export function QuickProcessSearch({
       className={cn(
         "w-full rounded-[28px] border p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl",
         variant === "sidebar"
-          ? "border-white/10 bg-white/8 text-white shadow-[0_20px_40px_rgba(15,23,42,0.18)]"
+          ? "border-white/10 bg-white/8 px-4 py-4 text-white shadow-[0_20px_40px_rgba(15,23,42,0.18)]"
           : "border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,244,237,0.88))]",
         className,
       )}
       onSubmit={handleSubmit}
     >
-      <div className="space-y-4">
+      <div className={cn("space-y-4", variant === "sidebar" && "space-y-3")}>
         <div>
           <p className={cn("text-xs font-bold uppercase tracking-[0.32em]", variant === "sidebar" ? "text-indigo-200" : "text-slate-500")}>Buscar</p>
         </div>
@@ -95,7 +95,7 @@ export function QuickProcessSearch({
           className={cn(
             "h-12 rounded-[18px] px-4 text-[15px] font-medium",
             variant === "sidebar"
-              ? "border-white/15 bg-white/10 text-white placeholder:text-indigo-200/70 focus:border-white/35 focus:ring-white/10"
+              ? "h-11 border-white/15 bg-white/10 text-white placeholder:text-indigo-200/70 focus:border-white/35 focus:ring-white/10"
               : "border-sky-100 bg-white text-slate-950 placeholder:text-slate-400",
           )}
           onChange={(event) => setQuery(event.target.value)}
@@ -103,8 +103,8 @@ export function QuickProcessSearch({
           value={query}
         />
 
-        <div className={cn("flex items-center gap-4", variant === "sidebar" && "flex-col items-stretch")}>
-          <Button className="h-12 flex-1 rounded-[18px] bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-500 text-white shadow-[0_18px_38px_rgba(79,70,229,0.22)] hover:-translate-y-0.5" disabled={loading} type="submit">
+        <div className={cn("flex items-center gap-4", variant === "sidebar" && "flex-col items-stretch gap-2.5")}>
+          <Button className="h-12 flex-1 rounded-[18px] bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-500 text-white shadow-[0_18px_38px_rgba(79,70,229,0.22)] hover:-translate-y-0.5 lg:h-11" disabled={loading} type="submit">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Filtrar
           </Button>
