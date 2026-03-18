@@ -1074,6 +1074,11 @@ export function PreDemandaDetailPage() {
                                     {formatRecorrenciaLabel(task)}
                                   </span>
                                 ) : null}
+                                {formatRecorrenciaLabel(task) ? (
+                                  <span className="mt-1 block text-xs text-sky-700">
+                                    Recorrência ativa até {formatDateOnlyPtBr(record?.prazoProcesso, "o prazo do processo")}.
+                                  </span>
+                                ) : null}
                                 {task.setorDestino ? <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Ao concluir, tramita para {task.setorDestino.sigla}</span> : null}
                                 {task.geradaAutomaticamente ? <span className="mt-1 block text-xs text-slate-500">Gerada automaticamente pelo fluxo do assunto.</span> : null}
                               </div>
