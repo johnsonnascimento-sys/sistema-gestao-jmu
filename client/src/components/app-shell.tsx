@@ -94,6 +94,8 @@ export function AppShell() {
               </div>
             </div>
 
+            <QuickProcessSearch variant="sidebar" />
+
             <nav className="grid gap-2">
               <NavLink className={navLinkClassName} to="/dashboard">
                 <LayoutDashboard className="h-4 w-4" />
@@ -180,9 +182,6 @@ export function AppShell() {
 
       <main className="relative min-w-0 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
         <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 rounded-b-[60px] bg-[radial-gradient(circle_at_top_left,rgba(153,51,65,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(244,181,98,0.18),transparent_28%)]" />
-        <div className="mb-6 flex justify-end">
-          <QuickProcessSearch />
-        </div>
         <Outlet />
         <SpotlightSearch />
       </main>
