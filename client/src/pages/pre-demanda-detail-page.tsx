@@ -774,9 +774,19 @@ export function PreDemandaDetailPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
-                    <p className="text-xs text-slate-500">Cada assunto transforma o fluxo cadastrado em checklist automático.</p>
+                    <p className="text-xs text-slate-500">Assuntos com procedimentos criam tarefas automáticas e seguem o prazo do processo.</p>
                   </div>
                 </div>
+                {record.assuntos.some((item) => item.assunto.procedimentos.length > 0) ? (
+                  <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                    <p className="font-semibold">Checklist automático ativo</p>
+                    <p className="mt-1 text-sky-800">
+                      {record.assuntos.filter((item) => item.assunto.procedimentos.length > 0).length} assunto
+                      {record.assuntos.filter((item) => item.assunto.procedimentos.length > 0).length === 1 ? "" : "s"} vinculado
+                      {record.assuntos.filter((item) => item.assunto.procedimentos.length > 0).length === 1 ? "" : "s"} com procedimentos automáticos.
+                    </p>
+                  </div>
+                ) : null}
                 <div className="grid gap-3">
                   {record.assuntos.length ? (
                     record.assuntos.map((item) => (
