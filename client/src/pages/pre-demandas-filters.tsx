@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import type { PreDemandaSortBy, QueueHealthLevel, Setor, SortOrder } from "../types";
 import {
-  QUEUE_HEALTH_OPTIONS,
   ResolvedSearchState,
   SAVED_VIEWS,
   SavedViewId,
@@ -29,6 +28,7 @@ export function PreDemandasFilters({
   const [query, setQuery] = useState(resolvedState.q);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
   const [selectedQueueHealthKey, setSelectedQueueHealthKey] = useState("all");
+  const [selectedProcessSignal, setSelectedProcessSignal] = useState(resolvedState.processSignal);
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
@@ -66,6 +66,7 @@ export function PreDemandasFilters({
     setQuery(resolvedState.q);
     setSelectedStatuses(resolvedState.statuses);
     setSelectedQueueHealthKey(resolveQueueHealthKey(resolvedState.queueHealth));
+    setSelectedProcessSignal(resolvedState.processSignal);
     setDateFrom(resolvedState.dateFrom);
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
@@ -90,6 +91,7 @@ export function PreDemandasFilters({
     if (selectedStatuses.length) next.set("status", selectedStatuses.join(","));
     const selectedQueueHealth = resolveQueueHealthValues(selectedQueueHealthKey);
     if (selectedQueueHealth.length) next.set("queueHealth", selectedQueueHealth.join(","));
+    if (selectedProcessSignal && selectedProcessSignal !== "all") next.set("processSignal", selectedProcessSignal);
     if (dateFrom) next.set("dateFrom", dateFrom);
     if (dateTo) next.set("dateTo", dateTo);
     if (hasSei) next.set("hasSei", hasSei);
@@ -124,6 +126,7 @@ export function PreDemandasFilters({
     setQuery("");
     setSelectedStatuses([]);
     setSelectedQueueHealthKey("all");
+    setSelectedProcessSignal("");
     setDateFrom("");
     setDateTo("");
     setHasSei("");
@@ -190,6 +193,15 @@ export function PreDemandasFilters({
               <option value="attention">Atencao</option>
               <option value="critical">Critica</option>
               <option value="attention,critical">Atencao + Critica</option>
+            </select>
+          </FormField>
+
+          <FormField hint="Baseado no prazo e nas tarefas do processo." label="Sinal do prazo">
+            <select className={selectClassName} onChange={(event) => setSelectedProcessSignal(event.target.value as "" | "normal" | "atencao" | "critico")} value={selectedProcessSignal}>
+              <option value="">Todos</option>
+              <option value="normal">Normal</option>
+              <option value="atencao">Atenção</option>
+              <option value="critico">Crítico</option>
             </select>
           </FormField>
 

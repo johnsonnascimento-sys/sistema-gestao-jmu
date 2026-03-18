@@ -65,6 +65,7 @@ export type ResolvedSearchState = {
   q: string;
   statuses: string[];
   queueHealth: QueueHealthLevel[];
+  processSignal: "" | "normal" | "atencao" | "critico";
   dateFrom: string;
   dateTo: string;
   hasSei: "" | "true" | "false";
@@ -366,6 +367,7 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     !searchParams.has("q") &&
     !searchParams.has("status") &&
     !searchParams.has("queueHealth") &&
+    !searchParams.has("processSignal") &&
     !searchParams.has("dateFrom") &&
     !searchParams.has("dateTo") &&
     !searchParams.has("hasSei") &&
@@ -388,6 +390,7 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     q: searchParams.get("q") ?? "",
     statuses: searchParams.has("status") ? splitValues(searchParams.get("status")) : preset?.defaults.statuses ?? [],
     queueHealth: searchParams.has("queueHealth") ? (splitValues(searchParams.get("queueHealth")) as QueueHealthLevel[]) : preset?.defaults.queueHealth ?? [],
+    processSignal: (searchParams.get("processSignal") as ResolvedSearchState["processSignal"] | null) ?? "",
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",

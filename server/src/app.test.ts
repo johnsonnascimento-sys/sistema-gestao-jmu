@@ -74,6 +74,8 @@ import type {
   SetorRepository,
   NormaRepository,
   SettingsRepository,
+  PreDemandaAndamentoRepository,
+  PreDemandaTarefaRepository,
   TramitarPreDemandaInput,
   UpdateComentarioInput,
   UpdateInteressadoInput,
@@ -584,6 +586,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => params.queueHealthLevels?.includes(item.queueHealth.level));
     }
 
+    if (params.processSignal) {
+      items = items.filter((item) => item.status !== "encerrada" && item.sinalPrazoProcesso === params.processSignal);
+    }
+
     if (params.dateFrom) {
       items = items.filter((item) => item.dataReferencia >= params.dateFrom!);
     }
@@ -1001,6 +1007,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     return this.addAndamentoRecord(record, input.descricao, "manual", input.dataHora ?? new Date().toISOString());
+  }
+
+  async listAndamentos(preId: string) {
+    return this.andamentos.filter((item) => item.preId === preId);
   }
 
   async updateAndamento(input: UpdateAndamentoInput) {
@@ -1898,6 +1908,8 @@ describe("Gestor JMU API", () => {
   const userRepository = new InMemoryUserRepository();
   const settingsRepository = new InMemorySettingsRepository();
   const preDemandaRepository = new InMemoryPreDemandaRepository();
+  const preDemandaTarefaRepository = preDemandaRepository as unknown as PreDemandaTarefaRepository;
+  const preDemandaAndamentoRepository = preDemandaRepository as unknown as PreDemandaAndamentoRepository;
   const interessadoRepository = new InMemoryInteressadoRepository();
   const setorRepository = new InMemorySetorRepository();
   const normaRepository = new InMemoryNormaRepository();
@@ -1965,6 +1977,8 @@ describe("Gestor JMU API", () => {
       userRepository,
       settingsRepository,
       preDemandaRepository,
+      preDemandaTarefaRepository,
+      preDemandaAndamentoRepository,
       interessadoRepository,
       assuntoRepository,
       setorRepository,
@@ -2124,6 +2138,8 @@ describe("Gestor JMU API", () => {
         attentionDays: 2,
         criticalDays: 5,
       });
+      agedRecord.sinalPrazoProcesso = "critico";
+      agedRecord.proximoPrazoTarefa = agedRecord.prazoProcesso;
     }
 
     const filtered = await app.inject({
@@ -2143,6 +2159,15 @@ describe("Gestor JMU API", () => {
 
     expect(filteredByQueueHealth.statusCode).toBe(200);
     expect(filteredByQueueHealth.json().data.total).toBeGreaterThanOrEqual(1);
+
+    const filteredByProcessSignal = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas?processSignal=critico",
+      headers: { cookie },
+    });
+
+    expect(filteredByProcessSignal.statusCode).toBe(200);
+    expect(filteredByProcessSignal.json().data.total).toBeGreaterThanOrEqual(1);
 
     const audit = await app.inject({
       method: "GET",

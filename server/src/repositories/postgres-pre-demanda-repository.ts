@@ -685,6 +685,33 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
     }
   }
 
+  if (params.processSignal) {
+    if (params.processSignal === "normal") {
+      clauses.push(`(
+        tarefas_sinal.tarefas_vencidas = 0
+        and (
+          prox_tarefa.proximo_prazo_tarefa is null
+          or prox_tarefa.proximo_prazo_tarefa < pd.prazo_processo - interval '2 days'
+        )
+      )`);
+    }
+
+    if (params.processSignal === "atencao") {
+      clauses.push(`(
+        tarefas_sinal.tarefas_vencidas = 0
+        and prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days'
+        and prox_tarefa.proximo_prazo_tarefa < pd.prazo_processo
+      )`);
+    }
+
+    if (params.processSignal === "critico") {
+      clauses.push(`(
+        tarefas_sinal.tarefas_vencidas > 0
+        or prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo
+      )`);
+    }
+  }
+
   if (params.dateFrom) {
     values.push(params.dateFrom);
     clauses.push(`pd.data_referencia >= $${values.length}::date`);
