@@ -77,7 +77,7 @@ export function AppShell() {
     <div className="min-h-screen lg:grid lg:grid-cols-[320px_1fr]">
       <aside className="relative overflow-hidden border-b border-white/5 bg-[linear-gradient(160deg,#1e1b4b_0%,#312e81_48%,#0f172a_100%)] px-5 py-5 text-white lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r lg:border-white/5 lg:px-6 lg:py-6">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent_28%),linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:auto,48px_48px,48px_48px] opacity-90" />
-        <div className="relative flex h-full flex-col justify-between gap-8">
+        <div className="relative flex h-full min-h-0 flex-col gap-8 overflow-y-auto pr-1 lg:pr-2">
           <div className="space-y-8">
             <div className="rounded-[30px] border border-white/5 bg-white/5 p-5 backdrop-blur-xl shadow-xl shadow-indigo-950/20">
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-indigo-200">Gestor JMU</p>
@@ -154,7 +154,7 @@ export function AppShell() {
             </nav>
           </div>
 
-          <div className="space-y-4 rounded-[30px] border border-white/12 bg-white/7 p-4 backdrop-blur-xl">
+          <div className="mt-auto space-y-4 rounded-[30px] border border-white/12 bg-white/7 p-4 backdrop-blur-xl">
             <div>
               <p className="font-semibold">{user?.name}</p>
               <p className="text-sm text-slate-300">{user?.email}</p>
