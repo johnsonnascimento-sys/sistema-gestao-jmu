@@ -140,7 +140,7 @@ export function PreDemandaDetailPage() {
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
   const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as const, prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
+  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
   const [commentForm, setCommentForm] = useState("");
@@ -171,7 +171,7 @@ export function PreDemandaDetailPage() {
         descricao: nextRecord.descricao ?? "",
         fonte: nextRecord.fonte ?? "",
         observacoes: nextRecord.observacoes ?? "",
-        numero_judicial: normalizeNumeroJudicialValue(nextRecord.numeroJudicial),
+        numero_judicial: normalizeNumeroJudicialValue(nextRecord.numeroJudicial) ?? "",
         prazo_processo: nextRecord.prazoProcesso ?? "",
         pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
         urgente: nextRecord.metadata.urgente ?? false,
@@ -193,9 +193,9 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
-      const data = customEvent.detail;
+      const data = customEvent.detail as { preId?: string } | undefined;
       // Se mudou ESTE processo, recarrega
-      if (data.preId === preId) {
+      if (data?.preId === preId) {
         void load();
       }
     };
@@ -643,7 +643,7 @@ export function PreDemandaDetailPage() {
                 <Button
                   onClick={() =>
                     interessadoResults[0]
-                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0].id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")
+                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0]!.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")
                       : undefined
                   }
                   type="button"
@@ -1324,7 +1324,7 @@ export function PreDemandaDetailPage() {
                 <Input onChange={(event) => setEditForm((current) => ({ ...current, fonte: event.target.value }))} value={editForm.fonte} />
               </FormField>
               <FormField label="Numero judicial">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) }))} placeholder="0000000-00.0000.0.00.0000" value={editForm.numero_judicial} />
+                <Input onChange={(event) => setEditForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) ?? "" }))} placeholder="0000000-00.0000.0.00.0000" value={editForm.numero_judicial} />
               </FormField>
             </div>
             <div className="grid gap-4 md:grid-cols-2">

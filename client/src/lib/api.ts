@@ -400,6 +400,7 @@ export function createPreDemandaTarefa(
     recorrencia_dias_semana?: string[] | null;
     recorrencia_dia_mes?: number | null;
     setor_destino_id?: string | null;
+    confirmar_alteracao_prazo?: boolean;
   },
 ) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas`, {
@@ -418,6 +419,7 @@ export function updatePreDemandaTarefa(
     recorrencia_tipo?: TarefaRecorrenciaTipo | null;
     recorrencia_dias_semana?: string[] | null;
     recorrencia_dia_mes?: number | null;
+    confirmar_alteracao_prazo?: boolean;
   },
 ) {
   return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
@@ -516,7 +518,7 @@ export function removePreDemandaDocumento(preId: string, documentoId: string) {
 }
 
 export function listPreDemandaSetoresAtivos(preId: string) {
-  return request<DemandaSetorFluxo[]>(`/api/pre-demandas/${preId}`).then((item) => item.setoresAtivos);
+  return request<PreDemanda>(`/api/pre-demandas/${preId}`).then((item) => item.setoresAtivos);
 }
 
 export function getRecentTimeline(limit = 8) {

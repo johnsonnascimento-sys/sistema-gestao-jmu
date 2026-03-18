@@ -256,7 +256,7 @@ export function NewPreDemandaPage() {
                 </FormField>
 
                 <FormField label="Numero judicial">
-                  <Input onChange={(event) => setForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) }))} placeholder="0000000-00.0000.0.00.0000" value={form.numero_judicial} />
+                  <Input onChange={(event) => setForm((current) => ({ ...current, numero_judicial: formatNumeroJudicialInput(event.target.value) ?? "" }))} placeholder="0000000-00.0000.0.00.0000" value={form.numero_judicial} />
                 </FormField>
               </>
             ) : null}

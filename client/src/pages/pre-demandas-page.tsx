@@ -12,12 +12,11 @@ import { formatAppError, listPreDemandas, listSetores, updatePreDemandaStatus } 
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
-import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, Setor, SortOrder, StatusCount } from "../types";
+import type { PreDemanda, PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, Setor, SortOrder, StatusCount } from "../types";
 import { PreDemandasFilters } from "./pre-demandas-filters";
 import { PreDemandasTable } from "./pre-demandas-table";
 import {
   BoardView,
-  QueueHealthLevel,
   QuickAction,
   ResolvedSearchState,
   SectorQueueSummary,

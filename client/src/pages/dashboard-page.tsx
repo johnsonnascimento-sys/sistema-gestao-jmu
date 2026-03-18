@@ -174,7 +174,7 @@ export function DashboardPage() {
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {item.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
-            {item.metadata.envolvePagamento ? <span className="rounded-full bg-amber-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Pagamento</span> : null}
+            {item.metadata.pagamentoEnvolvido ? <span className="rounded-full bg-amber-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Pagamento</span> : null}
             <StatusPill status={item.status} />
             {highlightType !== "urgent" && highlightType !== "payment" && <QueueHealthPill item={item} />}
           </div>
