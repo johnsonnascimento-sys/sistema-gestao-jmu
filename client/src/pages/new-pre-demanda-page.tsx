@@ -218,7 +218,7 @@ export function NewPreDemandaPage() {
             <div className="md:col-span-2 grid gap-3 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-5 py-4 shadow-[0_14px_32px_rgba(20,33,61,0.05)]">
               <div>
                 <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
-                <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">cada assunto gera checklist base com prazo inicial igual ao prazo do processo</p>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Assuntos com procedimentos criam tarefas automáticas ao salvar.</p>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 {assuntos.map((assunto) => (
@@ -231,6 +231,17 @@ export function NewPreDemandaPage() {
                   </label>
                 ))}
               </div>
+              {selectedAssuntoIds.length ? (
+                <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                  <p className="font-semibold">Resumo dos vinculados</p>
+                  <p className="mt-1 text-sky-800">
+                    {selectedAssuntoIds.length} assunto{selectedAssuntoIds.length === 1 ? "" : "s"} selecionado{selectedAssuntoIds.length === 1 ? "" : "s"}.
+                    {assuntos.some((assunto) => selectedAssuntoIds.includes(assunto.id) && assunto.procedimentos.length > 0)
+                      ? " Este processo vai nascer com checklist automático."
+                      : " Nenhum dos selecionados possui procedimentos automáticos."}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <FormField label="Data de referencia">
