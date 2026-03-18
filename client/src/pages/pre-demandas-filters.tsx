@@ -28,7 +28,7 @@ export function PreDemandasFilters({
 }) {
   const [query, setQuery] = useState(resolvedState.q);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
-  const [selectedQueueHealth, setSelectedQueueHealth] = useState<QueueHealthLevel[]>(resolvedState.queueHealth);
+  const [selectedQueueHealthKey, setSelectedQueueHealthKey] = useState("all");
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
@@ -44,10 +44,28 @@ export function PreDemandasFilters({
   const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
   const [sortOrder, setSortOrder] = useState<SortOrder>(resolvedState.sortOrder);
 
+  function resolveQueueHealthKey(queueHealth: QueueHealthLevel[]) {
+    const normalized = [...queueHealth].sort().join(",");
+    if (!normalized) return "all";
+    if (normalized === "fresh") return "fresh";
+    if (normalized === "attention") return "attention";
+    if (normalized === "critical") return "critical";
+    if (normalized === "attention,critical") return "attention,critical";
+    return "all";
+  }
+
+  function resolveQueueHealthValues(key: string) {
+    if (key === "fresh") return ["fresh"] as QueueHealthLevel[];
+    if (key === "attention") return ["attention"] as QueueHealthLevel[];
+    if (key === "critical") return ["critical"] as QueueHealthLevel[];
+    if (key === "attention,critical") return ["attention", "critical"] as QueueHealthLevel[];
+    return [] as QueueHealthLevel[];
+  }
+
   useEffect(() => {
     setQuery(resolvedState.q);
     setSelectedStatuses(resolvedState.statuses);
-    setSelectedQueueHealth(resolvedState.queueHealth);
+    setSelectedQueueHealthKey(resolveQueueHealthKey(resolvedState.queueHealth));
     setDateFrom(resolvedState.dateFrom);
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
@@ -70,6 +88,7 @@ export function PreDemandasFilters({
 
     if (query.trim()) next.set("q", query.trim());
     if (selectedStatuses.length) next.set("status", selectedStatuses.join(","));
+    const selectedQueueHealth = resolveQueueHealthValues(selectedQueueHealthKey);
     if (selectedQueueHealth.length) next.set("queueHealth", selectedQueueHealth.join(","));
     if (dateFrom) next.set("dateFrom", dateFrom);
     if (dateTo) next.set("dateTo", dateTo);
@@ -104,7 +123,7 @@ export function PreDemandasFilters({
   function clearFilters() {
     setQuery("");
     setSelectedStatuses([]);
-    setSelectedQueueHealth([]);
+    setSelectedQueueHealthKey("all");
     setDateFrom("");
     setDateTo("");
     setHasSei("");
@@ -164,18 +183,13 @@ export function PreDemandasFilters({
             </select>
           </FormField>
 
-          <FormField hint="Acompanhe itens parados ou no prazo." label="Saude da fila">
-            <select
-              className={selectClassName}
-              multiple
-              onChange={(event) => setSelectedQueueHealth(Array.from(event.target.selectedOptions, (option) => option.value as QueueHealthLevel))}
-              value={selectedQueueHealth}
-            >
-              {QUEUE_HEALTH_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+          <FormField hint="Baseado na ultima movimentacao do processo." label="Saude da fila">
+            <select className={selectClassName} onChange={(event) => setSelectedQueueHealthKey(event.target.value)} value={selectedQueueHealthKey}>
+              <option value="all">Todos</option>
+              <option value="fresh">No prazo</option>
+              <option value="attention">Atencao</option>
+              <option value="critical">Critica</option>
+              <option value="attention,critical">Atencao + Critica</option>
             </select>
           </FormField>
 
