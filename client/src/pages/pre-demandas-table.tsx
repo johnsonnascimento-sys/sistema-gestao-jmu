@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { getPreferredReopenStatus } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda } from "../types";
+import { formatDateOnlyPtBr } from "../lib/date";
 
 export interface PreDemandasTableProps {
   items: PreDemanda[];
@@ -86,8 +87,8 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                       <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "-"}</td>
-                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas"}</td>
+                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : formatDateOnlyPtBr(item.prazoProcesso)}</td>
+                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : formatDateOnlyPtBr(item.proximoPrazoTarefa, "Sem tarefas")}</td>
                   <td className="px-3 py-4">
                     <span
                       className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
@@ -104,7 +105,7 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                     </span>
                   </td>
                   <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
-                  <td className="px-3 py-4">{new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</td>
+                  <td className="px-3 py-4">{formatDateOnlyPtBr(item.dataReferencia)}</td>
                   <td className="px-3 py-4">
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="secondary">

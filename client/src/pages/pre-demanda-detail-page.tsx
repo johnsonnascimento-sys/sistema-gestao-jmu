@@ -85,6 +85,7 @@ import {
   updatePreDemandaStatus,
 } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
+import { formatDateOnlyPtBr } from "../lib/date";
 import { formatNumeroJudicialInput, normalizeNumeroJudicialValue } from "../lib/numero-judicial";
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
@@ -397,7 +398,7 @@ export function PreDemandaDetailPage() {
     () =>
       record
         ? {
-            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${new Date(record.prazoProcesso).toLocaleDateString("pt-BR")}` : ""}`,
+            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${formatDateOnlyPtBr(record.prazoProcesso)}` : ""}`,
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
             setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
@@ -619,14 +620,14 @@ export function PreDemandaDetailPage() {
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
               <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
-              <SummaryItem label="Prazo do processo" value={record.status === "encerrada" ? "-" : record.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "-"} />
-              <SummaryItem label="Proxima tarefa" value={record.status === "encerrada" ? "-" : record.proximoPrazoTarefa ? new Date(record.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas pendentes"} />
+              <SummaryItem label="Prazo do processo" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.prazoProcesso)} />
+              <SummaryItem label="Proxima tarefa" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")} />
               <SummaryItem label="Sinal de prazo" value={record.status === "encerrada" ? "-" : record.sinalPrazoProcesso ?? "normal"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
               <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
-              <SummaryItem label="Data da audiencia" value={record.metadata.audienciaData ? new Date(record.metadata.audienciaData).toLocaleDateString("pt-BR") : "-"} />
+              <SummaryItem label="Data da audiencia" value={formatDateOnlyPtBr(record.metadata.audienciaData)} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
               <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
             </CardContent>
@@ -873,7 +874,7 @@ export function PreDemandaDetailPage() {
                   </select>
                 </div>
               </div>
-              <p className="text-xs text-slate-500">Toda tarefa precisa de prazo de conclusao e nao pode passar de {record?.prazoProcesso ? new Date(record.prazoProcesso).toLocaleDateString("pt-BR") : "o prazo do processo"}.</p>
+                <p className="text-xs text-slate-500">Toda tarefa precisa de prazo de conclusao e nao pode passar de {formatDateOnlyPtBr(record?.prazoProcesso, "o prazo do processo")}.</p>
 
               {taskForm.recorrencia_tipo === "semanal" ? (
                 <div className="flex flex-wrap gap-2">
@@ -1031,7 +1032,7 @@ export function PreDemandaDetailPage() {
                               <div className="min-w-0 flex-1">
                                 <span className="block font-semibold text-slate-950">{task.descricao}</span>
                                 <span className="text-sm text-slate-500">{task.tipo}</span>
-                                {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {new Date(task.prazoConclusao).toLocaleDateString("pt-BR")}</span> : null}
+                                {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {formatDateOnlyPtBr(task.prazoConclusao)}</span> : null}
                                 {formatRecorrenciaLabel(task) ? (
                                   <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-800 ring-1 ring-sky-200">
                                     {formatRecorrenciaLabel(task)}
@@ -1099,7 +1100,7 @@ export function PreDemandaDetailPage() {
                               <td className="px-4 py-3 font-semibold text-slate-950">{task.ordem}</td>
                               <td className="px-4 py-3 text-slate-950">{task.descricao}</td>
                               <td className="px-4 py-3 text-slate-600">{task.tipo}{formatRecorrenciaLabel(task) ? ` • ${formatRecorrenciaLabel(task)}` : ""}</td>
-                              <td className="px-4 py-3 text-slate-600">{task.prazoConclusao ? new Date(task.prazoConclusao).toLocaleDateString("pt-BR") : "-"}</td>
+                              <td className="px-4 py-3 text-slate-600">{formatDateOnlyPtBr(task.prazoConclusao)}</td>
                               <td className="px-4 py-3 text-slate-600">{task.setorDestino ? `${task.setorDestino.sigla} - ${task.setorDestino.nomeCompleto}` : "-"}</td>
                               <td className="px-4 py-3 text-slate-600">{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lançamento manual"}</td>
                             </tr>
@@ -1130,7 +1131,7 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Saude da fila" value={queueHealth.summary} />
               <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
               <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
-              <SummaryItem label="Data de conclusao" value={record.dataConclusao ? new Date(record.dataConclusao).toLocaleDateString("pt-BR") : "-"} />
+              <SummaryItem label="Data de conclusao" value={formatDateOnlyPtBr(record.dataConclusao)} />
             </CardContent>
           </DetailSectionCard>
 
@@ -1773,10 +1774,10 @@ export function PreDemandaDetailPage() {
           </DialogHeader>
           <div className="grid gap-4">
             <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              Data anterior: {taskPrazoChange?.details.prazoDataAnterior ? new Date(taskPrazoChange.details.prazoDataAnterior).toLocaleDateString("pt-BR") : "-"}
+              Data anterior: {formatDateOnlyPtBr(taskPrazoChange?.details.prazoDataAnterior)}
             </div>
             <div className="rounded-[20px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-              Nova data: {taskPrazoChange?.details.prazoDataNova ? new Date(taskPrazoChange.details.prazoDataNova).toLocaleDateString("pt-BR") : "-"}
+              Nova data: {formatDateOnlyPtBr(taskPrazoChange?.details.prazoDataNova)}
             </div>
           </div>
           <DialogFooter>

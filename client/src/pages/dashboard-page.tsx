@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Skeleton } from "../components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, getDashboardSummary } from "../lib/api";
+import { formatDateOnlyPtBr } from "../lib/date";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -23,8 +24,8 @@ function buildAnalyticalTableHref(overrides: Record<string, string>) {
 function formatStructuredDeadlines(item: PreDemanda) {
   const isClosed = item.status === "encerrada";
   return [
-    `Prazo do processo: ${isClosed ? "-" : item.prazoProcesso ? new Date(`${item.prazoProcesso}T00:00:00`).toLocaleDateString("pt-BR") : "-"}`,
-    `Proxima tarefa: ${isClosed ? "-" : item.proximoPrazoTarefa ? new Date(`${item.proximoPrazoTarefa}T00:00:00`).toLocaleDateString("pt-BR") : "sem tarefas pendentes"}`,
+    `Prazo do processo: ${isClosed ? "-" : formatDateOnlyPtBr(item.prazoProcesso)}`,
+    `Proxima tarefa: ${isClosed ? "-" : formatDateOnlyPtBr(item.proximoPrazoTarefa, "sem tarefas pendentes")}`,
   ].join(" | ");
 }
 
@@ -185,7 +186,7 @@ export function DashboardPage() {
           {highlightType !== "urgent" && highlightType !== "payment" && <p>Pessoa: {item.interessados.length}</p>}
           <p>{formatPrazo(item)}</p>
           <p>{formatStructuredDeadlines(item)}</p>
-          <p>Referência: {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}</p>
+          <p>Referência: {formatDateOnlyPtBr(item.dataReferencia)}</p>
           {highlightType !== "urgent" && highlightType !== "payment" && (
             <>
               <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>

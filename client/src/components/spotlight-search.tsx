@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, FileText, Calendar, ArrowRight, Loader2 } from "lucide-react";
 import { listPreDemandas } from "../lib/api";
+import { formatDateOnlyPtBr } from "../lib/date";
 import type { PreDemanda } from "../types";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { cn } from "../lib/utils";
@@ -201,7 +202,7 @@ export function SpotlightSearch() {
                       {item.prazoProcesso && (
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(item.prazoProcesso).toLocaleDateString("pt-BR")}
+                          {formatDateOnlyPtBr(item.prazoProcesso)}
                         </span>
                       )}
                     </div>

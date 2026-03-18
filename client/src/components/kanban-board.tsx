@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { PreDemanda, PreDemandaStatus } from "../types";
 import { getQueueHealth } from "../lib/queue-health";
+import { formatDateOnlyPtBr } from "../lib/date";
 import { QueueHealthPill } from "./queue-health-pill";
 import { StatusPill } from "./status-pill";
 import { Badge } from "./ui/badge";
@@ -83,13 +84,13 @@ export function KanbanBoard({
                         </p>
                       ) : null}
                       <p>
-                        <span className="font-medium text-slate-950">Data:</span> {new Date(item.dataReferencia).toLocaleDateString("pt-BR")}
+                        <span className="font-medium text-slate-950">Data:</span> {formatDateOnlyPtBr(item.dataReferencia)}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Prazo do processo:</span> {item.prazoProcesso ? new Date(item.prazoProcesso).toLocaleDateString("pt-BR") : "Nao definido"}
+                        <span className="font-medium text-slate-950">Prazo do processo:</span> {formatDateOnlyPtBr(item.prazoProcesso, "Nao definido")}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Proxima tarefa:</span> {item.proximoPrazoTarefa ? new Date(item.proximoPrazoTarefa).toLocaleDateString("pt-BR") : "Sem tarefas pendentes"}
+                        <span className="font-medium text-slate-950">Proxima tarefa:</span> {formatDateOnlyPtBr(item.proximoPrazoTarefa, "Sem tarefas pendentes")}
                       </p>
                       <p>
                         <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}
