@@ -1082,11 +1082,22 @@ export function PreDemandaDetailPage() {
                                 <span className="block font-semibold text-slate-950">{task.descricao}</span>
                                 <span className="text-sm text-slate-500">{task.tipo}</span>
                                 {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {formatDateOnlyPtBr(task.prazoConclusao)}</span> : null}
-                                {getTaskSignal(task.prazoConclusao) ? (
-                                  <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(getTaskSignal(task.prazoConclusao) ?? "normal")}`}>
-                                    Sinal da tarefa: {taskSignalLabel(getTaskSignal(task.prazoConclusao) ?? "normal")}
-                                  </span>
-                                ) : null}
+                                {(() => {
+                                  const signal = getTaskSignal(task.prazoConclusao);
+                                  return signal ? (
+                                    <span
+                                      aria-label={`Sinal da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
+                                        signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
+                                      }`}
+                                      className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
+                                      title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
+                                        signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
+                                      }`}
+                                    >
+                                      Sinal da tarefa: {taskSignalLabel(signal)}
+                                    </span>
+                                  ) : null;
+                                })()}
                                 {formatRecorrenciaLabel(task) ? (
                                   <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-800 ring-1 ring-sky-200">
                                     {formatRecorrenciaLabel(task)}
@@ -1162,11 +1173,22 @@ export function PreDemandaDetailPage() {
                               <td className="px-4 py-3 text-slate-600">
                                 <div className="grid gap-1">
                                   <span>{formatDateOnlyPtBr(task.prazoConclusao)}</span>
-                                  {getTaskSignal(task.prazoConclusao) ? (
-                                    <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(getTaskSignal(task.prazoConclusao) ?? "normal")}`}>
-                                      {taskSignalLabel(getTaskSignal(task.prazoConclusao) ?? "normal")}
-                                    </span>
-                                  ) : null}
+                                  {(() => {
+                                    const signal = getTaskSignal(task.prazoConclusao);
+                                    return signal ? (
+                                      <span
+                                        aria-label={`Sinal da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
+                                          signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
+                                        }`}
+                                        className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
+                                        title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
+                                          signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
+                                        }`}
+                                      >
+                                        {taskSignalLabel(signal)}
+                                      </span>
+                                    ) : null;
+                                  })()}
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-slate-600">{task.setorDestino ? `${task.setorDestino.sigla} - ${task.setorDestino.nomeCompleto}` : "-"}</td>
