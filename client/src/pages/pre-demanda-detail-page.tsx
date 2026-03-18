@@ -846,6 +846,11 @@ export function PreDemandaDetailPage() {
                       >
                         <span className="block font-semibold text-slate-950">{assunto.nome}</span>
                         <span className="block text-slate-500">{assunto.procedimentos.length} passos • {assunto.normas.length} normas</span>
+                        {assunto.procedimentos.length ? (
+                          <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-sky-700">Vai criar checklist automático</span>
+                        ) : (
+                          <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Sem checklist automático</span>
+                        )}
                       </button>
                     ))}
                   </div>
