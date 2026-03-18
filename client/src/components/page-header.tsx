@@ -23,7 +23,7 @@ export function PageHeader({
     >
       <div className="space-y-3">
         {eyebrow ? <p className="text-xs font-bold uppercase tracking-[0.3em] text-rose-700">{eyebrow}</p> : null}
-        <h1 className='font-["IBM_Plex_Serif",Georgia,serif] text-3xl leading-tight text-slate-950 sm:text-5xl'>{title}</h1>
+        <h1 className='font-["IBM_Plex_Serif",Georgia,serif] text-2xl leading-tight text-slate-950 sm:text-4xl lg:text-[2.6rem]'>{title}</h1>
         {description ? <p className="max-w-3xl text-sm leading-7 text-slate-500 sm:text-base">{description}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-3">{actions}</div> : null}
