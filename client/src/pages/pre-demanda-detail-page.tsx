@@ -38,6 +38,7 @@ import {
   FIXED_TASKS,
   formatBytes,
   formatRecorrenciaLabel,
+  getTaskSignal,
   readFileAsBase64,
   selectClassName,
   StatusAction,
@@ -91,6 +92,18 @@ import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLab
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
+
+function taskSignalTone(signal: "normal" | "atencao" | "critico") {
+  if (signal === "critico") return "bg-rose-100 text-rose-700 ring-1 ring-rose-200";
+  if (signal === "atencao") return "bg-amber-100 text-amber-700 ring-1 ring-amber-200";
+  return "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200";
+}
+
+function taskSignalLabel(signal: "normal" | "atencao" | "critico") {
+  if (signal === "critico") return "CRITICO";
+  if (signal === "atencao") return "ATENCAO";
+  return "NORMAL";
+}
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
@@ -622,7 +635,7 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
               <SummaryItem label="Prazo do processo" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.prazoProcesso)} />
               <SummaryItem label="Proxima tarefa" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")} />
-              <SummaryItem label="Sinal de prazo" value={record.status === "encerrada" ? "-" : record.sinalPrazoProcesso ?? "normal"} />
+              <SummaryItem label="Sinal do processo" value={record.status === "encerrada" ? "-" : record.sinalPrazoProcesso ?? "normal"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
@@ -1069,6 +1082,11 @@ export function PreDemandaDetailPage() {
                                 <span className="block font-semibold text-slate-950">{task.descricao}</span>
                                 <span className="text-sm text-slate-500">{task.tipo}</span>
                                 {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {formatDateOnlyPtBr(task.prazoConclusao)}</span> : null}
+                                {getTaskSignal(task.prazoConclusao) ? (
+                                  <span className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(getTaskSignal(task.prazoConclusao) ?? "normal")}`}>
+                                    Sinal da tarefa: {taskSignalLabel(getTaskSignal(task.prazoConclusao) ?? "normal")}
+                                  </span>
+                                ) : null}
                                 {formatRecorrenciaLabel(task) ? (
                                   <span className="mt-1 inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-800 ring-1 ring-sky-200">
                                     {formatRecorrenciaLabel(task)}
@@ -1141,7 +1159,16 @@ export function PreDemandaDetailPage() {
                               <td className="px-4 py-3 font-semibold text-slate-950">{task.ordem}</td>
                               <td className="px-4 py-3 text-slate-950">{task.descricao}</td>
                               <td className="px-4 py-3 text-slate-600">{task.tipo}{formatRecorrenciaLabel(task) ? ` • ${formatRecorrenciaLabel(task)}` : ""}</td>
-                              <td className="px-4 py-3 text-slate-600">{formatDateOnlyPtBr(task.prazoConclusao)}</td>
+                              <td className="px-4 py-3 text-slate-600">
+                                <div className="grid gap-1">
+                                  <span>{formatDateOnlyPtBr(task.prazoConclusao)}</span>
+                                  {getTaskSignal(task.prazoConclusao) ? (
+                                    <span className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(getTaskSignal(task.prazoConclusao) ?? "normal")}`}>
+                                      {taskSignalLabel(getTaskSignal(task.prazoConclusao) ?? "normal")}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
                               <td className="px-4 py-3 text-slate-600">{task.setorDestino ? `${task.setorDestino.sigla} - ${task.setorDestino.nomeCompleto}` : "-"}</td>
                               <td className="px-4 py-3 text-slate-600">{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lançamento manual"}</td>
                             </tr>

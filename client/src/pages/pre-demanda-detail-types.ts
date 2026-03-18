@@ -36,6 +36,8 @@ export type TaskPrazoChangeState = {
   };
 };
 
+export type TaskSignal = "normal" | "atencao" | "critico";
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 export const FIXED_TASKS = [
@@ -65,6 +67,28 @@ export function formatRecorrenciaLabel(
   return task.recorrenciaDiaMes
     ? `Recorrente mensal (dia ${task.recorrenciaDiaMes})`
     : "Recorrente mensal";
+}
+
+export function getTaskSignal(prazoConclusao: string | null | undefined): TaskSignal | null {
+  if (!prazoConclusao) return null;
+
+  const dueDate = new Date(`${prazoConclusao}T00:00:00`);
+  if (Number.isNaN(dueDate.getTime())) return null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (dueDate.getTime() < today.getTime()) {
+    return "critico";
+  }
+
+  const attentionLimit = new Date(today);
+  attentionLimit.setDate(attentionLimit.getDate() + 2);
+  if (dueDate.getTime() <= attentionLimit.getTime()) {
+    return "atencao";
+  }
+
+  return "normal";
 }
 
 export function toDateTimeLocalValue(value: string | null | undefined) {
