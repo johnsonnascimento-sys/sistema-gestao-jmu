@@ -1398,6 +1398,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `
           insert into adminlog.tarefas_pendentes (
             pre_demanda_id,
+            ordem,
             descricao,
             tipo,
             assunto_id,
@@ -1407,11 +1408,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, 'fixa', $3::uuid, $4::uuid, $5::date, $6::uuid, true, $7)
+          values ($1, $2, $3, 'fixa', $4::uuid, $5::uuid, $6::date, $7::uuid, true, $8)
           on conflict (pre_demanda_id, procedimento_id) where procedimento_id is not null do nothing
         `,
         [
           input.preDemandaId,
+          Number(procedimento.ordem),
           `[${String(assuntoResult.rows[0].nome)}] ${Number(procedimento.ordem)}. ${String(procedimento.descricao)}`,
           input.assuntoId,
           String(procedimento.id),
