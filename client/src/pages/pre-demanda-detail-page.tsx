@@ -868,8 +868,8 @@ export function PreDemandaDetailPage() {
                     </select>
                   </FormField>
                   <FormField
-                    hint="Este é o prazo da tarefa atual. Se houver recorrência, ele serve de base para a próxima ocorrência."
-                    label="Prazo inicial"
+                    hint="Sem recorrência, esta é a data final da tarefa. Com recorrência, ela vira a base para as próximas ocorrências."
+                    label="Prazo da tarefa"
                   >
                     <Input max={record?.prazoProcesso ?? undefined} min={undefined} onChange={(event) => setTaskForm((current) => ({ ...current, prazo_conclusao: event.target.value }))} type="date" value={taskForm.prazo_conclusao} />
                   </FormField>
@@ -888,6 +888,12 @@ export function PreDemandaDetailPage() {
                     <option value="mensal">Mensal</option>
                   </select>
                 </FormField>
+
+                {taskForm.recorrencia_tipo ? (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
+                    Essa recorrência continua até {formatDateOnlyPtBr(record?.prazoProcesso, "o prazo do processo")}. Depois dessa data, o sistema nao cria novas tarefas.
+                  </div>
+                ) : null}
 
                 {taskForm.recorrencia_tipo === "semanal" ? (
                   <div className="grid gap-2">
@@ -1766,8 +1772,8 @@ export function PreDemandaDetailPage() {
               </select>
             </FormField>
             <FormField
-              hint="Este é o prazo da tarefa atual. Se houver recorrência, ele serve de base para a próxima ocorrência."
-              label="Prazo inicial"
+              hint="Sem recorrência, esta é a data final da tarefa. Com recorrência, ela vira a base para as próximas ocorrências."
+              label="Prazo da tarefa"
             >
               <Input max={record?.prazoProcesso ?? undefined} onChange={(event) => setEditTaskForm((current) => ({ ...current, prazo_conclusao: event.target.value }))} type="date" value={editTaskForm.prazo_conclusao} />
             </FormField>
@@ -1782,6 +1788,11 @@ export function PreDemandaDetailPage() {
                 <option value="mensal">Mensal</option>
               </select>
             </FormField>
+            {editTaskForm.recorrencia_tipo ? (
+              <div className="col-span-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
+                Essa recorrência continua até {formatDateOnlyPtBr(record?.prazoProcesso, "o prazo do processo")}. Depois dessa data, o sistema nao cria novas tarefas.
+              </div>
+            ) : null}
             {editTaskForm.recorrencia_tipo === "semanal" ? (
               <div className="col-span-2 grid gap-2">
                 <div>
