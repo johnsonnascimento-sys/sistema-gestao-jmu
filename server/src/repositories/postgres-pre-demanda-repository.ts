@@ -1493,13 +1493,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const initialStatus: PreDemandaStatus = "em_andamento";
 
     try {
-      const preId = await inTransaction(this.pool, async (client) => {
+      const record = await inTransaction(this.pool, async (client) => {
         if (!input.prazoProcesso) {
           throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
         }
 
-      const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
-      const numeroJudicial = formatNumeroJudicialValue(input.numeroJudicial);
+        const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
+        const numeroJudicial = formatNumeroJudicialValue(input.numeroJudicial);
 
         const defaultSetor = await this.resolveDefaultInitialSetor(client);
         if (!defaultSetor) {
@@ -1618,7 +1618,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               on conflict (pre_demanda_id, numero_judicial) do update
               set principal = true
             `,
-            [preDemandaId, numeroJudicial, input.createdByUserId],
+          [preDemandaId, numeroJudicial, input.createdByUserId],
           );
         }
 
@@ -1640,13 +1640,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           });
         }
 
-        return nextPreId;
-      });
+        const detailRow = await getPreDemandaRowByPreId(client, nextPreId);
+        if (!detailRow) {
+          throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
+        }
 
-      const record = await this.getDetailByPreId(this.pool, preId, queueHealthThresholds);
-      if (!record) {
-        throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
-      }
+        return this.hydrateDetail(client, detailRow, queueHealthThresholds);
+      });
 
       return {
         record,
