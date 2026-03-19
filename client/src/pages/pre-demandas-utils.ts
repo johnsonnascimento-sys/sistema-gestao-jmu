@@ -20,10 +20,10 @@ export const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: strin
 ];
 
 export const TASK_RECURRENCE_OPTIONS: Array<{ value: TarefaRecorrenciaTipo | "sem_recorrencia"; label: string }> = [
-  { value: "diaria", label: "Diaria" },
+  { value: "diaria", label: "Diária" },
   { value: "semanal", label: "Semanal" },
   { value: "mensal", label: "Mensal" },
-  { value: "sem_recorrencia", label: "Sem recorrencia" },
+  { value: "sem_recorrencia", label: "Sem recorrência" },
 ];
 
 export const selectClassName =
@@ -249,8 +249,8 @@ export const SAVED_VIEWS: Array<{
   },
   {
     id: "tarefas-diarias",
-    label: "Tarefas diarias",
-    description: "Processos com pelo menos uma tarefa recorrente diaria.",
+    label: "Tarefas diárias",
+    description: "Processos com pelo menos uma tarefa recorrente diária.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
       taskRecurrence: "diaria",
@@ -285,7 +285,7 @@ export const SAVED_VIEWS: Array<{
   },
   {
     id: "sem-recorrencia",
-    label: "Sem recorrencia",
+    label: "Sem recorrência",
     description: "Processos sem nenhuma tarefa recorrente.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],

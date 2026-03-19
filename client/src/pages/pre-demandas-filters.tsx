@@ -15,6 +15,8 @@ import {
   TASK_RECURRENCE_OPTIONS,
 } from "./pre-demandas-utils";
 
+const FREQUENCY_VIEW_IDS = new Set(["tarefas-diarias", "tarefas-semanais", "tarefas-mensais", "sem-recorrencia"]);
+
 export function PreDemandasFilters({
   resolvedState,
   setores,
@@ -44,6 +46,8 @@ export function PreDemandasFilters({
   const [reopenedWithinDays, setReopenedWithinDays] = useState(resolvedState.reopenedWithinDays);
   const [sortBy, setSortBy] = useState<PreDemandaSortBy>(resolvedState.sortBy);
   const [sortOrder, setSortOrder] = useState<SortOrder>(resolvedState.sortOrder);
+  const frequencyViews = SAVED_VIEWS.filter((preset) => FREQUENCY_VIEW_IDS.has(preset.id));
+  const otherViews = SAVED_VIEWS.filter((preset) => !FREQUENCY_VIEW_IDS.has(preset.id));
 
   function resolveQueueHealthKey(queueHealth: QueueHealthLevel[]) {
     const normalized = [...queueHealth].sort().join(",");
@@ -152,22 +156,57 @@ export function PreDemandasFilters({
           <CardTitle>Visualizacoes salvas</CardTitle>
           <CardDescription>Presets compartilhaveis por query string para os filtros mais usados da operacao.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 xl:grid-cols-6">
-          {SAVED_VIEWS.map((preset) => (
-            <button
-              className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
-                resolvedState.presetId === preset.id
-                  ? "border-sky-300 bg-[linear-gradient(180deg,rgba(219,234,254,0.95),rgba(240,249,255,0.92))] text-sky-950 shadow-[0_14px_32px_rgba(14,165,233,0.12)]"
-                  : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,241,233,0.78))] text-slate-700 shadow-[0_12px_24px_rgba(20,33,61,0.05)] hover:border-sky-200 hover:bg-white"
-              }`}
-              key={preset.id}
-              onClick={() => applyPreset(preset.id)}
-              type="button"
-            >
-              <span className="text-sm font-semibold">{preset.label}</span>
-              <span className="text-xs text-slate-500">{preset.description}</span>
-            </button>
-          ))}
+        <CardContent className="grid gap-5">
+          <div className="grid gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Frequência</span>
+              <span className="text-xs text-slate-500">Atalhos para recorrência de tarefas.</span>
+            </div>
+            <div className="grid gap-3 xl:grid-cols-4">
+              {frequencyViews.map((preset) => (
+                <button
+                  className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
+                    resolvedState.presetId === preset.id
+                      ? "border-sky-300 bg-[linear-gradient(180deg,rgba(219,234,254,0.95),rgba(240,249,255,0.92))] text-sky-950 shadow-[0_14px_32px_rgba(14,165,233,0.12)]"
+                      : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,241,233,0.78))] text-slate-700 shadow-[0_12px_24px_rgba(20,33,61,0.05)] hover:border-sky-200 hover:bg-white"
+                  }`}
+                  key={preset.id}
+                  onClick={() => applyPreset(preset.id)}
+                  type="button"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    {preset.label}
+                    <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">Frequência</span>
+                  </span>
+                  <span className="text-xs text-slate-500">{preset.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Outros atalhos</span>
+              <span className="text-xs text-slate-500">Recortes operacionais adicionais.</span>
+            </div>
+            <div className="grid gap-3 xl:grid-cols-6">
+              {otherViews.map((preset) => (
+                <button
+                  className={`grid gap-1 rounded-[22px] border px-4 py-4 text-left transition ${
+                    resolvedState.presetId === preset.id
+                      ? "border-sky-300 bg-[linear-gradient(180deg,rgba(219,234,254,0.95),rgba(240,249,255,0.92))] text-sky-950 shadow-[0_14px_32px_rgba(14,165,233,0.12)]"
+                      : "border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(247,241,233,0.78))] text-slate-700 shadow-[0_12px_24px_rgba(20,33,61,0.05)] hover:border-sky-200 hover:bg-white"
+                  }`}
+                  key={preset.id}
+                  onClick={() => applyPreset(preset.id)}
+                  type="button"
+                >
+                  <span className="text-sm font-semibold">{preset.label}</span>
+                  <span className="text-xs text-slate-500">{preset.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
