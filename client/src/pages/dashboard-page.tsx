@@ -45,7 +45,7 @@ export function DashboardPage() {
       case "sei_reassociated":
         return `SEI corrigido para ${event.seiNumeroNovo ?? "-"}.`;
       default:
-        return "MovimentaÃ§Ã£o operacional registrada.";
+        return "Movimentação operacional registrada.";
     }
   }
 
@@ -117,7 +117,7 @@ export function DashboardPage() {
   }
 
   if (!summary) {
-    return <ErrorState description="Resumo operacional indisponÃ­vel." />;
+    return <ErrorState description="Resumo operacional indisponível." />;
   }
 
   const staleItems = summary.staleItems;
@@ -138,7 +138,7 @@ export function DashboardPage() {
     const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
 
     if (diffDays < 0) {
-      return `Prazo vencido hÃ¡ ${Math.abs(diffDays)}d`;
+      return `Prazo vencido há ${Math.abs(diffDays)}d`;
     }
 
     if (diffDays === 0) {
@@ -182,11 +182,11 @@ export function DashboardPage() {
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
           <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
-          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "NÃ£o tramitado"}</p>
+          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
           {highlightType !== "urgent" && highlightType !== "payment" && <p>Pessoa: {item.interessados.length}</p>}
           <p>{formatPrazo(item)}</p>
           <p>{formatStructuredDeadlines(item)}</p>
-          <p>ReferÃªncia: {formatDateOnlyPtBr(item.dataReferencia)}</p>
+          <p>Referência: {formatDateOnlyPtBr(item.dataReferencia)}</p>
           {highlightType !== "urgent" && highlightType !== "payment" && (
             <>
               <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
@@ -216,8 +216,8 @@ export function DashboardPage() {
               </Button>
             </div>
           }
-          description="VisÃ£o operacional diÃ¡ria. Acompanhe gargalos, priorize urgÃªncias e acompanhe movimentos recentes."
-          eyebrow="VisÃ£o geral"
+          description="Visão operacional diária. Acompanhe gargalos, priorize urgências e acompanhe movimentos recentes."
+          eyebrow="Visão geral"
           title="Dashboard do Gestor"
         />
       </motion.div>
@@ -232,8 +232,8 @@ export function DashboardPage() {
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=fila-parada">Fila Parada</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=em-risco">Em risco</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white text-rose-600 border-rose-200"><Link to="/pre-demandas?preset=prazos-vencidos">Prazos Vencidos</Link></Button>
-        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=ultimas-encerradas">Ãšltimos Encerrados</Link></Button>
-        <Button asChild variant="ghost" size="sm" className="h-8"><Link to="/pre-demandas">Acessar Busca AvanÃ§ada &rarr;</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=ultimas-encerradas">Últimos Encerrados</Link></Button>
+        <Button asChild variant="ghost" size="sm" className="h-8"><Link to="/pre-demandas">Acessar Busca Avançada &rarr;</Link></Button>
       </motion.div>
 
       <motion.div 
@@ -373,8 +373,8 @@ export function DashboardPage() {
       >
         <Card className="h-fit rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Filas de AÃ§Ã£o Imediata</CardTitle>
-            <CardDescription className="text-slate-500">Filas de trabalho prioritÃ¡rias para desafogar a operaÃ§Ã£o.</CardDescription>
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Filas de Ação Imediata</CardTitle>
+            <CardDescription className="text-slate-500">Filas de trabalho prioritárias para desafogar a operação.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Tabs defaultValue="urgentes" className="w-full">
@@ -396,13 +396,13 @@ export function DashboardPage() {
                   <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{staleItems.length}</span>
                 </TabsTrigger>
                 <TabsTrigger value="pendencias" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
-                  <span>PendÃªncias</span>
+                  <span>Pendências</span>
                   <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{summary.dueSoonItems.length + summary.withoutSetorItems.length + summary.withoutInteressadosItems.length}</span>
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="urgentes" className="grid gap-3">
                 {summary.urgentItems.length === 0 ? (
-                  <div className="py-8"><EmptyState description="Nenhum processo marcado como urgente para tratamento imediato." title="Zero UrgÃªncias" /></div>
+                  <div className="py-8"><EmptyState description="Nenhum processo marcado como urgente para tratamento imediato." title="Zero Urgências" /></div>
                 ) : (
                   summary.urgentItems.map((item) => renderQueueItem(item, "urgent"))
                 )}
@@ -426,7 +426,7 @@ export function DashboardPage() {
 
               <TabsContent value="parados" className="grid gap-3">
                 {staleItems.length === 0 ? (
-                  <div className="py-8"><EmptyState description="Tudo fluindo regularmente. Fila pedindo andamento estÃ¡ zerada." title="Fluxo ContÃ­nuo" /></div>
+                  <div className="py-8"><EmptyState description="Tudo fluindo regularmente. Fila pedindo andamento está zerada." title="Fluxo Contínuo" /></div>
                 ) : (
                   staleItems.map((item) => renderQueueItem(item))
                 )}
@@ -451,7 +451,7 @@ export function DashboardPage() {
                     <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=sem-setor">Ver todos</Link>
                   </div>
                   {summary.withoutSetorItems.length === 0 ? (
-                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos jÃ¡ possuem setor.</p>
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos já possuem setor.</p>
                   ) : (
                     summary.withoutSetorItems.slice(0, 3).map((item) => renderQueueItem(item))
                   )}
@@ -463,7 +463,7 @@ export function DashboardPage() {
                     <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=sem-envolvidos">Ver todos</Link>
                   </div>
                   {summary.withoutInteressadosItems.length === 0 ? (
-                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos jÃ¡ possuem envolvidos vinculados.</p>
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos já possuem envolvidos vinculados.</p>
                   ) : (
                     summary.withoutInteressadosItems.slice(0, 3).map((item) => renderQueueItem(item))
                   )}
@@ -476,12 +476,12 @@ export function DashboardPage() {
 
         <Card className="flex h-[800px] flex-col rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="shrink-0 pb-4">
-            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Ãšltimas MovimentaÃ§Ãµes</CardTitle>
-            <CardDescription className="text-slate-500">A timeline recente da operaÃ§Ã£o.</CardDescription>
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Últimas Movimentações</CardTitle>
+            <CardDescription className="text-slate-500">A timeline recente da operação.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 overflow-y-auto pr-2 pb-6">
             {summary.recentTimeline.length === 0 ? (
-              <EmptyState description="As Ãºltimas criaÃ§Ãµes e mudanÃ§as aparecerÃ£o aqui." title="Sem movimentaÃ§Ãµes recentes" />
+              <EmptyState description="As últimas criações e mudanças aparecerão aqui." title="Sem movimentações recentes" />
             ) : (
               summary.recentTimeline.map((event) => (
                 <Link
