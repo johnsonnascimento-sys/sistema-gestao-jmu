@@ -303,6 +303,7 @@ export interface ListPreDemandasParams {
   prazoCampo?: "prazoInicial" | "prazoIntermediario" | "prazoFinal";
   deadlineCampo?: "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte?: "overdue" | "today" | "soon";
+  taskRecurrence?: "diaria" | "semanal" | "mensal" | "sem_recorrencia";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;
   closedWithinDays?: number;

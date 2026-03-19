@@ -4,6 +4,7 @@ import type {
   PreDemandaStatus,
   QueueHealthLevel,
   SortOrder,
+  TarefaRecorrenciaTipo,
 } from "../types";
 
 export const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
@@ -16,6 +17,13 @@ export const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: strin
   { value: "fresh", label: "Estavel" },
   { value: "attention", label: "Em observacao" },
   { value: "critical", label: "Em risco" },
+];
+
+export const TASK_RECURRENCE_OPTIONS: Array<{ value: TarefaRecorrenciaTipo | "sem_recorrencia"; label: string }> = [
+  { value: "diaria", label: "Diaria" },
+  { value: "semanal", label: "Semanal" },
+  { value: "mensal", label: "Mensal" },
+  { value: "sem_recorrencia", label: "Sem recorrencia" },
 ];
 
 export const selectClassName =
@@ -73,6 +81,7 @@ export type ResolvedSearchState = {
   dueState: "" | "overdue" | "due_today" | "due_soon" | "none";
   deadlineCampo: "" | "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte: "" | "overdue" | "today" | "soon";
+  taskRecurrence: "" | TarefaRecorrenciaTipo | "sem_recorrencia";
   paymentInvolved: "" | "true" | "false";
   hasInteressados: "" | "true" | "false";
   closedWithinDays: string;
@@ -374,6 +383,7 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     !searchParams.has("dueState") &&
     !searchParams.has("deadlineCampo") &&
     !searchParams.has("prazoRecorte") &&
+    !searchParams.has("taskRecurrence") &&
     !searchParams.has("paymentInvolved") &&
     !searchParams.has("hasInteressados") &&
     !searchParams.has("closedWithinDays") &&
@@ -396,6 +406,7 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     dueState: searchParams.has("dueState") ? ((searchParams.get("dueState") as "overdue" | "due_today" | "due_soon" | "none") ?? "") : preset?.defaults.dueState ?? "",
     deadlineCampo: (searchParams.get("deadlineCampo") as ResolvedSearchState["deadlineCampo"] | null) ?? "",
     prazoRecorte: (searchParams.get("prazoRecorte") as ResolvedSearchState["prazoRecorte"] | null) ?? "",
+    taskRecurrence: (searchParams.get("taskRecurrence") as ResolvedSearchState["taskRecurrence"] | null) ?? "",
     paymentInvolved: searchParams.has("paymentInvolved") ? ((searchParams.get("paymentInvolved") as "true" | "false") ?? "") : preset?.defaults.paymentInvolved ?? "",
     hasInteressados: searchParams.has("hasInteressados") ? ((searchParams.get("hasInteressados") as "true" | "false") ?? "") : preset?.defaults.hasInteressados ?? "",
     closedWithinDays: searchParams.get("closedWithinDays") ?? preset?.defaults.closedWithinDays ?? "",

@@ -643,6 +643,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => item.prazoProcesso === null);
     }
 
+    if (params.taskRecurrence) {
+      if (params.taskRecurrence === "sem_recorrencia") {
+        items = items.filter((item) => !item.tarefasPendentes.some((task) => task.recorrenciaTipo));
+      } else {
+        items = items.filter((item) => item.tarefasPendentes.some((task) => task.recorrenciaTipo === params.taskRecurrence));
+      }
+    }
+
     if (params.deadlineCampo && params.prazoRecorte) {
       const getPrazo = (item: PreDemandaDetail) =>
         params.deadlineCampo === "proximoPrazoTarefa" ? item.proximoPrazoTarefa : item.prazoProcesso;
@@ -2170,6 +2178,85 @@ describe("Gestor JMU API", () => {
 
     expect(audit.statusCode).toBe(200);
     expect(audit.json().data).toHaveLength(1);
+  });
+
+  it("filters list by task recurrence", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+
+    const recorrente = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        assunto: "Fluxo recorrente",
+        data_referencia: "2026-03-12",
+        prazo_processo: "2026-03-22",
+      },
+    });
+
+    expect(recorrente.statusCode).toBe(201);
+    const recorrentePreId = recorrente.json().data.preId as string;
+
+    const tarefaRecorrente = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${recorrentePreId}/tarefas`,
+      headers: { cookie },
+      payload: {
+        descricao: "Revisar fila recorrente",
+        tipo: "livre",
+        prazo_conclusao: "2026-03-13",
+        recorrencia_tipo: "diaria",
+      },
+    });
+
+    expect(tarefaRecorrente.statusCode).toBe(201);
+
+    const semRecorrencia = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        assunto: "Fluxo simples",
+        data_referencia: "2026-03-12",
+        prazo_processo: "2026-03-22",
+      },
+    });
+
+    expect(semRecorrencia.statusCode).toBe(201);
+    const semRecorrenciaPreId = semRecorrencia.json().data.preId as string;
+
+    const filteredRecorrente = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas?q=Fluxo%20recorrente&taskRecurrence=diaria",
+      headers: { cookie },
+    });
+
+    expect(filteredRecorrente.statusCode).toBe(200);
+    expect(filteredRecorrente.json().data.total).toBe(1);
+    expect(
+      filteredRecorrente.json().data.items.some((item: { preId: string }) => item.preId === recorrentePreId),
+    ).toBe(true);
+
+    const filteredSemRecorrencia = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas?q=Fluxo%20simples&taskRecurrence=sem_recorrencia",
+      headers: { cookie },
+    });
+
+    expect(filteredSemRecorrencia.statusCode).toBe(200);
+    expect(filteredSemRecorrencia.json().data.total).toBe(1);
+    expect(
+      filteredSemRecorrencia.json().data.items.some((item: { preId: string }) => item.preId === semRecorrenciaPreId),
+    ).toBe(true);
   });
 
   it("updates status and returns unified timeline", async () => {

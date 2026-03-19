@@ -4,7 +4,7 @@ import { FormField } from "../components/form-field";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import type { PreDemandaSortBy, QueueHealthLevel, Setor, SortOrder } from "../types";
+import type { PreDemandaSortBy, QueueHealthLevel, Setor, SortOrder, TarefaRecorrenciaTipo } from "../types";
 import {
   ResolvedSearchState,
   SAVED_VIEWS,
@@ -12,6 +12,7 @@ import {
   STATUSES,
   getSavedView,
   selectClassName,
+  TASK_RECURRENCE_OPTIONS,
 } from "./pre-demandas-utils";
 
 export function PreDemandasFilters({
@@ -36,6 +37,7 @@ export function PreDemandasFilters({
   const [dueState, setDueState] = useState(resolvedState.dueState);
   const [deadlineCampo, setDeadlineCampo] = useState(resolvedState.deadlineCampo);
   const [prazoRecorte, setPrazoRecorte] = useState(resolvedState.prazoRecorte);
+  const [taskRecurrence, setTaskRecurrence] = useState(resolvedState.taskRecurrence);
   const [paymentInvolved, setPaymentInvolved] = useState(resolvedState.paymentInvolved);
   const [hasInteressados, setHasInteressados] = useState(resolvedState.hasInteressados);
   const [closedWithinDays, setClosedWithinDays] = useState(resolvedState.closedWithinDays);
@@ -73,6 +75,7 @@ export function PreDemandasFilters({
     setDueState(resolvedState.dueState);
     setDeadlineCampo(resolvedState.deadlineCampo);
     setPrazoRecorte(resolvedState.prazoRecorte);
+    setTaskRecurrence(resolvedState.taskRecurrence);
     setPaymentInvolved(resolvedState.paymentInvolved);
     setHasInteressados(resolvedState.hasInteressados);
     setClosedWithinDays(resolvedState.closedWithinDays);
@@ -97,6 +100,7 @@ export function PreDemandasFilters({
     if (dueState) next.set("dueState", dueState);
     if (deadlineCampo) next.set("deadlineCampo", deadlineCampo);
     if (prazoRecorte) next.set("prazoRecorte", prazoRecorte);
+    if (taskRecurrence) next.set("taskRecurrence", taskRecurrence);
     if (paymentInvolved) next.set("paymentInvolved", paymentInvolved);
     if (hasInteressados) next.set("hasInteressados", hasInteressados);
     if (closedWithinDays) next.set("closedWithinDays", closedWithinDays);
@@ -131,6 +135,7 @@ export function PreDemandasFilters({
     setDueState("");
     setDeadlineCampo("");
     setPrazoRecorte("");
+    setTaskRecurrence("");
     setPaymentInvolved("");
     setHasInteressados("");
     setClosedWithinDays("");
@@ -234,6 +239,17 @@ export function PreDemandasFilters({
               <option value="due_today">Vence hoje</option>
               <option value="due_soon">Na semana</option>
               <option value="none">Sem prazo</option>
+            </select>
+          </FormField>
+
+          <FormField hint="Baseado em qualquer tarefa do processo." label="Frequencia da tarefa">
+            <select className={selectClassName} onChange={(event) => setTaskRecurrence(event.target.value as "" | TarefaRecorrenciaTipo | "sem_recorrencia")} value={taskRecurrence}>
+              <option value="">Todos</option>
+              {TASK_RECURRENCE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </FormField>
 

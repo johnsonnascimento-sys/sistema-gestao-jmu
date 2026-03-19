@@ -58,6 +58,7 @@ export function PreDemandasPage() {
         dueState: resolvedState.dueState || undefined,
         deadlineCampo: resolvedState.deadlineCampo || undefined,
         prazoRecorte: resolvedState.prazoRecorte || undefined,
+        taskRecurrence: resolvedState.taskRecurrence || undefined,
         paymentInvolved: resolvedState.paymentInvolved ? resolvedState.paymentInvolved === "true" : undefined,
         hasInteressados: resolvedState.hasInteressados ? resolvedState.hasInteressados === "true" : undefined,
         closedWithinDays: resolvedState.closedWithinDays ? Number(resolvedState.closedWithinDays) : undefined,

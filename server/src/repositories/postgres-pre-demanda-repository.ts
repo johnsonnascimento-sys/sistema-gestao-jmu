@@ -727,6 +727,29 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
     clauses.push("false");
   }
 
+  if (params.taskRecurrence) {
+    if (params.taskRecurrence === "sem_recorrencia") {
+      clauses.push(`
+        not exists (
+          select 1
+          from adminlog.tarefas_pendentes tarefa
+          where tarefa.pre_demanda_id = pd.id
+            and tarefa.recorrencia_tipo is not null
+        )
+      `);
+    } else {
+      values.push(params.taskRecurrence);
+      clauses.push(`
+        exists (
+          select 1
+          from adminlog.tarefas_pendentes tarefa
+          where tarefa.pre_demanda_id = pd.id
+            and tarefa.recorrencia_tipo::text = $${values.length}
+        )
+      `);
+    }
+  }
+
   if (params.deadlineCampo && params.prazoRecorte) {
     const columnMap = {
       prazoProcesso: "pd.prazo_processo",

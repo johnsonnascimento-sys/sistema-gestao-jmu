@@ -115,6 +115,7 @@ export interface ListPreDemandasParams {
   dueState?: "overdue" | "due_today" | "due_soon" | "none";
   deadlineCampo?: "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte?: "overdue" | "today" | "soon";
+  taskRecurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;
   closedWithinDays?: number;
@@ -241,6 +242,7 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   if (params.dueState) searchParams.set("dueState", params.dueState);
   if (params.deadlineCampo) searchParams.set("deadlineCampo", params.deadlineCampo);
   if (params.prazoRecorte) searchParams.set("prazoRecorte", params.prazoRecorte);
+  if (params.taskRecurrence) searchParams.set("taskRecurrence", params.taskRecurrence);
   if (params.paymentInvolved !== undefined) searchParams.set("paymentInvolved", String(params.paymentInvolved));
   if (params.hasInteressados !== undefined) searchParams.set("hasInteressados", String(params.hasInteressados));
   if (params.closedWithinDays) searchParams.set("closedWithinDays", String(params.closedWithinDays));
