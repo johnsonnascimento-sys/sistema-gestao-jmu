@@ -3592,7 +3592,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, oldestOpenTasksResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -3786,6 +3786,27 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           limit 5
         `,
       ),
+      this.pool.query(
+        `
+          select
+            tarefa.id,
+            pd.pre_id,
+            pd.principal_numero,
+            pd.assunto,
+            tarefa.descricao,
+            tarefa.prazo_conclusao,
+            tarefa.recorrencia_tipo,
+            tarefa.created_at,
+            setor_destino.sigla as setor_destino_sigla
+          from adminlog.tarefas_pendentes tarefa
+          inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
+          where tarefa.concluida = false
+            and pd.status <> 'encerrada'
+          order by tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
+          limit 8
+        `,
+      ),
       this.listRecentTimeline(8),
     ]);
 
@@ -3824,6 +3845,17 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       urgentItems: urgentItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       withoutSetorItems: withoutSetorItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
       withoutInteressadosItems: withoutInteressadosItemsResult.rows.map((row) => mapPreDemandaBase(row, queueHealthThresholds)),
+      oldestOpenTasks: oldestOpenTasksResult.rows.map((row) => ({
+        id: String(row.id),
+        preId: String(row.pre_id),
+        preNumero: String(row.principal_numero),
+        assunto: String(row.assunto),
+        descricao: String(row.descricao),
+        prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
+        recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as TarefaRecorrenciaTipo) : null,
+        setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
+        createdAt: new Date(row.created_at).toISOString(),
+      })),
       recentTimeline,
     };
   }

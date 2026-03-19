@@ -1547,6 +1547,28 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const counts = await this.getStatusCounts();
     const recentTimeline = await this.listRecentTimeline(8);
+    const oldestOpenTasks = this.records
+      .flatMap((item) =>
+        item.tarefasPendentes
+          .filter((task) => !task.concluida)
+          .map((task) => ({
+            id: task.id,
+            preId: item.preId,
+            preNumero: item.principalNumero,
+            assunto: item.assunto,
+            descricao: task.descricao,
+            prazoConclusao: task.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
+            recorrenciaTipo: task.recorrenciaTipo ?? null,
+            setorDestinoSigla: task.setorDestino?.sigla ?? null,
+            createdAt: task.createdAt,
+          })),
+      )
+      .sort((left, right) => {
+        const leftDate = left.prazoConclusao ?? left.createdAt;
+        const rightDate = right.prazoConclusao ?? right.createdAt;
+        return leftDate.localeCompare(rightDate) || left.createdAt.localeCompare(right.createdAt);
+      })
+      .slice(0, 8);
     const awaitingSeiItems = this.records
       .filter((item) => item.status === "aguardando_sei")
       .sort((left, right) => left.dataReferencia.localeCompare(right.dataReferencia))
@@ -1604,6 +1626,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       urgentItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).slice(0, 5),
       withoutSetorItems: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).slice(0, 5),
       withoutInteressadosItems: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).slice(0, 5),
+      oldestOpenTasks,
       recentTimeline,
     };
   }
@@ -2311,7 +2334,7 @@ describe("Gestor JMU API", () => {
     });
 
     expect(dashboardSummary.statusCode).toBe(200);
-    expect(dashboardSummary.json().data.recentTimeline.length).toBeGreaterThan(0);
+    expect(dashboardSummary.json().data.oldestOpenTasks.length).toBeGreaterThan(0);
     expect(typeof dashboardSummary.json().data.closedLast30Days).toBe("number");
     expect(typeof dashboardSummary.json().data.agingAttentionTotal).toBe("number");
     expect(typeof dashboardSummary.json().data.agingCriticalTotal).toBe("number");
@@ -2323,6 +2346,7 @@ describe("Gestor JMU API", () => {
     expect(Array.isArray(dashboardSummary.json().data.dueSoonItems)).toBe(true);
     expect(Array.isArray(dashboardSummary.json().data.withoutSetorItems)).toBe(true);
     expect(Array.isArray(dashboardSummary.json().data.withoutInteressadosItems)).toBe(true);
+    expect(Array.isArray(dashboardSummary.json().data.oldestOpenTasks)).toBe(true);
 
     const detail = await app.inject({
       method: "GET",

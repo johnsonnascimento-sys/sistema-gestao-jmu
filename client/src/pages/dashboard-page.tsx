@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { formatAppError, getDashboardSummary } from "../lib/api";
 import { formatDateOnlyPtBr } from "../lib/date";
 import { getQueueHealth } from "../lib/queue-health";
-import type { PreDemanda, PreDemandaDashboardSummary, TimelineEvent } from "../types";
+import type { PreDemanda, PreDemandaDashboardSummary, TarefaRecorrenciaTipo } from "../types";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 
@@ -29,25 +29,20 @@ function formatStructuredDeadlines(item: PreDemanda) {
   ].join(" | ");
 }
 
+function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
+  if (!recorrenciaTipo) {
+    return "Sem recorrência";
+  }
+
+  if (recorrenciaTipo === "diaria") return "Diária";
+  if (recorrenciaTipo === "semanal") return "Semanal";
+  return "Mensal";
+}
+
 export function DashboardPage() {
   const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  function describeEvent(event: TimelineEvent) {
-    switch (event.type) {
-      case "created":
-        return "Novo processo registrado.";
-      case "status_changed":
-        return `Status alterado para ${event.statusNovo?.replace("_", " ") ?? "-"}.`;
-      case "sei_linked":
-        return `SEI ${event.seiNumeroNovo ?? "-"} associado.`;
-      case "sei_reassociated":
-        return `SEI corrigido para ${event.seiNumeroNovo ?? "-"}.`;
-      default:
-        return "Movimentação operacional registrada.";
-    }
-  }
 
   async function loadDashboard() {
     try {
@@ -476,30 +471,37 @@ export function DashboardPage() {
 
         <Card className="flex h-[800px] flex-col rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="shrink-0 pb-4">
-            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Últimas Movimentações</CardTitle>
-            <CardDescription className="text-slate-500">A timeline recente da operação.</CardDescription>
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Tarefas abertas mais antigas</CardTitle>
+            <CardDescription className="text-slate-500">Ordenadas pelo prazo de conclusão mais antigo.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 overflow-y-auto pr-2 pb-6">
-            {summary.recentTimeline.length === 0 ? (
-              <EmptyState description="As últimas criações e mudanças aparecerão aqui." title="Sem movimentações recentes" />
+            {summary.oldestOpenTasks.length === 0 ? (
+              <EmptyState description="Nenhuma tarefa aberta para exibir." title="Fila limpa" />
             ) : (
-              summary.recentTimeline.map((event) => (
+              summary.oldestOpenTasks.map((task) => (
                 <Link
                   className="group relative flex flex-col gap-3 rounded-[24px] border border-white/80 bg-gradient-to-br from-white/95 to-slate-50/80 px-5 py-4 shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl shrink-0"
-                  key={event.id}
-                  to={`/pre-demandas/${event.preId}`}
+                  key={task.id}
+                  to={`/pre-demandas/${task.preId}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{event.principalNumero}</p>
-                      <h3 className="mt-2 text-base font-semibold text-slate-950">{describeEvent(event)}</h3>
+                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{task.preNumero}</p>
+                      <h3 className="mt-2 text-base font-semibold text-slate-950">{task.descricao}</h3>
                     </div>
-                    {event.statusNovo ? <StatusPill status={event.statusNovo} /> : null}
+                    <div className="grid gap-2 justify-items-end">
+                      <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
+                        {formatTaskRecurrence(task.recorrenciaTipo)}
+                      </span>
+                      <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 ring-1 ring-slate-200">
+                        {formatDateOnlyPtBr(task.prazoConclusao)}
+                      </span>
+                    </div>
                   </div>
                   <div className="grid gap-1 text-sm text-slate-500">
-                    <p>{event.actor ? `${event.actor.name} (${event.actor.email})` : "Sistema"}</p>
-                    <p>{new Date(event.occurredAt).toLocaleString("pt-BR")}</p>
-                    {event.motivo ? <p className="mt-1 font-medium text-slate-700">Nota: {event.motivo}</p> : null}
+                    <p>{task.assunto}</p>
+                    <p>{task.setorDestinoSigla ? `Setor destino: ${task.setorDestinoSigla}` : "Sem setor destino"}</p>
+                    <p className="font-medium text-slate-700">Aberta desde {new Date(task.createdAt).toLocaleDateString("pt-BR")}</p>
                   </div>
                 </Link>
               ))

@@ -396,6 +396,17 @@ export interface PreDemandaDashboardSummary {
   urgentItems: PreDemandaDetail[];
   withoutSetorItems: PreDemandaDetail[];
   withoutInteressadosItems: PreDemandaDetail[];
+  oldestOpenTasks: Array<{
+    id: string;
+    preId: string;
+    preNumero: string;
+    assunto: string;
+    descricao: string;
+    prazoConclusao: string;
+    recorrenciaTipo: TarefaRecorrenciaTipo | null;
+    setorDestinoSigla: string | null;
+    createdAt: string;
+  }>;
   recentTimeline: TimelineEvent[];
 }
 
