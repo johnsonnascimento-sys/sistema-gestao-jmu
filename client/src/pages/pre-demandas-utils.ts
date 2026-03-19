@@ -42,6 +42,10 @@ export type SavedViewId =
   | "com-pagamento"
   | "sem-envolvidos"
   | "sem-setor"
+  | "tarefas-diarias"
+  | "tarefas-semanais"
+  | "tarefas-mensais"
+  | "sem-recorrencia"
   | "reabertas-30d"
   | "encerradas-30d"
   | "com-sei"
@@ -103,6 +107,7 @@ export const SAVED_VIEWS: Array<{
     setorAtualId?: string;
     withoutSetor?: "" | "true" | "false";
     dueState?: "" | "overdue" | "due_today" | "due_soon" | "none";
+    taskRecurrence?: "" | TarefaRecorrenciaTipo | "sem_recorrencia";
     paymentInvolved?: "" | "true" | "false";
     hasInteressados?: "" | "true" | "false";
     closedWithinDays?: string;
@@ -239,6 +244,54 @@ export const SAVED_VIEWS: Array<{
       withoutSetor: "true",
       sortBy: "updatedAt",
       sortOrder: "asc",
+      view: "table",
+    },
+  },
+  {
+    id: "tarefas-diarias",
+    label: "Tarefas diarias",
+    description: "Processos com pelo menos uma tarefa recorrente diaria.",
+    defaults: {
+      statuses: ["em_andamento", "aguardando_sei"],
+      taskRecurrence: "diaria",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+  {
+    id: "tarefas-semanais",
+    label: "Tarefas semanais",
+    description: "Processos com pelo menos uma tarefa recorrente semanal.",
+    defaults: {
+      statuses: ["em_andamento", "aguardando_sei"],
+      taskRecurrence: "semanal",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+  {
+    id: "tarefas-mensais",
+    label: "Tarefas mensais",
+    description: "Processos com pelo menos uma tarefa recorrente mensal.",
+    defaults: {
+      statuses: ["em_andamento", "aguardando_sei"],
+      taskRecurrence: "mensal",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
+      view: "table",
+    },
+  },
+  {
+    id: "sem-recorrencia",
+    label: "Sem recorrencia",
+    description: "Processos sem nenhuma tarefa recorrente.",
+    defaults: {
+      statuses: ["em_andamento", "aguardando_sei"],
+      taskRecurrence: "sem_recorrencia",
+      sortBy: "updatedAt",
+      sortOrder: "desc",
       view: "table",
     },
   },
