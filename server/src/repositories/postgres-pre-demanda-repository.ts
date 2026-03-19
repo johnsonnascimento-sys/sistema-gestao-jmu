@@ -3718,6 +3718,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               where tarefa.pre_demanda_id = pd.id
                 and tarefa.concluida = false
             )), 0)::int as tarefas_pending_total,
+            count(*) filter (
+              where pd.status <> 'encerrada'
+                and exists (
+                  select 1
+                  from adminlog.tarefas_pendentes tarefa
+                  where tarefa.pre_demanda_id = pd.id
+                    and tarefa.concluida = false
+                )
+            )::int as tarefas_processos_pending_total,
             count(*) filter (where pd.status <> 'encerrada' and pd.prazo_processo < current_date)::int as processos_atrasados_prazo
           from adminlog.pre_demanda pd
           left join lateral (
@@ -3794,6 +3803,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           dueTodayTotal: Number(caseSignalsResult.rows[0]?.tarefas_due_today_total ?? 0),
           dueSoonTotal: Number(caseSignalsResult.rows[0]?.tarefas_due_soon_total ?? 0),
           totalPending: Number(caseSignalsResult.rows[0]?.tarefas_pending_total ?? 0),
+          processesWithPendingTasks: Number(caseSignalsResult.rows[0]?.tarefas_processos_pending_total ?? 0),
         },
       },
       reopenedLast30Days: Number(lifecycleMetricsResult.rows[0]?.reopened_last_30_days ?? 0),

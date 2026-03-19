@@ -373,7 +373,7 @@ export interface PreDemandaDashboardSummary {
   counts: Array<{ status: PreDemandaStatus; total: number }>;
   deadlines: {
     processo?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
-    tarefas?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalPending: number };
+    tarefas?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalPending: number; processesWithPendingTasks: number };
     prazoInicial?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
     prazoIntermediario?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
     prazoFinal?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };

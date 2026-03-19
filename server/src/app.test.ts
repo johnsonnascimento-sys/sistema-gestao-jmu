@@ -1583,6 +1583,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             return value >= today.getTime() && value <= today.getTime() + 7 * 86400000;
           }).length,
           totalPending: this.records.flatMap((item) => item.tarefasPendentes).filter((item) => !item.concluida).length,
+          processesWithPendingTasks: this.records.filter((item) => item.status !== "encerrada" && item.tarefasPendentes.some((task) => !task.concluida)).length,
         },
       },
       reopenedLast30Days: this.statusAudit.filter((item) => item.statusAnterior === "encerrada" && item.statusNovo !== "encerrada").length,

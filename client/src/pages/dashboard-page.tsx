@@ -266,7 +266,7 @@ export function DashboardPage() {
           <CardContent className="grid gap-4 xl:grid-cols-3">
           {[
             { id: "processo", label: "Prazo do processo", campo: "prazoProcesso", secondary: null },
-            { id: "tarefas", label: "Prazos das tarefas", campo: "proximoPrazoTarefa", secondary: "totalPending" },
+            { id: "tarefas", label: "Processos com tarefa pendente", campo: "proximoPrazoTarefa", secondary: "processesWithPendingTasks" },
             { id: "prazo", label: "Situacao do prazo", campo: "prazoProcesso", secondary: "binary" },
           ].map((item) => {
             if (item.id === "prazo") {
@@ -330,9 +330,9 @@ export function DashboardPage() {
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
                     <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">
-                      {"totalPending" in metrics ? metrics.totalPending : metrics.totalDefined}
+                      {"processesWithPendingTasks" in metrics ? metrics.processesWithPendingTasks : metrics.totalDefined}
                     </h3>
-                    <p className="text-xs font-medium text-slate-400">{"totalPending" in metrics ? "tarefas pendentes" : "processos com prazo"}</p>
+                    <p className="text-xs font-medium text-slate-400">{"processesWithPendingTasks" in metrics ? "processos com tarefas abertas" : "processos com prazo"}</p>
                   </div>
                   <div className="mt-4 grid gap-2 text-xs font-medium text-slate-600">
                     <Link className="flex w-fit items-center gap-2 hover:text-rose-600 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "overdue" })}><div className="w-2 h-2 rounded-full bg-rose-500"></div>Vencidos: {metrics.overdueTotal}</Link>
