@@ -1,4 +1,5 @@
 import type { PreDemandaStatus, TarefaPendente, TarefaRecorrenciaTipo } from "../types";
+import { getDeadlineSignal } from "../lib/deadline-signal";
 
 // ── Dialog / State types ─────────────────────────────────────────────────────
 
@@ -70,15 +71,7 @@ export function formatRecorrenciaLabel(
 }
 
 export function getTaskSignal(prazoConclusao: string | null | undefined): TaskSignal | null {
-  if (!prazoConclusao) return null;
-
-  const dueDate = new Date(`${prazoConclusao}T00:00:00`);
-  if (Number.isNaN(dueDate.getTime())) return null;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  return dueDate.getTime() < today.getTime() ? "atrasado" : "no_prazo";
+  return getDeadlineSignal(prazoConclusao);
 }
 
 export function toDateTimeLocalValue(value: string | null | undefined) {

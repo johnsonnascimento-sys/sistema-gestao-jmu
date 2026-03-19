@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
+import { DeadlineStatusPill } from "../components/deadline-status-pill";
 import { QueueHealthPill } from "../components/queue-health-pill";
 import { EmptyState } from "../components/states";
 import { StatusPill } from "../components/status-pill";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { getDeadlineSignal } from "../lib/deadline-signal";
 import { getPreferredReopenStatus } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda } from "../types";
@@ -35,8 +37,7 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                 <th className="px-3 py-3">Status</th>
                 <th className="px-3 py-3">Fila</th>
                 <th className="px-3 py-3">Prazo do processo</th>
-                <th className="px-3 py-3">Proxima tarefa</th>
-                <th className="px-3 py-3">Prazo</th>
+                <th className="px-3 py-3">Prazo da tarefa</th>
                 <th className="px-3 py-3">SEI</th>
                 <th className="px-3 py-3">Data</th>
                 <th className="px-3 py-3">Acoes</th>
@@ -87,20 +88,17 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                       <span className="text-xs text-slate-500">{getQueueHealth(item).detail}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : formatDateOnlyPtBr(item.prazoProcesso)}</td>
-                  <td className="px-3 py-4">{item.status === "encerrada" ? "-" : formatDateOnlyPtBr(item.proximoPrazoTarefa, "Sem tarefas")}</td>
                   <td className="px-3 py-4">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
-                        item.status === "encerrada"
-                          ? "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
-                          : item.prazoStatus === "atrasado"
-                            ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
-                            : "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
-                      }`}
-                    >
-                      {item.status === "encerrada" ? "-" : item.prazoStatus === "atrasado" ? "Atrasado" : "No prazo"}
-                    </span>
+                    <div className="grid gap-1">
+                      <span>{item.status === "encerrada" ? "-" : formatDateOnlyPtBr(item.prazoProcesso)}</span>
+                      {item.status !== "encerrada" ? <DeadlineStatusPill signal={item.prazoStatus} /> : null}
+                    </div>
+                  </td>
+                  <td className="px-3 py-4">
+                    <div className="grid gap-1">
+                      <span>{item.status === "encerrada" ? "-" : formatDateOnlyPtBr(item.proximoPrazoTarefa, "Sem tarefas")}</span>
+                      {item.status !== "encerrada" ? <DeadlineStatusPill signal={getDeadlineSignal(item.proximoPrazoTarefa)} /> : null}
+                    </div>
                   </td>
                   <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
                   <td className="px-3 py-4">{formatDateOnlyPtBr(item.dataReferencia)}</td>

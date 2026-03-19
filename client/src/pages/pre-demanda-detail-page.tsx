@@ -17,6 +17,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { FormField } from "../components/form-field";
+import { DeadlineStatusPill } from "../components/deadline-status-pill";
 import { PageHeader } from "../components/page-header";
 import { QueueHealthPill } from "../components/queue-health-pill";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
@@ -87,21 +88,12 @@ import {
 } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { formatDateOnlyPtBr } from "../lib/date";
+import { deadlineSignalLabel, deadlineSignalTone, getDeadlineSignal } from "../lib/deadline-signal";
 import { formatNumeroJudicialInput, normalizeNumeroJudicialValue } from "../lib/numero-judicial";
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
-
-function taskSignalTone(signal: "atrasado" | "no_prazo") {
-  if (signal === "atrasado") return "bg-rose-100 text-rose-700 ring-1 ring-rose-200";
-  return "bg-sky-100 text-sky-700 ring-1 ring-sky-200";
-}
-
-function taskSignalLabel(signal: "atrasado" | "no_prazo") {
-  if (signal === "atrasado") return "ATRASADO";
-  return "NO PRAZO";
-}
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
@@ -631,9 +623,34 @@ export function PreDemandaDetailPage() {
             <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
               <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
-              <SummaryItem label="Prazo do processo" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.prazoProcesso)} />
-              <SummaryItem label="Proxima tarefa" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")} />
-              <SummaryItem label="Situacao do prazo" value={record.status === "encerrada" ? "-" : record.prazoStatus === "atrasado" ? "Atrasado" : "No prazo"} />
+              <SummaryItem
+                label="Prazo do processo"
+                value={
+                  record.status === "encerrada" ? (
+                    "-"
+                  ) : (
+                    <div className="grid gap-1">
+                      <span>{formatDateOnlyPtBr(record.prazoProcesso)}</span>
+                      <DeadlineStatusPill signal={record.prazoStatus ?? null} />
+                    </div>
+                  )
+                }
+              />
+              <SummaryItem
+                label="Prazo da tarefa"
+                value={
+                  record.status === "encerrada" ? (
+                    "-"
+                  ) : record.proximoPrazoTarefa ? (
+                    <div className="grid gap-1">
+                      <span>{formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")}</span>
+                      <DeadlineStatusPill signal={getDeadlineSignal(record.proximoPrazoTarefa)} />
+                    </div>
+                  ) : (
+                    "Sem tarefas pendentes"
+                  )
+                }
+              />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
@@ -1084,15 +1101,15 @@ export function PreDemandaDetailPage() {
                                   const signal = getTaskSignal(task.prazoConclusao);
                                   return signal ? (
                                     <span
-                                      aria-label={`Prazo da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
+                                      aria-label={`Prazo da tarefa ${deadlineSignalLabel(signal).toLowerCase()}. ${
                                         signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
                                       }`}
-                                      className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
+                                      className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineSignalTone(signal)}`}
                                       title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
                                         signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
                                       }`}
                                     >
-                                      Prazo da tarefa: {taskSignalLabel(signal)}
+                                      Prazo da tarefa: {deadlineSignalLabel(signal)}
                                     </span>
                                   ) : null;
                                 })()}
@@ -1175,15 +1192,15 @@ export function PreDemandaDetailPage() {
                                     const signal = getTaskSignal(task.prazoConclusao);
                                     return signal ? (
                                       <span
-                                      aria-label={`Prazo da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
+                                      aria-label={`Prazo da tarefa ${deadlineSignalLabel(signal).toLowerCase()}. ${
                                           signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
                                       }`}
-                                      className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
+                                      className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineSignalTone(signal)}`}
                                       title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
                                           signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
                                       }`}
                                     >
-                                      {taskSignalLabel(signal)}
+                                      {deadlineSignalLabel(signal)}
                                       </span>
                                     ) : null;
                                   })()}

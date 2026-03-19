@@ -11,13 +11,13 @@ export function SummaryItem({
   className,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   className?: string;
 }) {
   return (
     <div className={className}>
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{label}</p>
-      <p className="mt-1 whitespace-pre-wrap text-slate-950">{value}</p>
+      <div className="mt-1 whitespace-pre-wrap text-slate-950">{value}</div>
     </div>
   );
 }
