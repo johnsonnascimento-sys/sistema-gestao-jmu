@@ -6,6 +6,7 @@ import {
   FilePlus2,
   Link as LinkIcon,
   Plus,
+  RotateCcw,
   Send,
   StickyNote,
   UserPlus,
@@ -587,17 +588,15 @@ export function PreDemandaDetailPage() {
             {record.allowedNextStatuses.includes("encerrada") ? (
               <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
             ) : null}
+            {record.status === "encerrada" && reopenStatus ? (
+              <ToolbarActionButton icon={RotateCcw} label="Reabrir" onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" variant="ghost" />
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] px-4 py-3 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
             <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atalhos de status</span>
             {record.allowedNextStatuses.includes("aguardando_sei") ? (
               <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} title="Marcar processo como aguardando SEI" type="button" variant="ghost">
                 Aguardar SEI
-              </Button>
-            ) : null}
-            {record.status === "encerrada" && reopenStatus ? (
-              <Button onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" type="button" variant="ghost">
-                Reabrir
               </Button>
             ) : null}
           </div>
