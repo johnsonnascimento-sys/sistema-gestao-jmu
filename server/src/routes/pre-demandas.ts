@@ -7,7 +7,6 @@ import type { PreDemandaRepository, PreDemandaAndamentoRepository, PreDemandaTar
 
 const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
-const PROCESS_SIGNAL_LEVELS = ["normal", "atencao", "critico"] as const;
 const SORT_FIELDS: PreDemandaSortBy[] = ["updatedAt", "createdAt", "dataReferencia", "solicitante", "status", "prazoProcesso", "proximoPrazoTarefa", "numeroJudicial"];
 const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
 const DUE_STATES = ["overdue", "due_today", "due_soon", "none"] as const;
@@ -62,7 +61,6 @@ const listSchema = z.object({
   q: z.string().trim().optional(),
   status: z.union([z.string(), z.array(z.string())]).optional(),
   queueHealth: z.union([z.string(), z.array(z.string())]).optional(),
-  processSignal: z.enum(PROCESS_SIGNAL_LEVELS).optional(),
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
   hasSei: z.enum(["true", "false"]).optional(),
@@ -298,7 +296,6 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
         q: query.q,
         statuses,
         queueHealthLevels,
-        processSignal: query.processSignal,
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
         hasSei: query.hasSei ? query.hasSei === "true" : undefined,

@@ -319,7 +319,7 @@ export interface PreDemanda {
   observacoes: string | null;
   prazoProcesso: string;
   proximoPrazoTarefa: string | null;
-  sinalPrazoProcesso: "normal" | "atencao" | "critico";
+  prazoStatus: "atrasado" | "no_prazo";
   prazoInicial?: string | null;
   prazoIntermediario?: string | null;
   prazoFinal?: string | null;
@@ -387,8 +387,6 @@ export interface PreDemandaDashboardSummary {
     prazoIntermediario?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
     prazoFinal?: { overdueTotal: number; dueTodayTotal: number; dueSoonTotal: number; totalDefined: number };
   };
-  processosEmAtencaoPrazo: number;
-  processosCriticosPrazo: number;
   reopenedLast30Days: number;
   closedLast30Days: number;
   agingAttentionTotal: number;

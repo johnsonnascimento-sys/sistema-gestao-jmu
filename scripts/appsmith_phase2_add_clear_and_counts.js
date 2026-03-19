@@ -1,7 +1,5 @@
 /* eslint-disable no-console */
-// Adds two UX improvements to Busca_Normas page:
-// 1) Clear search button (clears input + old results/debug stores)
-// 2) Search stats text with chunks and total occurrences of query term
+// Adds a clear button and search stats to Busca_Normas.
 //
 // Usage:
 //   node scripts/appsmith_phase2_add_clear_and_counts.js
@@ -29,7 +27,7 @@ async function loadEnvFromSecretsFile() {
       if (!process.env[m[1]]) process.env[m[1]] = m[2].trim();
     }
   } catch {
-    // ignore
+    // Ignore missing secrets file.
   }
 }
 
@@ -361,7 +359,7 @@ async function main() {
     "      .catch(function(e){\n" +
     "        var msg = (e && e.message) ? e.message : String(e);\n" +
     "        storeValue('LAST_ERROR', msg);\n" +
-    "        showAlert('Erro critico: ' + (msg ? msg.slice(0, 160) : ''), 'error');\n" +
+    "        showAlert('Erro grave: ' + (msg ? msg.slice(0, 160) : ''), 'error');\n" +
     "      })\n" +
     "      .finally(function(){\n" +
     "        storeValue('IS_SEARCHING', false);\n" +

@@ -1,21 +1,21 @@
 # Plano de Migracao Appsmith -> Gestor Web Proprio
 
 ## Resumo
-Substituir o Appsmith por uma aplicacao web propria focada no modulo Gestor JMU, mantendo o banco `Supabase/Postgres` atual e rebaixando o `n8n` para papel auxiliar de automacoes e integracoes. A entrega v1 cobre login proprio, cadastro de pre-demanda, listagem de pendencias, associacao PRE -> SEI, historico de auditoria e operacao na mesma VPS atual.
+Substituir o Appsmith por uma aplicacao web propria para o modulo Gestor JMU, mantendo o banco `Supabase/Postgres` e usando `n8n` apenas para automacoes e integracoes. A v1 cobre login, cadastro de pre-demanda, listagem, associacao PRE -> SEI, auditoria e operacao na mesma VPS.
 
 Decisoes fechadas:
 - Escopo inicial: so modulo Gestor pre-SEI/SEI
 - Frontend: React + Vite
 - Backend: API dedicada, com `n8n` apenas como apoio
 - Acesso: login proprio da aplicacao
-- Hospedagem: mesma VPS atual
+- Hospedagem: mesma VPS
 
 ## Implementacao
 ### Arquitetura alvo
 - Frontend SPA em React + Vite
 - Backend Node.js com API HTTP propria
 - `Supabase/Postgres` como fonte de verdade, reaproveitando o schema `adminlog`
-- `n8n` fora do caminho critico da UI
+- `n8n` fora do caminho da UI
 
 ### Backend
 - Rotas autenticadas:
@@ -42,9 +42,7 @@ Decisoes fechadas:
   - `/pre-demandas/nova`
   - `/pre-demandas/:preId`
 - Fluxos principais:
-  - cadastro de demanda informal
-  - lista de pendencias com filtros
-  - detalhe da demanda com associacao ao SEI e historico
+- Fluxos principais: cadastro, listagem, detalhe, associacao ao SEI e historico
 - Dashboard com contagens por status e ultimas demandas atualizadas
 
 ### Infra e operacao

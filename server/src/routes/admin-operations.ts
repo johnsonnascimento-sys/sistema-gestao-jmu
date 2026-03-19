@@ -21,7 +21,7 @@ const updateQueueHealthConfigSchema = z
     criticalDays: z.coerce.number().int().positive(),
   })
   .refine((value) => value.criticalDays >= value.attentionDays, {
-    message: "O limite critico deve ser maior ou igual ao limite de atencao.",
+    message: "O limite de risco alto deve ser maior ou igual ao limite de observacao.",
     path: ["criticalDays"],
   });
 

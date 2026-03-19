@@ -394,7 +394,7 @@ export function AdminOperationsPage() {
                   {primaryAttentionItem.area}
                 </span>
                 <span className="rounded-full border border-white/70 bg-white/80 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
-                  {primaryAttentionItem.tone === "critical" ? "Critico" : "Atencao"}
+                  {primaryAttentionItem.tone === "critical" ? "Alta prioridade" : "Prioridade"}
                 </span>
               </div>
               <div>
@@ -597,7 +597,7 @@ export function AdminOperationsPage() {
       {attentionItems.length ? (
         <Card>
           <CardHeader>
-            <CardTitle>Atencao imediata</CardTitle>
+            <CardTitle>Prioridades imediatas</CardTitle>
             <CardDescription>Itens que exigem acao mais rapida com base na saude da aplicacao, operacao e fila atual.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 xl:grid-cols-3">
@@ -610,7 +610,7 @@ export function AdminOperationsPage() {
               >
                 <div>
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.tone === "critical" ? "Critico" : "Atencao"}</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">{item.tone === "critical" ? "Alta prioridade" : "Prioridade"}</p>
                     <span className="rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
                       {item.area}
                     </span>
@@ -689,16 +689,16 @@ export function AdminOperationsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Regras da fila</CardTitle>
-            <CardDescription>Limiar operacional para sinalizar processos em atencao ou criticos.</CardDescription>
+            <CardDescription>Limiar operacional para classificar processos na fila.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 text-sm text-slate-600">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atencao</p>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Fila em observacao</p>
                 <p className="mt-1 text-slate-950">{summary.queueHealthConfig.attentionDays} dias sem movimentacao</p>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Critica</p>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Fila em risco</p>
                 <p className="mt-1 text-slate-950">{summary.queueHealthConfig.criticalDays} dias sem movimentacao</p>
               </div>
             </div>
@@ -739,7 +739,7 @@ export function AdminOperationsPage() {
               >
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2">
-                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atencao</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Observacao</span>
                     <Input
                       min="1"
                       onChange={(event) => setQueueThresholds((current) => ({ ...current, attentionDays: event.target.value }))}
@@ -748,7 +748,7 @@ export function AdminOperationsPage() {
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Critica</span>
+                    <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Risco alto</span>
                     <Input
                       min="1"
                       onChange={(event) => setQueueThresholds((current) => ({ ...current, criticalDays: event.target.value }))}

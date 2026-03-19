@@ -13,9 +13,9 @@ export const STATUSES: Array<{ value: PreDemandaStatus; label: string }> = [
 ];
 
 export const QUEUE_HEALTH_OPTIONS: Array<{ value: QueueHealthLevel; label: string }> = [
-  { value: "fresh", label: "No prazo" },
-  { value: "attention", label: "Atencao" },
-  { value: "critical", label: "Critica" },
+  { value: "fresh", label: "Estavel" },
+  { value: "attention", label: "Em observacao" },
+  { value: "critical", label: "Em risco" },
 ];
 
 export const selectClassName =
@@ -27,7 +27,7 @@ export type SavedViewId =
   | "triagem-em-andamento"
   | "aguardando-sei"
   | "fila-parada"
-  | "criticas"
+  | "em-risco"
   | "vence-hoje"
   | "prazos-vencidos"
   | "vencem-na-semana"
@@ -65,7 +65,6 @@ export type ResolvedSearchState = {
   q: string;
   statuses: string[];
   queueHealth: QueueHealthLevel[];
-  processSignal: "" | "normal" | "atencao" | "critico";
   dateFrom: string;
   dateTo: string;
   hasSei: "" | "true" | "false";
@@ -151,8 +150,8 @@ export const SAVED_VIEWS: Array<{
     },
   },
   {
-    id: "criticas",
-    label: "Criticas",
+    id: "em-risco",
+    label: "Em risco",
     description: "Processos ativos em risco maximo de fila, ordenados pela atualizacao mais antiga.",
     defaults: {
       statuses: ["em_andamento", "aguardando_sei"],
@@ -367,7 +366,6 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     !searchParams.has("q") &&
     !searchParams.has("status") &&
     !searchParams.has("queueHealth") &&
-    !searchParams.has("processSignal") &&
     !searchParams.has("dateFrom") &&
     !searchParams.has("dateTo") &&
     !searchParams.has("hasSei") &&
@@ -390,7 +388,6 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     q: searchParams.get("q") ?? "",
     statuses: searchParams.has("status") ? splitValues(searchParams.get("status")) : preset?.defaults.statuses ?? [],
     queueHealth: searchParams.has("queueHealth") ? (splitValues(searchParams.get("queueHealth")) as QueueHealthLevel[]) : preset?.defaults.queueHealth ?? [],
-    processSignal: (searchParams.get("processSignal") as ResolvedSearchState["processSignal"] | null) ?? "",
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",

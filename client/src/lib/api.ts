@@ -107,7 +107,6 @@ export interface ListPreDemandasParams {
   q?: string;
   status?: string[];
   queueHealth?: QueueHealthLevel[];
-  processSignal?: "normal" | "atencao" | "critico";
   dateFrom?: string;
   dateTo?: string;
   hasSei?: boolean;
@@ -234,7 +233,6 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   if (params.q) searchParams.set("q", params.q);
   if (params.status?.length) searchParams.set("status", params.status.join(","));
   if (params.queueHealth?.length) searchParams.set("queueHealth", params.queueHealth.join(","));
-  if (params.processSignal) searchParams.set("processSignal", params.processSignal);
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.hasSei !== undefined) searchParams.set("hasSei", String(params.hasSei));

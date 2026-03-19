@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
@@ -45,7 +45,7 @@ export function DashboardPage() {
       case "sei_reassociated":
         return `SEI corrigido para ${event.seiNumeroNovo ?? "-"}.`;
       default:
-        return "Movimentação operacional registrada.";
+        return "MovimentaÃ§Ã£o operacional registrada.";
     }
   }
 
@@ -117,7 +117,7 @@ export function DashboardPage() {
   }
 
   if (!summary) {
-    return <ErrorState description="Resumo operacional indisponível." />;
+    return <ErrorState description="Resumo operacional indisponÃ­vel." />;
   }
 
   const staleItems = summary.staleItems;
@@ -138,7 +138,7 @@ export function DashboardPage() {
     const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
 
     if (diffDays < 0) {
-      return `Prazo vencido há ${Math.abs(diffDays)}d`;
+      return `Prazo vencido hÃ¡ ${Math.abs(diffDays)}d`;
     }
 
     if (diffDays === 0) {
@@ -182,11 +182,11 @@ export function DashboardPage() {
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
           <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
-          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}</p>
+          <p>Setor: {item.setorAtual ? item.setorAtual.sigla : "NÃ£o tramitado"}</p>
           {highlightType !== "urgent" && highlightType !== "payment" && <p>Pessoa: {item.interessados.length}</p>}
           <p>{formatPrazo(item)}</p>
           <p>{formatStructuredDeadlines(item)}</p>
-          <p>Referência: {formatDateOnlyPtBr(item.dataReferencia)}</p>
+          <p>ReferÃªncia: {formatDateOnlyPtBr(item.dataReferencia)}</p>
           {highlightType !== "urgent" && highlightType !== "payment" && (
             <>
               <p>Atualizado: {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
@@ -216,8 +216,8 @@ export function DashboardPage() {
               </Button>
             </div>
           }
-          description="Visão operacional diária. Acompanhe gargalos, priorize urgências e acompanhe movimentos recentes."
-          eyebrow="Visão geral"
+          description="VisÃ£o operacional diÃ¡ria. Acompanhe gargalos, priorize urgÃªncias e acompanhe movimentos recentes."
+          eyebrow="VisÃ£o geral"
           title="Dashboard do Gestor"
         />
       </motion.div>
@@ -230,10 +230,10 @@ export function DashboardPage() {
       >
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=aguardando-sei">Aguardando SEI</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=fila-parada">Fila Parada</Link></Button>
-        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=criticas">Críticas</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=em-risco">Em risco</Link></Button>
         <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white text-rose-600 border-rose-200"><Link to="/pre-demandas?preset=prazos-vencidos">Prazos Vencidos</Link></Button>
-        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=ultimas-encerradas">Últimos Encerrados</Link></Button>
-        <Button asChild variant="ghost" size="sm" className="h-8"><Link to="/pre-demandas">Acessar Busca Avançada &rarr;</Link></Button>
+        <Button asChild variant="outline" size="sm" className="h-8 rounded-full bg-white"><Link to="/pre-demandas?preset=ultimas-encerradas">Ãšltimos Encerrados</Link></Button>
+        <Button asChild variant="ghost" size="sm" className="h-8"><Link to="/pre-demandas">Acessar Busca AvanÃ§ada &rarr;</Link></Button>
       </motion.div>
 
       <motion.div 
@@ -246,7 +246,7 @@ export function DashboardPage() {
           <MetricCard key={item.status} label={item.status.replace("_", " ")} to={statusMetricHref[item.status]} value={item.total} />
         ))}
         <MetricCard label="Paradas 2d+" to={buildAnalyticalTableHref({ queueHealth: "attention,critical", sortBy: "updatedAt", sortOrder: "asc" })} value={summary.agingAttentionTotal + summary.agingCriticalTotal} />
-        <MetricCard label="Críticas 5d+" to={buildAnalyticalTableHref({ preset: "criticas" })} value={summary.agingCriticalTotal} />
+        <MetricCard label="Em risco 5d+" to={buildAnalyticalTableHref({ preset: "em-risco" })} value={summary.agingCriticalTotal} />
         <MetricCard label="Vence hoje" to={buildAnalyticalTableHref({ preset: "vence-hoje" })} value={summary.dueTodayTotal} />
         <MetricCard label="Prazos na semana" to={buildAnalyticalTableHref({ preset: "vencem-na-semana" })} value={summary.deadlines.processo.dueSoonTotal} />
         <MetricCard label="Sem setor" to={buildAnalyticalTableHref({ preset: "sem-setor" })} value={summary.withoutSetorTotal} />
@@ -267,15 +267,17 @@ export function DashboardPage() {
           {[
             { id: "processo", label: "Prazo do processo", campo: "prazoProcesso", secondary: null },
             { id: "tarefas", label: "Prazos das tarefas", campo: "proximoPrazoTarefa", secondary: "totalPending" },
-            { id: "sinal", label: "Consumo do prazo", campo: "prazoProcesso", secondary: "signal" },
+            { id: "prazo", label: "Situacao do prazo", campo: "prazoProcesso", secondary: "binary" },
           ].map((item) => {
-            if (item.id === "sinal") {
+            if (item.id === "prazo") {
+              const atrasados = summary.deadlines.processo?.overdueTotal ?? 0;
+              const noPrazo = Math.max((summary.deadlines.processo?.totalDefined ?? 0) - atrasados, 0);
               const data = [
-                { name: 'Crítico', value: summary.processosCriticosPrazo, color: '#f43f5e' },
-                { name: 'Atenção', value: summary.processosEmAtencaoPrazo, color: '#f59e0b' },
-              ].filter(d => d.value > 0);
+                { name: "Atrasado", value: atrasados, color: "#f43f5e" },
+                { name: "No prazo", value: noPrazo, color: "#0ea5e9" },
+              ].filter((entry) => entry.value > 0);
               
-              const total = summary.processosCriticosPrazo + summary.processosEmAtencaoPrazo;
+              const total = atrasados + noPrazo;
 
               return (
                 <article className="group relative grid grid-cols-[1fr_100px] gap-3 items-center overflow-hidden rounded-[24px] border border-white/80 bg-gradient-to-br from-white/90 to-slate-50/80 px-5 py-5 shadow-lg backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl" key={item.id}>
@@ -283,12 +285,12 @@ export function DashboardPage() {
                   <div className="relative z-10 flex flex-col h-full justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
-                      <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{summary.processosCriticosPrazo}</h3>
-                      <p className="text-sm font-medium text-slate-400">processos críticos</p>
+                      <h3 className="mt-2 text-3xl font-light tracking-tight text-slate-900">{atrasados}</h3>
+                      <p className="text-sm font-medium text-slate-400">processos atrasados</p>
                     </div>
                     <div className="mt-4 grid gap-2 text-xs font-medium text-slate-600">
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Crítico: {summary.processosCriticosPrazo}</div>
-                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Atenção: {summary.processosEmAtencaoPrazo}</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-rose-500"></div>Atrasado: {atrasados}</div>
+                      <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-sky-500"></div>No prazo: {noPrazo}</div>
                     </div>
                   </div>
                   <div className="relative z-10 h-[100px] w-[100px]">
@@ -371,8 +373,8 @@ export function DashboardPage() {
       >
         <Card className="h-fit rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Filas de Ação Imediata</CardTitle>
-            <CardDescription className="text-slate-500">Filas de trabalho prioritárias para desafogar a operação.</CardDescription>
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Filas de AÃ§Ã£o Imediata</CardTitle>
+            <CardDescription className="text-slate-500">Filas de trabalho prioritÃ¡rias para desafogar a operaÃ§Ã£o.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             <Tabs defaultValue="urgentes" className="w-full">
@@ -394,13 +396,13 @@ export function DashboardPage() {
                   <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{staleItems.length}</span>
                 </TabsTrigger>
                 <TabsTrigger value="pendencias" className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200">
-                  <span>Pendências</span>
+                  <span>PendÃªncias</span>
                   <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{summary.dueSoonItems.length + summary.withoutSetorItems.length + summary.withoutInteressadosItems.length}</span>
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="urgentes" className="grid gap-3">
                 {summary.urgentItems.length === 0 ? (
-                  <div className="py-8"><EmptyState description="Nenhum processo marcado como urgente para tratamento imediato." title="Zero Urgências" /></div>
+                  <div className="py-8"><EmptyState description="Nenhum processo marcado como urgente para tratamento imediato." title="Zero UrgÃªncias" /></div>
                 ) : (
                   summary.urgentItems.map((item) => renderQueueItem(item, "urgent"))
                 )}
@@ -424,7 +426,7 @@ export function DashboardPage() {
 
               <TabsContent value="parados" className="grid gap-3">
                 {staleItems.length === 0 ? (
-                  <div className="py-8"><EmptyState description="Tudo fluindo regularmente. Fila pedindo andamento está zerada." title="Fluxo Contínuo" /></div>
+                  <div className="py-8"><EmptyState description="Tudo fluindo regularmente. Fila pedindo andamento estÃ¡ zerada." title="Fluxo ContÃ­nuo" /></div>
                 ) : (
                   staleItems.map((item) => renderQueueItem(item))
                 )}
@@ -449,7 +451,7 @@ export function DashboardPage() {
                     <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=sem-setor">Ver todos</Link>
                   </div>
                   {summary.withoutSetorItems.length === 0 ? (
-                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos já possuem setor.</p>
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Todos os processos ativos jÃ¡ possuem setor.</p>
                   ) : (
                     summary.withoutSetorItems.slice(0, 3).map((item) => renderQueueItem(item))
                   )}
@@ -461,7 +463,7 @@ export function DashboardPage() {
                     <Link className="text-sm font-medium hover:underline text-blue-600" to="/pre-demandas?preset=sem-envolvidos">Ver todos</Link>
                   </div>
                   {summary.withoutInteressadosItems.length === 0 ? (
-                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos já possuem envolvidos vinculados.</p>
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Os processos ativos jÃ¡ possuem envolvidos vinculados.</p>
                   ) : (
                     summary.withoutInteressadosItems.slice(0, 3).map((item) => renderQueueItem(item))
                   )}
@@ -474,12 +476,12 @@ export function DashboardPage() {
 
         <Card className="flex h-[800px] flex-col rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
           <CardHeader className="shrink-0 pb-4">
-            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Últimas Movimentações</CardTitle>
-            <CardDescription className="text-slate-500">A timeline recente da operação.</CardDescription>
+            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Ãšltimas MovimentaÃ§Ãµes</CardTitle>
+            <CardDescription className="text-slate-500">A timeline recente da operaÃ§Ã£o.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 overflow-y-auto pr-2 pb-6">
             {summary.recentTimeline.length === 0 ? (
-              <EmptyState description="As últimas criações e mudanças aparecerão aqui." title="Sem movimentações recentes" />
+              <EmptyState description="As Ãºltimas criaÃ§Ãµes e mudanÃ§as aparecerÃ£o aqui." title="Sem movimentaÃ§Ãµes recentes" />
             ) : (
               summary.recentTimeline.map((event) => (
                 <Link
@@ -508,3 +510,5 @@ export function DashboardPage() {
     </div>
   );
 }
+
+

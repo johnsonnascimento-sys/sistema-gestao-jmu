@@ -93,13 +93,6 @@ const BASE_FROM = `
       and tarefa.concluida = false
   ) prox_tarefa on true
   left join lateral (
-    select count(*)::int as tarefas_vencidas
-    from adminlog.tarefas_pendentes tarefa
-    where tarefa.pre_demanda_id = pd.id
-      and tarefa.concluida = false
-      and tarefa.prazo_conclusao < current_date
-  ) tarefas_sinal on true
-  left join lateral (
     select
       pessoa.id as pessoa_principal_id,
       pessoa.nome as pessoa_principal_nome,
@@ -182,12 +175,9 @@ const BASE_SELECT = `
     pts.linked_by_user_id,
     prox_tarefa.proximo_prazo_tarefa,
     case
-      when tarefas_sinal.tarefas_vencidas > 0 then 'critico'
-      when prox_tarefa.proximo_prazo_tarefa is null then 'normal'
-      when prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo then 'critico'
-      when prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days' then 'atencao'
-      else 'normal'
-    end as sinal_prazo_processo,
+      when pd.prazo_processo < current_date then 'atrasado'
+      else 'no_prazo'
+    end as prazo_status,
     linked_by.id as linked_by_id,
     linked_by.email as linked_by_email,
     linked_by.name as linked_by_name,
@@ -336,7 +326,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     observacoes: row.observacoes ? String(row.observacoes) : null,
     prazoProcesso: new Date(row.prazo_processo).toISOString().slice(0, 10),
     proximoPrazoTarefa: row.proximo_prazo_tarefa ? new Date(row.proximo_prazo_tarefa).toISOString().slice(0, 10) : null,
-    sinalPrazoProcesso: row.sinal_prazo_processo as PreDemandaDetail["sinalPrazoProcesso"],
+    prazoStatus: row.prazo_status as PreDemandaDetail["prazoStatus"],
     dataConclusao: row.data_conclusao ? new Date(row.data_conclusao).toISOString().slice(0, 10) : null,
     numeroJudicial,
     anotacoes: row.anotacoes ? String(row.anotacoes) : null,
@@ -682,33 +672,6 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
       }
 
       clauses.push(`(${levelClauses.join(" or ")})`);
-    }
-  }
-
-  if (params.processSignal) {
-    if (params.processSignal === "normal") {
-      clauses.push(`(
-        tarefas_sinal.tarefas_vencidas = 0
-        and (
-          prox_tarefa.proximo_prazo_tarefa is null
-          or prox_tarefa.proximo_prazo_tarefa < pd.prazo_processo - interval '2 days'
-        )
-      )`);
-    }
-
-    if (params.processSignal === "atencao") {
-      clauses.push(`(
-        tarefas_sinal.tarefas_vencidas = 0
-        and prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days'
-        and prox_tarefa.proximo_prazo_tarefa < pd.prazo_processo
-      )`);
-    }
-
-    if (params.processSignal === "critico") {
-      clauses.push(`(
-        tarefas_sinal.tarefas_vencidas > 0
-        or prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo
-      )`);
     }
   }
 
@@ -3732,8 +3695,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               where tarefa.pre_demanda_id = pd.id
                 and tarefa.concluida = false
             )), 0)::int as tarefas_pending_total,
-            count(*) filter (where pd.status <> 'encerrada' and prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days' and prox_tarefa.proximo_prazo_tarefa < pd.prazo_processo)::int as processos_em_atencao_prazo,
-            count(*) filter (where pd.status <> 'encerrada' and (prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo or exists (select 1 from adminlog.tarefas_pendentes tarefa where tarefa.pre_demanda_id = pd.id and tarefa.concluida = false and tarefa.prazo_conclusao < current_date)))::int as processos_criticos_prazo
+            count(*) filter (where pd.status <> 'encerrada' and pd.prazo_processo < current_date)::int as processos_atrasados_prazo
           from adminlog.pre_demanda pd
           left join lateral (
             select min(tarefa.prazo_conclusao) as proximo_prazo_tarefa
@@ -3811,8 +3773,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           totalPending: Number(caseSignalsResult.rows[0]?.tarefas_pending_total ?? 0),
         },
       },
-      processosEmAtencaoPrazo: Number(caseSignalsResult.rows[0]?.processos_em_atencao_prazo ?? 0),
-      processosCriticosPrazo: Number(caseSignalsResult.rows[0]?.processos_criticos_prazo ?? 0),
       reopenedLast30Days: Number(lifecycleMetricsResult.rows[0]?.reopened_last_30_days ?? 0),
       closedLast30Days: Number(lifecycleMetricsResult.rows[0]?.closed_last_30_days ?? 0),
       agingAttentionTotal: Number(agingMetricsResult.rows[0]?.aging_attention_total ?? 0),

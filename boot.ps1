@@ -20,7 +20,7 @@ $content
 
 ---
 
-AGENTE: Leia o status acima com atencao. O Backend (N8N/Banco) JA ESTA PRONTO. Nao tente recria-lo.
+AGENTE: Leia o status acima com cuidado. O Backend (N8N/Banco) ja esta pronto. Nao tente recria-lo.
 
 Aguardo sua confirmacao para prosseguirmos com o DEPLOY DO APPSMITH.
 "@

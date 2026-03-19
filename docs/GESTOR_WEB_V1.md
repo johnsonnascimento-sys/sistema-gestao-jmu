@@ -8,7 +8,7 @@ Aplicacao propria do Gestor JMU, substituindo o Appsmith no fluxo pre-SEI/SEI.
 - Auth: cookie `HttpOnly` assinado
 
 ## Variaveis de ambiente
-Copie `.env.example` para `.env` e ajuste:
+Copie `.env.example` para `.env` e ajuste os valores:
 
 ```env
 PORT=3000
@@ -22,7 +22,7 @@ NODE_ENV=development
 ```
 
 ## Banco
-Antes de subir a aplicacao, aplique:
+Antes de subir a aplicacao:
 
 1. `npm run db:migrate`
 
@@ -46,15 +46,15 @@ npm run build
 npm start
 ```
 
-Em producao, a API tambem serve o frontend buildado em `dist/client`.
+Em producao, a API tambem serve o frontend em `dist/client`.
 
 ## Smoke test
 ```bash
 npm run smoke:test
 ```
 
-Defina `SMOKE_TEST_REQUIRE_AUTH=true`, `SMOKE_TEST_EMAIL` e `SMOKE_TEST_PASSWORD` para tornar obrigatoria a validacao autenticada de login, sessao e fila operacional.
-Se quiser validar tambem a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_TEST_ADMIN_EMAIL` e `SMOKE_TEST_ADMIN_PASSWORD`.
+Defina `SMOKE_TEST_REQUIRE_AUTH=true`, `SMOKE_TEST_EMAIL` e `SMOKE_TEST_PASSWORD` para exigir validacao autenticada de login, sessao e fila operacional.
+Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_TEST_ADMIN_EMAIL` e `SMOKE_TEST_ADMIN_PASSWORD`.
 
 ## Rotas da API
 - `POST /api/auth/login`
@@ -80,11 +80,11 @@ Se quiser validar tambem a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=tr
 - Dashboard do Gestor
 - Cadastro de pre-demanda
 - Lista com filtros e paginacao
-- Dashboard com atalhos operacionais e ultimas movimentacoes
-- Sinalizacao operacional de fila parada no backend e front:
-  - `Atencao`: `QUEUE_ATTENTION_DAYS` dias ou mais sem movimentacao
-  - `Critica`: `QUEUE_CRITICAL_DAYS` dias ou mais sem movimentacao
+- Dashboard com atalhos e ultimas movimentacoes
+- Situacao operacional de fila parada no backend e front:
+  - `Em observacao`: `QUEUE_ATTENTION_DAYS` dias ou mais sem movimentacao
+  - `Em risco`: `QUEUE_CRITICAL_DAYS` dias ou mais sem movimentacao
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 
-RAG, indexacao juridica e telas do Appsmith permanecem fora desta entrega.
+RAG, indexacao juridica e telas do Appsmith ficam fora desta entrega.

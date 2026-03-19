@@ -1,18 +1,6 @@
 /* eslint-disable no-console */
-// Phase 2 polish: add client-side embedding cache + origin markers to Busca_Normas.
-//
-// Changes:
-// - Btn_Buscar onClick now:
-//   - always runs lexical (FTS)
-//   - runs semantic only if GEMINI_API_KEY is present
-//   - caches vector per normalized query (client-side appsmith.store)
-//   - merges + dedups results and annotates each row with origin: lexical|semantic|both
-// - Table adds a "tipo" column (icon) based on origin
-// - Keeps "no billing" mode functional (FTS works without key)
-//
-// Safety:
-// - Takes a local backup of the current DSL/actions into tmp/appsmith/backups/
-// - Does NOT store any secrets; API key stays in appsmith.store client-side.
+// Adds client-side embedding cache and origin markers to Busca_Normas.
+// Keeps lexical search working without an API key.
 //
 // Usage:
 //   node scripts/appsmith_phase2_cache_vectors_and_origin.js
@@ -47,7 +35,7 @@ async function loadEnvFromSecretsFile() {
       if (!process.env[m[1]]) process.env[m[1]] = m[2].trim();
     }
   } catch {
-    // ignore
+    // Ignore missing secrets file.
   }
 }
 
@@ -125,7 +113,7 @@ async function main() {
     return r.data;
   };
 
-  // login
+  // Authenticate.
   await request("get", "/api/v1/users/me");
   const token = await xsrf();
   await request("post", "/api/v1/login", {
@@ -133,7 +121,7 @@ async function main() {
     headers: { "Content-Type": "application/x-www-form-urlencoded", "X-XSRF-TOKEN": token },
   });
 
-  // Fetch actions (for backup only)
+  // Read actions for backup.
   const actionsResp = await request("get", "/api/v1/actions", { params: { pageId: PAGE_ID } });
   const actions = Array.isArray(actionsResp?.data) ? actionsResp.data : [];
   const aGerar = actions.find((a) => a?.name === "GerarEmbedding2") || null;
@@ -322,7 +310,7 @@ async function main() {
     "      .catch(function(e){\n" +
     "        var msg = (e && e.message) ? e.message : String(e);\n" +
     "        storeValue('LAST_ERROR', msg);\n" +
-    "        showAlert('Erro critico: ' + (msg ? msg.slice(0, 160) : ''), 'error');\n" +
+    "        showAlert('Erro grave: ' + (msg ? msg.slice(0, 160) : ''), 'error');\n" +
     "      })\n" +
     "      .finally(function(){\n" +
     "        storeValue('IS_SEARCHING', false);\n" +

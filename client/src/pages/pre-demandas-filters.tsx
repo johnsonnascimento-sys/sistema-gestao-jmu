@@ -28,7 +28,6 @@ export function PreDemandasFilters({
   const [query, setQuery] = useState(resolvedState.q);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
   const [selectedQueueHealthKey, setSelectedQueueHealthKey] = useState("all");
-  const [selectedProcessSignal, setSelectedProcessSignal] = useState(resolvedState.processSignal);
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
   const [dateTo, setDateTo] = useState(resolvedState.dateTo);
   const [hasSei, setHasSei] = useState(resolvedState.hasSei);
@@ -66,7 +65,6 @@ export function PreDemandasFilters({
     setQuery(resolvedState.q);
     setSelectedStatuses(resolvedState.statuses);
     setSelectedQueueHealthKey(resolveQueueHealthKey(resolvedState.queueHealth));
-    setSelectedProcessSignal(resolvedState.processSignal);
     setDateFrom(resolvedState.dateFrom);
     setDateTo(resolvedState.dateTo);
     setHasSei(resolvedState.hasSei);
@@ -91,7 +89,6 @@ export function PreDemandasFilters({
     if (selectedStatuses.length) next.set("status", selectedStatuses.join(","));
     const selectedQueueHealth = resolveQueueHealthValues(selectedQueueHealthKey);
     if (selectedQueueHealth.length) next.set("queueHealth", selectedQueueHealth.join(","));
-    if (selectedProcessSignal && selectedProcessSignal !== "all") next.set("processSignal", selectedProcessSignal);
     if (dateFrom) next.set("dateFrom", dateFrom);
     if (dateTo) next.set("dateTo", dateTo);
     if (hasSei) next.set("hasSei", hasSei);
@@ -126,7 +123,6 @@ export function PreDemandasFilters({
     setQuery("");
     setSelectedStatuses([]);
     setSelectedQueueHealthKey("all");
-    setSelectedProcessSignal("");
     setDateFrom("");
     setDateTo("");
     setHasSei("");
@@ -171,7 +167,7 @@ export function PreDemandasFilters({
       </Card>
 
       <form onSubmit={handleFilterSubmit}>
-        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
+        <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
             <Input onChange={(event) => setQuery(event.target.value)} placeholder="PROCESSO, SEI, pessoa ou assunto" value={query} />
           </FormField>
@@ -186,22 +182,13 @@ export function PreDemandasFilters({
             </select>
           </FormField>
 
-          <FormField hint="Baseado na ultima movimentacao do processo." label="Saude da fila">
+          <FormField hint="Baseado na ultima movimentacao do processo." label="Situacao da fila">
             <select className={selectClassName} onChange={(event) => setSelectedQueueHealthKey(event.target.value)} value={selectedQueueHealthKey}>
               <option value="all">Todos</option>
-              <option value="fresh">No prazo</option>
-              <option value="attention">Atencao</option>
-              <option value="critical">Critica</option>
-              <option value="attention,critical">Atencao + Critica</option>
-            </select>
-          </FormField>
-
-          <FormField hint="Baseado no prazo e nas tarefas do processo." label="Sinal do prazo">
-            <select className={selectClassName} onChange={(event) => setSelectedProcessSignal(event.target.value as "" | "normal" | "atencao" | "critico")} value={selectedProcessSignal}>
-              <option value="">Todos</option>
-              <option value="normal">Normal</option>
-              <option value="atencao">Atenção</option>
-              <option value="critico">Crítico</option>
+              <option value="fresh">Estavel</option>
+              <option value="attention">Em observacao</option>
+              <option value="critical">Em risco</option>
+              <option value="attention,critical">Em observacao + Em risco</option>
             </select>
           </FormField>
 
@@ -278,15 +265,18 @@ export function PreDemandasFilters({
             </select>
           </FormField>
 
-          <div className="flex items-end gap-3">
+          <div className="flex items-end">
             <Button className="w-full" type="submit">
-              Filtrar
-            </Button>
-            <Button onClick={clearFilters} type="button" variant="ghost">
-              Limpar
+              Aplicar
             </Button>
           </div>
         </FilterBar>
+
+        <div className="mt-3 flex justify-end">
+          <Button onClick={clearFilters} type="button" variant="ghost">
+            Limpar filtros
+          </Button>
+        </div>
       </form>
     </>
   );

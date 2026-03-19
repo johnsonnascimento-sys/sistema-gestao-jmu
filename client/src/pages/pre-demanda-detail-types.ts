@@ -36,7 +36,7 @@ export type TaskPrazoChangeState = {
   };
 };
 
-export type TaskSignal = "normal" | "atencao" | "critico";
+export type TaskSignal = "atrasado" | "no_prazo";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -78,17 +78,7 @@ export function getTaskSignal(prazoConclusao: string | null | undefined): TaskSi
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  if (dueDate.getTime() < today.getTime()) {
-    return "critico";
-  }
-
-  const attentionLimit = new Date(today);
-  attentionLimit.setDate(attentionLimit.getDate() + 2);
-  if (dueDate.getTime() <= attentionLimit.getTime()) {
-    return "atencao";
-  }
-
-  return "normal";
+  return dueDate.getTime() < today.getTime() ? "atrasado" : "no_prazo";
 }
 
 export function toDateTimeLocalValue(value: string | null | undefined) {

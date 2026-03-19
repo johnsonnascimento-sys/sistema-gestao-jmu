@@ -19,7 +19,7 @@ fi
 CONTENT=$(cat "$CONTEXT_FILE")
 
 # 3. Monta o Prompt Perfeito
-PROMPT="CONTEXTO MESTRE DO PROJETO (JMU):\n\n$CONTENT\n\n---\n\nAGENTE: Leia o status acima com atenção. O Backend (N8N/Banco) JÁ ESTÁ PRONTO. Não tente recriá-lo.\n\nAguardo sua confirmação para prosseguirmos com o DEPLOY DO APPSMITH."
+PROMPT="CONTEXTO MESTRE DO PROJETO (JMU):\n\n$CONTENT\n\n---\n\nAGENTE: Leia o status acima com cuidado. O Backend (N8N/Banco) ja esta pronto. Nao tente recria-lo.\n\nAguardo sua confirmacao para prosseguirmos com o DEPLOY DO APPSMITH."
 
 # 4. Copia para o Clipboard (Compatível com Linux, Mac, Windows/WSL)
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then

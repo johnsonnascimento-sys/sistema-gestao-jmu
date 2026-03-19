@@ -61,13 +61,6 @@ export const BASE_FROM = `
       and tarefa.concluida = false
   ) prox_tarefa on true
   left join lateral (
-    select count(*)::int as tarefas_vencidas
-    from adminlog.tarefas_pendentes tarefa
-    where tarefa.pre_demanda_id = pd.id
-      and tarefa.concluida = false
-      and tarefa.prazo_conclusao < current_date
-  ) tarefas_sinal on true
-  left join lateral (
     select
       pessoa.id as pessoa_principal_id,
       pessoa.nome as pessoa_principal_nome,
@@ -131,12 +124,9 @@ export const BASE_SELECT = `
     pts.linked_by_user_id,
     prox_tarefa.proximo_prazo_tarefa,
     case
-      when tarefas_sinal.tarefas_vencidas > 0 then 'critico'
-      when prox_tarefa.proximo_prazo_tarefa is null then 'normal'
-      when prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo then 'critico'
-      when prox_tarefa.proximo_prazo_tarefa >= pd.prazo_processo - interval '2 days' then 'atencao'
-      else 'normal'
-    end as sinal_prazo_processo,
+      when pd.prazo_processo < current_date then 'atrasado'
+      else 'no_prazo'
+    end as prazo_status,
     linked_by.id as linked_by_id,
     linked_by.email as linked_by_email,
     linked_by.name as linked_by_name,
@@ -267,7 +257,7 @@ export function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: Qu
     observacoes: row.observacoes ? String(row.observacoes) : null,
     prazoProcesso: new Date(row.prazo_processo).toISOString().slice(0, 10),
     proximoPrazoTarefa: row.proximo_prazo_tarefa ? new Date(row.proximo_prazo_tarefa).toISOString().slice(0, 10) : null,
-    sinalPrazoProcesso: row.sinal_prazo_processo as PreDemandaDetail["sinalPrazoProcesso"],
+    prazoStatus: row.prazo_status as PreDemandaDetail["prazoStatus"],
     dataConclusao: row.data_conclusao ? new Date(row.data_conclusao).toISOString().slice(0, 10) : null,
     numeroJudicial,
     anotacoes: row.anotacoes ? String(row.anotacoes) : null,

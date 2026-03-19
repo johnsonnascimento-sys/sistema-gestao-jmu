@@ -38,12 +38,12 @@ export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "
       ...item.queueHealth,
       label:
         item.queueHealth.level === "critical"
-          ? "Critica"
+          ? "Em risco"
           : item.queueHealth.level === "attention"
-            ? "Atencao"
+            ? "Em observacao"
             : item.queueHealth.level === "closed"
               ? "Encerrado"
-              : "No prazo",
+              : "Estavel",
       summary:
         item.queueHealth.level === "critical"
           ? `${item.queueHealth.staleDays}d sem movimentacao`
@@ -70,12 +70,12 @@ export function getQueueHealth(item: Pick<PreDemanda, "status" | "updatedAt" | "
     ageDays,
     label:
       level === "critical"
-        ? "Critica"
+        ? "Em risco"
         : level === "attention"
-          ? "Atencao"
+          ? "Em observacao"
           : level === "closed"
             ? "Encerrado"
-            : "No prazo",
+            : "Estavel",
     summary:
       level === "critical"
         ? `${staleDays}d sem movimentacao`

@@ -93,16 +93,14 @@ import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
 import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
 
-function taskSignalTone(signal: "normal" | "atencao" | "critico") {
-  if (signal === "critico") return "bg-rose-100 text-rose-700 ring-1 ring-rose-200";
-  if (signal === "atencao") return "bg-amber-100 text-amber-700 ring-1 ring-amber-200";
-  return "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200";
+function taskSignalTone(signal: "atrasado" | "no_prazo") {
+  if (signal === "atrasado") return "bg-rose-100 text-rose-700 ring-1 ring-rose-200";
+  return "bg-sky-100 text-sky-700 ring-1 ring-sky-200";
 }
 
-function taskSignalLabel(signal: "normal" | "atencao" | "critico") {
-  if (signal === "critico") return "CRITICO";
-  if (signal === "atencao") return "ATENCAO";
-  return "NORMAL";
+function taskSignalLabel(signal: "atrasado" | "no_prazo") {
+  if (signal === "atrasado") return "ATRASADO";
+  return "NO PRAZO";
 }
 
 export function PreDemandaDetailPage() {
@@ -635,7 +633,7 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
               <SummaryItem label="Prazo do processo" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.prazoProcesso)} />
               <SummaryItem label="Proxima tarefa" value={record.status === "encerrada" ? "-" : formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")} />
-              <SummaryItem label="Sinal do processo" value={record.status === "encerrada" ? "-" : record.sinalPrazoProcesso ?? "normal"} />
+              <SummaryItem label="Situacao do prazo" value={record.status === "encerrada" ? "-" : record.prazoStatus === "atrasado" ? "Atrasado" : "No prazo"} />
               <SummaryItem label="Numero principal" value={record.principalNumero} />
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
@@ -1086,15 +1084,15 @@ export function PreDemandaDetailPage() {
                                   const signal = getTaskSignal(task.prazoConclusao);
                                   return signal ? (
                                     <span
-                                      aria-label={`Sinal da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
-                                        signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
+                                      aria-label={`Prazo da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
+                                        signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
                                       }`}
                                       className={`mt-1 inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
                                       title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
-                                        signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
+                                        signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
                                       }`}
                                     >
-                                      Sinal da tarefa: {taskSignalLabel(signal)}
+                                      Prazo da tarefa: {taskSignalLabel(signal)}
                                     </span>
                                   ) : null;
                                 })()}
@@ -1177,15 +1175,15 @@ export function PreDemandaDetailPage() {
                                     const signal = getTaskSignal(task.prazoConclusao);
                                     return signal ? (
                                       <span
-                                        aria-label={`Sinal da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
-                                          signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
-                                        }`}
-                                        className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
-                                        title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
-                                          signal === "critico" ? "Prazo vencido." : signal === "atencao" ? "Prazo chegando." : "Prazo folgado."
-                                        }`}
-                                      >
-                                        {taskSignalLabel(signal)}
+                                      aria-label={`Prazo da tarefa ${taskSignalLabel(signal).toLowerCase()}. ${
+                                          signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
+                                      }`}
+                                      className={`inline-flex w-fit rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${taskSignalTone(signal)}`}
+                                      title={`Prazo da tarefa: ${formatDateOnlyPtBr(task.prazoConclusao)}. ${
+                                          signal === "atrasado" ? "Prazo vencido." : "Prazo no prazo."
+                                      }`}
+                                    >
+                                      {taskSignalLabel(signal)}
                                       </span>
                                     ) : null;
                                   })()}
@@ -1452,7 +1450,7 @@ export function PreDemandaDetailPage() {
             <label className="flex items-center justify-between rounded-[24px] border border-sky-100/90 bg-white/90 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(20,33,61,0.04)]">
               <span>
                 <span className="block font-semibold text-slate-950">Pagamento envolvido</span>
-                <span className="text-slate-500">Sinalizador rapido para o processo.</span>
+                <span className="text-slate-500">Indicador rapido do prazo do processo.</span>
               </span>
               <input checked={editForm.pagamento_envolvido} className="h-5 w-5 accent-slate-950" onChange={(event) => setEditForm((current) => ({ ...current, pagamento_envolvido: event.target.checked }))} type="checkbox" />
             </label>

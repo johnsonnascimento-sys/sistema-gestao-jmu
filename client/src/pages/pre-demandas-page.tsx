@@ -187,11 +187,11 @@ export function PreDemandasPage() {
   const quickGroups = useMemo(
     () => [
       {
-        id: "criticas",
-        label: "Criticas",
+        id: "em-risco",
+        label: "Em risco",
         description: "Fila com maior risco operacional e atualizacao mais antiga primeiro.",
         value: items.filter((item) => item.queueHealth.level === "critical").length,
-        href: "/pre-demandas?preset=criticas",
+        href: "/pre-demandas?preset=em-risco",
       },
       {
         id: "vencidas",

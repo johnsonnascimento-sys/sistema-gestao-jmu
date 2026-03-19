@@ -77,9 +77,9 @@ export function KanbanBoard({
                         <p>
                           <span className="font-medium text-slate-950">Risco do setor:</span>{" "}
                           {sectorRiskById[item.setorAtual.id] === "critical"
-                            ? "Critico"
+                            ? "Em risco"
                             : sectorRiskById[item.setorAtual.id] === "attention"
-                              ? "Atencao"
+                              ? "Em observacao"
                               : "Controlado"}
                         </p>
                       ) : null}

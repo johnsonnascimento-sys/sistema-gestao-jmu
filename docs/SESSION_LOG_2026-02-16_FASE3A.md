@@ -1,7 +1,7 @@
 # Session Log - 2026-02-16 (Fase 3-A)
 
 ## Objetivo
-Concluir a porta de ingestao Web (Planalto) da Fase 3-A com validacao E2E:
+Concluir a ingestao Web (Planalto) da Fase 3-A com validacao E2E:
 1. webhook de producao funcionando;
 2. parser/chunking robusto;
 3. persistencia em `adminlog.normas_index` com embeddings 768.
@@ -16,7 +16,7 @@ Concluir a porta de ingestao Web (Planalto) da Fase 3-A com validacao E2E:
 - Endpoint operacional final:
   - `POST /webhook/index-norma-web-v3`
 
-Pipeline implementado:
+Pipeline:
 - Webhook URL -> parse/limpeza de HTML -> remocao de `<strike>` -> chunk por `Art.` -> embeddings (`gemini-embedding-001`, 768) -> inserts em `adminlog.normas_index` + `adminlog.ai_generation_log`.
 
 ### Appsmith
@@ -55,7 +55,7 @@ Pipeline implementado:
    - `ai_generation_log` recebeu novo registro com `model_used = 'gemini-embedding-001'`
 
 ## Resultado final da sessao
-- Fase 3-A (Pipeline Web) concluida e operacional.
+- Fase 3-A concluida e operacional.
 - Proxima frente: Fase 3-B (Upload PDF -> Drive -> OCR/Loader -> chunking -> embedding -> Supabase).
 
 ## Atualizacoes de fechamento do dia (pos-validacao)
@@ -89,5 +89,5 @@ Pipeline implementado:
   - `0` caracteres `�`.
 
 ### 4) UX
-- Botao `Limpar Busca` ativo para limpar consulta e tabela entre testes.
-- Contadores de busca mantidos para diagnostico rapido (chunks e ocorrencias).
+- Botao `Limpar Busca` ativo entre testes.
+- Contadores de busca mantidos para diagnostico rapido.

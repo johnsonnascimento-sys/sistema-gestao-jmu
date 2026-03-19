@@ -294,7 +294,6 @@ export interface ListPreDemandasParams {
   q?: string;
   statuses?: PreDemandaStatus[];
   queueHealthLevels?: QueueHealthLevel[];
-  processSignal?: "normal" | "atencao" | "critico";
   dateFrom?: string;
   dateTo?: string;
   hasSei?: boolean;

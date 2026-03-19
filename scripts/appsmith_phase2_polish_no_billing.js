@@ -1,10 +1,5 @@
 /* eslint-disable no-console */
-// Polishes Busca_Normas for "no billing" mode:
-// - Add Clear API Key button
-// - Add local (client-side) rate window counter + "remaining" estimate (best-effort)
-// - Fix footer text overlap (grid positioning) and remove legacy left/top fields
-// - Ensure Gemini embedding action uses a valid model for this project key
-// - Keep automatic fallback to FTS
+// Polishes Busca_Normas for local key handling and FTS fallback.
 
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -24,7 +19,7 @@ async function loadEnvFromSecretsFile() {
       if (!process.env[m[1]]) process.env[m[1]] = m[2].trim();
     }
   } catch {
-    // ignore
+    // Ignore missing secrets file.
   }
 }
 
@@ -72,7 +67,7 @@ function ensureChild(root, widget) {
 }
 
 function removeLegacyPosFields(widget) {
-  // Some earlier patches introduced FIXED-layout fields (left/top/right/bottom). Remove them so grid wins.
+  // Remove legacy fixed-position fields so grid layout wins.
   delete widget.left;
   delete widget.right;
   delete widget.top;
@@ -130,7 +125,7 @@ async function main() {
     return r.data;
   };
 
-  // login
+  // Authenticate.
   await request("get", "/api/v1/users/me");
   const token = await xsrf();
   await request("post", "/api/v1/login", {
@@ -138,7 +133,7 @@ async function main() {
     headers: { "Content-Type": "application/x-www-form-urlencoded", "X-XSRF-TOKEN": token },
   });
 
-  // Fetch actions
+  // Read actions.
   const actionsResp = await request("get", "/api/v1/actions", { params: { pageId } });
   const actions = Array.isArray(actionsResp?.data) ? actionsResp.data : [];
   const gerar = actions.find((a) => a?.name === "GerarEmbedding");
@@ -146,7 +141,7 @@ async function main() {
   const fts = actions.find((a) => a?.name === "BuscarNormasFTS");
   if (!gerar?.id || !buscar?.id || !fts?.id) throw new Error("Missing expected actions (GerarEmbedding/BuscarNormas/BuscarNormasFTS)");
 
-  // Ensure embedding uses gemini-embedding-001 with outputDimensionality 768
+  // Ensure the embedding action uses a valid model.
   gerar.actionConfiguration = gerar.actionConfiguration || {};
   gerar.actionConfiguration.httpMethod = "POST";
   gerar.actionConfiguration.httpVersion = "HTTP11";
@@ -169,7 +164,7 @@ async function main() {
   ];
   await request("put", `/api/v1/actions/${encodeURIComponent(gerar.id)}`, { data: gerar, headers: { "Content-Type": "application/json" } });
 
-  // Ensure FTS action is parameterized (avoid relying on widget context inside SQL).
+  // Keep the FTS action parameterized.
   fts.actionConfiguration = fts.actionConfiguration || {};
   fts.actionConfiguration.timeoutInMillisecond = 20000;
   fts.actionConfiguration.paginationType = "NONE";
@@ -188,7 +183,7 @@ async function main() {
     headers: { "Content-Type": "application/json" },
   });
 
-  // Fetch page DSL
+  // Read the page DSL.
   const page = await request("get", `/api/v1/pages/${encodeURIComponent(pageId)}`, { params: { migrateDsl: "false" } });
   const layout = page?.data?.layouts?.[0];
   if (!layout?.id || !layout?.dsl) throw new Error("No layout/dsl found");
@@ -197,14 +192,14 @@ async function main() {
   if (!Array.isArray(dsl.children)) dsl.children = [];
   const rootId = dsl.widgetId;
 
-  // Input_ApiKey should reflect store and be clearable.
+  // Keep the API key input synced with store.
   const inputKey = findWidgetByName(dsl, "Input_ApiKey");
   if (inputKey) {
     inputKey.defaultText = "{{appsmith.store.GEMINI_API_KEY || ''}}";
     ensureDynBinding(inputKey, "defaultText");
   }
 
-  // Add Clear Key button next to Salvar Key.
+  // Add the clear-key button.
   const btnClearName = "Btn_LimparKey";
   let btnClear = findWidgetByName(dsl, btnClearName);
   if (!btnClear) {
@@ -233,14 +228,14 @@ async function main() {
   btnClear.isDisabled = "{{!appsmith.store.GEMINI_API_KEY}}";
   btnClear.isVisible = true;
   ensureDynBinding(btnClear, "isDisabled");
-  // Position inside the API Key row block (7..13) to avoid overlapping the table (starts at 14).
+  // Place the key controls above the table.
   setGridPos(btnClear, { leftColumn: 41, rightColumn: 56, topRow: 10, bottomRow: 13 });
 
-  // Adjust Salvar Key to share the block with Apagar Key (no overlap).
+  // Keep both key buttons on the same row.
   const btnSave = findWidgetByName(dsl, "Btn_SalvarKey");
   if (btnSave) setGridPos(btnSave, { leftColumn: 41, rightColumn: 56, topRow: 7, bottomRow: 10 });
 
-  // Improve footer layout: stack KeyStatus, Build, Debug, Quota without overlap.
+  // Stack footer widgets without overlap.
   const keyStatus = findWidgetByName(dsl, "Txt_KeyStatus");
   const build = findWidgetByName(dsl, "Txt_Build");
   const dbg = findWidgetByName(dsl, "Txt_DebugBusca");
@@ -249,7 +244,7 @@ async function main() {
   if (build) setGridPos(build, { leftColumn: 0, rightColumn: 56, topRow: 51, bottomRow: 55 });
   if (dbg) setGridPos(dbg, { leftColumn: 0, rightColumn: 56, topRow: 55, bottomRow: 61 });
 
-  // Quota/usage estimate widget (local counter; cannot fetch real remaining quota from API key alone).
+  // Local usage estimate.
   const quotaName = "Txt_Quota";
   let quota = findWidgetByName(dsl, quotaName);
   if (!quota) {
@@ -282,7 +277,7 @@ async function main() {
   ensureDynBinding(quota, "text");
   setGridPos(quota, { leftColumn: 0, rightColumn: 56, topRow: 61, bottomRow: 67 });
 
-  // Update search button to keep counters and use FTS fallback.
+  // Update the search button behavior.
   const btnBuscar = findWidgetByName(dsl, "Btn_Buscar");
   if (btnBuscar) {
     btnBuscar.onClick =
@@ -344,13 +339,13 @@ async function main() {
     ensureDynTrigger(btnBuscar, "onClick");
   }
 
-  // Build tag
+  // Version tag.
   if (build) {
     build.text = "{{\"Build: 2026-02-15 22:40Z (lexical FTS + logs tips)\"}}";
     ensureDynBinding(build, "text");
   }
 
-  // Persist DSL + clear on-load actions (avoid calling Gemini with empty input on page open).
+  // Persist the DSL and clear on-load actions.
   await request("put", `/api/v1/layouts/${encodeURIComponent(layoutId)}/pages/${encodeURIComponent(pageId)}`, {
     params: { applicationId },
     data: { dsl, layoutOnLoadActions: [], layoutOnLoadActionErrors: [] },

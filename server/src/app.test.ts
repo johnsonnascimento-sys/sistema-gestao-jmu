@@ -457,7 +457,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       observacoes: input.observacoes ?? null,
       prazoProcesso: input.prazoProcesso,
       proximoPrazoTarefa: (input.assuntoIds ?? []).length ? input.prazoProcesso : null,
-      sinalPrazoProcesso: (input.assuntoIds ?? []).length ? "critico" : "normal",
+      prazoStatus: input.prazoProcesso < new Date().toISOString().slice(0, 10) ? "atrasado" : "no_prazo",
       prazoInicial: null,
       prazoIntermediario: null,
       prazoFinal: input.prazoProcesso,
@@ -584,10 +584,6 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     if (params.queueHealthLevels?.length) {
       items = items.filter((item) => params.queueHealthLevels?.includes(item.queueHealth.level));
-    }
-
-    if (params.processSignal) {
-      items = items.filter((item) => item.status !== "encerrada" && item.sinalPrazoProcesso === params.processSignal);
     }
 
     if (params.dateFrom) {
@@ -1101,8 +1097,6 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .filter((value): value is string => Boolean(value))
       .sort()[0] ?? null;
     record.proximoPrazoTarefa = nextPrazo;
-    const prazoProcesso = record.prazoProcesso ?? tarefa.prazoConclusao ?? input.prazoConclusao;
-    record.sinalPrazoProcesso = nextPrazo === null ? "normal" : nextPrazo >= prazoProcesso ? "critico" : nextPrazo >= addDays(prazoProcesso, -2) ? "atencao" : "normal";
     return tarefa;
   }
 
@@ -1594,8 +1588,6 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       urgentTotal: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).length,
       withoutSetorTotal: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).length,
       withoutInteressadosTotal: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).length,
-      processosEmAtencaoPrazo: this.records.filter((item) => item.status !== "encerrada" && item.sinalPrazoProcesso === "atencao").length,
-      processosCriticosPrazo: this.records.filter((item) => item.status !== "encerrada" && item.sinalPrazoProcesso === "critico").length,
       staleItems,
       awaitingSeiItems,
       dueSoonItems: this.records.filter((item) => item.status !== "encerrada" && (item.proximoPrazoTarefa !== null || item.prazoProcesso !== null)).slice(0, 5),
@@ -2134,11 +2126,12 @@ describe("Gestor JMU API", () => {
 
     if (agedRecord) {
       agedRecord.updatedAt = new Date(Date.now() - 6 * 86_400_000).toISOString();
+      agedRecord.prazoProcesso = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
       agedRecord.queueHealth = buildQueueHealth(agedRecord.status, agedRecord.updatedAt, agedRecord.dataReferencia, {
         attentionDays: 2,
         criticalDays: 5,
       });
-      agedRecord.sinalPrazoProcesso = "critico";
+      agedRecord.prazoStatus = "atrasado";
       agedRecord.proximoPrazoTarefa = agedRecord.prazoProcesso;
     }
 
@@ -2160,14 +2153,14 @@ describe("Gestor JMU API", () => {
     expect(filteredByQueueHealth.statusCode).toBe(200);
     expect(filteredByQueueHealth.json().data.total).toBeGreaterThanOrEqual(1);
 
-    const filteredByProcessSignal = await app.inject({
+    const filteredByDueState = await app.inject({
       method: "GET",
-      url: "/api/pre-demandas?processSignal=critico",
+      url: "/api/pre-demandas?dueState=overdue",
       headers: { cookie },
     });
 
-    expect(filteredByProcessSignal.statusCode).toBe(200);
-    expect(filteredByProcessSignal.json().data.total).toBeGreaterThanOrEqual(1);
+    expect(filteredByDueState.statusCode).toBe(200);
+    expect(filteredByDueState.json().data.total).toBeGreaterThanOrEqual(1);
 
     const audit = await app.inject({
       method: "GET",

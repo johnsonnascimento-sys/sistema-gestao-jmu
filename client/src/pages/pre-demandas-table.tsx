@@ -36,7 +36,7 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                 <th className="px-3 py-3">Fila</th>
                 <th className="px-3 py-3">Prazo do processo</th>
                 <th className="px-3 py-3">Proxima tarefa</th>
-                <th className="px-3 py-3">Sinal</th>
+                <th className="px-3 py-3">Prazo</th>
                 <th className="px-3 py-3">SEI</th>
                 <th className="px-3 py-3">Data</th>
                 <th className="px-3 py-3">Acoes</th>
@@ -70,7 +70,7 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                       <span>{item.setorAtual ? item.setorAtual.sigla : "-"}</span>
                       {item.setorAtual?.id && sectorRiskById[item.setorAtual.id] !== "normal" ? (
                         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          {sectorRiskById[item.setorAtual.id] === "critical" ? "Setor critico" : "Setor em atencao"}
+                          {sectorRiskById[item.setorAtual.id] === "critical" ? "Setor em risco" : "Setor em observacao"}
                         </span>
                       ) : null}
                     </div>
@@ -94,14 +94,12 @@ export function PreDemandasTable({ items, sectorRiskById, onQuickAction }: PreDe
                       className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
                         item.status === "encerrada"
                           ? "bg-slate-100 text-slate-600 ring-1 ring-slate-200"
-                          : item.sinalPrazoProcesso === "critico"
+                          : item.prazoStatus === "atrasado"
                             ? "bg-rose-100 text-rose-700 ring-1 ring-rose-200"
-                            : item.sinalPrazoProcesso === "atencao"
-                              ? "bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-                              : "bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200"
+                            : "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
                       }`}
                     >
-                      {item.status === "encerrada" ? "-" : item.sinalPrazoProcesso ?? "normal"}
+                      {item.status === "encerrada" ? "-" : item.prazoStatus === "atrasado" ? "Atrasado" : "No prazo"}
                     </span>
                   </td>
                   <td className="px-3 py-4">{item.currentAssociation?.seiNumero ?? "-"}</td>
