@@ -3,6 +3,7 @@ import {
   ChevronDown,
   CheckCircle,
   Edit,
+  FileClock,
   FilePlus2,
   Link as LinkIcon,
   ListTodo,
@@ -600,9 +601,12 @@ export function PreDemandaDetailPage() {
           <div className="flex flex-wrap gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] px-4 py-3 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
             <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atalhos de status</span>
             {record.allowedNextStatuses.includes("aguardando_sei") ? (
-              <Button onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })} title="Marcar processo como aguardando SEI" type="button" variant="ghost">
-                Aguardar SEI
-              </Button>
+              <ToolbarActionButton
+                icon={FileClock}
+                label="Aguardar SEI"
+                onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })}
+                title="Marcar processo como aguardando SEI"
+              />
             ) : null}
           </div>
         </CardContent>
