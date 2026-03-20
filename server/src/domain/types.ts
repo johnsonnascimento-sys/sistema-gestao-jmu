@@ -429,6 +429,17 @@ export interface PreDemandaDashboardSummary {
     setorDestinoSigla: string | null;
     createdAt: string;
   }>;
+  upcomingAudiencias: Array<{
+    id: string;
+    preId: string;
+    preNumero: string;
+    assunto: string;
+    dataHoraInicio: string;
+    dataHoraFim: string | null;
+    descricao: string | null;
+    sala: string | null;
+    situacao: AudienciaSituacao;
+  }>;
   recentTimeline: TimelineEvent[];
 }
 

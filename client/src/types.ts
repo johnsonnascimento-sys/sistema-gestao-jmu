@@ -427,6 +427,17 @@ export interface PreDemandaDashboardSummary {
   urgentItems: PreDemanda[];
   withoutSetorItems: PreDemanda[];
   withoutInteressadosItems: PreDemanda[];
+  upcomingAudiencias?: Array<{
+    id: string;
+    preId: string;
+    preNumero: string;
+    assunto: string;
+    descricao: string | null;
+    dataHoraInicio: string;
+    dataHoraFim: string | null;
+    sala: string | null;
+    situacao: AudienciaSituacao;
+  }>;
   oldestOpenTasks: Array<{
     id: string;
     preId: string;

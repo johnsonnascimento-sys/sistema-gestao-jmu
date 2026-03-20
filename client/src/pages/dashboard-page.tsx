@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Skeleton } from "../components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, getDashboardSummary } from "../lib/api";
-import { formatDateOnlyPtBr } from "../lib/date";
+import { formatDateOnlyPtBr, formatDateTimePtBr } from "../lib/date";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TarefaRecorrenciaTipo } from "../types";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
@@ -46,6 +46,15 @@ function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
   if (recorrenciaTipo === "diaria") return "Diária";
   if (recorrenciaTipo === "semanal") return "Semanal";
   return "Mensal";
+}
+
+function formatAudienciaSituacao(situacao: string) {
+  if (situacao === "agendada") return "Agendada";
+  if (situacao === "redesignada") return "Redesignada";
+  if (situacao === "realizada") return "Realizada";
+  if (situacao === "cancelada") return "Cancelada";
+  if (situacao === "suspensa") return "Suspensa";
+  return situacao;
 }
 
 function getTaskDeadlineState(prazoConclusao: string) {
@@ -168,6 +177,7 @@ export function DashboardPage() {
   }
 
   const staleItems = summary.staleItems;
+  const upcomingAudiencias = summary.upcomingAudiencias ?? [];
   const statusMetricHref: Record<string, string> = {
     em_andamento: buildAnalyticalTableHref({ status: "em_andamento" }),
     aguardando_sei: buildAnalyticalTableHref({ status: "aguardando_sei" }),
@@ -408,9 +418,71 @@ export function DashboardPage() {
               </article>
             );
           })}
-        </CardContent>
-      </Card>
-    </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.35, ease: "easeOut" }}
+      >
+        <Card className="overflow-hidden rounded-[32px] border-amber-200/70 bg-gradient-to-br from-amber-50/95 via-white/90 to-amber-100/60 shadow-xl">
+          <CardHeader className="gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="grid gap-1">
+              <CardTitle className="text-xl font-light tracking-tight text-amber-950">Audiências designadas</CardTitle>
+              <CardDescription className="text-amber-800/80">Compromissos judiciais com data, hora e sala, priorizados pela próxima realização.</CardDescription>
+            </div>
+            <span className="inline-flex h-8 items-center rounded-full bg-amber-100 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
+              {upcomingAudiencias.length} {upcomingAudiencias.length === 1 ? "audiência" : "audiências"}
+            </span>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {upcomingAudiencias.length === 0 ? (
+              <EmptyState
+                title="Sem audiências futuras"
+                description="Nenhuma audiência agendada ou redesignada para os próximos dias."
+              />
+            ) : (
+              <div className="grid gap-3 xl:grid-cols-2">
+                {upcomingAudiencias.map((audiencia) => (
+                  <article
+                    key={audiencia.id}
+                    className="group relative grid gap-3 overflow-hidden rounded-[24px] border border-amber-200/80 bg-white/90 px-5 py-4 shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-500 to-orange-400" />
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">{audiencia.preNumero}</p>
+                        <h3 className="mt-2 break-words text-base font-semibold leading-snug text-slate-950">{audiencia.assunto}</h3>
+                        <p className="mt-2 text-sm text-slate-600">
+                          {formatDateTimePtBr(audiencia.dataHoraInicio)}
+                          {audiencia.sala ? ` • ${audiencia.sala}` : ""}
+                        </p>
+                      </div>
+                      <div className="grid shrink-0 gap-2 justify-items-start md:justify-items-end">
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
+                          {formatAudienciaSituacao(audiencia.situacao)}
+                        </span>
+                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 ring-1 ring-slate-200">
+                          {audiencia.dataHoraFim ? formatDateTimePtBr(audiencia.dataHoraFim) : "Sem fim definido"}
+                        </span>
+                      </div>
+                    </div>
+                    {audiencia.descricao ? <p className="text-sm leading-6 text-slate-500">{audiencia.descricao}</p> : null}
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Abrir processo para detalhes da audiência</p>
+                      <Button asChild size="sm" variant="outline" className="h-9 rounded-full border-amber-200 bg-white shadow-sm">
+                        <Link to={`/pre-demandas/${audiencia.preId}`}>Ver processo</Link>
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <motion.div 
         className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]"

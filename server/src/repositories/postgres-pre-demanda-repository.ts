@@ -315,13 +315,14 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
         };
   const solicitante = pessoaPrincipal?.nome ?? String(row.solicitante);
   const numeroJudicial = row.numero_judicial ? formatNumeroJudicialValue(String(row.numero_judicial)) : null;
+  const principalNumero = currentAssociation?.seiNumero ?? numeroJudicial ?? String(row.pre_id);
 
   return {
     id: Number(row.id),
     preId: String(row.pre_id),
     solicitante,
     pessoaPrincipal,
-    principalNumero: currentAssociation?.seiNumero ?? String(row.pre_id),
+    principalNumero,
     principalTipo: currentAssociation ? "sei" : "demanda",
     assunto: String(row.assunto),
     dataReferencia: new Date(row.data_referencia).toISOString().slice(0, 10),
@@ -392,11 +393,12 @@ function mapDemandaInteressado(row: QueryResultRow): DemandaInteressado {
 }
 
 function mapDemandaVinculo(row: QueryResultRow): DemandaVinculo {
+  const fallbackNumeroJudicial = row.numero_judicial ? formatNumeroJudicialValue(String(row.numero_judicial)) ?? String(row.numero_judicial) : null;
   return {
     processo: {
       id: Number(row.id),
       preId: String(row.pre_id),
-      principalNumero: row.principal_numero ? String(row.principal_numero) : String(row.pre_id),
+      principalNumero: row.principal_numero ? String(row.principal_numero) : fallbackNumeroJudicial ?? String(row.pre_id),
       assunto: String(row.assunto),
       status: row.status as PreDemandaStatus,
       dataReferencia: new Date(row.data_referencia).toISOString().slice(0, 10),
@@ -521,10 +523,11 @@ function mapStatusAudit(row: QueryResultRow): PreDemandaStatusAuditRecord {
 }
 
 function mapTimelineEvent(row: QueryResultRow): TimelineEvent {
+  const fallbackNumeroJudicial = row.numero_judicial ? formatNumeroJudicialValue(String(row.numero_judicial)) ?? String(row.numero_judicial) : null;
   return {
     id: String(row.event_id),
     preId: String(row.pre_id),
-    principalNumero: row.principal_numero ? String(row.principal_numero) : String(row.pre_id),
+    principalNumero: row.principal_numero ? String(row.principal_numero) : fallbackNumeroJudicial ?? String(row.pre_id),
     type: row.event_type as TimelineEvent["type"],
     occurredAt: new Date(row.occurred_at).toISOString(),
     actor: mapActor(row, "actor"),
@@ -1332,7 +1335,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.currentAssociation = seiAssociations.find((item) => item.principal) ?? detail.currentAssociation;
     detail.numerosJudiciais = numerosJudiciais;
     detail.numeroJudicial = numerosJudiciais.find((item) => item.principal)?.numero ?? detail.numeroJudicial;
-    detail.principalNumero = detail.currentAssociation?.seiNumero ?? detail.preId;
+    detail.principalNumero = detail.currentAssociation?.seiNumero ?? detail.numeroJudicial ?? detail.preId;
     detail.principalTipo = detail.currentAssociation ? "sei" : "demanda";
     detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.interessados[0]?.interessado.nome ?? detail.solicitante;
     if (!detail.pessoaPrincipal) {
@@ -3305,7 +3308,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('created-', pd.id) as event_id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             'created'::text as event_type,
             pd.created_at as occurred_at,
             created_by.id as actor_id,
@@ -3329,7 +3332,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('status-', audit.id) as event_id,
             audit.pre_id,
-            coalesce(pts.sei_numero, audit.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, audit.pre_id) as principal_numero,
             'status_changed'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -3344,6 +3347,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text,
             null::text
           from adminlog.pre_demanda_status_audit audit
+          inner join adminlog.pre_demanda pd on pd.pre_id = audit.pre_id
           left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
           where audit.pre_id = $1
@@ -3376,7 +3380,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('sei-audit-', audit.id) as event_id,
             audit.pre_id,
-            coalesce(pts.sei_numero, audit.sei_numero_novo, audit.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, audit.sei_numero_novo, pd.numero_judicial, audit.pre_id) as principal_numero,
             'sei_reassociated'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -3391,6 +3395,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             audit.sei_numero_anterior::text,
             audit.sei_numero_novo::text
           from adminlog.pre_to_sei_link_audit audit
+          inner join adminlog.pre_demanda pd on pd.pre_id = audit.pre_id
           left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
           where audit.pre_id = $1
@@ -3400,7 +3405,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('andamento-', andamento.id) as event_id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             case
               when andamento.tipo = 'tramitacao' then 'tramitation'
               when andamento.tipo = 'tarefa_concluida' then 'task_completed'
@@ -3435,7 +3440,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('comment-', comentario.id) as event_id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             'comment_added'::text as event_type,
             comentario.created_at as occurred_at,
             actor.id as actor_id,
@@ -3472,7 +3477,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('created-', pd.id) as event_id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             'created'::text as event_type,
             pd.created_at as occurred_at,
             created_by.id as actor_id,
@@ -3495,7 +3500,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('status-', audit.id) as event_id,
             audit.pre_id,
-            coalesce(pts.sei_numero, audit.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, audit.pre_id) as principal_numero,
             'status_changed'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -3510,6 +3515,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             null::text,
             null::text
           from adminlog.pre_demanda_status_audit audit
+          inner join adminlog.pre_demanda pd on pd.pre_id = audit.pre_id
           left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
 
@@ -3540,7 +3546,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('sei-audit-', audit.id) as event_id,
             audit.pre_id,
-            coalesce(pts.sei_numero, audit.sei_numero_novo, audit.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, audit.sei_numero_novo, pd.numero_judicial, audit.pre_id) as principal_numero,
             'sei_reassociated'::text as event_type,
             audit.registrado_em as occurred_at,
             changed_by.id as actor_id,
@@ -3555,6 +3561,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             audit.sei_numero_anterior::text,
             audit.sei_numero_novo::text
           from adminlog.pre_to_sei_link_audit audit
+          inner join adminlog.pre_demanda pd on pd.pre_id = audit.pre_id
           left join adminlog.pre_to_sei_link pts on pts.pre_id = audit.pre_id
           left join adminlog.app_user changed_by on changed_by.id = audit.changed_by_user_id
 
@@ -3563,7 +3570,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('andamento-', andamento.id) as event_id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             case
               when andamento.tipo = 'tramitacao' then 'tramitation'
               when andamento.tipo = 'tarefa_concluida' then 'task_completed'
@@ -3597,7 +3604,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             concat('comment-', comentario.id) as event_id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             'comment_added'::text as event_type,
             comentario.created_at as occurred_at,
             actor.id as actor_id,
@@ -3627,7 +3634,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, oldestOpenTasksResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, oldestOpenTasksResult, upcomingAudienciasResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -3826,7 +3833,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           select
             tarefa.id,
             pd.pre_id,
-            coalesce(pts.sei_numero, pd.pre_id) as principal_numero,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             pd.assunto,
             tarefa.descricao,
             tarefa.prazo_conclusao,
@@ -3846,6 +3853,34 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           where tarefa.concluida = false
             and pd.status <> 'encerrada'
           order by tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
+          limit 8
+        `,
+      ),
+      this.pool.query(
+        `
+          select
+            audiencia.id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
+            pd.assunto,
+            audiencia.data_hora_inicio,
+            audiencia.data_hora_fim,
+            audiencia.descricao,
+            audiencia.sala,
+            audiencia.situacao
+          from adminlog.demanda_audiencias_judiciais audiencia
+          inner join adminlog.pre_demanda pd on pd.id = audiencia.pre_demanda_id
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          where pd.status <> 'encerrada'
+            and audiencia.situacao in ('agendada', 'redesignada')
+            and audiencia.data_hora_inicio >= now()
+          order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
           limit 8
         `,
       ),
@@ -3897,6 +3932,17 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as TarefaRecorrenciaTipo) : null,
         setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
         createdAt: new Date(row.created_at).toISOString(),
+      })),
+      upcomingAudiencias: upcomingAudienciasResult.rows.map((row) => ({
+        id: String(row.id),
+        preId: String(row.pre_id),
+        preNumero: String(row.principal_numero),
+        assunto: String(row.assunto),
+        dataHoraInicio: new Date(row.data_hora_inicio).toISOString(),
+        dataHoraFim: row.data_hora_fim ? new Date(row.data_hora_fim).toISOString() : null,
+        descricao: row.descricao ? String(row.descricao) : null,
+        sala: row.sala ? String(row.sala) : null,
+        situacao: row.situacao as PreDemandaDashboardSummary["upcomingAudiencias"][number]["situacao"],
       })),
       recentTimeline,
     };

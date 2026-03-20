@@ -471,7 +471,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       preId,
       solicitante: resolvedSolicitante,
       pessoaPrincipal,
-      principalNumero: input.seiNumero ?? preId,
+      principalNumero: input.seiNumero ?? input.numeroJudicial ?? preId,
       principalTipo: input.seiNumero ? "sei" : "demanda",
       assunto: input.assunto,
       dataReferencia: input.dataReferencia,
@@ -784,6 +784,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         ...record.numerosJudiciais.filter((item) => item.numero !== input.numeroJudicial).map((item) => ({ ...item, principal: false })),
       ];
     }
+    if (!record.currentAssociation) {
+      record.principalNumero = record.numeroJudicial ?? record.preId;
+    }
     if (input.metadata !== undefined) {
       record.metadata = {
         ...record.metadata,
@@ -871,6 +874,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       ...record.numerosJudiciais.filter((item) => item.numero !== input.numeroJudicial).map((item) => ({ ...item, principal: false })),
     ];
     record.numeroJudicial = input.numeroJudicial;
+    if (!record.currentAssociation) {
+      record.principalNumero = record.numeroJudicial;
+    }
     this.touch(record);
     return record.numerosJudiciais;
   }
@@ -886,6 +892,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       record.numeroJudicial = record.numerosJudiciais[0].numero;
     } else {
       record.numeroJudicial = null;
+    }
+    if (!record.currentAssociation) {
+      record.principalNumero = record.numeroJudicial ?? record.preId;
     }
     this.touch(record);
     return record.numerosJudiciais;
@@ -1680,6 +1689,24 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         return leftDate.localeCompare(rightDate) || left.createdAt.localeCompare(right.createdAt);
       })
       .slice(0, 8);
+    const upcomingAudiencias = this.records
+      .flatMap((item) =>
+        (item.audiencias ?? [])
+          .filter((audiencia) => ["agendada", "redesignada"].includes(audiencia.situacao) && new Date(audiencia.dataHoraInicio).getTime() >= Date.now())
+          .map((audiencia) => ({
+            id: audiencia.id,
+            preId: item.preId,
+            preNumero: item.principalNumero,
+            assunto: item.assunto,
+            dataHoraInicio: audiencia.dataHoraInicio,
+            dataHoraFim: audiencia.dataHoraFim,
+            descricao: audiencia.descricao,
+            sala: audiencia.sala,
+            situacao: audiencia.situacao,
+          })),
+      )
+      .sort((left, right) => left.dataHoraInicio.localeCompare(right.dataHoraInicio))
+      .slice(0, 8);
     const awaitingSeiItems = this.records
       .filter((item) => item.status === "aguardando_sei")
       .sort((left, right) => left.dataReferencia.localeCompare(right.dataReferencia))
@@ -1738,6 +1765,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       withoutSetorItems: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).slice(0, 5),
       withoutInteressadosItems: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).slice(0, 5),
       oldestOpenTasks,
+      upcomingAudiencias,
       recentTimeline,
     };
   }
