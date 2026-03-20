@@ -66,11 +66,30 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
 ## 8. Protocolo de Delegacao
 - O agente `Atlas` deve ser o ponto de entrada padrao para novas tarefas.
 - Antes de criar ou reutilizar agentes em uma nova maquina ou sessao, consultar `agents.toml` como fonte de verdade operacional.
-- `Atlas` deve delegar sempre que houver um especialista claro para o dominio da mudanca.
+- `Atlas` deve delegar por padrao sempre que houver um especialista claro para o dominio da mudanca.
 - `Atlas` pode executar diretamente apenas tarefas pequenas de coordenacao, integracao, revisao final ou ajustes triviais entre dominios.
 - Mudancas que afetem banco existente devem passar por `Laplace` antes de qualquer execucao destrutiva ou reconciliacao de migration.
 - Mudancas que afetem deploy, backup, restore, smoke ou operacao em VPS devem passar por `SRE-1`.
 - Quando uma tarefa envolver varios dominios, `Atlas` deve decompor em subtarefas independentes e consolidar a entrega final.
+
+## 8.1 Politica de Uso Real dos Subagentes
+- O uso de subagentes nao e apenas opcional: ele deve ser o padrao operacional do projeto para tarefas de dominio claramente especializado.
+- Para frontend, `Atlas` deve preferir delegar implementacao, exploracao e refinamento visual para `Ada`.
+- Para backend e integracoes, `Atlas` deve preferir delegar implementacao e analise para `Turing`.
+- Para banco, schema, migrations e reconciliacao historica, `Atlas` deve preferir delegar para `Laplace`.
+- Para validacao operacional, leitura de logs, smoke test, build, deploy readiness e procedimentos de infraestrutura, `Atlas` deve preferir delegar para `SRE-1`.
+- A excecao principal e a etapa final sensivel de `git add`, `git commit`, `git push` e `deploy`, que deve permanecer no agente principal salvo decisao explicita em contrario.
+- Mesmo quando a execucao final ficar com `Atlas`, a preparacao, revisao ou verificacao pode e deve ser delegada para o especialista adequado.
+- Se `Atlas` optar por nao delegar em uma tarefa claramente especializada, essa decisao deve ser justificavel por um destes motivos: ajuste muito pequeno, mesma area ja em edicao imediata, risco de conflito de contexto ou ganho operacional irrelevante.
+
+## 8.2 Regra de Transparencia de Agentes
+- Sempre que `Atlas` usar um agente ou subagente na execucao de uma tarefa, deve informar explicitamente ao usuario:
+  - nome do agente
+  - funcao/papel desse agente
+  - modelo em uso naquela execucao
+- Quando relevante, tambem deve informar o `reasoning_effort` aplicado.
+- Essa comunicacao deve acontecer no inicio da delegacao ou no momento em que o trabalho especializado for assumido.
+- Se nao houver uso de subagente em uma tarefa que normalmente seria delegavel, `Atlas` pode informar que a execucao ficou no agente principal por razoes operacionais.
 
 ## 9. Politica de Modelos por Complexidade
 - **Atlas (Coordenador Principal):**

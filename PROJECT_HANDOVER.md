@@ -99,6 +99,12 @@ Arquivos de contexto do projeto:
 - `SESSION_LOG_2026-02-10.md` (Detalhes técnicos da última sessão)
 - `boot.ps1` (Windows/PowerShell)
 
+Convencao operacional de agentes:
+- `Atlas` coordena e integra o trabalho.
+- `Ada`, `Turing`, `Laplace` e `SRE-1` devem ser usados por padrao quando a tarefa tiver dominio tecnico claro.
+- `git add`, `git commit`, `git push` e `deploy` ficam, por padrao, sob controle do agente principal.
+- Quando um agente especializado for usado, a sessao deve comunicar explicitamente nome, funcao e modelo ao usuario.
+
 ### 4.1 Windows (recomendado)
 Executar (`Win`+`R` -> `powershell`):
 ```powershell

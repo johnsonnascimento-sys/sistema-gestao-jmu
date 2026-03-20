@@ -20,6 +20,11 @@ Este arquivo existe para padronizar o comportamento do Codex e de agentes especi
   - `Turing`: backend e integracoes
   - `Ada`: frontend e UI/UX
   - `SRE-1`: QA, DevOps e operacoes
+- A partir desta convencao, o uso dos subagentes deve ser o comportamento padrao sempre que houver dominio tecnico claro.
+- `Atlas` deve manter no agente principal a integracao final e, por padrao, as etapas de `git add`, `git commit`, `git push` e `deploy`.
+- `SRE-1` deve ser preferido para build, leitura de logs, smoke tests e verificacoes operacionais antes da execucao final.
+- Sempre que um agente ou subagente for utilizado, a sessao deve informar ao usuario: nome do agente, funcao e modelo utilizado.
+- Quando relevante, tambem deve informar o `reasoning_effort` aplicado naquela execucao.
 
 ## Persistencia
 - Os subagentes nao persistem entre sessoes como processos ativos.

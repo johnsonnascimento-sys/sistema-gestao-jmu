@@ -12,6 +12,19 @@ delegate_by_default = true
 prefer_mini_for_bounded_tasks = true
 escalate_on_risk = true
 avoid_low_reasoning = true
+main_agent_finalizes_git_and_deploy = true
+specialists_prepare_domain_work = true
+allow_main_agent_direct_execution_only_for_trivial_or_tightly_coupled_work = true
+announce_agent_name_role_model_on_use = true
+announce_reasoning_when_relevant = true
+
+[policy.execution]
+frontend_default_specialist = "Ada"
+backend_default_specialist = "Turing"
+database_default_specialist = "Laplace"
+devops_default_specialist = "SRE-1"
+keep_commit_push_deploy_on_main_agent = true
+delegate_build_logs_and_smoke_to_sre = true
 
 [policy.escalation]
 use_complex_model_when = [
