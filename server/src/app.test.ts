@@ -16,6 +16,7 @@ import type {
   AdminUserAuditRecord,
   AdminUserSummary,
   Andamento,
+  Audiencia,
   Assunto,
   AppUser,
   DemandaComentario,
@@ -47,6 +48,7 @@ import type {
   AssociateSeiResult,
   ConcluirTramitacaoSetorInput,
   ConcluirTarefaInput,
+  CreateAudienciaInput,
   CreateComentarioInput,
   CreateDocumentoInput,
   CreatePreDemandaInput,
@@ -65,6 +67,7 @@ import type {
   ListInteressadosResult,
   PreDemandaRepository,
   RemoveDocumentoInput,
+  RemoveAudienciaInput,
   RemoveDemandaAssuntoInput,
   RemoveDemandaInteressadoInput,
   RemoveDemandaVinculoInput,
@@ -81,6 +84,7 @@ import type {
   UpdateInteressadoInput,
   UpdateAssuntoInput,
   UpdateNormaInput,
+  UpdateAudienciaInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
   UpdatePreDemandaStatusInput,
@@ -409,6 +413,26 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return andamento;
   }
 
+  private syncAudienciaSummary(record: PreDemandaDetail) {
+    const audiencias = [...(record.audiencias ?? [])].sort(
+      (left, right) => new Date(left.dataHoraInicio).getTime() - new Date(right.dataHoraInicio).getTime(),
+    );
+    const resumo =
+      audiencias.find((item) => item.situacao !== "cancelada" && item.situacao !== "realizada") ??
+      audiencias[audiencias.length - 1] ??
+      null;
+
+    record.metadata = {
+      ...record.metadata,
+      audienciaData: resumo ? new Date(resumo.dataHoraInicio).toISOString().slice(0, 10) : null,
+      audienciaStatus: resumo?.situacao ?? null,
+      audienciaHorarioInicio: resumo ? new Date(resumo.dataHoraInicio).toISOString().slice(11, 16) : null,
+      audienciaHorarioFim: resumo?.dataHoraFim ? new Date(resumo.dataHoraFim).toISOString().slice(11, 16) : null,
+      audienciaSala: resumo?.sala ?? null,
+      audienciaDescricao: resumo?.descricao ?? null,
+    };
+  }
+
   private buildDefaultPessoa(id: string, nome?: string): Interessado {
     return {
       id,
@@ -561,6 +585,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         createdAt: now,
         createdBy: null,
       })),
+      audiencias: [],
       recentAndamentos: [],
     };
 
@@ -1246,6 +1271,92 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
     this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
     return tarefa;
+  }
+
+  async listAudiencias(preId: string) {
+    return [...(this.records.find((item) => item.preId === preId)?.audiencias ?? [])].sort(
+      (left, right) => new Date(left.dataHoraInicio).getTime() - new Date(right.dataHoraInicio).getTime(),
+    );
+  }
+
+  async createAudiencia(input: CreateAudienciaInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const now = new Date().toISOString();
+    const audiencia: Audiencia = {
+      id: `aud-${record.id}-${(record.audiencias?.length ?? 0) + 1}`,
+      preId: record.preId,
+      dataHoraInicio: input.dataHoraInicio,
+      dataHoraFim: input.dataHoraFim ?? null,
+      descricao: input.descricao ?? null,
+      sala: input.sala ?? null,
+      situacao: input.situacao ?? "agendada",
+      observacoes: input.observacoes ?? null,
+      createdAt: now,
+      updatedAt: now,
+      createdBy: null,
+      updatedBy: null,
+    };
+
+    record.audiencias = [...(record.audiencias ?? []), audiencia].sort(
+      (left, right) => new Date(left.dataHoraInicio).getTime() - new Date(right.dataHoraInicio).getTime(),
+    );
+    this.syncAudienciaSummary(record);
+    this.touch(record);
+    return audiencia;
+  }
+
+  async updateAudiencia(input: UpdateAudienciaInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const audiencias = record.audiencias ?? [];
+    const current = audiencias.find((item) => item.id === input.audienciaId);
+    if (!current) {
+      throw new Error("not found");
+    }
+
+    const updated: Audiencia = {
+      ...current,
+      dataHoraInicio: input.dataHoraInicio ?? current.dataHoraInicio,
+      dataHoraFim: input.dataHoraFim !== undefined ? input.dataHoraFim : current.dataHoraFim,
+      descricao: input.descricao !== undefined ? input.descricao : current.descricao,
+      sala: input.sala !== undefined ? input.sala : current.sala,
+      situacao: input.situacao ?? current.situacao,
+      observacoes: input.observacoes !== undefined ? input.observacoes : current.observacoes,
+      updatedAt: new Date().toISOString(),
+      updatedBy: null,
+    };
+
+    record.audiencias = audiencias
+      .map((item) => (item.id === current.id ? updated : item))
+      .sort((left, right) => new Date(left.dataHoraInicio).getTime() - new Date(right.dataHoraInicio).getTime());
+    this.syncAudienciaSummary(record);
+    this.touch(record);
+    return updated;
+  }
+
+  async removeAudiencia(input: RemoveAudienciaInput) {
+    const record = this.records.find((item) => item.preId === input.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const audiencias = record.audiencias ?? [];
+    const current = audiencias.find((item) => item.id === input.audienciaId);
+    if (!current) {
+      throw new Error("not found");
+    }
+
+    record.audiencias = audiencias.filter((item) => item.id !== input.audienciaId);
+    this.syncAudienciaSummary(record);
+    this.touch(record);
+    return { removedId: current.id };
   }
 
   async listComentarios(preId: string) {

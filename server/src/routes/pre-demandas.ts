@@ -198,13 +198,12 @@ function normalizeMetadata(payload: z.infer<typeof metadataSchema>) {
   if (!payload) {
     return undefined;
   }
-
-  return {
-    pagamentoEnvolvido: payload.pagamento_envolvido ?? null,
-    urgente: payload.urgente ?? null,
-    audienciaData: payload.audiencia_data ?? null,
-    audienciaStatus: emptyToNull(payload.audiencia_status),
-  };
+  const metadata: Record<string, unknown> = {};
+  if ("pagamento_envolvido" in payload) metadata.pagamentoEnvolvido = payload.pagamento_envolvido ?? null;
+  if ("urgente" in payload) metadata.urgente = payload.urgente ?? null;
+  if ("audiencia_data" in payload) metadata.audienciaData = payload.audiencia_data ?? null;
+  if ("audiencia_status" in payload) metadata.audienciaStatus = emptyToNull(payload.audiencia_status);
+  return Object.keys(metadata).length ? metadata : undefined;
 }
 
 function parseStatuses(input: string | string[] | undefined) {

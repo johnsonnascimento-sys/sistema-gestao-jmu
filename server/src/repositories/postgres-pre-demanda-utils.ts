@@ -3,6 +3,8 @@ import type {
   Assunto,
   Andamento,
   AuditActor,
+  Audiencia,
+  AudienciaSituacao,
   DemandaAssunto,
   DemandaComentario,
   DemandaDocumento,
@@ -177,6 +179,10 @@ export function mapMetadata(raw: unknown): PreDemandaMetadata {
     urgente: typeof value.urgente === "boolean" ? value.urgente : null,
     audienciaData: typeof value.audiencia_data === "string" ? value.audiencia_data : null,
     audienciaStatus: typeof value.audiencia_status === "string" ? value.audiencia_status : null,
+    audienciaHorarioInicio: typeof value.audiencia_horario_inicio === "string" ? value.audiencia_horario_inicio : null,
+    audienciaHorarioFim: typeof value.audiencia_horario_fim === "string" ? value.audiencia_horario_fim : null,
+    audienciaSala: typeof value.audiencia_sala === "string" ? value.audiencia_sala : null,
+    audienciaDescricao: typeof value.audiencia_descricao === "string" ? value.audiencia_descricao : null,
   };
 }
 
@@ -278,6 +284,7 @@ export function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: Qu
     documentos: [],
     comentarios: [],
     tarefasPendentes: [],
+    audiencias: [],
     recentAndamentos: [],
   };
 }
@@ -391,6 +398,23 @@ export function mapTarefa(row: QueryResultRow): TarefaPendente {
   };
 }
 
+export function mapAudiencia(row: QueryResultRow): Audiencia {
+  return {
+    id: String(row.id),
+    preId: String(row.pre_id),
+    dataHoraInicio: new Date(row.data_hora_inicio).toISOString(),
+    dataHoraFim: row.data_hora_fim ? new Date(row.data_hora_fim).toISOString() : null,
+    descricao: row.descricao ? String(row.descricao) : null,
+    sala: row.sala ? String(row.sala) : null,
+    situacao: row.situacao as AudienciaSituacao,
+    observacoes: row.observacoes ? String(row.observacoes) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+    createdBy: mapActor(row, "created_by"),
+    updatedBy: mapActor(row, "updated_by"),
+  };
+}
+
 export function mapAssunto(row: QueryResultRow): Assunto {
   return {
     id: String(row.assunto_id),
@@ -469,6 +493,10 @@ export function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | n
     urgente: metadata.urgente ?? null,
     audiencia_data: metadata.audienciaData ?? null,
     audiencia_status: metadata.audienciaStatus ?? null,
+    audiencia_horario_inicio: metadata.audienciaHorarioInicio ?? null,
+    audiencia_horario_fim: metadata.audienciaHorarioFim ?? null,
+    audiencia_sala: metadata.audienciaSala ?? null,
+    audiencia_descricao: metadata.audienciaDescricao ?? null,
   };
 }
 
@@ -519,7 +547,7 @@ export async function getPreDemandaRowByPreId(queryable: Queryable, preId: strin
 export async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
   const result = await queryable.query(
     `
-      select id, pre_id, prazo_processo
+      select id, pre_id, prazo_processo, numero_judicial
       from adminlog.pre_demanda
       where pre_id = $1
       limit 1
@@ -533,6 +561,7 @@ export async function getResolvedPreDemanda(queryable: Queryable, preId: string)
     id: Number(result.rows[0].id),
     preId: String(result.rows[0].pre_id),
     prazoProcesso: new Date(result.rows[0].prazo_processo).toISOString().slice(0, 10),
+    numeroJudicial: result.rows[0].numero_judicial ? formatNumeroJudicialValue(String(result.rows[0].numero_judicial)) : null,
   };
 }
 
@@ -602,6 +631,40 @@ export async function loadAndamentos(queryable: Queryable, preDemandaId: number,
     limit ? [preDemandaId, preId, limit] : [preDemandaId, preId],
   );
   return result.rows.map(mapAndamento);
+}
+
+export async function loadAudiencias(queryable: Queryable, preDemandaId: number, preId: string) {
+  const result = await queryable.query(
+    `
+      select
+        audiencia.id,
+        $2::text as pre_id,
+        audiencia.data_hora_inicio,
+        audiencia.data_hora_fim,
+        audiencia.descricao,
+        audiencia.sala,
+        audiencia.situacao,
+        audiencia.observacoes,
+        audiencia.created_at,
+        audiencia.updated_at,
+        created_by.id as created_by_id,
+        created_by.email as created_by_email,
+        created_by.name as created_by_name,
+        created_by.role as created_by_role,
+        updated_by.id as updated_by_id,
+        updated_by.email as updated_by_email,
+        updated_by.name as updated_by_name,
+        updated_by.role as updated_by_role
+      from adminlog.demanda_audiencias_judiciais audiencia
+      left join adminlog.app_user created_by on created_by.id = audiencia.created_by_user_id
+      left join adminlog.app_user updated_by on updated_by.id = audiencia.updated_by_user_id
+      where audiencia.pre_demanda_id = $1
+      order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
+    `,
+    [preDemandaId, preId],
+  );
+
+  return result.rows.map(mapAudiencia);
 }
 
 export async function insertAndamento(

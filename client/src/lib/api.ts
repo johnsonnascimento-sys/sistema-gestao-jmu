@@ -3,6 +3,7 @@ import type {
   AdminUserAuditRecord,
   AdminUserSummary,
   Andamento,
+  Audiencia,
   Assunto,
   AuthUser,
   DemandaComentario,
@@ -342,6 +343,47 @@ export function addPreDemandaVinculo(preId: string, destinoPreId: string) {
 
 export function removePreDemandaVinculo(preId: string, destinoPreId: string) {
   return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos/${destinoPreId}`, {
+    method: "DELETE",
+  });
+}
+
+export function createPreDemandaAudiencia(
+  preId: string,
+  payload: {
+    data_hora_inicio: string;
+    data_hora_fim?: string | null;
+    descricao?: string | null;
+    sala?: string | null;
+    situacao: Audiencia["situacao"];
+    observacoes?: string | null;
+  },
+) {
+  return request<Audiencia>(`/api/pre-demandas/${preId}/audiencias`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePreDemandaAudiencia(
+  preId: string,
+  audienciaId: string,
+  payload: {
+    data_hora_inicio: string;
+    data_hora_fim?: string | null;
+    descricao?: string | null;
+    sala?: string | null;
+    situacao: Audiencia["situacao"];
+    observacoes?: string | null;
+  },
+) {
+  return request<Audiencia>(`/api/pre-demandas/${preId}/audiencias/${audienciaId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removePreDemandaAudiencia(preId: string, audienciaId: string) {
+  return request<{ removedId: string }>(`/api/pre-demandas/${preId}/audiencias/${audienciaId}`, {
     method: "DELETE",
   });
 }

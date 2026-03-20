@@ -12,6 +12,7 @@ export type AppPermission =
   | "pre_demanda.manage_vinculos"
   | "pre_demanda.manage_tramitacao"
   | "pre_demanda.manage_tarefas"
+  | "pre_demanda.manage_audiencias"
   | "cadastro.interessado.read"
   | "cadastro.interessado.write"
   | "cadastro.setor.read"
@@ -44,6 +45,7 @@ export type TarefaPendenteTipo = "fixa" | "livre";
 export type TarefaRecorrenciaTipo = "diaria" | "semanal" | "mensal";
 export type DemandaSetorFluxoStatus = "ativo" | "concluido";
 export type DemandaComentarioFormato = "markdown";
+export type AudienciaSituacao = "agendada" | "redesignada" | "realizada" | "cancelada" | "suspensa";
 export type TimelineEventType =
   | "created"
   | "status_changed"
@@ -139,6 +141,10 @@ export interface PreDemandaMetadata {
   urgente: boolean | null;
   audienciaData: string | null;
   audienciaStatus: string | null;
+  audienciaHorarioInicio?: string | null;
+  audienciaHorarioFim?: string | null;
+  audienciaSala?: string | null;
+  audienciaDescricao?: string | null;
 }
 
 export interface DemandaNumeroJudicial {
@@ -196,6 +202,21 @@ export interface DemandaComentario {
   updatedAt: string;
   createdBy: AuditActor | null;
   editedBy: AuditActor | null;
+}
+
+export interface Audiencia {
+  id: string;
+  preId: string;
+  dataHoraInicio: string;
+  dataHoraFim: string | null;
+  descricao: string | null;
+  sala: string | null;
+  situacao: AudienciaSituacao;
+  observacoes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: AuditActor | null;
+  updatedBy: AuditActor | null;
 }
 
 export interface Andamento {
@@ -344,6 +365,7 @@ export interface PreDemanda {
   comentarios: DemandaComentario[];
   tarefasPendentes: TarefaPendente[];
   recentAndamentos: Andamento[];
+  audiencias?: Audiencia[];
 }
 
 export interface PreDemandaAuditRecord {

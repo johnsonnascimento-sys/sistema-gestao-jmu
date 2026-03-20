@@ -2,6 +2,7 @@ import type {
   AdminUserAuditRecord,
   AdminUserSummary,
   Andamento,
+  Audiencia,
   AppUser,
   DemandaComentario,
   DemandaInteressado,
@@ -253,6 +254,42 @@ export interface RemoveTarefaInput {
   preId: string;
   tarefaId: string;
   changedByUserId: number;
+}
+
+export interface CreateAudienciaInput {
+  preId: string;
+  dataHoraInicio: string;
+  dataHoraFim?: string | null;
+  descricao?: string | null;
+  sala?: string | null;
+  situacao?: Audiencia["situacao"];
+  observacoes?: string | null;
+  changedByUserId: number;
+}
+
+export interface UpdateAudienciaInput {
+  preId: string;
+  audienciaId: string;
+  dataHoraInicio?: string;
+  dataHoraFim?: string | null;
+  descricao?: string | null;
+  sala?: string | null;
+  situacao?: Audiencia["situacao"];
+  observacoes?: string | null;
+  changedByUserId: number;
+}
+
+export interface RemoveAudienciaInput {
+  preId: string;
+  audienciaId: string;
+  changedByUserId: number;
+}
+
+export interface PreDemandaAudienciaRepository {
+  listAudiencias(preId: string): Promise<Audiencia[]>;
+  createAudiencia(input: CreateAudienciaInput): Promise<Audiencia>;
+  updateAudiencia(input: UpdateAudienciaInput): Promise<Audiencia>;
+  removeAudiencia(input: RemoveAudienciaInput): Promise<{ removedId: string }>;
 }
 
 export interface CreateComentarioInput {

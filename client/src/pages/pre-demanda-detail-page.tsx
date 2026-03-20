@@ -68,6 +68,7 @@ import {
   concluirTramitacaoSetor,
   concluirPreDemandaTarefa,
   createPessoa,
+  createPreDemandaAudiencia,
   createPreDemandaComentario,
   createPreDemandaDocumento,
   createPreDemanda,
@@ -81,6 +82,7 @@ import {
   listPreDemandas,
   listSetores,
   removePreDemandaDocumento,
+  removePreDemandaAudiencia,
   removePreDemandaAndamento,
   removePreDemandaAssunto,
   removePreDemandaInteressado,
@@ -89,6 +91,7 @@ import {
   reorderPreDemandaTarefas,
   tramitarPreDemandaMultiplos,
   updatePreDemandaAnotacoes,
+  updatePreDemandaAudiencia,
   updatePreDemandaAndamento,
   updatePreDemandaCase,
   updatePreDemandaTarefa,
@@ -101,7 +104,25 @@ import { formatNumeroJudicialInput, normalizeNumeroJudicialValue } from "../lib/
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { Andamento, Assunto, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
+import type { Andamento, Assunto, Audiencia, AudienciaSituacao, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
+
+type AudienciaForm = {
+  inicio: string;
+  fim: string;
+  sala: string;
+  descricao: string;
+  situacao: AudienciaSituacao;
+  observacoes: string;
+};
+
+const AUDIENCIA_FORM_DEFAULT: AudienciaForm = {
+  inicio: "",
+  fim: "",
+  sala: "",
+  descricao: "",
+  situacao: "agendada",
+  observacoes: "",
+};
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
@@ -133,8 +154,6 @@ export function PreDemandaDetailPage() {
     prazo_processo: "",
     pagamento_envolvido: false,
     urgente: false,
-    audiencia_data: "",
-    audiencia_status: "",
   });
   const [relatedForm, setRelatedForm] = useState({
     assunto: "",
@@ -142,6 +161,8 @@ export function PreDemandaDetailPage() {
     descricao: "",
     prazo_processo: "",
   });
+  const [audienciaForm, setAudienciaForm] = useState<AudienciaForm>(AUDIENCIA_FORM_DEFAULT);
+  const [editingAudienciaId, setEditingAudienciaId] = useState<string | null>(null);
   const [notesForm, setNotesForm] = useState("");
   const [deadlineForm, setDeadlineForm] = useState({
     prazo_processo: "",
@@ -187,8 +208,6 @@ export function PreDemandaDetailPage() {
         prazo_processo: nextRecord.prazoProcesso ?? "",
         pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
         urgente: nextRecord.metadata.urgente ?? false,
-        audiencia_data: nextRecord.metadata.audienciaData ?? "",
-        audiencia_status: nextRecord.metadata.audienciaStatus ?? "",
       });
       setNotesForm(nextRecord.anotacoes ?? "");
       setDeadlineForm({
@@ -325,9 +344,19 @@ export function PreDemandaDetailPage() {
     }
   }, [deleteTask]);
 
+  useEffect(() => {
+    setEditingAudienciaId(null);
+    setAudienciaForm(AUDIENCIA_FORM_DEFAULT);
+  }, [preId]);
+
   const queueHealth = useMemo(() => (record ? getQueueHealth(record) : null), [record]);
   const pendingTasks = useMemo(() => record?.tarefasPendentes.filter((item) => !item.concluida) ?? [], [record]);
   const completedTasks = useMemo(() => record?.tarefasPendentes.filter((item) => item.concluida) ?? [], [record]);
+  const orderedAudiencias = useMemo(
+    () => [...(record?.audiencias ?? [])].sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()),
+    [record?.audiencias],
+  );
+  const nextAudiencia = orderedAudiencias[0] ?? null;
   const editableAndamentoIds = useMemo(
     () => new Set((record?.recentAndamentos ?? []).filter((item) => item.tipo === "manual").map((item) => item.id)),
     [record],
@@ -412,6 +441,12 @@ export function PreDemandaDetailPage() {
       record
         ? {
             resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${formatDateOnlyPtBr(record.prazoProcesso)}` : ""}`,
+            audiencias:
+              orderedAudiencias.length > 0
+                ? `Próxima audiência ${new Date(orderedAudiencias[0]!.dataHoraInicio).toLocaleString("pt-BR")}`
+                : record.metadata.audienciaHorarioInicio
+                  ? `Próxima audiência ${new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR")}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                  : "Sem audiência cadastrada",
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
             setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
@@ -423,7 +458,7 @@ export function PreDemandaDetailPage() {
             historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
-    [completedTasks.length, nextAction.title, pendingTasks.length, queueHealth?.summary, record, timeline.length],
+    [completedTasks.length, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, timeline.length],
   );
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
@@ -561,6 +596,72 @@ export function PreDemandaDetailPage() {
     );
   }
 
+  function resetAudienciaForm() {
+    setEditingAudienciaId(null);
+    setAudienciaForm({ ...AUDIENCIA_FORM_DEFAULT });
+  }
+
+  async function handleAudienciaSubmit() {
+    if (!audienciaForm.inicio) {
+      setError("Informe a data e hora de inicio da audiencia.");
+      return;
+    }
+
+    const inicioIso = toIsoFromDateTimeLocal(audienciaForm.inicio);
+    const fimIso = toIsoFromDateTimeLocal(audienciaForm.fim);
+    if (!inicioIso) {
+      setError("Informe uma data e hora de inicio valida.");
+      return;
+    }
+
+    await runMutation(
+      async () => {
+        const payload = {
+          data_hora_inicio: inicioIso,
+          data_hora_fim: fimIso,
+          descricao: audienciaForm.descricao.trim() || null,
+          sala: audienciaForm.sala.trim() || null,
+          situacao: audienciaForm.situacao,
+          observacoes: audienciaForm.observacoes.trim() || null,
+        };
+
+        if (editingAudienciaId) {
+          await updatePreDemandaAudiencia(preId, editingAudienciaId, payload);
+        } else {
+          await createPreDemandaAudiencia(preId, payload);
+        }
+
+        resetAudienciaForm();
+      },
+      editingAudienciaId ? "Audiencia atualizada." : "Audiencia cadastrada.",
+    );
+  }
+
+  function handleAudienciaEdit(item: Audiencia) {
+    setEditingAudienciaId(item.id);
+    setAudienciaForm({
+      inicio: toDateTimeLocalValue(item.dataHoraInicio),
+      fim: toDateTimeLocalValue(item.dataHoraFim),
+      sala: item.sala ?? "",
+      descricao: item.descricao ?? "",
+      situacao: item.situacao,
+      observacoes: item.observacoes ?? "",
+    });
+    setToolbarDialog("audiencias");
+  }
+
+  async function handleAudienciaDelete(id: string) {
+    await runMutation(
+      async () => {
+        await removePreDemandaAudiencia(preId, id);
+        if (editingAudienciaId === id) {
+          resetAudienciaForm();
+        }
+      },
+      "Audiencia excluida.",
+    );
+  }
+
   if (loading) {
     return <LoadingState description="Estamos preparando a visao do processo com metadados, envolvidos e historico." title="Carregando processo" />;
   }
@@ -596,6 +697,9 @@ export function PreDemandaDetailPage() {
           <ToolbarActionButton icon={Send} label="Tramitar" onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" />
           <ToolbarActionButton icon={StickyNote} label="Nota interna" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
           <ToolbarActionButton icon={CalendarClock} label="Prazo" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
+          {isJudicialProcess ? (
+            <ToolbarActionButton icon={CalendarClock} label="Audiencias" onClick={() => setToolbarDialog("audiencias")} title={sectionSummaries?.audiencias ?? "Gerir audiencias judiciais"} />
+          ) : null}
           <ToolbarActionButton icon={ListTodo} label="Tarefas" onClick={() => setToolbarDialog("tasks")} title="Gerenciar tarefas do processo" />
           <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" />
           {record.allowedNextStatuses.includes("encerrada") ? (
@@ -613,6 +717,31 @@ export function PreDemandaDetailPage() {
           <ToolbarActionButton icon={MessageSquareText} label="Discussao" onClick={() => setToolbarDialog("comments")} title={sectionSummaries?.comentarios ?? "Abrir comentarios"} />
         </div>
       </div>
+
+      {isJudicialProcess ? (
+        <Card className="overflow-hidden border border-amber-200/70 bg-[linear-gradient(180deg,rgba(255,244,214,0.78),rgba(255,255,255,0.92))]">
+          <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800">Audiencia judicial</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">
+                {nextAudiencia
+                  ? `${new Date(nextAudiencia.dataHoraInicio).toLocaleString("pt-BR")}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
+                  : record.metadata.audienciaHorarioInicio
+                    ? `${new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR")}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                    : "Nenhuma audiência estruturada cadastrada."}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                {nextAudiencia
+                  ? `${nextAudiencia.descricao || "Audiência registrada."}${nextAudiencia.observacoes ? ` • ${nextAudiencia.observacoes}` : ""}`
+                  : "Use o botão Audiências para registar data, hora, sala, descrição e situação do ato judicial."}
+              </p>
+            </div>
+            <Button onClick={() => setToolbarDialog("audiencias")} type="button" variant="secondary">
+              Abrir audiências
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="grid content-start gap-6">
@@ -1216,8 +1345,9 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
               <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
-              <SummaryItem label="Data da audiencia" value={formatDateOnlyPtBr(record.metadata.audienciaData)} />
+              <SummaryItem label="Data da audiencia" value={record.metadata.audienciaHorarioInicio ? new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR") : formatDateOnlyPtBr(record.metadata.audienciaData)} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
+              <SummaryItem label="Sala da audiencia" value={record.metadata.audienciaSala ?? "-"} />
               <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
               <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
               <SummaryItem label="Saude da fila" value={queueHealth.summary} />
@@ -1608,14 +1738,6 @@ export function PreDemandaDetailPage() {
                 <Input disabled value="A recorrencia agora e definida por tarefa" />
               </FormField>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Data da audiencia">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, audiencia_data: event.target.value }))} type="date" value={editForm.audiencia_data} />
-              </FormField>
-              <FormField label="Status da audiencia">
-                <Input onChange={(event) => setEditForm((current) => ({ ...current, audiencia_status: event.target.value }))} value={editForm.audiencia_status} />
-              </FormField>
-            </div>
             <label className="flex items-center justify-between rounded-[24px] border border-sky-100/90 bg-white/90 px-4 py-3 text-sm shadow-[0_10px_22px_rgba(20,33,61,0.04)]">
               <span>
                 <span className="block font-semibold text-slate-950">Pagamento envolvido</span>
@@ -1653,8 +1775,6 @@ export function PreDemandaDetailPage() {
                       metadata: {
                         pagamento_envolvido: editForm.pagamento_envolvido,
                         urgente: editForm.urgente,
-                        audiencia_data: editForm.audiencia_data || null,
-                        audiencia_status: editForm.audiencia_status || null,
                       },
                     }).then(() => setToolbarDialog(null)),
                   "Processo atualizado.",
@@ -1778,6 +1898,142 @@ export function PreDemandaDetailPage() {
               Salvar prazos
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setToolbarDialog(null);
+            resetAudienciaForm();
+          }
+        }}
+        open={toolbarDialog === "audiencias"}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Audiencias judiciais</DialogTitle>
+            <DialogDescription>Cadastro estruturado da audiência com data, hora, sala, descricao e situacao.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
+              <p className="text-sm font-semibold text-amber-900">Próxima audiência</p>
+              <p className="mt-2 text-sm text-amber-800">
+                {nextAudiencia
+                  ? `${new Date(nextAudiencia.dataHoraInicio).toLocaleString("pt-BR")}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
+                  : record.metadata.audienciaHorarioInicio
+                    ? `${new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR")}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                    : "Nenhuma audiência estruturada cadastrada."}
+              </p>
+              <p className="mt-2 text-xs text-amber-700">
+                O resumo do processo passa a refletir automaticamente a próxima audiência relevante.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Inicio">
+                <Input
+                  onChange={(event) => setAudienciaForm((current) => ({ ...current, inicio: event.target.value }))}
+                  type="datetime-local"
+                  value={audienciaForm.inicio}
+                />
+              </FormField>
+              <FormField label="Fim">
+                <Input
+                  onChange={(event) => setAudienciaForm((current) => ({ ...current, fim: event.target.value }))}
+                  type="datetime-local"
+                  value={audienciaForm.fim}
+                />
+              </FormField>
+              <FormField label="Sala">
+                <Input onChange={(event) => setAudienciaForm((current) => ({ ...current, sala: event.target.value }))} value={audienciaForm.sala} />
+              </FormField>
+              <FormField label="Situacao">
+                <select
+                  className={selectClassName}
+                  onChange={(event) =>
+                    setAudienciaForm((current) => ({ ...current, situacao: event.target.value as AudienciaSituacao }))
+                  }
+                  value={audienciaForm.situacao}
+                >
+                  <option value="agendada">Agendada</option>
+                  <option value="redesignada">Redesignada</option>
+                  <option value="realizada">Realizada</option>
+                  <option value="cancelada">Cancelada</option>
+                  <option value="suspensa">Suspensa</option>
+                </select>
+              </FormField>
+            </div>
+
+            <FormField label="Descricao">
+              <Textarea
+                onChange={(event) => setAudienciaForm((current) => ({ ...current, descricao: event.target.value }))}
+                rows={4}
+                value={audienciaForm.descricao}
+              />
+            </FormField>
+
+            <FormField label="Observacoes">
+              <Textarea
+                onChange={(event) => setAudienciaForm((current) => ({ ...current, observacoes: event.target.value }))}
+                rows={3}
+                value={audienciaForm.observacoes}
+              />
+            </FormField>
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button onClick={resetAudienciaForm} type="button" variant="ghost">
+                Limpar
+              </Button>
+              <Button
+                disabled={!audienciaForm.inicio}
+                onClick={() => void handleAudienciaSubmit()}
+                type="button"
+              >
+                {editingAudienciaId ? "Salvar alteracao" : "Cadastrar audiencia"}
+              </Button>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-slate-950">Audiências cadastradas</p>
+                <span className="text-xs text-slate-500">{orderedAudiencias.length} cadastrada(s)</span>
+              </div>
+
+              {orderedAudiencias.length === 0 ? (
+                <EmptyState
+                  description="Ainda nao ha audiencias estruturadas neste processo. Use o formulario acima para registrar a primeira."
+                  title="Sem audiencias"
+                />
+              ) : (
+                orderedAudiencias.map((item) => (
+                  <div className="rounded-[24px] border border-slate-200 bg-white px-4 py-4" key={item.id}>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">{item.situacao}</p>
+                        <p className="mt-2 text-base font-semibold text-slate-950">
+                          {new Date(item.dataHoraInicio).toLocaleString("pt-BR")}
+                          {item.dataHoraFim ? ` - ${new Date(item.dataHoraFim).toLocaleString("pt-BR")}` : ""}
+                        </p>
+                        {item.sala ? <p className="mt-1 text-sm text-slate-600">Sala: {item.sala}</p> : null}
+                        {item.descricao ? <p className="mt-2 text-sm text-slate-700">{item.descricao}</p> : null}
+                        {item.observacoes ? <p className="mt-1 text-xs text-slate-500">{item.observacoes}</p> : null}
+                      </div>
+                      <div className="flex shrink-0 gap-2">
+                        <Button onClick={() => handleAudienciaEdit(item)} size="sm" type="button" variant="secondary">
+                          Editar
+                        </Button>
+                        <Button onClick={() => void handleAudienciaDelete(item.id)} size="sm" type="button" variant="ghost">
+                          Excluir
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

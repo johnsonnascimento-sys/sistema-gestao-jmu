@@ -11,6 +11,7 @@ export type ToolbarDialog =
   | "deadline"
   | "tasks"
   | "andamento"
+  | "audiencias"
   | "summary"
   | "people"
   | "sectors"

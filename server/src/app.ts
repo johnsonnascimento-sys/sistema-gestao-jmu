@@ -18,12 +18,13 @@ import { PostgresInteressadoRepository } from "./repositories/postgres-interessa
 import { PostgresAssuntoRepository } from "./repositories/postgres-assunto-repository";
 import { PostgresNormaRepository } from "./repositories/postgres-norma-repository";
 import { PostgresPreDemandaRepository } from "./repositories/postgres-pre-demanda-repository";
+import { PostgresPreDemandaAudienciaRepository } from "./repositories/postgres-pre-demanda-audiencia-repository";
 import { PostgresSetorRepository } from "./repositories/postgres-setor-repository";
 import { PostgresSettingsRepository } from "./repositories/postgres-settings-repository";
 import { PostgresUserRepository } from "./repositories/postgres-user-repository";
 import { PostgresPreDemandaTarefaRepository } from "./repositories/postgres-pre-demanda-tarefa-repository";
 import { PostgresPreDemandaAndamentoRepository } from "./repositories/postgres-pre-demanda-andamento-repository";
-import type { AssuntoRepository, InteressadoRepository, NormaRepository, PreDemandaRepository, SetorRepository, SettingsRepository, UserRepository, PreDemandaTarefaRepository, PreDemandaAndamentoRepository } from "./repositories/types";
+import type { AssuntoRepository, InteressadoRepository, NormaRepository, PreDemandaRepository, SetorRepository, SettingsRepository, UserRepository, PreDemandaTarefaRepository, PreDemandaAndamentoRepository, PreDemandaAudienciaRepository } from "./repositories/types";
 import { registerAssuntoRoutes } from "./routes/assuntos";
 import { registerAdminOperationsRoutes } from "./routes/admin-operations";
 import { registerAdminUserRoutes } from "./routes/admin-users";
@@ -31,6 +32,7 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerInteressadoRoutes } from "./routes/interessados";
 import { registerNormaRoutes } from "./routes/normas";
 import { registerPreDemandaRoutes } from "./routes/pre-demandas";
+import { registerPreDemandaAudienciaRoutes } from "./routes/audiencias";
 import { registerSetorRoutes } from "./routes/setores";
 import { registerEventsRoutes } from "./routes/events";
 import { registerAuditRoutes } from "./routes/auditoria";
@@ -43,6 +45,7 @@ export interface AppDependencies {
   preDemandaRepository: PreDemandaRepository;
   preDemandaTarefaRepository: PreDemandaTarefaRepository;
   preDemandaAndamentoRepository: PreDemandaAndamentoRepository;
+  preDemandaAudienciaRepository: PreDemandaAudienciaRepository;
   interessadoRepository: InteressadoRepository;
   assuntoRepository: AssuntoRepository;
   setorRepository: SetorRepository;
@@ -70,6 +73,9 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     new PostgresPreDemandaRepository(pool, settingsRepository);
   const preDemandaTarefaRepository = partialDependencies?.preDemandaTarefaRepository ?? new PostgresPreDemandaTarefaRepository(pool);
   const preDemandaAndamentoRepository = partialDependencies?.preDemandaAndamentoRepository ?? new PostgresPreDemandaAndamentoRepository(pool);
+  const preDemandaAudienciaRepository =
+    partialDependencies?.preDemandaAudienciaRepository ??
+    new PostgresPreDemandaAudienciaRepository(pool);
   const operationsStore = partialDependencies?.operationsStore ?? new OperationsStore();
 
   const app = fastify({ logger: true });
@@ -139,6 +145,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   await registerSetorRoutes(app, { setorRepository });
   await registerNormaRoutes(app, { normaRepository });
   await registerPreDemandaRoutes(app, { preDemandaRepository, preDemandaTarefaRepository, preDemandaAndamentoRepository });
+  await registerPreDemandaAudienciaRoutes(app, { preDemandaAudienciaRepository });
   await registerEventsRoutes(app);
   await registerAdminOperationsRoutes(app, { config, pool, operationsStore, settingsRepository });
   await registerAdminUserRoutes(app, { userRepository });

@@ -28,6 +28,7 @@ import type { DatabasePool } from "../db";
 import { getAllowedNextStatuses } from "../domain/pre-demanda-status";
 import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-health";
 import { AppError } from "../errors";
+import { loadAudiencias } from "./postgres-pre-demanda-utils";
 import type {
   AddAndamentoInput,
   AddDemandaAssuntoInput,
@@ -243,6 +244,10 @@ function mapMetadata(raw: unknown): PreDemandaMetadata {
     urgente: typeof value.urgente === "boolean" ? value.urgente : null,
     audienciaData: typeof value.audiencia_data === "string" ? value.audiencia_data : null,
     audienciaStatus: typeof value.audiencia_status === "string" ? value.audiencia_status : null,
+    audienciaHorarioInicio: typeof value.audiencia_horario_inicio === "string" ? value.audiencia_horario_inicio : null,
+    audienciaHorarioFim: typeof value.audiencia_horario_fim === "string" ? value.audiencia_horario_fim : null,
+    audienciaSala: typeof value.audiencia_sala === "string" ? value.audiencia_sala : null,
+    audienciaDescricao: typeof value.audiencia_descricao === "string" ? value.audiencia_descricao : null,
   };
 }
 
@@ -363,6 +368,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     documentos: [],
     comentarios: [],
     tarefasPendentes: [],
+    audiencias: [],
     recentAndamentos: [],
   };
 }
@@ -557,6 +563,10 @@ function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | u
     urgente: metadata.urgente ?? null,
     audiencia_data: metadata.audienciaData ?? null,
     audiencia_status: metadata.audienciaStatus ?? null,
+    audiencia_horario_inicio: metadata.audienciaHorarioInicio ?? null,
+    audiencia_horario_fim: metadata.audienciaHorarioFim ?? null,
+    audiencia_sala: metadata.audienciaSala ?? null,
+    audiencia_descricao: metadata.audienciaDescricao ?? null,
   };
 }
 
@@ -1295,7 +1305,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [assuntos, interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
+    const [assuntos, interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, audiencias, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
       this.loadAssuntos(queryable, detail.id),
       this.loadInteressados(queryable, detail.id),
       this.loadVinculos(queryable, detail.id),
@@ -1303,6 +1313,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.loadDocumentos(queryable, detail.id, detail.preId),
       this.loadComentarios(queryable, detail.id, detail.preId),
       this.loadTarefas(queryable, detail.id, detail.preId),
+      loadAudiencias(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 20),
       this.loadSeiAssociations(queryable, detail.id, detail.preId),
       this.loadNumerosJudiciais(queryable, detail.id),
@@ -1315,6 +1326,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.documentos = documentos;
     detail.comentarios = comentarios;
     detail.tarefasPendentes = tarefasPendentes;
+    detail.audiencias = audiencias;
     detail.recentAndamentos = recentAndamentos;
     detail.seiAssociations = seiAssociations;
     detail.currentAssociation = seiAssociations.find((item) => item.principal) ?? detail.currentAssociation;
@@ -1758,7 +1770,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   async updateCaseData(input: UpdatePreDemandaCaseDataInput) {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const metadata = input.metadata === undefined ? undefined : normalizeMetadataForDb(input.metadata);
+    let metadata: Record<string, unknown> | null | undefined;
     const numeroJudicial = input.numeroJudicial === undefined ? undefined : formatNumeroJudicialValue(input.numeroJudicial);
     return inTransaction(this.pool, async (client) => {
       const demanda = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
@@ -1787,6 +1799,29 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         if (conflitoTarefas.rows[0]) {
           throw new AppError(400, "PRE_DEMANDA_PRAZO_CONFLITO_TAREFAS", "Existem tarefas com prazo posterior ao prazo geral do processo.");
         }
+      }
+
+      if (numeroJudicial === null) {
+        const conflitoAudiencias = await client.query(
+          `
+            select 1
+            from adminlog.demanda_audiencias_judiciais
+            where pre_demanda_id = $1
+            limit 1
+          `,
+          [demanda.id],
+        );
+
+        if (conflitoAudiencias.rows[0]) {
+          throw new AppError(409, "PRE_DEMANDA_NUMERO_JUDICIAL_AUDIENCIA_CONFLITO", "Nao e possivel remover o numero judicial enquanto houver audiencias registradas.");
+        }
+      }
+
+      if (input.metadata !== undefined) {
+        metadata = normalizeMetadataForDb({
+          ...demanda.metadata,
+          ...input.metadata,
+        });
       }
 
       await client.query(
