@@ -92,7 +92,10 @@ Sistema de memória administrativa pessoal + Motor de Automação de Pareceres e
 ## 4. 🚀 COMO RETOMAR EM OUTRO COMPUTADOR
 
 Arquivos de contexto do projeto:
+- `START_HERE_AGENTS.md` (guia rapido de retomada dos agentes)
 - `AI_BOOTLOADER.md` (fonte da verdade do contexto)
+- `AGENT_RULES` (regras operacionais e convencao de delegacao)
+- `agents.toml` (configuracao portavel de agentes, modelos e reasoning)
 - `SESSION_LOG_2026-02-10.md` (Detalhes técnicos da última sessão)
 - `boot.ps1` (Windows/PowerShell)
 

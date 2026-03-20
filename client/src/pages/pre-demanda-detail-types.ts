@@ -11,6 +11,7 @@ export type ToolbarDialog =
   | "link"
   | "notes"
   | "deadline"
+  | "tasks"
   | "andamento";
 
 export type StatusAction = {

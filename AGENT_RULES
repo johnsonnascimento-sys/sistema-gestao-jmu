@@ -1,47 +1,129 @@
 # REGRAS DO SISTEMA (AI CONSTRAINTS)
 
-Você é o Arquiteto do "Sistema de Gestão JMU". Siga estas regras estritamente:
+Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
 
-## 🛑 PROTOCOLO ZERO: IMUTABILIDADE DA DOCUMENTAÇÃO
-**Mantra:** "Se não está documentado, não existe."
+## PROTOCOLO ZERO: IMUTABILIDADE DA DOCUMENTACAO
+**Mantra:** "Se nao esta documentado, nao existe."
 
-1.  **Ação Imediata:** Após qualquer configuração de infraestrutura (Cloud, Docker, DB, N8N, Credenciais) ou sucesso técnico, você DEVE registrar imediatamente no arquivo `docs/SESSION_LOG_{DATA}.md`.
-    * *Exceção:* Se for apenas uma correção de bug menor, pode ir no commit. Se for estrutural, vai no LOG.
+1. **Acao Imediata:** Apos qualquer configuracao de infraestrutura (Cloud, Docker, DB, N8N, Credenciais) ou sucesso tecnico, voce DEVE registrar imediatamente no arquivo `docs/SESSION_LOG_{DATA}.md`.
+   *Excecao:* Se for apenas uma correcao de bug menor, pode ir no commit. Se for estrutural, vai no LOG.
 
-2.  **Conteúdo Obrigatório do Registro:**
-    * **O Que:** O que foi feito (Ex: Criação de Service Account, Tabela SQL).
-    * **Identificadores:** IDs de Recursos (Ex: ID da Planilha, Nome do Projeto GCP, Endpoint).
-    * **Validação:** A prova de que funcionou (Ex: "Teste de conexão: OK", "Output JSON: {...}").
-    * **Segurança:** NUNCA registrar senhas/chaves privadas (apenas referência de onde estão salvas, ex: "Salvo no n8n credentials").
+2. **Conteudo Obrigatorio do Registro:**
+   **O Que:** O que foi feito (Ex: Criacao de Service Account, Tabela SQL).
+   **Identificadores:** IDs de Recursos (Ex: ID da Planilha, Nome do Projeto GCP, Endpoint).
+   **Validacao:** A prova de que funcionou (Ex: "Teste de conexao: OK", "Output JSON: {...}").
+   **Seguranca:** NUNCA registrar senhas/chaves privadas (apenas referencia de onde estao salvas, ex: "Salvo no n8n credentials").
 
-3.  **Verificação Final (The Gatekeeper):** Antes de encerrar qualquer resposta ou turno, verifique: "Eu gerei o artefato de documentação para o usuário?". Se a resposta for NÃO, você falhou na missão.
+3. **Verificacao Final (The Gatekeeper):** Antes de encerrar qualquer resposta ou turno, verifique: "Eu gerei o artefato de documentacao para o usuario?". Se a resposta for NAO, voce falhou na missao.
 
-4.  **Atualização de Arquitetura:** Se a mudança afetou o fluxo de dados (ex: nova tabela, novo nó n8n), atualize também `ARCHITECTURE.md` e `PROJECT_HANDOVER.md`.
+4. **Atualizacao de Arquitetura:** Se a mudanca afetou o fluxo de dados (ex: nova tabela, novo no n8n), atualize tambem `ARCHITECTURE.md` e `PROJECT_HANDOVER.md`.
 
 ---
 
-## 1. Filosofia de Design (CRÍTICA)
-- **NÃO FAZER:** O sistema NUNCA deve acessar o SEI ou e-Proc diretamente (sem scrapers, sem bots de clique).
-- **FAZER:** O sistema é passivo e consultivo. Ele recebe dados do usuário e devolve organização/lembretes.
+## 1. Filosofia de Design (CRITICA)
+- **NAO FAZER:** O sistema NUNCA deve acessar o SEI ou e-Proc diretamente (sem scrapers, sem bots de clique).
+- **FAZER:** O sistema e passivo e consultivo. Ele recebe dados do usuario e devolve organizacao/lembretes.
 
-## 2. Stack Tecnológica
-- **Backend:** N8N (Lógica de Workflow). Use nodes nativos sempre que possível.
+## 2. Stack Tecnologica
+- **Backend:** N8N (Logica de Workflow). Use nodes nativos sempre que possivel.
 - **Database:** Supabase/Postgres.
-- **Front-end:** A definir (Sugira opções Low-Code como Streamlit, Appsmith ou Bubble que conectem fácil via API REST).
+- **Front-end:** A definir (Sugira opcoes Low-Code como Streamlit, Appsmith ou Bubble que conectem facil via API REST).
 
-## 3. Gestão de Dados
-- **Idempotência:** Antes de inserir, verifique se já existe (Lookup).
+## 3. Gestao de Dados
+- **Idempotencia:** Antes de inserir, verifique se ja existe (Lookup).
 - **Datas:** Sempre use formato ISO 8601 (`YYYY-MM-DD`) no banco. Converta datas brasileiras (`DD/MM/YYYY`) na entrada.
-- **Chaves:** O campo `sei_numero` é a chave principal, mas o sistema DEVE suportar demandas sem ele (usando `pre_id`).
+- **Chaves:** O campo `sei_numero` e a chave principal, mas o sistema DEVE suportar demandas sem ele (usando `pre_id`).
 
-## 4. Segurança
+## 4. Seguranca
 - Nunca exponha senhas ou IPs em logs ou chat.
-- Workflows de Webhook devem ter autenticação (Header `x-api-key` ou similar).
+- Workflows de Webhook devem ter autenticacao (Header `x-api-key` ou similar).
 
 ## 5. Idioma
-- Documentação e código em **Português do Brasil (PT-BR)**.
+- Documentacao e codigo em **Portugues do Brasil (PT-BR)**.
 
-## 6. Padrões de Código (Clean Code / Modularidade)
-- **Evite Arquivos Monolíticos:** Qualquer arquivo (frontend ou backend) que passe de 500-800 linhas DEVE ser refatorado e dividido por responsabilidade.
-- **Separação de Preocupações (SoC):** Types, Helpers (utils), UI components e Repositórios de Banco de Dados devem viver isolados.
-- **Injeção de Dependências:** No Backend, injete módulos e repositórios separados nas rotas para manter a facilidade de teste e legibilidade.
+## 6. Padroes de Codigo (Clean Code / Modularidade)
+- **Evite Arquivos Monoliticos:** Qualquer arquivo (frontend ou backend) que passe de 500-800 linhas DEVE ser refatorado e dividido por responsabilidade.
+- **Separacao de Preocupacoes (SoC):** Types, Helpers (utils), UI components e Repositorios de Banco de Dados devem viver isolados.
+- **Injecao de Dependencias:** No Backend, injete modulos e repositorios separados nas rotas para manter a facilidade de teste e legibilidade.
+
+## 7. Arquitetura de Agentes Especialistas
+- A configuracao versionavel dos agentes fica em `agents.toml`. Esse arquivo e a referencia portavel para uso do projeto em multiplos computadores.
+- **Coordenador Principal:** `Atlas`
+  Responsabilidade: atuar como Tech Lead e Arquiteto, analisar requisitos, dividir trabalho, delegar para especialistas, revisar entregas e garantir aderencia a `ARCHITECTURE.md`, `AGENT_RULES`, `PROJECT_HANDOVER.md` e `AI_BOOTLOADER.md`.
+- **Especialista de Banco de Dados:** `Laplace`
+  Responsabilidade: cuidar de migrations SQL, modelagem PostgreSQL, integridade de schema, queries, performance e repositorios de dados.
+  Dominios principais: `sql/migrations/*`, `server/src/db.ts`, `server/src/repositories/*`.
+- **Especialista de Backend e Integracoes:** `Turing`
+  Responsabilidade: implementar rotas Fastify, logica de dominio, integracoes MCP, automacoes n8n e manutencao dos fluxos JSON relacionados.
+  Dominios principais: `server/src/routes/*`, `server/src/domain/*`, `mcp/*`, `docs/n8n/*`, `n8n_manager.js`.
+- **Especialista de Frontend e UI/UX:** `Ada`
+  Responsabilidade: desenvolver a interface React com TypeScript, componentes reutilizaveis, integracao com API e scripts de interface quando necessario.
+  Dominios principais: `client/src/*`, `scripts/appsmith_*.js`.
+- **Especialista de QA e DevOps:** `SRE-1`
+  Responsabilidade: manter Docker, deploy, monitoracao, backup, smoke tests e scripts operacionais com foco em resiliencia e observabilidade.
+  Dominios principais: `Dockerfile`, `deploy.js`, `ops/*`, `scripts/*`, `server/src/scripts/smoke-test.ts`.
+
+## 8. Protocolo de Delegacao
+- O agente `Atlas` deve ser o ponto de entrada padrao para novas tarefas.
+- Antes de criar ou reutilizar agentes em uma nova maquina ou sessao, consultar `agents.toml` como fonte de verdade operacional.
+- `Atlas` deve delegar sempre que houver um especialista claro para o dominio da mudanca.
+- `Atlas` pode executar diretamente apenas tarefas pequenas de coordenacao, integracao, revisao final ou ajustes triviais entre dominios.
+- Mudancas que afetem banco existente devem passar por `Laplace` antes de qualquer execucao destrutiva ou reconciliacao de migration.
+- Mudancas que afetem deploy, backup, restore, smoke ou operacao em VPS devem passar por `SRE-1`.
+- Quando uma tarefa envolver varios dominios, `Atlas` deve decompor em subtarefas independentes e consolidar a entrega final.
+
+## 9. Politica de Modelos por Complexidade
+- **Atlas (Coordenador Principal):**
+  Tarefas simples: `gpt-5.4-mini`
+  Tarefas medias: `gpt-5.4`
+  Tarefas complexas, ambiguidade alta, revisao sistemica, arquitetura ou integracao entre varios dominios: `gpt-5.4`
+- **Laplace (Banco de Dados):**
+  Tarefas simples e medias: `gpt-5.4-mini`
+  Tarefas complexas envolvendo reconciliacao de migrations, refactor de schema em base existente, performance critica ou impacto amplo em repositorios: `gpt-5.4`
+- **Turing (Backend e Integracoes):**
+  Tarefas simples e medias: `gpt-5.4-mini`
+  Tarefas complexas envolvendo logica de dominio extensa, integracoes MCP/n8n de alto impacto, mudancas transversais em rotas e servicos ou risco operacional relevante: `gpt-5.4`
+- **Ada (Frontend e UI/UX):**
+  Tarefas simples e medias: `gpt-5.4-mini`
+  Tarefas complexas envolvendo fluxos multiplos, refactor estrutural de telas, acessibilidade critica, estado complexo ou integracao simultanea com varias APIs: `gpt-5.4`
+- **SRE-1 (QA e DevOps):**
+  Tarefas simples e medias: `gpt-5.4-mini`
+  Tarefas complexas envolvendo deploy, restore, rollback, seguranca operacional, Docker em producao, smoke critico ou automacao de infraestrutura: `gpt-5.4`
+
+## 10. Regra Geral de Escalonamento de Modelo
+- Use `gpt-5.4-mini` como padrao para execucao especializada, rapida e bem delimitada.
+- Escalone para `gpt-5.4` quando houver alto risco tecnico, impacto em producao, necessidade de raciocinio mais profundo, coordenacao entre varios dominios ou revisao arquitetural.
+- Se houver duvida entre custo/velocidade e risco tecnico, prevalece a seguranca tecnica: use `gpt-5.4`.
+
+## 11. Politica de Reasoning Effort
+- **Atlas (Coordenador Principal):**
+  Tarefas simples: `medium`
+  Tarefas medias: `high`
+  Tarefas complexas, arquitetura, revisao sistemica ou coordenacao entre dominios: `xhigh`
+- **Laplace (Banco de Dados):**
+  Tarefas simples: `medium`
+  Tarefas medias: `high`
+  Tarefas complexas envolvendo reconciliacao de migrations, schema critico, dados sensiveis ou performance pesada: `xhigh`
+- **Turing (Backend e Integracoes):**
+  Tarefas simples: `medium`
+  Tarefas medias: `high`
+  Tarefas complexas envolvendo dominio extenso, integracoes multiplas, risco operacional ou mudanca transversal: `xhigh`
+- **Ada (Frontend e UI/UX):**
+  Tarefas simples: `medium`
+  Tarefas medias: `high`
+  Tarefas complexas envolvendo refactor estrutural, fluxos multiplos, acessibilidade critica ou estado complexo: `xhigh`
+- **SRE-1 (QA e DevOps):**
+  Tarefas simples: `medium`
+  Tarefas medias: `high`
+  Tarefas complexas envolvendo deploy, rollback, restore, seguranca operacional ou automacao critica: `xhigh`
+
+## 12. Regra Geral de Escalonamento de Reasoning
+- Use `medium` como padrao para execucao especializada e tarefas bem delimitadas.
+- Escalone para `high` quando houver ambiguidade moderada, necessidade de analise comparativa ou integracao com mais de um modulo.
+- Escalone para `xhigh` quando houver alto risco tecnico, impacto em producao, necessidade de investigacao profunda, reconciliacao historica ou coordenacao entre varios dominios.
+- Evite `low` em tarefas deste projeto, exceto em consultas muito objetivas, exploracao simples e sem impacto de mudanca.
+
+## 13. Persistencia Portavel dos Agentes
+- O repositorio deve versionar `agents.toml` para garantir consistencia entre computadores.
+- Ao iniciar trabalho em uma nova maquina, a prioridade e ler `AI_BOOTLOADER.md`, `AGENT_RULES` e `agents.toml`.
+- Se a politica de agentes mudar, atualizar `AGENT_RULES`, `agents.toml` e o log da sessao correspondente.

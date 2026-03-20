@@ -5,6 +5,7 @@ coverage/
 # Secrets / local config
 .env
 .env.*
+!.env.example
 *.local
 jmu-automation-*.json
 

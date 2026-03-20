@@ -5,6 +5,7 @@ import {
   Edit,
   FilePlus2,
   Link as LinkIcon,
+  ListTodo,
   Plus,
   RotateCcw,
   Send,
@@ -35,6 +36,7 @@ import {
   TarefaDeleteDialog,
   TarefaEditDialog,
   TarefaPrazoChangeDialog,
+  TarefasDialog,
 } from "./pre-demanda-detail-dialogs";
 import {
   FIXED_TASKS,
@@ -357,9 +359,11 @@ export function PreDemandaDetailPage() {
   const selectedSignaturePerson = useMemo(() => {
     const fromInteressados = record?.interessados.find((item) => item.interessado.id === taskForm.assinatura_interessado_id)?.interessado ?? null;
     if (fromInteressados) return fromInteressados;
+    const fromSearch = signatureSearchResults.find((item) => item.id === taskForm.assinatura_interessado_id) ?? null;
+    if (fromSearch) return fromSearch;
     if (taskForm.assinatura_interessado_id && signatureSelectedName) return { nome: signatureSelectedName } as { nome: string };
     return null;
-  }, [record, taskForm.assinatura_interessado_id, signatureSelectedName]);
+  }, [record, signatureSearchResults, taskForm.assinatura_interessado_id, signatureSelectedName]);
 
   function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
     if (!(error instanceof Error) || !("code" in error) || !("details" in error)) {
@@ -584,6 +588,7 @@ export function PreDemandaDetailPage() {
             <ToolbarActionButton icon={LinkIcon} label="Vincular" onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" />
             <ToolbarActionButton icon={StickyNote} label="Anotacoes" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
             <ToolbarActionButton icon={CalendarClock} label="Prazos" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
+            <ToolbarActionButton icon={ListTodo} label="Tarefas" onClick={() => setToolbarDialog("tasks")} title="Gerenciar tarefas do processo" />
             <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" variant="ghost" />
             {record.allowedNextStatuses.includes("encerrada") ? (
               <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
@@ -795,9 +800,11 @@ export function PreDemandaDetailPage() {
           <DetailSectionCard defaultOpen summary={sectionSummaries?.checklist} title="Checklist / Proximas tarefas">
             <CardHeader>
               <CardTitle>Checklist / Proximas tarefas</CardTitle>
-              <CardDescription>Concluir uma tarefa baixa automaticamente para o historico processual.</CardDescription>
+              <CardDescription>As opcoes de CRUD e organizacao ficam dentro do modal aberto pelo botao Tarefas.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
+              {false ? (
+                <>
               <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1215,6 +1222,56 @@ export function PreDemandaDetailPage() {
                   </div>
                 )}
               </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 text-sm text-slate-600">
+                    <p className="font-semibold text-slate-950">Gestao de tarefas centralizada</p>
+                    <p className="mt-1">
+                      Use o botao <span className="font-semibold">Tarefas</span> na barra superior para criar, editar,
+                      concluir, excluir e reorganizar tarefas deste processo.
+                    </p>
+                  </div>
+
+                  {pendingTasks.length === 0 ? (
+                    <EmptyState
+                      description="Nenhuma tarefa pendente no momento. Use o modal de tarefas para criar ou revisar o checklist."
+                      title="Sem tarefas pendentes"
+                    />
+                  ) : (
+                    <div className="grid gap-3">
+                      {pendingTasks.map((task) => (
+                        <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={task.id}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-slate-950">{task.descricao}</p>
+                              <p className="text-sm text-slate-500">
+                                {task.tipo}
+                                {formatRecorrenciaLabel(task) ? ` - ${formatRecorrenciaLabel(task)}` : ""}
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                <span>Prazo: {formatDateOnlyPtBr(task.prazoConclusao)}</span>
+                                {task.setorDestino ? <span>Setor destino: {task.setorDestino.sigla}</span> : null}
+                                <span>{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lancamento manual"}</span>
+                              </div>
+                            </div>
+                            {(() => {
+                              const signal = getTaskSignal(task.prazoConclusao);
+                              return signal ? (
+                                <span
+                                  className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineSignalTone(signal)}`}
+                                >
+                                  {deadlineSignalLabel(signal)}
+                                </span>
+                              ) : null;
+                            })()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </DetailSectionCard>
         </div>
@@ -1627,6 +1684,45 @@ export function PreDemandaDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {record ? (
+        <TarefasDialog
+          completedTasks={completedTasks}
+          isSubmitting={isSubmitting}
+          onClose={() => setToolbarDialog(null)}
+          onCompleteTask={(task) =>
+            void runMutation(
+              () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+              formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
+            )
+          }
+          onCreateTask={() => void handleCreateTask()}
+          onDeleteTask={(task) => setDeleteTask(task)}
+          onEditTask={(task) => setEditingTask(task)}
+          onReorderTasks={handleReorderPendingTasksMotion}
+          onSignatureExpandedChange={(expanded) => {
+            setSignatureExpanded(expanded);
+            if (!expanded) {
+              setSignatureSearch("");
+              setSignatureSearchResults([]);
+            }
+          }}
+          onSignatureSearchChange={setSignatureSearch}
+          onTaskFormChange={setTaskForm}
+          open={toolbarDialog === "tasks"}
+          pendingTasks={pendingTasks}
+          record={record}
+          requiresTaskSetorDestino={requiresTaskSetorDestino}
+          requiresTaskSignaturePerson={requiresTaskSignaturePerson}
+          setores={setores}
+          signatureExpanded={signatureExpanded}
+          signatureSearch={signatureSearch}
+          signatureSearchResults={signatureSearchResults}
+          signatureSelectedName={signatureSelectedName}
+          taskForm={taskForm}
+          taskShortcutOptions={taskShortcutOptions}
+        />
+      ) : null}
 
       <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "link"}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
