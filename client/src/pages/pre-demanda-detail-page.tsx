@@ -1242,7 +1242,17 @@ export function PreDemandaDetailPage() {
                     <div className="grid gap-3">
                       {pendingTasks.map((task) => (
                         <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={task.id}>
-                          <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <input
+                              className="mt-1 h-4 w-4 shrink-0 accent-slate-950"
+                              onChange={() =>
+                                void runMutation(
+                                  () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+                                  formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
+                                )
+                              }
+                              type="checkbox"
+                            />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-slate-950">{task.descricao}</p>
                               <p className="text-sm text-slate-500">
@@ -1255,16 +1265,24 @@ export function PreDemandaDetailPage() {
                                 <span>{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lancamento manual"}</span>
                               </div>
                             </div>
-                            {(() => {
-                              const signal = getTaskSignal(task.prazoConclusao);
-                              return signal ? (
-                                <span
-                                  className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineSignalTone(signal)}`}
-                                >
-                                  {deadlineSignalLabel(signal)}
-                                </span>
-                              ) : null;
-                            })()}
+                            <div className="flex shrink-0 items-start gap-2">
+                              <Button onClick={() => setEditingTask(task)} size="sm" type="button" variant="secondary">
+                                Editar
+                              </Button>
+                              <Button onClick={() => setDeleteTask(task)} size="sm" type="button" variant="ghost">
+                                Excluir
+                              </Button>
+                              {(() => {
+                                const signal = getTaskSignal(task.prazoConclusao);
+                                return signal ? (
+                                  <span
+                                    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineSignalTone(signal)}`}
+                                  >
+                                    {deadlineSignalLabel(signal)}
+                                  </span>
+                                ) : null;
+                              })()}
+                            </div>
                           </div>
                         </div>
                       ))}
