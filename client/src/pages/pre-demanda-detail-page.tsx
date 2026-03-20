@@ -3,7 +3,6 @@ import {
   CalendarClock,
   CheckCircle,
   Edit,
-  FileClock,
   FileSearch,
   FilePlus2,
   Files,
@@ -586,46 +585,28 @@ export function PreDemandaDetailPage() {
       />
       {error ? <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
       {message ? <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{message}</div> : null}
-      <Card className="overflow-hidden">
-        <CardContent className="grid gap-4 p-4">
-          <div className="flex flex-wrap gap-3">
-            <ToolbarActionButton icon={FilePlus2} label="Relacionar" onClick={() => setToolbarDialog("related")} title="Iniciar processo relacionado" />
-            <ToolbarActionButton icon={Edit} label="Alterar" onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" />
-            <ToolbarActionButton icon={Send} label="Tramitar" onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" />
-            <ToolbarActionButton icon={LinkIcon} label="Vincular" onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" />
-            <ToolbarActionButton icon={StickyNote} label="Anotacoes" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
-            <ToolbarActionButton icon={CalendarClock} label="Prazos" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
-            <ToolbarActionButton icon={ListTodo} label="Tarefas" onClick={() => setToolbarDialog("tasks")} title="Gerenciar tarefas do processo" />
-            <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" variant="ghost" />
-            {record.allowedNextStatuses.includes("encerrada") ? (
-              <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" variant="ghost" />
-            ) : null}
-            {record.status === "encerrada" && reopenStatus ? (
-              <ToolbarActionButton icon={RotateCcw} label="Reabrir" onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" variant="ghost" />
-            ) : null}
-          </div>
-          <div className="flex flex-wrap gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] px-4 py-3 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
-            <span className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Atalhos de status</span>
-            {record.allowedNextStatuses.includes("aguardando_sei") ? (
-              <ToolbarActionButton
-                icon={FileClock}
-                label="Aguardar SEI"
-                onClick={() => setStatusAction({ nextStatus: "aguardando_sei", title: "Marcar como aguardando SEI", requireReason: false })}
-                title="Marcar processo como aguardando SEI"
-              />
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] p-4 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Paineis do processo</p>
-            <p className="mt-1 text-sm text-slate-500">Os blocos operacionais foram centralizados em modais para manter a pagina mais limpa.</p>
+            <p className="mt-1 text-sm text-slate-500">Acoes e blocos operacionais foram centralizados em modais para manter a pagina mais limpa.</p>
           </div>
         </div>
-        <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+        <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-9">
+          <ToolbarActionButton icon={FilePlus2} label="Relacionar" onClick={() => setToolbarDialog("related")} title="Iniciar processo relacionado" />
+          <ToolbarActionButton icon={Edit} label="Alterar" onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" />
+          <ToolbarActionButton icon={Send} label="Tramitar" onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" />
+          <ToolbarActionButton icon={LinkIcon} label="Vincular" onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" />
+          <ToolbarActionButton icon={StickyNote} label="Anotacoes" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
+          <ToolbarActionButton icon={CalendarClock} label="Prazos" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
+          <ToolbarActionButton icon={ListTodo} label="Tarefas" onClick={() => setToolbarDialog("tasks")} title="Gerenciar tarefas do processo" />
+          <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" />
+          {record.allowedNextStatuses.includes("encerrada") ? (
+            <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" />
+          ) : null}
+          {record.status === "encerrada" && reopenStatus ? (
+            <ToolbarActionButton icon={RotateCcw} label="Reabrir" onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" />
+          ) : null}
           <ToolbarActionButton icon={LayoutDashboard} label="Resumo" onClick={() => setToolbarDialog("summary")} title={sectionSummaries?.resumo ?? "Abrir resumo executivo"} />
           <ToolbarActionButton icon={Users} label="Pessoas" onClick={() => setToolbarDialog("people")} title={sectionSummaries?.pessoas ?? "Abrir pessoas vinculadas"} />
           <ToolbarActionButton icon={Building2} label="Setores" onClick={() => setToolbarDialog("sectors")} title={sectionSummaries?.setores ?? "Abrir setores ativos"} />
