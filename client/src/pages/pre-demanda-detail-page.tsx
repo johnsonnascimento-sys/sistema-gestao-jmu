@@ -1,17 +1,23 @@
 import {
+  Building2,
   CalendarClock,
-  ChevronDown,
   CheckCircle,
   Edit,
   FileClock,
+  FileSearch,
   FilePlus2,
+  Files,
+  GitBranch,
+  LayoutDashboard,
   Link as LinkIcon,
   ListTodo,
+  MessageSquareText,
   Plus,
   RotateCcw,
   Send,
   StickyNote,
   UserPlus,
+  Users,
   X,
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -612,195 +618,27 @@ export function PreDemandaDetailPage() {
         </CardContent>
       </Card>
 
+      <div className="grid gap-4 rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(240,246,249,0.86))] p-4 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Paineis do processo</p>
+            <p className="mt-1 text-sm text-slate-500">Os blocos operacionais foram centralizados em modais para manter a pagina mais limpa.</p>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
+          <ToolbarActionButton icon={LayoutDashboard} label="Resumo" onClick={() => setToolbarDialog("summary")} title={sectionSummaries?.resumo ?? "Abrir resumo executivo"} />
+          <ToolbarActionButton icon={Users} label="Pessoas" onClick={() => setToolbarDialog("people")} title={sectionSummaries?.pessoas ?? "Abrir pessoas vinculadas"} />
+          <ToolbarActionButton icon={Building2} label="Setores" onClick={() => setToolbarDialog("sectors")} title={sectionSummaries?.setores ?? "Abrir setores ativos"} />
+          <ToolbarActionButton icon={FileSearch} label="Operacional" onClick={() => setToolbarDialog("operational")} title={sectionSummaries?.visao ?? "Abrir visao operacional"} />
+          <ToolbarActionButton icon={GitBranch} label="Relacionados" onClick={() => setToolbarDialog("relatedList")} title={sectionSummaries?.relacionados ?? "Abrir processos relacionados"} />
+          <ToolbarActionButton icon={LinkIcon} label="PRE x SEI" onClick={() => setToolbarDialog("seiAssociation")} title={sectionSummaries?.associacaoSei ?? "Abrir associacao PRE para SEI"} />
+          <ToolbarActionButton icon={Files} label="Documentos" onClick={() => setToolbarDialog("documents")} title={sectionSummaries?.documentos ?? "Abrir documentos"} />
+          <ToolbarActionButton icon={MessageSquareText} label="Comentarios" onClick={() => setToolbarDialog("comments")} title={sectionSummaries?.comentarios ?? "Abrir comentarios"} />
+        </div>
+      </div>
+
       <div className="grid items-start gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="grid content-start gap-6">
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.resumo} title="Resumo executivo">
-            <CardHeader>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <CardTitle>Resumo executivo</CardTitle>
-                  <CardDescription>{nextAction.description}</CardDescription>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <StatusPill status={record.status} />
-                  {record.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
-                  <QueueHealthPill item={record} />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
-              <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
-              <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
-              <SummaryItem
-                label="Prazo do processo"
-                value={
-                  record.status === "encerrada" ? (
-                    "-"
-                  ) : (
-                    <div className="grid gap-1">
-                      <span>{formatDateOnlyPtBr(record.prazoProcesso)}</span>
-                      <DeadlineStatusPill signal={record.prazoStatus ?? null} />
-                    </div>
-                  )
-                }
-              />
-              <SummaryItem
-                label="Prazo da tarefa"
-                value={
-                  record.status === "encerrada" ? (
-                    "-"
-                  ) : record.proximoPrazoTarefa ? (
-                    <div className="grid gap-1">
-                      <span>{formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")}</span>
-                      <DeadlineStatusPill signal={getDeadlineSignal(record.proximoPrazoTarefa)} />
-                    </div>
-                  ) : (
-                    "Sem tarefas pendentes"
-                  )
-                }
-              />
-              <SummaryItem label="Numero principal" value={record.principalNumero} />
-              <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
-              <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
-              <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
-              <SummaryItem label="Data da audiencia" value={formatDateOnlyPtBr(record.metadata.audienciaData)} />
-              <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
-              <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
-            </CardContent>
-          </DetailSectionCard>
-
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.pessoas} title="Pessoas vinculadas">
-            <CardHeader>
-              <CardTitle>Pessoas vinculadas</CardTitle>
-              <CardDescription>Cadastro relacional das pessoas ligadas ao processo.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-                <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoa..." value={interessadoSearch} />
-                <Button
-                  onClick={() =>
-                    interessadoResults[0]
-                      ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0]!.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")
-                      : undefined
-                  }
-                  type="button"
-                  variant="secondary"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Vincular primeiro
-                </Button>
-              </div>
-
-              {interessadoResults.length > 0 ? (
-                <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-3">
-                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Resultados</p>
-                  <div className="grid gap-2">
-                    {interessadoResults.map((item) => (
-                      <button
-                        className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
-                        key={item.id}
-                        onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")}
-                        type="button"
-                      >
-                        <span>
-                          <span className="block font-semibold text-slate-950">{item.nome}</span>
-                          <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
-                        </span>
-                        <Plus className="h-4 w-4 text-slate-500" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
-                <p className="text-sm font-semibold text-slate-950">Adicionar nova pessoa</p>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, nome: event.target.value }))} placeholder="Nome" value={newInteressadoForm.nome} />
-                  <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, cargo: event.target.value }))} placeholder="Cargo" value={newInteressadoForm.cargo} />
-                  <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, matricula: event.target.value }))} placeholder="Matricula" value={newInteressadoForm.matricula} />
-                  <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, cpf: event.target.value }))} placeholder="CPF" value={newInteressadoForm.cpf} />
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    disabled={newInteressadoForm.nome.trim().length < 3}
-                    onClick={() =>
-                      void runMutation(
-                        async () => {
-                          const created = await createPessoa({
-                            nome: newInteressadoForm.nome,
-                            cargo: newInteressadoForm.cargo || null,
-                            matricula: newInteressadoForm.matricula || null,
-                            cpf: newInteressadoForm.cpf || null,
-                          });
-                          await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: "interessado" });
-                          setNewInteressadoForm({ nome: "", cargo: "", matricula: "", cpf: "" });
-                          setInteressadoSearch(created.nome);
-                          setInteressadoResults([created]);
-                        },
-                        "Pessoa criada e vinculada.",
-                      )
-                    }
-                    type="button"
-                  >
-                    Criar e vincular
-                  </Button>
-                </div>
-              </div>
-
-              {record.interessados.length === 0 ? (
-                <EmptyState description="Vincule pessoas ao processo para destravar tarefas, tramitacoes e relacoes processuais." title="Sem pessoas vinculadas" />
-              ) : (
-                <div className="grid gap-3">
-                  {record.interessados.map((item) => (
-                    <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.interessado.id}>
-                      <div>
-                        <p className="font-semibold text-slate-950">{item.interessado.nome}</p>
-                        <p className="text-sm text-slate-500">Interessado - {item.interessado.cargo ?? item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
-                      </div>
-                      <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Pessoa removida.")} size="sm" type="button" variant="ghost">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </DetailSectionCard>
-
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.setores} title="Setores ativos">
-            <CardHeader>
-              <CardTitle>Setores ativos</CardTitle>
-              <CardDescription>O mesmo processo pode correr em paralelo por mais de um setor.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {record.setoresAtivos.length === 0 ? (
-                <EmptyState description="Abra a acao Tramitar para distribuir o processo entre um ou mais setores." title="Sem setores ativos" />
-              ) : (
-                record.setoresAtivos.map((item) => (
-                  <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
-                    <div>
-                      <p className="font-semibold text-slate-950">{item.setor.sigla} - {item.setor.nomeCompleto}</p>
-                      <p className="text-sm text-slate-500">
-                        Activo desde {new Date(item.createdAt).toLocaleString("pt-BR")}
-                        {item.origemSetor ? ` | origem ${item.origemSetor.sigla}` : ""}
-                      </p>
-                    </div>
-                    <Button
-                      disabled={isSubmitting}
-                      onClick={() => void runMutation(() => concluirTramitacaoSetor(preId, item.setor.id).then(() => undefined), `Tramitacao concluida em ${item.setor.sigla}.`)}
-                      size="sm"
-                      type="button"
-                      variant="secondary"
-                    >
-                      Concluir
-                    </Button>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </DetailSectionCard>
-
           <DetailSectionCard defaultOpen summary={sectionSummaries?.checklist} title="Checklist / Proximas tarefas">
             <CardHeader>
               <CardTitle>Checklist / Proximas tarefas</CardTitle>
@@ -1299,161 +1137,6 @@ export function PreDemandaDetailPage() {
         </div>
 
         <div className="grid content-start gap-6">
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.visao} title="Visao operacional">
-            <CardHeader>
-              <CardTitle>Visao operacional</CardTitle>
-              <CardDescription>{nextAction.title}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 text-sm text-slate-600">
-              <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
-                <p className="text-sm font-semibold text-amber-900">{nextAction.title}</p>
-                <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
-              </div>
-              <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
-              <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
-              <SummaryItem label="Saude da fila" value={queueHealth.summary} />
-              <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
-              <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
-              <SummaryItem label="Data de conclusao" value={formatDateOnlyPtBr(record.dataConclusao)} />
-            </CardContent>
-          </DetailSectionCard>
-
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.relacionados} title="Processos relacionados">
-            <CardHeader>
-              <CardTitle>Processos relacionados</CardTitle>
-              <CardDescription>Relacione processos dependentes, espelho ou desdobramentos sem duplicar trabalho.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {record.vinculos.length === 0 ? (
-                <EmptyState description="Use a toolbar para criar um processo relacionado ou vincular um PRE existente." title="Sem vinculos" />
-              ) : (
-                record.vinculos.map((item) => (
-                  <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.processo.preId}>
-                    <div>
-                      <p className="font-semibold text-slate-950">{item.processo.principalNumero}</p>
-                      <p className="text-xs text-slate-400">{item.processo.preId}</p>
-                      <p className="text-sm text-slate-500">{item.processo.assunto}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={() => navigate(`/pre-demandas/${item.processo.preId}`)} size="sm" type="button" variant="secondary">
-                        Abrir
-                      </Button>
-                      <Button onClick={() => void runMutation(() => removePreDemandaVinculo(preId, item.processo.preId).then(() => undefined), "Vinculo removido.")} size="sm" type="button" variant="ghost">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </DetailSectionCard>
-
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.associacaoSei} title="Associacao PRE para SEI">
-            <CardHeader>
-              <CardTitle>Associacao PRE para SEi</CardTitle>
-              <CardDescription>Validacao e mascara seguem o backend para manter o vinculo confiavel.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="grid gap-4" onSubmit={handleAssociation}>
-                <FormField hint={<code>000181/26-02.227</code>} label="Numero SEI">
-                  <Input onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={associationForm.sei_numero} />
-                </FormField>
-                <FormField label="Motivo">
-                  <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, motivo: event.target.value }))} rows={3} value={associationForm.motivo} />
-                </FormField>
-                <FormField label="Observacoes">
-                  <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, observacoes: event.target.value }))} rows={3} value={associationForm.observacoes} />
-                </FormField>
-                <div className="flex justify-end">
-                  <Button disabled={!isSeiValid || isSubmitting} type="submit">
-                    Salvar associacao
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </DetailSectionCard>
-
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.documentos} title="Documentos">
-            <CardHeader>
-              <CardTitle>Documentos</CardTitle>
-              <CardDescription>Anexos operacionais do processo, com download directo no detalhe.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
-                <Input onChange={(event) => setDocumentForm((current) => ({ ...current, file: event.target.files?.[0] ?? null }))} type="file" />
-                <Textarea onChange={(event) => setDocumentForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descricao do documento" rows={3} value={documentForm.descricao} />
-                <div className="flex justify-end">
-                  <Button disabled={!documentForm.file || isSubmitting} onClick={() => void handleDocumentoUpload()} type="button">
-                    Anexar documento
-                  </Button>
-                </div>
-              </div>
-              {record.documentos.length === 0 ? (
-                <EmptyState description="Nenhum documento foi anexado a este processo." title="Sem documentos" />
-              ) : (
-                record.documentos.map((item) => (
-                  <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
-                    <div>
-                      <p className="font-semibold text-slate-950">{item.nomeArquivo}</p>
-                      <p className="text-sm text-slate-500">
-                        {formatBytes(item.tamanhoBytes)} | {new Date(item.createdAt).toLocaleString("pt-BR")}
-                      </p>
-                      {item.descricao ? <p className="mt-1 text-sm text-slate-600">{item.descricao}</p> : null}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button onClick={() => void downloadPreDemandaDocumento(preId, item.id, item.nomeArquivo)} size="sm" type="button" variant="secondary">
-                        Baixar
-                      </Button>
-                      <Button onClick={() => void runMutation(() => removePreDemandaDocumento(preId, item.id).then(() => undefined), "Documento removido.")} size="sm" type="button" variant="ghost">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </DetailSectionCard>
-
-          <DetailSectionCard defaultOpen={false} summary={sectionSummaries?.comentarios} title="Comentarios ricos">
-            <CardHeader>
-              <CardTitle>Comentarios ricos</CardTitle>
-              <CardDescription>Registos de colaboracao em markdown simples, preservados junto ao processo.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <Textarea onChange={(event) => setCommentForm(event.target.value)} placeholder="Escreva um comentario operacional, contexto de decisao ou combinacao entre setores..." rows={5} value={commentForm} />
-              <div className="flex justify-end">
-                <Button
-                  disabled={commentForm.trim().length < 1 || isSubmitting}
-                  onClick={() =>
-                    void runMutation(
-                      async () => {
-                        await createPreDemandaComentario(preId, { conteudo: commentForm, formato: "markdown" });
-                        setCommentForm("");
-                      },
-                      "Comentario registrado.",
-                    )
-                  }
-                  type="button"
-                >
-                  Publicar comentario
-                </Button>
-              </div>
-              {record.comentarios.length === 0 ? (
-                <EmptyState description="Ainda nao ha conversa registrada neste processo." title="Sem comentarios" />
-              ) : (
-                record.comentarios.map((item) => (
-                  <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-950">{item.createdBy?.name ?? "Sistema"}</p>
-                      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{new Date(item.createdAt).toLocaleString("pt-BR")}</p>
-                    </div>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{item.conteudo}</p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </DetailSectionCard>
-
           <DetailSectionCard defaultOpen summary={sectionSummaries?.historico} title="Historico (Andamentos)">
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
@@ -1504,6 +1187,360 @@ export function PreDemandaDetailPage() {
           </DetailSectionCard>
         </div>
       </div>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "summary"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Resumo executivo</DialogTitle>
+            <DialogDescription>{nextAction.description}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="flex flex-wrap gap-2">
+              <StatusPill status={record.status} />
+              {record.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
+              <QueueHealthPill item={record} />
+            </div>
+            <div className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
+              <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
+              <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
+              <SummaryItem
+                label="Prazo do processo"
+                value={
+                  record.status === "encerrada" ? (
+                    "-"
+                  ) : (
+                    <div className="grid gap-1">
+                      <span>{formatDateOnlyPtBr(record.prazoProcesso)}</span>
+                      <DeadlineStatusPill signal={record.prazoStatus ?? null} />
+                    </div>
+                  )
+                }
+              />
+              <SummaryItem
+                label="Prazo da tarefa"
+                value={
+                  record.status === "encerrada" ? (
+                    "-"
+                  ) : record.proximoPrazoTarefa ? (
+                    <div className="grid gap-1">
+                      <span>{formatDateOnlyPtBr(record.proximoPrazoTarefa, "Sem tarefas pendentes")}</span>
+                      <DeadlineStatusPill signal={getDeadlineSignal(record.proximoPrazoTarefa)} />
+                    </div>
+                  ) : (
+                    "Sem tarefas pendentes"
+                  )
+                }
+              />
+              <SummaryItem label="Numero principal" value={record.principalNumero} />
+              <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
+              <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
+              <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
+              <SummaryItem label="Data da audiencia" value={formatDateOnlyPtBr(record.metadata.audienciaData)} />
+              <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
+              <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "people"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Pessoas vinculadas</DialogTitle>
+            <DialogDescription>Cadastro relacional das pessoas ligadas ao processo.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <Input onChange={(event) => setInteressadoSearch(event.target.value)} placeholder="Buscar pessoa..." value={interessadoSearch} />
+              <Button
+                onClick={() =>
+                  interessadoResults[0]
+                    ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0]!.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")
+                    : undefined
+                }
+                type="button"
+                variant="secondary"
+              >
+                <UserPlus className="h-4 w-4" />
+                Vincular primeiro
+              </Button>
+            </div>
+
+            {interessadoResults.length > 0 ? (
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-3">
+                <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">Resultados</p>
+                <div className="grid gap-2">
+                  {interessadoResults.map((item) => (
+                    <button
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
+                      key={item.id}
+                      onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")}
+                      type="button"
+                    >
+                      <span>
+                        <span className="block font-semibold text-slate-950">{item.nome}</span>
+                        <span className="block text-slate-500">{item.cargo ?? item.cpf ?? item.matricula ?? "Sem identificador adicional"}</span>
+                      </span>
+                      <Plus className="h-4 w-4 text-slate-500" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
+              <p className="text-sm font-semibold text-slate-950">Adicionar nova pessoa</p>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, nome: event.target.value }))} placeholder="Nome" value={newInteressadoForm.nome} />
+                <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, cargo: event.target.value }))} placeholder="Cargo" value={newInteressadoForm.cargo} />
+                <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, matricula: event.target.value }))} placeholder="Matricula" value={newInteressadoForm.matricula} />
+                <Input onChange={(event) => setNewInteressadoForm((current) => ({ ...current, cpf: event.target.value }))} placeholder="CPF" value={newInteressadoForm.cpf} />
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  disabled={newInteressadoForm.nome.trim().length < 3}
+                  onClick={() =>
+                    void runMutation(
+                      async () => {
+                        const created = await createPessoa({
+                          nome: newInteressadoForm.nome,
+                          cargo: newInteressadoForm.cargo || null,
+                          matricula: newInteressadoForm.matricula || null,
+                          cpf: newInteressadoForm.cpf || null,
+                        });
+                        await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: "interessado" });
+                        setNewInteressadoForm({ nome: "", cargo: "", matricula: "", cpf: "" });
+                        setInteressadoSearch(created.nome);
+                        setInteressadoResults([created]);
+                      },
+                      "Pessoa criada e vinculada.",
+                    )
+                  }
+                  type="button"
+                >
+                  Criar e vincular
+                </Button>
+              </div>
+            </div>
+
+            {record.interessados.length === 0 ? (
+              <EmptyState description="Vincule pessoas ao processo para destravar tarefas, tramitacoes e relacoes processuais." title="Sem pessoas vinculadas" />
+            ) : (
+              <div className="grid gap-3">
+                {record.interessados.map((item) => (
+                  <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.interessado.id}>
+                    <div>
+                      <p className="font-semibold text-slate-950">{item.interessado.nome}</p>
+                      <p className="text-sm text-slate-500">Interessado - {item.interessado.cargo ?? item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
+                    </div>
+                    <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Pessoa removida.")} size="sm" type="button" variant="ghost">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "sectors"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Setores ativos</DialogTitle>
+            <DialogDescription>O mesmo processo pode correr em paralelo por mais de um setor.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            {record.setoresAtivos.length === 0 ? (
+              <EmptyState description="Abra a acao Tramitar para distribuir o processo entre um ou mais setores." title="Sem setores ativos" />
+            ) : (
+              record.setoresAtivos.map((item) => (
+                <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.setor.sigla} - {item.setor.nomeCompleto}</p>
+                    <p className="text-sm text-slate-500">
+                      Activo desde {new Date(item.createdAt).toLocaleString("pt-BR")}
+                      {item.origemSetor ? ` | origem ${item.origemSetor.sigla}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={isSubmitting}
+                    onClick={() => void runMutation(() => concluirTramitacaoSetor(preId, item.setor.id).then(() => undefined), `Tramitacao concluida em ${item.setor.sigla}.`)}
+                    size="sm"
+                    type="button"
+                    variant="secondary"
+                  >
+                    Concluir
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "operational"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Visao operacional</DialogTitle>
+            <DialogDescription>{nextAction.title}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 text-sm text-slate-600">
+            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
+              <p className="text-sm font-semibold text-amber-900">{nextAction.title}</p>
+              <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
+            </div>
+            <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
+            <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
+            <SummaryItem label="Saude da fila" value={queueHealth.summary} />
+            <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
+            <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
+            <SummaryItem label="Data de conclusao" value={formatDateOnlyPtBr(record.dataConclusao)} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "relatedList"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Processos relacionados</DialogTitle>
+            <DialogDescription>Relacione processos dependentes, espelho ou desdobramentos sem duplicar trabalho.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            {record.vinculos.length === 0 ? (
+              <EmptyState description="Use a toolbar para criar um processo relacionado ou vincular um PRE existente." title="Sem vinculos" />
+            ) : (
+              record.vinculos.map((item) => (
+                <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.processo.preId}>
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.processo.principalNumero}</p>
+                    <p className="text-xs text-slate-400">{item.processo.preId}</p>
+                    <p className="text-sm text-slate-500">{item.processo.assunto}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => navigate(`/pre-demandas/${item.processo.preId}`)} size="sm" type="button" variant="secondary">
+                      Abrir
+                    </Button>
+                    <Button onClick={() => void runMutation(() => removePreDemandaVinculo(preId, item.processo.preId).then(() => undefined), "Vinculo removido.")} size="sm" type="button" variant="ghost">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "seiAssociation"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Associacao PRE para SEI</DialogTitle>
+            <DialogDescription>Validacao e mascara seguem o backend para manter o vinculo confiavel.</DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-4" onSubmit={handleAssociation}>
+            <FormField hint={<code>000181/26-02.227</code>} label="Numero SEI">
+              <Input onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={associationForm.sei_numero} />
+            </FormField>
+            <FormField label="Motivo">
+              <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, motivo: event.target.value }))} rows={3} value={associationForm.motivo} />
+            </FormField>
+            <FormField label="Observacoes">
+              <Textarea onChange={(event) => setAssociationForm((current) => ({ ...current, observacoes: event.target.value }))} rows={3} value={associationForm.observacoes} />
+            </FormField>
+            <div className="flex justify-end">
+              <Button disabled={!isSeiValid || isSubmitting} type="submit">
+                Salvar associacao
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "documents"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Documentos</DialogTitle>
+            <DialogDescription>Anexos operacionais do processo, com download directo no detalhe.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-3 rounded-[24px] border border-dashed border-slate-300 p-4">
+              <Input onChange={(event) => setDocumentForm((current) => ({ ...current, file: event.target.files?.[0] ?? null }))} type="file" />
+              <Textarea onChange={(event) => setDocumentForm((current) => ({ ...current, descricao: event.target.value }))} placeholder="Descricao do documento" rows={3} value={documentForm.descricao} />
+              <div className="flex justify-end">
+                <Button disabled={!documentForm.file || isSubmitting} onClick={() => void handleDocumentoUpload()} type="button">
+                  Anexar documento
+                </Button>
+              </div>
+            </div>
+            {record.documentos.length === 0 ? (
+              <EmptyState description="Nenhum documento foi anexado a este processo." title="Sem documentos" />
+            ) : (
+              record.documentos.map((item) => (
+                <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.nomeArquivo}</p>
+                    <p className="text-sm text-slate-500">
+                      {formatBytes(item.tamanhoBytes)} | {new Date(item.createdAt).toLocaleString("pt-BR")}
+                    </p>
+                    {item.descricao ? <p className="mt-1 text-sm text-slate-600">{item.descricao}</p> : null}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={() => void downloadPreDemandaDocumento(preId, item.id, item.nomeArquivo)} size="sm" type="button" variant="secondary">
+                      Baixar
+                    </Button>
+                    <Button onClick={() => void runMutation(() => removePreDemandaDocumento(preId, item.id).then(() => undefined), "Documento removido.")} size="sm" type="button" variant="ghost">
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "comments"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Comentarios ricos</DialogTitle>
+            <DialogDescription>Registos de colaboracao em markdown simples, preservados junto ao processo.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Textarea onChange={(event) => setCommentForm(event.target.value)} placeholder="Escreva um comentario operacional, contexto de decisao ou combinacao entre setores..." rows={5} value={commentForm} />
+            <div className="flex justify-end">
+              <Button
+                disabled={commentForm.trim().length < 1 || isSubmitting}
+                onClick={() =>
+                  void runMutation(
+                    async () => {
+                      await createPreDemandaComentario(preId, { conteudo: commentForm, formato: "markdown" });
+                      setCommentForm("");
+                    },
+                    "Comentario registrado.",
+                  )
+                }
+                type="button"
+              >
+                Publicar comentario
+              </Button>
+            </div>
+            {record.comentarios.length === 0 ? (
+              <EmptyState description="Ainda nao ha conversa registrada neste processo." title="Sem comentarios" />
+            ) : (
+              record.comentarios.map((item) => (
+                <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-slate-950">{item.createdBy?.name ?? "Sistema"}</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{new Date(item.createdAt).toLocaleString("pt-BR")}</p>
+                  </div>
+                  <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700">{item.conteudo}</p>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "edit"}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">

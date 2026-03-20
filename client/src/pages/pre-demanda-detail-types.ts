@@ -12,7 +12,15 @@ export type ToolbarDialog =
   | "notes"
   | "deadline"
   | "tasks"
-  | "andamento";
+  | "andamento"
+  | "summary"
+  | "people"
+  | "sectors"
+  | "operational"
+  | "relatedList"
+  | "seiAssociation"
+  | "documents"
+  | "comments";
 
 export type StatusAction = {
   nextStatus: PreDemandaStatus;
