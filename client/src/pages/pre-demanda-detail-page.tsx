@@ -124,6 +124,19 @@ const AUDIENCIA_FORM_DEFAULT: AudienciaForm = {
   observacoes: "",
 };
 
+function formatDateTimePtBrSafe(value: unknown, fallback = "-") {
+  if (typeof value !== "string" || !value.trim()) {
+    return fallback;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("pt-BR");
+}
+
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
   const navigate = useNavigate();
@@ -352,6 +365,7 @@ export function PreDemandaDetailPage() {
   const queueHealth = useMemo(() => (record ? getQueueHealth(record) : null), [record]);
   const pendingTasks = useMemo(() => record?.tarefasPendentes.filter((item) => !item.concluida) ?? [], [record]);
   const completedTasks = useMemo(() => record?.tarefasPendentes.filter((item) => item.concluida) ?? [], [record]);
+  const isJudicialProcess = useMemo(() => Boolean(record?.numeroJudicial), [record?.numeroJudicial]);
   const orderedAudiencias = useMemo(
     () => [...(record?.audiencias ?? [])].sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()),
     [record?.audiencias],
@@ -443,9 +457,9 @@ export function PreDemandaDetailPage() {
             resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${formatDateOnlyPtBr(record.prazoProcesso)}` : ""}`,
             audiencias:
               orderedAudiencias.length > 0
-                ? `Próxima audiência ${new Date(orderedAudiencias[0]!.dataHoraInicio).toLocaleString("pt-BR")}`
+                ? `Próxima audiência ${formatDateTimePtBrSafe(orderedAudiencias[0]?.dataHoraInicio)}`
                 : record.metadata.audienciaHorarioInicio
-                  ? `Próxima audiência ${new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR")}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                  ? `Próxima audiência ${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
                   : "Sem audiência cadastrada",
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
             setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
@@ -725,9 +739,9 @@ export function PreDemandaDetailPage() {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-800">Audiencia judicial</p>
               <p className="mt-2 text-lg font-semibold text-slate-950">
                 {nextAudiencia
-                  ? `${new Date(nextAudiencia.dataHoraInicio).toLocaleString("pt-BR")}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
+                  ? `${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
                   : record.metadata.audienciaHorarioInicio
-                    ? `${new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR")}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                    ? `${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
                     : "Nenhuma audiência estruturada cadastrada."}
               </p>
               <p className="mt-1 text-sm text-slate-600">
@@ -1345,7 +1359,7 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Urgencia" value={record.metadata.urgente ? "Urgente" : "Fluxo normal"} />
               <SummaryItem label="Pagamento envolvido" value={record.metadata.pagamentoEnvolvido ? "Sim" : "Nao informado"} />
               <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
-              <SummaryItem label="Data da audiencia" value={record.metadata.audienciaHorarioInicio ? new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR") : formatDateOnlyPtBr(record.metadata.audienciaData)} />
+              <SummaryItem label="Data da audiencia" value={record.metadata.audienciaHorarioInicio ? formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio) : formatDateOnlyPtBr(record.metadata.audienciaData)} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
               <SummaryItem label="Sala da audiencia" value={record.metadata.audienciaSala ?? "-"} />
               <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
@@ -1921,9 +1935,9 @@ export function PreDemandaDetailPage() {
               <p className="text-sm font-semibold text-amber-900">Próxima audiência</p>
               <p className="mt-2 text-sm text-amber-800">
                 {nextAudiencia
-                  ? `${new Date(nextAudiencia.dataHoraInicio).toLocaleString("pt-BR")}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
+                  ? `${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
                   : record.metadata.audienciaHorarioInicio
-                    ? `${new Date(record.metadata.audienciaHorarioInicio).toLocaleString("pt-BR")}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                    ? `${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
                     : "Nenhuma audiência estruturada cadastrada."}
               </p>
               <p className="mt-2 text-xs text-amber-700">
@@ -2013,8 +2027,8 @@ export function PreDemandaDetailPage() {
                       <div className="min-w-0">
                         <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">{item.situacao}</p>
                         <p className="mt-2 text-base font-semibold text-slate-950">
-                          {new Date(item.dataHoraInicio).toLocaleString("pt-BR")}
-                          {item.dataHoraFim ? ` - ${new Date(item.dataHoraFim).toLocaleString("pt-BR")}` : ""}
+                          {formatDateTimePtBrSafe(item.dataHoraInicio)}
+                          {item.dataHoraFim ? ` - ${formatDateTimePtBrSafe(item.dataHoraFim)}` : ""}
                         </p>
                         {item.sala ? <p className="mt-1 text-sm text-slate-600">Sala: {item.sala}</p> : null}
                         {item.descricao ? <p className="mt-2 text-sm text-slate-700">{item.descricao}</p> : null}
