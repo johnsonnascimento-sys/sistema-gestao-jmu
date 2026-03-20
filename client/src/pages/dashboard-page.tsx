@@ -21,6 +21,15 @@ function buildAnalyticalTableHref(overrides: Record<string, string>) {
   return `/pre-demandas?${search.toString()}`;
 }
 
+function buildOldestOpenTasksHref() {
+  return buildAnalyticalTableHref({
+    status: "em_andamento",
+    sortBy: "proximoPrazoTarefa",
+    sortOrder: "asc",
+    pageSize: "20",
+  });
+}
+
 function formatStructuredDeadlines(item: PreDemanda) {
   const isClosed = item.status === "encerrada";
   return [
@@ -513,9 +522,14 @@ export function DashboardPage() {
         </Card>
 
         <Card className="flex h-[800px] flex-col rounded-[32px] overflow-hidden border-white/60 bg-white/50 backdrop-blur-xl shadow-xl">
-          <CardHeader className="shrink-0 pb-4">
-            <CardTitle className="text-xl font-light tracking-tight text-slate-800">Tarefas abertas mais antigas</CardTitle>
-            <CardDescription className="text-slate-500">Ordenadas pelo prazo de conclusão mais antigo.</CardDescription>
+          <CardHeader className="shrink-0 gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="grid gap-1">
+              <CardTitle className="text-xl font-light tracking-tight text-slate-800">Tarefas abertas mais antigas</CardTitle>
+              <CardDescription className="text-slate-500">Ordenadas pelo prazo de conclusão mais antigo.</CardDescription>
+            </div>
+            <Button asChild variant="outline" size="sm" className="h-9 rounded-full border-slate-200 bg-white shadow-sm">
+              <Link to={buildOldestOpenTasksHref()}>Ver mais</Link>
+            </Button>
           </CardHeader>
           <CardContent className="grid gap-3 overflow-y-auto pr-2 pb-6">
             {summary.oldestOpenTasks.length === 0 ? (
