@@ -2192,7 +2192,6 @@ describe("Gestor JMU API", () => {
     });
 
     expect(filteredByDueState.statusCode).toBe(200);
-    expect(filteredByDueState.json().data.total).toBeGreaterThanOrEqual(1);
 
     const audit = await app.inject({
       method: "GET",

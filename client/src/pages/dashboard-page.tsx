@@ -39,6 +39,49 @@ function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
   return "Mensal";
 }
 
+function getTaskDeadlineState(prazoConclusao: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dueDate = new Date(`${prazoConclusao}T00:00:00`);
+  const diffDays = Math.round((dueDate.getTime() - today.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    return {
+      label: `Atrasada há ${Math.abs(diffDays)}d`,
+      containerClass:
+        "border-rose-200/90 bg-gradient-to-br from-rose-50/95 to-white/90 shadow-rose-100/60",
+      markerClass: "bg-rose-500",
+      labelClass: "bg-rose-100 text-rose-700 ring-1 ring-rose-200",
+      dateClass: "bg-white text-rose-700 ring-1 ring-rose-200",
+      titleClass: "text-rose-950",
+      subtitleClass: "text-rose-700",
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      label: "Vence hoje",
+      containerClass:
+        "border-amber-200/90 bg-gradient-to-br from-amber-50/95 to-white/90 shadow-amber-100/50",
+      markerClass: "bg-amber-500",
+      labelClass: "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+      dateClass: "bg-white text-amber-800 ring-1 ring-amber-200",
+      titleClass: "text-amber-950",
+      subtitleClass: "text-amber-700",
+    };
+  }
+
+  return {
+    label: `Vence em ${diffDays}d`,
+    containerClass: "border-white/80 bg-gradient-to-br from-white/95 to-slate-50/80 shadow-md",
+    markerClass: "bg-sky-500",
+    labelClass: "bg-sky-100 text-sky-700 ring-1 ring-sky-200",
+    dateClass: "bg-white text-slate-600 ring-1 ring-slate-200",
+    titleClass: "text-slate-950",
+    subtitleClass: "text-slate-600",
+  };
+}
+
 export function DashboardPage() {
   const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -478,33 +521,41 @@ export function DashboardPage() {
             {summary.oldestOpenTasks.length === 0 ? (
               <EmptyState description="Nenhuma tarefa aberta para exibir." title="Fila limpa" />
             ) : (
-              summary.oldestOpenTasks.map((task) => (
+              summary.oldestOpenTasks.map((task) => {
+                const deadlineState = getTaskDeadlineState(task.prazoConclusao);
+
+                return (
                 <Link
-                  className="group relative flex flex-col gap-3 rounded-[24px] border border-white/80 bg-gradient-to-br from-white/95 to-slate-50/80 px-5 py-4 shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl shrink-0"
+                  className={`group relative flex flex-col gap-3 overflow-hidden rounded-[24px] border px-5 py-4 shadow-md backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl shrink-0 ${deadlineState.containerClass}`}
                   key={task.id}
                   to={`/pre-demandas/${task.preId}`}
                 >
+                  <div className={`absolute inset-y-0 left-0 w-1 ${deadlineState.markerClass}`} />
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{task.preNumero}</p>
-                      <h3 className="mt-2 text-base font-semibold text-slate-950">{task.descricao}</h3>
+                      <h3 className={`mt-2 text-base font-semibold ${deadlineState.titleClass}`}>{task.descricao}</h3>
                     </div>
                     <div className="grid gap-2 justify-items-end">
+                      <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineState.labelClass}`}>
+                        {deadlineState.label}
+                      </span>
                       <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
                         {formatTaskRecurrence(task.recorrenciaTipo)}
                       </span>
-                      <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 ring-1 ring-slate-200">
+                      <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineState.dateClass}`}>
                         {formatDateOnlyPtBr(task.prazoConclusao)}
                       </span>
                     </div>
                   </div>
-                  <div className="grid gap-1 text-sm text-slate-500">
+                  <div className={`grid gap-1 text-sm ${deadlineState.subtitleClass}`}>
                     <p>{task.assunto}</p>
                     <p>{task.setorDestinoSigla ? `Setor destino: ${task.setorDestinoSigla}` : "Sem setor destino"}</p>
                     <p className="font-medium text-slate-700">Aberta desde {new Date(task.createdAt).toLocaleDateString("pt-BR")}</p>
                   </div>
                 </Link>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
