@@ -5,10 +5,8 @@ import { getDeadlineSignal } from "../lib/deadline-signal";
 
 export type ToolbarDialog =
   | null
-  | "related"
   | "edit"
   | "send"
-  | "link"
   | "notes"
   | "deadline"
   | "tasks"
@@ -16,7 +14,6 @@ export type ToolbarDialog =
   | "summary"
   | "people"
   | "sectors"
-  | "operational"
   | "relatedList"
   | "seiAssociation"
   | "documents"

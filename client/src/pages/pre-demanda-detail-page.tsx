@@ -3,7 +3,6 @@ import {
   CalendarClock,
   CheckCircle,
   Edit,
-  FileSearch,
   FilePlus2,
   Files,
   GitBranch,
@@ -593,12 +592,10 @@ export function PreDemandaDetailPage() {
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-9">
-          <ToolbarActionButton icon={FilePlus2} label="Relacionar" onClick={() => setToolbarDialog("related")} title="Iniciar processo relacionado" />
-          <ToolbarActionButton icon={Edit} label="Alterar" onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" />
+          <ToolbarActionButton icon={Edit} label="Editar" onClick={() => setToolbarDialog("edit")} title="Consultar ou alterar processo" />
           <ToolbarActionButton icon={Send} label="Tramitar" onClick={() => setToolbarDialog("send")} title="Enviar processo para outro setor" />
-          <ToolbarActionButton icon={LinkIcon} label="Vincular" onClick={() => setToolbarDialog("link")} title="Relacionamento de processo" />
-          <ToolbarActionButton icon={StickyNote} label="Anotacoes" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
-          <ToolbarActionButton icon={CalendarClock} label="Prazos" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
+          <ToolbarActionButton icon={StickyNote} label="Nota interna" onClick={() => setToolbarDialog("notes")} title="Anotacoes do processo" />
+          <ToolbarActionButton icon={CalendarClock} label="Prazo" onClick={() => setToolbarDialog("deadline")} title="Controle de prazos" />
           <ToolbarActionButton icon={ListTodo} label="Tarefas" onClick={() => setToolbarDialog("tasks")} title="Gerenciar tarefas do processo" />
           <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" />
           {record.allowedNextStatuses.includes("encerrada") ? (
@@ -610,11 +607,10 @@ export function PreDemandaDetailPage() {
           <ToolbarActionButton icon={LayoutDashboard} label="Resumo" onClick={() => setToolbarDialog("summary")} title={sectionSummaries?.resumo ?? "Abrir resumo executivo"} />
           <ToolbarActionButton icon={Users} label="Pessoas" onClick={() => setToolbarDialog("people")} title={sectionSummaries?.pessoas ?? "Abrir pessoas vinculadas"} />
           <ToolbarActionButton icon={Building2} label="Setores" onClick={() => setToolbarDialog("sectors")} title={sectionSummaries?.setores ?? "Abrir setores ativos"} />
-          <ToolbarActionButton icon={FileSearch} label="Operacional" onClick={() => setToolbarDialog("operational")} title={sectionSummaries?.visao ?? "Abrir visao operacional"} />
-          <ToolbarActionButton icon={GitBranch} label="Relacionados" onClick={() => setToolbarDialog("relatedList")} title={sectionSummaries?.relacionados ?? "Abrir processos relacionados"} />
+          <ToolbarActionButton icon={GitBranch} label="Relacionamentos" onClick={() => setToolbarDialog("relatedList")} title={sectionSummaries?.relacionados ?? "Abrir processos relacionados"} />
           <ToolbarActionButton icon={LinkIcon} label="PRE x SEI" onClick={() => setToolbarDialog("seiAssociation")} title={sectionSummaries?.associacaoSei ?? "Abrir associacao PRE para SEI"} />
           <ToolbarActionButton icon={Files} label="Documentos" onClick={() => setToolbarDialog("documents")} title={sectionSummaries?.documentos ?? "Abrir documentos"} />
-          <ToolbarActionButton icon={MessageSquareText} label="Comentarios" onClick={() => setToolbarDialog("comments")} title={sectionSummaries?.comentarios ?? "Abrir comentarios"} />
+          <ToolbarActionButton icon={MessageSquareText} label="Discussao" onClick={() => setToolbarDialog("comments")} title={sectionSummaries?.comentarios ?? "Abrir comentarios"} />
         </div>
       </div>
 
@@ -1181,6 +1177,10 @@ export function PreDemandaDetailPage() {
               {record.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
               <QueueHealthPill item={record} />
             </div>
+            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
+              <p className="text-sm font-semibold text-amber-900">{nextAction.title}</p>
+              <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
+            </div>
             <div className="grid gap-4 text-sm text-slate-600 md:grid-cols-2">
               <SummaryItem label="Primeira pessoa vinculada" value={record.pessoaPrincipal?.nome ?? "-"} />
               <SummaryItem label="Setor atual" value={record.setorAtual ? `${record.setorAtual.sigla} - ${record.setorAtual.nomeCompleto}` : "Nao tramitado"} />
@@ -1218,6 +1218,12 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Recorrencia no processo" value="Configurada por tarefa" />
               <SummaryItem label="Data da audiencia" value={formatDateOnlyPtBr(record.metadata.audienciaData)} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
+              <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
+              <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
+              <SummaryItem label="Saude da fila" value={queueHealth.summary} />
+              <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
+              <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
+              <SummaryItem label="Data de conclusao" value={formatDateOnlyPtBr(record.dataConclusao)} />
               <SummaryItem className="md:col-span-2" label="Anotacoes" value={record.anotacoes ?? "-"} />
             </div>
           </div>
@@ -1360,36 +1366,85 @@ export function PreDemandaDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "operational"}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Visao operacional</DialogTitle>
-            <DialogDescription>{nextAction.title}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 text-sm text-slate-600">
-            <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
-              <p className="text-sm font-semibold text-amber-900">{nextAction.title}</p>
-              <p className="mt-2 text-sm text-amber-800">{nextAction.description}</p>
-            </div>
-            <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
-            <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
-            <SummaryItem label="Saude da fila" value={queueHealth.summary} />
-            <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
-            <SummaryItem label="Proximos estados permitidos" value={record.allowedNextStatuses.length ? formatAllowedStatuses(record.allowedNextStatuses) : "Nenhuma transicao manual disponivel"} />
-            <SummaryItem label="Data de conclusao" value={formatDateOnlyPtBr(record.dataConclusao)} />
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "relatedList"}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Processos relacionados</DialogTitle>
-            <DialogDescription>Relacione processos dependentes, espelho ou desdobramentos sem duplicar trabalho.</DialogDescription>
+            <DialogTitle>Relacionamentos de processo</DialogTitle>
+            <DialogDescription>Crie, vincule, consulte e remova relacionamentos deste processo em um unico lugar.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3">
+          <div className="grid gap-5">
+            <div className="grid gap-4 rounded-[24px] border border-dashed border-slate-300 p-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Criar novo relacionado</p>
+                <p className="text-xs text-slate-500">Abra um novo processo vinculado sem sair deste detalhe.</p>
+              </div>
+              <div className="grid gap-4">
+                <FormField label="Assunto">
+                  <Input onChange={(event) => setRelatedForm((current) => ({ ...current, assunto: event.target.value }))} value={relatedForm.assunto} />
+                </FormField>
+                <FormField label="Data de referencia">
+                  <Input onChange={(event) => setRelatedForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={relatedForm.data_referencia} />
+                </FormField>
+                <FormField label="Prazo do processo">
+                  <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_processo: event.target.value }))} type="date" value={relatedForm.prazo_processo} />
+                </FormField>
+                <FormField label="Descricao">
+                  <Textarea onChange={(event) => setRelatedForm((current) => ({ ...current, descricao: event.target.value }))} rows={4} value={relatedForm.descricao} />
+                </FormField>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  disabled={!relatedForm.prazo_processo || relatedForm.assunto.trim().length < 3 || isSubmitting}
+                  onClick={() =>
+                    void runMutation(
+                      async () => {
+                        const created = await createPreDemanda({
+                          assunto: relatedForm.assunto,
+                          data_referencia: relatedForm.data_referencia,
+                          descricao: relatedForm.descricao,
+                          prazo_processo: relatedForm.prazo_processo,
+                        });
+                        await addPreDemandaVinculo(preId, created.preId);
+                        navigate(`/pre-demandas/${created.preId}`);
+                      },
+                      "Processo relacionado criado.",
+                    )
+                  }
+                  type="button"
+                >
+                  Criar relacionado
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Vincular processo existente</p>
+                <p className="text-xs text-slate-500">Pesquise por PRE ou assunto para adicionar um vinculo ja existente.</p>
+              </div>
+              <Input onChange={(event) => setProcessSearch(event.target.value)} placeholder="Buscar por PRE ou assunto" value={processSearch} />
+              <div className="grid gap-2">
+                {linkedProcessResults.map((item) => (
+                  <button className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300" key={item.preId} onClick={() => void runMutation(() => addPreDemandaVinculo(preId, item.preId).then(() => setToolbarDialog("relatedList")), "Vinculo criado.")} type="button">
+                    <span>
+                      <span className="block font-semibold text-slate-950">{item.principalNumero}</span>
+                      <span className="text-xs text-slate-400">{item.preId}</span>
+                      <span className="text-sm text-slate-500">{item.assunto}</span>
+                    </span>
+                    <Plus className="h-4 w-4 text-slate-500" />
+                  </button>
+                ))}
+                {processSearch.trim().length >= 2 && linkedProcessResults.length === 0 ? <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum processo encontrado para este termo.</p> : null}
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Relacionamentos ativos</p>
+                <p className="text-xs text-slate-500">Consulte os vinculos atuais, abra o processo relacionado ou remova a associacao.</p>
+              </div>
             {record.vinculos.length === 0 ? (
-              <EmptyState description="Use a toolbar para criar um processo relacionado ou vincular um PRE existente." title="Sem vinculos" />
+                <EmptyState description="Nenhum relacionamento criado ate agora." title="Sem vinculos" />
             ) : (
               record.vinculos.map((item) => (
                 <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.processo.preId}>
@@ -1409,6 +1464,7 @@ export function PreDemandaDetailPage() {
                 </div>
               ))
             )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1763,78 +1819,6 @@ export function PreDemandaDetailPage() {
           taskShortcutOptions={taskShortcutOptions}
         />
       ) : null}
-
-      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "link"}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Relacionamento de processo</DialogTitle>
-            <DialogDescription>Pesquise por PRE ou assunto e vincule o processo existente.</DialogDescription>
-          </DialogHeader>
-          <Input onChange={(event) => setProcessSearch(event.target.value)} placeholder="Buscar por PRE ou assunto" value={processSearch} />
-          <div className="grid gap-2">
-            {linkedProcessResults.map((item) => (
-              <button className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300" key={item.preId} onClick={() => void runMutation(() => addPreDemandaVinculo(preId, item.preId).then(() => setToolbarDialog(null)), "Vinculo criado.")} type="button">
-                <span>
-                  <span className="block font-semibold text-slate-950">{item.principalNumero}</span>
-                  <span className="text-xs text-slate-400">{item.preId}</span>
-                  <span className="text-sm text-slate-500">{item.assunto}</span>
-                </span>
-                <Plus className="h-4 w-4 text-slate-500" />
-              </button>
-            ))}
-            {processSearch.trim().length >= 2 && linkedProcessResults.length === 0 ? <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhum processo encontrado para este termo.</p> : null}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "related"}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Iniciar processo relacionado</DialogTitle>
-            <DialogDescription>Crie um novo processo relacionado sem depender de solicitante vinculado.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <FormField label="Assunto">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, assunto: event.target.value }))} value={relatedForm.assunto} />
-            </FormField>
-            <FormField label="Data de referencia">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, data_referencia: event.target.value }))} type="date" value={relatedForm.data_referencia} />
-            </FormField>
-            <FormField label="Prazo do processo">
-              <Input onChange={(event) => setRelatedForm((current) => ({ ...current, prazo_processo: event.target.value }))} type="date" value={relatedForm.prazo_processo} />
-            </FormField>
-            <FormField label="Descricao">
-              <Textarea onChange={(event) => setRelatedForm((current) => ({ ...current, descricao: event.target.value }))} rows={4} value={relatedForm.descricao} />
-            </FormField>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setToolbarDialog(null)} type="button" variant="ghost">
-              Cancelar
-            </Button>
-            <Button
-              disabled={!relatedForm.prazo_processo || relatedForm.assunto.trim().length < 3 || isSubmitting}
-              onClick={() =>
-                void runMutation(
-                  async () => {
-                    const created = await createPreDemanda({
-                      assunto: relatedForm.assunto,
-                      data_referencia: relatedForm.data_referencia,
-                      descricao: relatedForm.descricao,
-                      prazo_processo: relatedForm.prazo_processo,
-                    });
-                    await addPreDemandaVinculo(preId, created.preId);
-                    navigate(`/pre-demandas/${created.preId}`);
-                  },
-                  "Processo relacionado criado.",
-                )
-              }
-              type="button"
-            >
-              Criar relacionado
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "andamento"}>
         <DialogContent>
