@@ -545,12 +545,12 @@ export function DashboardPage() {
                   to={`/pre-demandas/${task.preId}`}
                 >
                   <div className={`absolute inset-y-0 left-0 w-1 ${deadlineState.markerClass}`} />
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">{task.preNumero}</p>
-                      <h3 className={`mt-2 text-base font-semibold ${deadlineState.titleClass}`}>{task.descricao}</h3>
+                      <h3 className={`mt-2 break-words text-base font-semibold leading-snug ${deadlineState.titleClass}`}>{task.descricao}</h3>
                     </div>
-                    <div className="grid gap-2 justify-items-end">
+                    <div className="grid shrink-0 gap-2 justify-items-start md:justify-items-end">
                       <span className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineState.labelClass}`}>
                         {deadlineState.label}
                       </span>
