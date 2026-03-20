@@ -465,11 +465,12 @@ export function DashboardPage() {
                           {formatAudienciaSituacao(audiencia.situacao)}
                         </span>
                         <span className="rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600 ring-1 ring-slate-200">
-                          {audiencia.dataHoraFim ? formatDateTimePtBr(audiencia.dataHoraFim) : "Sem fim definido"}
+                          Início: {formatDateTimePtBr(audiencia.dataHoraInicio)}
                         </span>
                       </div>
                     </div>
                     {audiencia.descricao ? <p className="text-sm leading-6 text-slate-500">{audiencia.descricao}</p> : null}
+                    {audiencia.dataHoraFim ? <p className="text-sm font-medium text-slate-700">Término previsto: {formatDateTimePtBr(audiencia.dataHoraFim)}</p> : null}
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Abrir processo para detalhes da audiência</p>
                       <Button asChild size="sm" variant="outline" className="h-9 rounded-full border-amber-200 bg-white shadow-sm">
