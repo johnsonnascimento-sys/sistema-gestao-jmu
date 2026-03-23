@@ -423,6 +423,7 @@ export function DashboardPage() {
       </motion.div>
 
       <motion.div
+        id="audiencias-designadas"
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.35, ease: "easeOut" }}
@@ -431,17 +432,22 @@ export function DashboardPage() {
           <CardHeader className="gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="grid gap-1">
               <CardTitle className="text-xl font-light tracking-tight text-amber-950">Audiências designadas</CardTitle>
-              <CardDescription className="text-amber-800/80">Compromissos judiciais com data, hora e sala, priorizados pela próxima realização.</CardDescription>
+              <CardDescription className="text-amber-800/80">Pauta contínua de audiências agendadas e redesignadas, inclusive quando o horário inicial já tiver passado.</CardDescription>
             </div>
-            <span className="inline-flex h-8 items-center rounded-full bg-amber-100 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
-              {upcomingAudiencias.length} {upcomingAudiencias.length === 1 ? "audiência" : "audiências"}
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex h-8 items-center rounded-full bg-amber-100 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
+                {upcomingAudiencias.length} {upcomingAudiencias.length === 1 ? "audiência" : "audiências"}
+              </span>
+              <Button asChild size="sm" variant="outline" className="h-8 rounded-full border-amber-200 bg-white shadow-sm">
+                <Link to="/pauta-audiencias">Ver pauta</Link>
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="grid gap-3">
+          <CardContent className="grid max-h-[720px] gap-3 overflow-y-auto pr-2">
             {upcomingAudiencias.length === 0 ? (
               <EmptyState
-                title="Sem audiências futuras"
-                description="Nenhuma audiência agendada ou redesignada para os próximos dias."
+                title="Sem audiências designadas"
+                description="Nenhuma audiência com status agendada ou redesignada está registrada."
               />
             ) : (
               <div className="grid gap-3 xl:grid-cols-2">
@@ -471,7 +477,7 @@ export function DashboardPage() {
                     </div>
                     {audiencia.descricao ? <p className="text-sm leading-6 text-slate-500">{audiencia.descricao}</p> : null}
                     {audiencia.dataHoraFim ? <p className="text-sm font-medium text-slate-700">Término previsto: {formatDateTimePtBr(audiencia.dataHoraFim)}</p> : null}
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Abrir processo para detalhes da audiência</p>
                       <Button asChild size="sm" variant="outline" className="h-9 rounded-full border-amber-200 bg-white shadow-sm">
                         <Link to={`/pre-demandas/${audiencia.preId}`}>Ver processo</Link>

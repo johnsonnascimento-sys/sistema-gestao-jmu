@@ -7,6 +7,7 @@ import { AdminOperationsPage } from "./pages/admin-operations-page";
 import { AdminAuditPage } from "./pages/admin-audit-page";
 import { AdminUsersPage } from "./pages/admin-users-page";
 import { DashboardPage } from "./pages/dashboard-page";
+import { AudienciasPautaPage } from "./pages/audiencias-pauta-page";
 import { AssuntosPage } from "./pages/assuntos-page";
 import { InteressadosPage } from "./pages/interessados-page";
 import { LoginPage } from "./pages/login-page";
@@ -28,6 +29,7 @@ export function App() {
             <Route element={<AppShell />}>
               <Route element={<Navigate replace to="/dashboard" />} path="/" />
               <Route element={<DashboardPage />} path="/dashboard" />
+              <Route element={<AudienciasPautaPage />} path="/pauta-audiencias" />
               <Route element={<PreDemandasPage />} path="/pre-demandas" />
               <Route element={<NewPreDemandaPage />} path="/pre-demandas/nova" />
               <Route element={<PreDemandaDetailPage />} path="/pre-demandas/:preId" />

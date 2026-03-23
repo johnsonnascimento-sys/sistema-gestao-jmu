@@ -1,4 +1,4 @@
-import { Activity, BookText, Building2, History, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
+import { Activity, BookText, Building2, CalendarClock, History, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth-context";
@@ -89,6 +89,10 @@ export function AppShell() {
               <NavLink className={navLinkClassName} to="/dashboard">
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
+              </NavLink>
+              <NavLink className={navLinkClassName} to="/pauta-audiencias">
+                <CalendarClock className="h-4 w-4" />
+                Pauta de audiências
               </NavLink>
               <NavLink className={navLinkClassName} to="/pre-demandas">
                 <ListTodo className="h-4 w-4" />
