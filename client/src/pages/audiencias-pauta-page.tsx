@@ -11,11 +11,11 @@ import { formatDateTimePtBr } from "../lib/date";
 import type { PreDemandaDashboardSummary } from "../types";
 
 function formatAudienciaSituacao(situacao: string) {
-  if (situacao === "agendada") return "Agendada";
-  if (situacao === "redesignada") return "Redesignada";
+  if (situacao === "designada") return "Designada";
+  if (situacao === "convertida_diligencia") return "Convertida em diligência";
+  if (situacao === "nao_realizada") return "Não realizada";
   if (situacao === "realizada") return "Realizada";
   if (situacao === "cancelada") return "Cancelada";
-  if (situacao === "suspensa") return "Suspensa";
   return situacao;
 }
 
@@ -75,7 +75,7 @@ export function AudienciasPautaPage() {
               </Button>
             </div>
           }
-          description="Central de consulta das audiências já designadas. A lista preserva a ordem cronológica de início para facilitar a conferência do dia."
+          description="Central de consulta de todos os processos ativos com audiência cadastrada, preservando a ordem cronológica de início."
           eyebrow="Agenda operacional"
           title="Pauta de audiências"
         />
@@ -89,8 +89,8 @@ export function AudienciasPautaPage() {
         <Card className="overflow-hidden rounded-[32px] border-amber-200/70 bg-gradient-to-br from-amber-50/95 via-white/90 to-amber-100/60 shadow-xl">
           <CardHeader className="gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="grid gap-1">
-              <CardTitle className="text-xl font-light tracking-tight text-amber-950">Audiências designadas</CardTitle>
-              <CardDescription className="text-amber-800/80">Acompanhe as audiências com início definido e abra o processo para ver os detalhes completos.</CardDescription>
+              <CardTitle className="text-xl font-light tracking-tight text-amber-950">Pauta de audiências</CardTitle>
+              <CardDescription className="text-amber-800/80">Acompanhe as audiências de processos ativos com qualquer status e abra o processo para ver os detalhes completos.</CardDescription>
             </div>
             <span className="inline-flex h-8 items-center rounded-full bg-amber-100 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
               {audiencias.length} {audiencias.length === 1 ? "audiência" : "audiências"}
@@ -99,8 +99,8 @@ export function AudienciasPautaPage() {
           <CardContent className="max-h-[72vh] overflow-y-auto pr-2">
             {audiencias.length === 0 ? (
               <EmptyState
-                title="Sem audiências futuras"
-                description="Quando houver audiências agendadas ou redesignadas, elas aparecerão nesta pauta."
+                title="Sem audiências na pauta"
+                description="Quando houver processos ativos com audiência cadastrada, eles aparecerão nesta pauta."
               />
             ) : (
               <div className="grid gap-3">

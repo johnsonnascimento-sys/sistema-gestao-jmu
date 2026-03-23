@@ -120,7 +120,7 @@ const AUDIENCIA_FORM_DEFAULT: AudienciaForm = {
   fim: "",
   sala: "",
   descricao: "",
-  situacao: "agendada",
+  situacao: "designada",
   observacoes: "",
 };
 
@@ -2052,11 +2052,11 @@ export function PreDemandaDetailPage() {
                   }
                   value={audienciaForm.situacao}
                 >
-                  <option value="agendada">Agendada</option>
-                  <option value="redesignada">Redesignada</option>
+                  <option value="designada">Designada</option>
+                  <option value="convertida_diligencia">Convertida em Diligência</option>
+                  <option value="nao_realizada">Não Realizada</option>
                   <option value="realizada">Realizada</option>
                   <option value="cancelada">Cancelada</option>
-                  <option value="suspensa">Suspensa</option>
                 </select>
               </FormField>
             </div>

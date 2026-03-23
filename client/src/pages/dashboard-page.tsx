@@ -49,11 +49,11 @@ function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
 }
 
 function formatAudienciaSituacao(situacao: string) {
-  if (situacao === "agendada") return "Agendada";
-  if (situacao === "redesignada") return "Redesignada";
+  if (situacao === "designada") return "Designada";
+  if (situacao === "convertida_diligencia") return "Convertida em diligência";
+  if (situacao === "nao_realizada") return "Não realizada";
   if (situacao === "realizada") return "Realizada";
   if (situacao === "cancelada") return "Cancelada";
-  if (situacao === "suspensa") return "Suspensa";
   return situacao;
 }
 
@@ -431,8 +431,8 @@ export function DashboardPage() {
         <Card className="overflow-hidden rounded-[32px] border-amber-200/70 bg-gradient-to-br from-amber-50/95 via-white/90 to-amber-100/60 shadow-xl">
           <CardHeader className="gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="grid gap-1">
-              <CardTitle className="text-xl font-light tracking-tight text-amber-950">Audiências designadas</CardTitle>
-              <CardDescription className="text-amber-800/80">Pauta contínua de audiências agendadas e redesignadas, inclusive quando o horário inicial já tiver passado.</CardDescription>
+              <CardTitle className="text-xl font-light tracking-tight text-amber-950">Pauta de audiências</CardTitle>
+              <CardDescription className="text-amber-800/80">Processos com audiência permanecem aqui até o processo ser concluído, independentemente do status do ato.</CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex h-8 items-center rounded-full bg-amber-100 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
@@ -446,8 +446,8 @@ export function DashboardPage() {
           <CardContent className="grid max-h-[720px] gap-3 overflow-y-auto pr-2">
             {upcomingAudiencias.length === 0 ? (
               <EmptyState
-                title="Sem audiências designadas"
-                description="Nenhuma audiência com status agendada ou redesignada está registrada."
+                title="Sem audiências na pauta"
+                description="Nenhum processo ativo com audiência cadastrada está na pauta neste momento."
               />
             ) : (
               <div className="grid gap-3 xl:grid-cols-2">

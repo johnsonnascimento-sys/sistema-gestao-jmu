@@ -3,7 +3,7 @@ import { z } from "zod";
 import { emitPreDemandaUpdate } from "../lib/events";
 import type { PreDemandaAudienciaRepository } from "../repositories/types";
 
-const AUDIENCIA_SITUACOES = ["agendada", "redesignada", "realizada", "cancelada", "suspensa"] as const;
+const AUDIENCIA_SITUACOES = ["designada", "convertida_diligencia", "nao_realizada", "realizada", "cancelada"] as const;
 
 const datetimeSchema = z
   .string()
@@ -21,7 +21,7 @@ const audienciaFieldsSchema = z.object({
 });
 
 const audienciaCreateSchema = audienciaFieldsSchema.extend({
-  situacao: z.enum(AUDIENCIA_SITUACOES).optional().default("agendada"),
+  situacao: z.enum(AUDIENCIA_SITUACOES).optional().default("designada"),
 });
 
 const audienciaUpdateSchema = audienciaFieldsSchema
@@ -62,7 +62,7 @@ export async function registerPreDemandaAudienciaRoutes(
       dataHoraFim: payload.data_hora_fim ?? null,
       descricao: payload.descricao ?? null,
       sala: emptyToNull(payload.sala),
-      situacao: payload.situacao ?? "agendada",
+      situacao: payload.situacao ?? "designada",
       observacoes: emptyToNull(payload.observacoes),
       changedByUserId: request.user!.id,
     });

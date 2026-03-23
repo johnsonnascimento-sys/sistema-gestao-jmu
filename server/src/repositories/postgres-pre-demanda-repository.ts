@@ -3878,7 +3878,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             limit 1
           ) pts on true
           where pd.status <> 'encerrada'
-            and audiencia.situacao in ('agendada', 'redesignada')
           order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
         `,
       ),

@@ -112,7 +112,7 @@ export type TarefaPendenteTipo = "fixa" | "livre";
 export type TarefaRecorrenciaTipo = "diaria" | "semanal" | "mensal";
 export type DemandaSetorFluxoStatus = "ativo" | "concluido";
 export type DemandaComentarioFormato = "markdown";
-export type AudienciaSituacao = "agendada" | "redesignada" | "realizada" | "cancelada" | "suspensa";
+export type AudienciaSituacao = "designada" | "convertida_diligencia" | "nao_realizada" | "realizada" | "cancelada";
 export type AndamentoTipo =
   | "manual"
   | "tramitacao"

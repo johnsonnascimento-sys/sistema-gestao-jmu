@@ -15,7 +15,7 @@ import type {
   UpdateAudienciaInput,
 } from "./types";
 
-const AUDIENCIA_ABERTA: AudienciaSituacao[] = ["agendada", "redesignada", "suspensa"];
+const AUDIENCIA_PRIORITARIA: AudienciaSituacao[] = ["designada"];
 
 function emptyToNull(value: string | null | undefined) {
   if (value === undefined || value === null) {
@@ -87,7 +87,6 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
         order by
           case
             when audiencia.situacao = any($2::text[])
-              and audiencia.data_hora_inicio >= now()
             then 0
             else 1
           end asc,
@@ -97,7 +96,7 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
           audiencia.id desc
         limit 1
       `,
-      [preDemandaId, AUDIENCIA_ABERTA],
+      [preDemandaId, AUDIENCIA_PRIORITARIA],
     );
 
     const audiencia = result.rows[0] ?? null;
@@ -170,7 +169,7 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
           dataHoraFim,
           input.descricao,
           emptyToNull(input.sala),
-          input.situacao ?? "agendada",
+          input.situacao ?? "designada",
           emptyToNull(input.observacoes),
           input.changedByUserId,
         ],
@@ -181,7 +180,7 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
       await insertAndamento(client, {
         preDemandaId: demanda.id,
         preId: demanda.preId,
-        descricao: `Audiencia agendada para ${formatDateTimeForLog(dataHoraInicio)}.`,
+        descricao: `Audiencia designada para ${formatDateTimeForLog(dataHoraInicio)}.`,
         tipo: "sistema",
         createdByUserId: input.changedByUserId,
       });

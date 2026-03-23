@@ -1302,7 +1302,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       dataHoraFim: input.dataHoraFim ?? null,
       descricao: input.descricao ?? null,
       sala: input.sala ?? null,
-      situacao: input.situacao ?? "agendada",
+      situacao: input.situacao ?? "designada",
       observacoes: input.observacoes ?? null,
       createdAt: now,
       updatedAt: now,
@@ -1692,7 +1692,6 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const upcomingAudiencias = this.records
       .flatMap((item) =>
         (item.audiencias ?? [])
-          .filter((audiencia) => ["agendada", "redesignada"].includes(audiencia.situacao) && new Date(audiencia.dataHoraInicio).getTime() >= Date.now())
           .map((audiencia) => ({
             id: audiencia.id,
             preId: item.preId,
