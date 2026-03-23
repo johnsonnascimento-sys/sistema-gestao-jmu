@@ -1697,10 +1697,18 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             preId: item.preId,
             preNumero: item.principalNumero,
             assunto: item.assunto,
+            magistradoNome: item.interessados.find((interessado) =>
+              [
+                "Juíza Federal da Justiça Militar",
+                "Juiz Federal da Justiça Militar",
+                "Juiz Federal Substituto da Justiça Militar",
+                "Juíza Federal Substituta da Justiça Militar",
+              ].includes(interessado.interessado.cargo ?? ""),
+            )?.interessado.nome ?? null,
             dataHoraInicio: audiencia.dataHoraInicio,
             dataHoraFim: audiencia.dataHoraFim,
             descricao: audiencia.descricao,
-            sala: audiencia.sala,
+            observacoes: audiencia.observacoes,
             situacao: audiencia.situacao,
           })),
       )

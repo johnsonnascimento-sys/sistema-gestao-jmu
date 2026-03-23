@@ -3863,10 +3863,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             pd.pre_id,
             coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
             pd.assunto,
+            magistrado.nome as magistrado_nome,
             audiencia.data_hora_inicio,
             audiencia.data_hora_fim,
             audiencia.descricao,
-            audiencia.sala,
+            audiencia.observacoes,
             audiencia.situacao
           from adminlog.demanda_audiencias_judiciais audiencia
           inner join adminlog.pre_demanda pd on pd.id = audiencia.pre_demanda_id
@@ -3877,6 +3878,20 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             order by link.updated_at desc, link.id desc
             limit 1
           ) pts on true
+          left join lateral (
+            select pessoa.nome
+            from adminlog.demanda_interessados di
+            inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
+            where di.pre_demanda_id = pd.id
+              and pessoa.cargo in (
+                'Juíza Federal da Justiça Militar',
+                'Juiz Federal da Justiça Militar',
+                'Juiz Federal Substituto da Justiça Militar',
+                'Juíza Federal Substituta da Justiça Militar'
+              )
+            order by di.created_at desc, pessoa.nome asc
+            limit 1
+          ) magistrado on true
           where pd.status <> 'encerrada'
           order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
         `,
@@ -3935,10 +3950,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         preId: String(row.pre_id),
         preNumero: String(row.principal_numero),
         assunto: String(row.assunto),
+        magistradoNome: row.magistrado_nome ? String(row.magistrado_nome) : null,
         dataHoraInicio: new Date(row.data_hora_inicio).toISOString(),
         dataHoraFim: row.data_hora_fim ? new Date(row.data_hora_fim).toISOString() : null,
         descricao: row.descricao ? String(row.descricao) : null,
-        sala: row.sala ? String(row.sala) : null,
+        observacoes: row.observacoes ? String(row.observacoes) : null,
         situacao: row.situacao as PreDemandaDashboardSummary["upcomingAudiencias"][number]["situacao"],
       })),
       recentTimeline,

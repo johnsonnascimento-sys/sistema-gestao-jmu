@@ -432,10 +432,11 @@ export interface PreDemandaDashboardSummary {
     preId: string;
     preNumero: string;
     assunto: string;
+    magistradoNome: string | null;
     descricao: string | null;
     dataHoraInicio: string;
     dataHoraFim: string | null;
-    sala: string | null;
+    observacoes: string | null;
     situacao: AudienciaSituacao;
   }>;
   oldestOpenTasks: Array<{

@@ -434,10 +434,11 @@ export interface PreDemandaDashboardSummary {
     preId: string;
     preNumero: string;
     assunto: string;
+    magistradoNome: string | null;
     dataHoraInicio: string;
     dataHoraFim: string | null;
     descricao: string | null;
-    sala: string | null;
+    observacoes: string | null;
     situacao: AudienciaSituacao;
   }>;
   recentTimeline: TimelineEvent[];

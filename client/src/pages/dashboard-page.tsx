@@ -461,10 +461,8 @@ export function DashboardPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">{audiencia.preNumero}</p>
                         <h3 className="mt-2 break-words text-base font-semibold leading-snug text-slate-950">{audiencia.assunto}</h3>
-                        <p className="mt-2 text-sm text-slate-600">
-                          {formatDateTimePtBr(audiencia.dataHoraInicio)}
-                          {audiencia.sala ? ` • ${audiencia.sala}` : ""}
-                        </p>
+                        <p className="mt-2 text-sm text-slate-600">{formatDateTimePtBr(audiencia.dataHoraInicio)}</p>
+                        {audiencia.magistradoNome ? <p className="mt-1 text-sm text-slate-500">Magistrado: {audiencia.magistradoNome}</p> : null}
                       </div>
                       <div className="grid shrink-0 gap-2 justify-items-start md:justify-items-end">
                         <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-800 ring-1 ring-amber-200">
@@ -475,7 +473,7 @@ export function DashboardPage() {
                         </span>
                       </div>
                     </div>
-                    {audiencia.descricao ? <p className="text-sm leading-6 text-slate-500">{audiencia.descricao}</p> : null}
+                    {audiencia.observacoes ?? audiencia.descricao ? <p className="text-sm leading-6 text-slate-500">{audiencia.observacoes ?? audiencia.descricao}</p> : null}
                     {audiencia.dataHoraFim ? <p className="text-sm font-medium text-slate-700">Término previsto: {formatDateTimePtBr(audiencia.dataHoraFim)}</p> : null}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Abrir processo para detalhes da audiência</p>
