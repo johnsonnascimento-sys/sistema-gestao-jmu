@@ -213,37 +213,54 @@ export function PreDemandaDetailPage() {
   const [processSearch, setProcessSearch] = useState("");
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
-  async function load() {
-    setLoading(true);
+  function syncRecordDependentState(nextRecord: PreDemanda) {
+    setAssociationForm((current) => ({
+      ...current,
+      sei_numero: nextRecord.currentAssociation?.seiNumero ?? normalizeSeiValue(current.sei_numero),
+    }));
+    setEditForm({
+      assunto: nextRecord.assunto,
+      descricao: nextRecord.descricao ?? "",
+      fonte: nextRecord.fonte ?? "",
+      observacoes: nextRecord.observacoes ?? "",
+      numero_judicial: normalizeNumeroJudicialValue(nextRecord.numeroJudicial) ?? "",
+      prazo_processo: nextRecord.prazoProcesso ?? "",
+      pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
+      urgente: nextRecord.metadata.urgente ?? false,
+    });
+    setNotesForm(nextRecord.anotacoes ?? "");
+    setDeadlineForm({
+      prazo_processo: nextRecord.prazoProcesso ?? "",
+    });
+  }
+
+  async function loadRecordData(showLoading = false) {
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
-      const [nextRecord, nextTimeline, nextSetores, nextAssuntos] = await Promise.all([getPreDemanda(preId), getTimeline(preId), listSetores(), listAssuntos()]);
+      const [nextRecord, nextTimeline] = await Promise.all([getPreDemanda(preId), getTimeline(preId)]);
       setRecord(nextRecord);
       setTimeline(nextTimeline);
-      setSetores(nextSetores);
-      setAssuntosCatalogo(nextAssuntos);
-      setAssociationForm((current) => ({
-        ...current,
-        sei_numero: nextRecord.currentAssociation?.seiNumero ?? normalizeSeiValue(current.sei_numero),
-      }));
-      setEditForm({
-        assunto: nextRecord.assunto,
-        descricao: nextRecord.descricao ?? "",
-        fonte: nextRecord.fonte ?? "",
-        observacoes: nextRecord.observacoes ?? "",
-        numero_judicial: normalizeNumeroJudicialValue(nextRecord.numeroJudicial) ?? "",
-        prazo_processo: nextRecord.prazoProcesso ?? "",
-        pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
-        urgente: nextRecord.metadata.urgente ?? false,
-      });
-      setNotesForm(nextRecord.anotacoes ?? "");
-      setDeadlineForm({
-        prazo_processo: nextRecord.prazoProcesso ?? "",
-      });
+      syncRecordDependentState(nextRecord);
       setError("");
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao carregar processo."));
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }
+
+  async function loadCatalogData() {
+    try {
+      const [nextSetores, nextAssuntos] = await Promise.all([listSetores(), listAssuntos()]);
+      setSetores(nextSetores);
+      setAssuntosCatalogo(nextAssuntos);
+    } catch {
+      setSetores([]);
+      setAssuntosCatalogo([]);
     }
   }
 
@@ -253,7 +270,7 @@ export function PreDemandaDetailPage() {
       const data = customEvent.detail as { preId?: string } | undefined;
       // Se mudou ESTE processo, recarrega
       if (data?.preId === preId) {
-        void load();
+        void loadRecordData();
       }
     };
 
@@ -264,8 +281,12 @@ export function PreDemandaDetailPage() {
   }, [preId]);
 
   useEffect(() => {
-    void load();
+    void loadRecordData(true);
   }, [preId]);
+
+  useEffect(() => {
+    void loadCatalogData();
+  }, []);
 
   useEffect(() => {
     if (toolbarDialog !== "link" || processSearch.trim().length < 2) {
@@ -496,7 +517,7 @@ export function PreDemandaDetailPage() {
     setMessage("");
     try {
       await action();
-      await load();
+      await loadRecordData();
       setMessage(successMessage);
     } catch (nextError) {
       setError(formatPreDemandaMutationError(nextError, "Falha ao executar a operacao."));
@@ -535,7 +556,7 @@ export function PreDemandaDetailPage() {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
-      await load();
+      await loadRecordData();
       setTaskPrazoChange(null);
       setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
       setMessage("Tarefa criada.");
@@ -576,7 +597,7 @@ export function PreDemandaDetailPage() {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
-      await load();
+      await loadRecordData();
       setTaskPrazoChange(null);
       setEditingTask(null);
       setMessage("Tarefa atualizada.");
