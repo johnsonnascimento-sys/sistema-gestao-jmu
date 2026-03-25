@@ -98,6 +98,7 @@ export interface UpdatePreDemandaStatusInput {
   status: PreDemandaStatus;
   motivo?: string | null;
   observacoes?: string | null;
+  deletePendingTasks?: boolean;
   changedByUserId: number;
 }
 

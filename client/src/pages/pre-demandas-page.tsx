@@ -460,7 +460,15 @@ export function PreDemandasPage() {
       <ConfirmDialog
         confirmLabel={quickAction?.label ?? "Confirmar"}
         description="Registre o motivo da alteracao de status para manter a trilha de auditoria operacional."
-        onConfirm={async ({ motivo, observacoes }) => {
+        extraOption={
+          quickAction?.nextStatus === "encerrada"
+            ? {
+                label: "Excluir todas as tarefas pendentes ao concluir",
+                description: "As tarefas pendentes serao removidas, com registro no historico do processo.",
+              }
+            : undefined
+        }
+        onConfirm={async ({ motivo, observacoes, extraOptionChecked }) => {
           if (!quickAction) {
             return;
           }
@@ -472,6 +480,7 @@ export function PreDemandasPage() {
               status: quickAction.nextStatus,
               motivo,
               observacoes,
+              delete_pending_tasks: quickAction.nextStatus === "encerrada" ? extraOptionChecked : undefined,
             });
             setMessage(`Processo ${quickAction.item.principalNumero} atualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
             await load();

@@ -3222,6 +3222,49 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       const hasAssociation = (associationResult.rowCount ?? 0) > 0;
       ensureStatusTransition(currentStatus, input.status, hasAssociation, input.motivo);
 
+      if (input.status === "encerrada" && input.deletePendingTasks) {
+        const pendingTasks = await client.query(
+          `
+            select id, descricao
+            from adminlog.tarefas_pendentes
+            where pre_demanda_id = $1
+              and concluida = false
+            order by ordem asc, created_at asc, id asc
+            for update
+          `,
+          [currentResult.rows[0].id],
+        );
+
+        if ((pendingTasks.rowCount ?? 0) > 0) {
+          await client.query(
+            `
+              delete from adminlog.tarefas_pendentes
+              where pre_demanda_id = $1
+                and concluida = false
+            `,
+            [currentResult.rows[0].id],
+          );
+
+          for (const task of pendingTasks.rows) {
+            await this.insertAndamento(client, {
+              preDemandaId: Number(currentResult.rows[0].id),
+              preId: input.preId,
+              descricao: `Tarefa removida no encerramento: ${String(task.descricao)}.`,
+              tipo: "sistema",
+              createdByUserId: input.changedByUserId,
+            });
+          }
+
+          await this.insertAndamento(client, {
+            preDemandaId: Number(currentResult.rows[0].id),
+            preId: input.preId,
+            descricao: `${pendingTasks.rowCount} tarefa(s) pendente(s) foram excluidas durante o encerramento do processo.`,
+            tipo: "sistema",
+            createdByUserId: input.changedByUserId,
+          });
+        }
+      }
+
       await client.query("update adminlog.pre_demanda set status = $2 where pre_id = $1", [input.preId, input.status]);
       await client.query(
         `
@@ -3971,22 +4014,27 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async listDashboardTasks(): Promise<DashboardTaskItem[]> {
     const result = await this.pool.query(
       `
-        select
-          tarefa.id,
-          pd.pre_id,
-          coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
-          pd.assunto,
+          select
+            tarefa.id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
+            pd.assunto,
           tarefa.descricao,
           tarefa.tipo,
           tarefa.prazo_conclusao,
           tarefa.horario_inicio,
-          tarefa.horario_fim,
-          tarefa.recorrencia_tipo,
-          setor_destino.sigla as setor_destino_sigla,
-          tarefa.gerada_automaticamente,
-          tarefa.concluida,
-          tarefa.concluida_em,
-          tarefa.created_at
+            tarefa.horario_fim,
+            tarefa.recorrencia_tipo,
+            setor_destino.sigla as setor_destino_sigla,
+            exists(
+              select 1
+              from adminlog.pre_demanda_audiencias audiencia
+              where audiencia.pre_demanda_id = pd.id
+            ) as has_audiencia,
+            tarefa.gerada_automaticamente,
+            tarefa.concluida,
+            tarefa.concluida_em,
+            tarefa.created_at
         from adminlog.tarefas_pendentes tarefa
         inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
         left join lateral (
@@ -4008,15 +4056,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       assunto: String(row.assunto),
       descricao: String(row.descricao),
       tipo: row.tipo as DashboardTaskItem["tipo"],
-      prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
-      horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
-      horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
-      recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as DashboardTaskItem["recorrenciaTipo"]) : null,
-      setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
-      geradaAutomaticamente: Boolean(row.gerada_automaticamente),
-      concluida: Boolean(row.concluida),
-      concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
-      createdAt: new Date(row.created_at).toISOString(),
+        prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
+        horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
+        horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
+        recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as DashboardTaskItem["recorrenciaTipo"]) : null,
+        setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
+        hasAudiencia: Boolean(row.has_audiencia),
+        geradaAutomaticamente: Boolean(row.gerada_automaticamente),
+        concluida: Boolean(row.concluida),
+        concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
+        createdAt: new Date(row.created_at).toISOString(),
     }));
   }
 }

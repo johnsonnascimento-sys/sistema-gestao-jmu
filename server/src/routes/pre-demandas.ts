@@ -94,6 +94,7 @@ const statusSchema = z.object({
   status: z.enum(STATUSES),
   motivo: z.string().trim().max(2000).optional().nullable(),
   observacoes: z.string().trim().max(2000).optional().nullable(),
+  delete_pending_tasks: z.boolean().optional(),
 });
 
 const patchCaseSchema = z
@@ -821,6 +822,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       status: payload.status,
       motivo: emptyToNull(payload.motivo),
       observacoes: emptyToNull(payload.observacoes),
+      deletePendingTasks: payload.delete_pending_tasks === true,
       changedByUserId: request.user!.id,
     });
 

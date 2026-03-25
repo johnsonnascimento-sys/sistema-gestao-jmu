@@ -1543,6 +1543,17 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       changedBy: null,
     });
 
+    if (input.status === "encerrada" && input.deletePendingTasks) {
+      const pendingTasks = record.tarefasPendentes.filter((item) => !item.concluida);
+      record.tarefasPendentes = record.tarefasPendentes.filter((item) => item.concluida);
+      for (const task of pendingTasks) {
+        this.addAndamentoRecord(record, `Tarefa removida no encerramento: ${task.descricao}.`, "sistema");
+      }
+      if (pendingTasks.length > 0) {
+        this.addAndamentoRecord(record, `${pendingTasks.length} tarefa(s) pendente(s) foram excluidas durante o encerramento do processo.`, "sistema");
+      }
+    }
+
     record.status = input.status;
     record.dataConclusao = input.status === "encerrada" ? now.slice(0, 10) : record.dataConclusao ? null : record.dataConclusao;
     this.addAndamentoRecord(
@@ -1794,6 +1805,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           horarioFim: task.horarioFim ?? null,
           recorrenciaTipo: task.recorrenciaTipo ?? null,
           setorDestinoSigla: task.setorDestino?.sigla ?? null,
+          hasAudiencia: (item.audiencias?.length ?? 0) > 0,
           geradaAutomaticamente: task.geradaAutomaticamente,
           concluida: task.concluida,
           concluidaEm: task.concluidaEm,

@@ -460,6 +460,7 @@ export interface DashboardTaskItem {
   horarioFim: string | null;
   recorrenciaTipo: TarefaRecorrenciaTipo | null;
   setorDestinoSigla: string | null;
+  hasAudiencia: boolean;
   geradaAutomaticamente: boolean;
   concluida: boolean;
   concluidaEm: string | null;

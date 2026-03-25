@@ -2563,12 +2563,25 @@ export function PreDemandaDetailPage() {
       <ConfirmDialog
         confirmLabel={statusAction?.title ?? "Confirmar alteracao"}
         description="Registre o motivo para manter a trilha de auditoria completa."
-        onConfirm={async ({ motivo, observacoes }) => {
+        extraOption={
+          statusAction?.nextStatus === "encerrada"
+            ? {
+                label: "Excluir todas as tarefas pendentes ao concluir",
+                description: "As tarefas pendentes serao removidas, com registro no historico do processo.",
+              }
+            : undefined
+        }
+        onConfirm={async ({ motivo, observacoes, extraOptionChecked }) => {
           if (!statusAction) return;
           try {
             setError("");
             setMessage("");
-            await updatePreDemandaStatus(preId, { status: statusAction.nextStatus, motivo, observacoes });
+            await updatePreDemandaStatus(preId, {
+              status: statusAction.nextStatus,
+              motivo,
+              observacoes,
+              delete_pending_tasks: statusAction.nextStatus === "encerrada" ? extraOptionChecked : undefined,
+            });
             await load();
             setMessage(`Processo atualizado para ${getPreDemandaStatusLabel(statusAction.nextStatus)}.`);
           } catch (nextError) {
