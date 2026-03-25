@@ -4028,7 +4028,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             setor_destino.sigla as setor_destino_sigla,
             exists(
               select 1
-              from adminlog.pre_demanda_audiencias audiencia
+              from adminlog.demanda_audiencias_judiciais audiencia
               where audiencia.pre_demanda_id = pd.id
             ) as has_audiencia,
             tarefa.gerada_automaticamente,
