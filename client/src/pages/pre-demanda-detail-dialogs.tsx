@@ -493,7 +493,7 @@ export function TarefasDialog({
 }) {
   return (
     <Dialog onOpenChange={(nextOpen) => !nextOpen && onClose()} open={open}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-5xl overflow-x-hidden overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Tarefas do processo</DialogTitle>
           <DialogDescription>
@@ -637,9 +637,9 @@ export function TarefasDialog({
           </p>
 
           {requiresTaskSetorDestino ? (
-            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
               <select
-                className="h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
+                className="min-w-0 h-11 rounded-full border border-slate-200 bg-white px-4 text-sm"
                 onChange={(event) => onTaskFormChange({ ...taskForm, setor_destino_id: event.target.value })}
                 value={taskForm.setor_destino_id}
               >
@@ -650,7 +650,7 @@ export function TarefasDialog({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500 md:self-center">
+              <p className="min-w-0 text-xs text-slate-500 md:self-center">
                 Ao concluir, o processo sera tramitado automaticamente para o setor escolhido.
               </p>
             </div>
