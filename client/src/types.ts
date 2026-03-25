@@ -111,6 +111,8 @@ export interface AssuntoProcedimento {
   id: string;
   ordem: number;
   descricao: string;
+  horarioInicio: string | null;
+  horarioFim: string | null;
   setorDestino: Setor | null;
   createdAt: string;
   updatedAt: string;

@@ -358,6 +358,8 @@ function buildAssuntoStub(id: string, withSetor = false): Assunto {
         id: `proc-${id}-1`,
         ordem: 1,
         descricao: "Passo padrao",
+        horarioInicio: null,
+        horarioFim: null,
         setorDestino: withSetor
           ? {
               id: "123e4567-e89b-42d3-a456-000000000001",
@@ -1915,6 +1917,8 @@ class InMemoryAssuntoRepository implements AssuntoRepository {
         id: `proc-${this.nextId}-${index + 1}`,
         ordem: item.ordem ?? index + 1,
         descricao: item.descricao,
+        horarioInicio: item.horarioInicio ?? null,
+        horarioFim: item.horarioFim ?? null,
         setorDestino: item.setorDestinoId
           ? {
               id: item.setorDestinoId,
@@ -1955,6 +1959,8 @@ class InMemoryAssuntoRepository implements AssuntoRepository {
         id: `proc-${input.id}-${index + 1}`,
         ordem: item.ordem ?? index + 1,
         descricao: item.descricao,
+        horarioInicio: item.horarioInicio ?? null,
+        horarioFim: item.horarioFim ?? null,
         setorDestino: item.setorDestinoId
           ? {
               id: item.setorDestinoId,

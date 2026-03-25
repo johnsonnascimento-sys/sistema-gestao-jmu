@@ -86,6 +86,8 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
       .map((item, index) => ({
         ordem: item.ordem ?? index + 1,
         descricao: item.descricao.trim(),
+        horarioInicio: item.horarioInicio ?? null,
+        horarioFim: item.horarioFim ?? null,
         setorDestinoId: item.setorDestinoId ?? null,
       }))
       .sort((left, right) => left.ordem - right.ordem);
@@ -93,10 +95,10 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
     for (const procedimento of procedimentos) {
       await this.pool.query(
         `
-          insert into adminlog.assunto_procedimentos (assunto_id, ordem, descricao, setor_destino_id)
-          values ($1::uuid, $2, $3, $4::uuid)
+          insert into adminlog.assunto_procedimentos (assunto_id, ordem, descricao, horario_inicio, horario_fim, setor_destino_id)
+          values ($1::uuid, $2, $3, $4::time, $5::time, $6::uuid)
         `,
-        [assuntoId, procedimento.ordem, procedimento.descricao, procedimento.setorDestinoId],
+        [assuntoId, procedimento.ordem, procedimento.descricao, procedimento.horarioInicio, procedimento.horarioFim, procedimento.setorDestinoId],
       );
     }
   }
@@ -149,6 +151,8 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
         id: String(procedimento.id),
         ordem: Number(procedimento.ordem),
         descricao: String(procedimento.descricao),
+        horarioInicio: procedimento.horario_inicio ? String(procedimento.horario_inicio).slice(0, 5) : null,
+        horarioFim: procedimento.horario_fim ? String(procedimento.horario_fim).slice(0, 5) : null,
         setorDestino: mapSetor(procedimento, "setor"),
         createdAt: new Date(procedimento.created_at).toISOString(),
         updatedAt: new Date(procedimento.updated_at).toISOString(),

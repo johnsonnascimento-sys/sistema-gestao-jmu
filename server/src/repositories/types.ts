@@ -405,6 +405,8 @@ export interface UpdateNormaInput extends CreateNormaInput {
 export interface CreateAssuntoProcedimentoInput {
   ordem?: number;
   descricao: string;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
   setorDestinoId?: string | null;
 }
 

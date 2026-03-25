@@ -1024,6 +1024,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         id: String(row.id),
         ordem: Number(row.ordem),
         descricao: String(row.descricao),
+        horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
+        horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
         setorDestino: mapSetor(row, "setor"),
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
@@ -1413,7 +1415,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     const procedimentos = await queryable.query(
       `
-        select procedimento.id, procedimento.ordem, procedimento.descricao, procedimento.setor_destino_id
+        select procedimento.id, procedimento.ordem, procedimento.descricao, procedimento.horario_inicio, procedimento.horario_fim, procedimento.setor_destino_id
         from adminlog.assunto_procedimentos procedimento
         where procedimento.assunto_id = $1::uuid
         order by procedimento.ordem asc, procedimento.created_at asc
@@ -1432,11 +1434,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             assunto_id,
             procedimento_id,
             prazo_conclusao,
+            horario_inicio,
+            horario_fim,
             setor_destino_id,
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, $3, 'fixa', $4::uuid, $5::uuid, $6::date, $7::uuid, true, $8)
+          values ($1, $2, $3, 'fixa', $4::uuid, $5::uuid, $6::date, $7::time, $8::time, $9::uuid, true, $10)
           on conflict (pre_demanda_id, procedimento_id) where procedimento_id is not null do nothing
         `,
         [
@@ -1446,6 +1450,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           input.assuntoId,
           String(procedimento.id),
           input.prazoProcesso,
+          procedimento.horario_inicio ?? null,
+          procedimento.horario_fim ?? null,
           procedimento.setor_destino_id ? String(procedimento.setor_destino_id) : null,
           input.changedByUserId,
         ],

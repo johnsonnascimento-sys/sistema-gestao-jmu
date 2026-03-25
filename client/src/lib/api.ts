@@ -651,7 +651,7 @@ export function createAssunto(payload: {
   nome: string;
   descricao?: string | null;
   norma_ids?: string[];
-  procedimentos?: Array<{ ordem?: number; descricao: string; setor_destino_id?: string | null }>;
+  procedimentos?: Array<{ ordem?: number; descricao: string; horario_inicio?: string | null; horario_fim?: string | null; setor_destino_id?: string | null }>;
 }) {
   return request<Assunto>("/api/assuntos", {
     method: "POST",
@@ -665,7 +665,7 @@ export function updateAssunto(
     nome: string;
     descricao?: string | null;
     norma_ids?: string[];
-    procedimentos?: Array<{ ordem?: number; descricao: string; setor_destino_id?: string | null }>;
+    procedimentos?: Array<{ ordem?: number; descricao: string; horario_inicio?: string | null; horario_fim?: string | null; setor_destino_id?: string | null }>;
   },
 ) {
   return request<Assunto>(`/api/assuntos/${id}`, {

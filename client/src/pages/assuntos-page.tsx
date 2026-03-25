@@ -14,6 +14,8 @@ import type { Assunto, Norma, Setor } from "../types";
 type ProcedimentoForm = {
   ordem: string;
   descricao: string;
+  horario_inicio: string;
+  horario_fim: string;
   setor_destino_id: string;
 };
 
@@ -28,7 +30,7 @@ const EMPTY_FORM: AssuntoForm = {
   nome: "",
   descricao: "",
   norma_ids: [],
-  procedimentos: [{ ordem: "1", descricao: "", setor_destino_id: "" }],
+  procedimentos: [{ ordem: "1", descricao: "", horario_inicio: "", horario_fim: "", setor_destino_id: "" }],
 };
 
 const selectClassName =
@@ -92,9 +94,11 @@ export function AssuntosPage() {
           ? item.procedimentos.map((proc) => ({
               ordem: String(proc.ordem),
               descricao: proc.descricao,
+              horario_inicio: proc.horarioInicio ?? "",
+              horario_fim: proc.horarioFim ?? "",
               setor_destino_id: proc.setorDestino?.id ?? "",
             }))
-          : [{ ordem: "1", descricao: "", setor_destino_id: "" }],
+          : [{ ordem: "1", descricao: "", horario_inicio: "", horario_fim: "", setor_destino_id: "" }],
     });
     setOpen(true);
   }
@@ -119,6 +123,8 @@ export function AssuntosPage() {
           .map((item, index) => ({
             ordem: item.ordem ? Number(item.ordem) : index + 1,
             descricao: item.descricao,
+            horario_inicio: item.horario_inicio || null,
+            horario_fim: item.horario_fim || null,
             setor_destino_id: item.setor_destino_id || null,
           })),
       };
@@ -261,7 +267,7 @@ export function AssuntosPage() {
                   onClick={() =>
                     setForm((current) => ({
                       ...current,
-                      procedimentos: [...current.procedimentos, { ordem: String(current.procedimentos.length + 1), descricao: "", setor_destino_id: "" }],
+                      procedimentos: [...current.procedimentos, { ordem: String(current.procedimentos.length + 1), descricao: "", horario_inicio: "", horario_fim: "", setor_destino_id: "" }],
                     }))
                   }
                   size="sm"
@@ -273,12 +279,18 @@ export function AssuntosPage() {
               </div>
               <div className="grid gap-3">
                 {form.procedimentos.map((item, index) => (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-[90px_1fr_220px_80px]" key={`proc-${index}`}>
+                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-[90px_1fr_140px_140px_220px_80px]" key={`proc-${index}`}>
                     <FormField label="Ordem">
                       <Input type="number" min="1" value={item.ordem} onChange={(event) => updateProcedimento(index, { ordem: event.target.value })} />
                     </FormField>
                     <FormField label="Descricao">
                       <Input value={item.descricao} onChange={(event) => updateProcedimento(index, { descricao: event.target.value })} />
+                    </FormField>
+                    <FormField label="Inicio">
+                      <Input type="time" value={item.horario_inicio} onChange={(event) => updateProcedimento(index, { horario_inicio: event.target.value })} />
+                    </FormField>
+                    <FormField label="Termino">
+                      <Input type="time" value={item.horario_fim} onChange={(event) => updateProcedimento(index, { horario_fim: event.target.value })} />
                     </FormField>
                     <FormField label="Atualiza setor">
                       <select className={selectClassName} value={item.setor_destino_id} onChange={(event) => updateProcedimento(index, { setor_destino_id: event.target.value })}>

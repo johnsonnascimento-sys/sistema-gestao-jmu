@@ -5,7 +5,17 @@ import type { AssuntoRepository } from "../repositories/types";
 const procedimentoSchema = z.object({
   ordem: z.number().int().positive().optional(),
   descricao: z.string().trim().min(3).max(4000),
+  horario_inicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
+  horario_fim: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
   setor_destino_id: z.string().uuid().optional().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.horario_inicio && value.horario_fim && value.horario_fim < value.horario_inicio) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["horario_fim"],
+      message: "O horario de termino nao pode ser anterior ao horario de inicio.",
+    });
+  }
 });
 
 const assuntoSchema = z.object({
@@ -32,6 +42,8 @@ export async function registerAssuntoRoutes(app: FastifyInstance, options: { ass
       procedimentos: payload.procedimentos.map((item) => ({
         ordem: item.ordem,
         descricao: item.descricao,
+        horarioInicio: item.horario_inicio ?? null,
+        horarioFim: item.horario_fim ?? null,
         setorDestinoId: item.setor_destino_id ?? null,
       })),
     });
@@ -50,6 +62,8 @@ export async function registerAssuntoRoutes(app: FastifyInstance, options: { ass
       procedimentos: payload.procedimentos.map((item) => ({
         ordem: item.ordem,
         descricao: item.descricao,
+        horarioInicio: item.horario_inicio ?? null,
+        horarioFim: item.horario_fim ?? null,
         setorDestinoId: item.setor_destino_id ?? null,
       })),
     });
