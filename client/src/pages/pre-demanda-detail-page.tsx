@@ -758,7 +758,7 @@ export function PreDemandaDetailPage() {
             historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
-    [activeSetoresLoaded, comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, interessados.length, interessadosLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, seiAssociations, setoresAtivos.length, tarefasLoaded, timeline.length, vinculos.length],
+    [activeSetoresLoaded, comentarios.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, interessados.length, interessadosLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, seiAssociations, setoresAtivos.length, tarefasLoaded, timeline.length, vinculos.length],
   );
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
