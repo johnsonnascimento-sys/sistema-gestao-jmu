@@ -3008,7 +3008,9 @@ export function PreDemandaDetailPage() {
               observacoes,
               delete_pending_tasks: statusAction.nextStatus === "encerrada" ? extraOptionChecked : undefined,
             });
-            await load();
+            await loadRecordData();
+            void loadTimelineData();
+            await loadTarefasData(true);
             setMessage(`Processo atualizado para ${getPreDemandaStatusLabel(statusAction.nextStatus)}.`);
           } catch (nextError) {
             throw new Error(formatPreDemandaMutationError(nextError, "Falha ao atualizar o processo."));
