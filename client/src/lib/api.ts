@@ -44,6 +44,45 @@ interface ApiEnvelope<T> {
   } | null;
 }
 
+type CatalogCacheEntry<T> = {
+  value: T | null;
+  expiresAt: number;
+  pending: Promise<T> | null;
+};
+
+const CATALOG_CACHE_TTL_MS = 60_000;
+const setoresCache: CatalogCacheEntry<Setor[]> = { value: null, expiresAt: 0, pending: null };
+const assuntosCache: CatalogCacheEntry<Assunto[]> = { value: null, expiresAt: 0, pending: null };
+
+function invalidateCatalogCache(entry: CatalogCacheEntry<unknown>) {
+  entry.value = null;
+  entry.expiresAt = 0;
+  entry.pending = null;
+}
+
+async function loadCachedCatalog<T>(entry: CatalogCacheEntry<T>, loader: () => Promise<T>) {
+  const now = Date.now();
+  if (entry.value && entry.expiresAt > now) {
+    return entry.value;
+  }
+
+  if (entry.pending) {
+    return entry.pending;
+  }
+
+  entry.pending = loader()
+    .then((result) => {
+      entry.value = result;
+      entry.expiresAt = Date.now() + CATALOG_CACHE_TTL_MS;
+      return result;
+    })
+    .finally(() => {
+      entry.pending = null;
+    });
+
+  return entry.pending;
+}
+
 export class ApiError extends Error {
   readonly code: string;
   readonly details?: unknown;
@@ -627,7 +666,7 @@ export function updatePessoa(id: string, payload: { nome: string; cargo?: string
 }
 
 export function listSetores() {
-  return request<Setor[]>("/api/setores");
+  return loadCachedCatalog(setoresCache, () => request<Setor[]>("/api/setores"));
 }
 
 export function listNormas() {
@@ -649,7 +688,7 @@ export function updateNorma(id: string, payload: { numero: string; data_norma: s
 }
 
 export function listAssuntos() {
-  return request<Assunto[]>("/api/assuntos");
+  return loadCachedCatalog(assuntosCache, () => request<Assunto[]>("/api/assuntos"));
 }
 
 export function createAssunto(payload: {
@@ -661,6 +700,9 @@ export function createAssunto(payload: {
   return request<Assunto>("/api/assuntos", {
     method: "POST",
     body: JSON.stringify(payload),
+  }).then((result) => {
+    invalidateCatalogCache(assuntosCache);
+    return result;
   });
 }
 
@@ -676,6 +718,9 @@ export function updateAssunto(
   return request<Assunto>(`/api/assuntos/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  }).then((result) => {
+    invalidateCatalogCache(assuntosCache);
+    return result;
   });
 }
 
@@ -683,6 +728,9 @@ export function createSetor(payload: { sigla: string; nome_completo: string }) {
   return request<Setor>("/api/setores", {
     method: "POST",
     body: JSON.stringify(payload),
+  }).then((result) => {
+    invalidateCatalogCache(setoresCache);
+    return result;
   });
 }
 
@@ -690,6 +738,9 @@ export function updateSetor(id: string, payload: { sigla: string; nome_completo:
   return request<Setor>(`/api/setores/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  }).then((result) => {
+    invalidateCatalogCache(setoresCache);
+    return result;
   });
 }
 
