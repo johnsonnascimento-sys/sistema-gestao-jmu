@@ -3974,7 +3974,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         select
           tarefa.id,
           pd.pre_id,
-          coalesce(nullif(pd.numero_sei, ''), nullif(pd.numero_judicial, ''), pd.pre_id) as pre_numero,
+          coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
           pd.assunto,
           tarefa.descricao,
           tarefa.tipo,
@@ -3989,6 +3989,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           tarefa.created_at
         from adminlog.tarefas_pendentes tarefa
         inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+        left join lateral (
+          select link.sei_numero
+          from adminlog.pre_to_sei_link link
+          where link.pre_id = pd.pre_id
+          order by link.updated_at desc, link.id desc
+          limit 1
+        ) pts on true
         left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
         order by tarefa.concluida asc, tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
       `,
