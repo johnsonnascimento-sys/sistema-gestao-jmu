@@ -78,6 +78,8 @@ import {
   getPreDemanda,
   getTimeline,
   listAssuntos,
+  listPreDemandaComentarios,
+  listPreDemandaDocumentos,
   listPessoas,
   listPreDemandas,
   listSetores,
@@ -156,6 +158,8 @@ export function PreDemandaDetailPage() {
   const { hasPermission } = useAuth();
   const [record, setRecord] = useState<PreDemanda | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [documentos, setDocumentos] = useState<PreDemanda["documentos"]>([]);
+  const [comentarios, setComentarios] = useState<PreDemanda["comentarios"]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
   const [assuntosCatalogo, setAssuntosCatalogo] = useState<Assunto[]>([]);
   const [interessadoResults, setInteressadoResults] = useState<Interessado[]>([]);
@@ -211,6 +215,10 @@ export function PreDemandaDetailPage() {
   const [signatureSelectedName, setSignatureSelectedName] = useState("");
   const [newInteressadoForm, setNewInteressadoForm] = useState({ nome: "", cargo: "", matricula: "", cpf: "" });
   const [processSearch, setProcessSearch] = useState("");
+  const [documentsLoaded, setDocumentsLoaded] = useState(false);
+  const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
   function syncRecordDependentState(nextRecord: PreDemanda) {
@@ -272,6 +280,36 @@ export function PreDemandaDetailPage() {
     }
   }
 
+  async function loadDocumentosData(force = false) {
+    if (!force && (documentsLoaded || documentsLoading)) {
+      return;
+    }
+
+    setDocumentsLoading(true);
+    try {
+      const nextDocumentos = await listPreDemandaDocumentos(preId);
+      setDocumentos(nextDocumentos);
+      setDocumentsLoaded(true);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }
+
+  async function loadComentariosData(force = false) {
+    if (!force && (commentsLoaded || commentsLoading)) {
+      return;
+    }
+
+    setCommentsLoading(true);
+    try {
+      const nextComentarios = await listPreDemandaComentarios(preId);
+      setComentarios(nextComentarios);
+      setCommentsLoaded(true);
+    } finally {
+      setCommentsLoading(false);
+    }
+  }
+
   useEffect(() => {
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -299,6 +337,24 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     void loadCatalogData();
   }, []);
+
+  useEffect(() => {
+    setDocumentos([]);
+    setComentarios([]);
+    setDocumentsLoaded(false);
+    setCommentsLoaded(false);
+    setDocumentsLoading(false);
+    setCommentsLoading(false);
+  }, [preId]);
+
+  useEffect(() => {
+    if (toolbarDialog === "documents") {
+      void loadDocumentosData();
+    }
+    if (toolbarDialog === "comments") {
+      void loadComentariosData();
+    }
+  }, [toolbarDialog]);
 
   useEffect(() => {
     if (toolbarDialog !== "link" || processSearch.trim().length < 2) {
@@ -515,12 +571,12 @@ export function PreDemandaDetailPage() {
             visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
             relacionados: record.vinculos.length ? `${record.vinculos.length} vinculo(s) ativo(s)` : "Sem processos relacionados",
             associacaoSei: record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
-            documentos: record.documentos.length ? `${record.documentos.length} documento(s) anexado(s)` : "Sem documentos anexados",
-            comentarios: record.comentarios.length ? `${record.comentarios.length} comentario(s) registrado(s)` : "Sem comentarios",
+            documentos: documentos.length ? `${documentos.length} documento(s) anexado(s)` : documentsLoaded ? "Sem documentos anexados" : "Abrir documentos",
+            comentarios: comentarios.length ? `${comentarios.length} comentario(s) registrado(s)` : commentsLoaded ? "Sem comentarios" : "Abrir discussao",
             historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
-    [completedTasks.length, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, timeline.length],
+    [comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, timeline.length],
   );
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
@@ -660,6 +716,7 @@ export function PreDemandaDetailPage() {
           conteudo_base64: conteudoBase64,
         });
         setDocumentForm({ file: null, descricao: "" });
+        await loadDocumentosData(true);
       },
       "Documento anexado.",
     );
@@ -1885,10 +1942,14 @@ export function PreDemandaDetailPage() {
                 </Button>
               </div>
             </div>
-            {record.documentos.length === 0 ? (
+            {documentsLoading && !documentsLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                Carregando documentos...
+              </p>
+            ) : documentos.length === 0 ? (
               <EmptyState description="Nenhum documento foi anexado a este processo." title="Sem documentos" />
             ) : (
-              record.documentos.map((item) => (
+              documentos.map((item) => (
                 <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
                   <div>
                     <p className="font-semibold text-slate-950">{item.nomeArquivo}</p>
@@ -1901,7 +1962,17 @@ export function PreDemandaDetailPage() {
                     <Button onClick={() => void downloadPreDemandaDocumento(preId, item.id, item.nomeArquivo)} size="sm" type="button" variant="secondary">
                       Baixar
                     </Button>
-                    <Button onClick={() => void runMutation(() => removePreDemandaDocumento(preId, item.id).then(() => undefined), "Documento removido.")} size="sm" type="button" variant="ghost">
+                    <Button
+                      onClick={() =>
+                        void runMutation(async () => {
+                          await removePreDemandaDocumento(preId, item.id);
+                          await loadDocumentosData(true);
+                        }, "Documento removido.")
+                      }
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1928,6 +1999,7 @@ export function PreDemandaDetailPage() {
                     async () => {
                       await createPreDemandaComentario(preId, { conteudo: commentForm, formato: "markdown" });
                       setCommentForm("");
+                      await loadComentariosData(true);
                     },
                     "Comentario registrado.",
                   )
@@ -1937,10 +2009,14 @@ export function PreDemandaDetailPage() {
                 Publicar comentario
               </Button>
             </div>
-            {record.comentarios.length === 0 ? (
+            {commentsLoading && !commentsLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                Carregando comentarios...
+              </p>
+            ) : comentarios.length === 0 ? (
               <EmptyState description="Ainda nao ha conversa registrada neste processo." title="Sem comentarios" />
             ) : (
-              record.comentarios.map((item) => (
+              comentarios.map((item) => (
                 <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-slate-950">{item.createdBy?.name ?? "Sistema"}</p>

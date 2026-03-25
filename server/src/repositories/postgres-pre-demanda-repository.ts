@@ -1311,13 +1311,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [assuntos, interessados, vinculos, setoresAtivos, documentos, comentarios, tarefasPendentes, audiencias, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
+    const [assuntos, interessados, vinculos, setoresAtivos, tarefasPendentes, audiencias, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
       this.loadAssuntos(queryable, detail.id),
       this.loadInteressados(queryable, detail.id),
       this.loadVinculos(queryable, detail.id),
       this.loadSetoresAtivos(queryable, detail.id),
-      this.loadDocumentos(queryable, detail.id, detail.preId),
-      this.loadComentarios(queryable, detail.id, detail.preId),
       this.loadTarefas(queryable, detail.id, detail.preId),
       loadAudiencias(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 20),
@@ -1329,8 +1327,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.interessados = interessados;
     detail.vinculos = vinculos;
     detail.setoresAtivos = setoresAtivos;
-    detail.documentos = documentos;
-    detail.comentarios = comentarios;
+    detail.documentos = [];
+    detail.comentarios = [];
     detail.tarefasPendentes = tarefasPendentes;
     detail.audiencias = audiencias;
     detail.recentAndamentos = recentAndamentos;
