@@ -5,6 +5,7 @@ import { Clock3, Gavel } from "lucide-react";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, listDashboardTasks } from "../lib/api";
 import { formatDateOnlyPtBr } from "../lib/date";
@@ -187,6 +188,7 @@ function TaskTabPanel({
 export function TarefasPage() {
   const [items, setItems] = useState<DashboardTaskItem[]>([]);
   const [sortMode, setSortMode] = useState<TaskSortMode>("prazo_asc");
+  const [selectedDate, setSelectedDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -216,8 +218,12 @@ export function TarefasPage() {
     };
   }, []);
 
-  const pending = useMemo(() => items.filter((item) => !item.concluida), [items]);
-  const completed = useMemo(() => items.filter((item) => item.concluida), [items]);
+  const filteredItems = useMemo(
+    () => items.filter((item) => !selectedDate || item.prazoConclusao === selectedDate),
+    [items, selectedDate],
+  );
+  const pending = useMemo(() => filteredItems.filter((item) => !item.concluida), [filteredItems]);
+  const completed = useMemo(() => filteredItems.filter((item) => item.concluida), [filteredItems]);
 
   if (loading) {
     return <LoadingState description="Carregando tarefas pendentes e concluidas." title="Tarefas" />;
@@ -256,6 +262,28 @@ export function TarefasPage() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="grid gap-2 sm:max-w-xs">
+              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="task-date-filter">
+                Data da tarefa
+              </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="task-date-filter"
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  type="date"
+                  value={selectedDate}
+                />
+                {selectedDate ? (
+                  <button
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
+                    onClick={() => setSelectedDate("")}
+                    type="button"
+                  >
+                    Limpar
+                  </button>
+                ) : null}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
