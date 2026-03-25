@@ -13,6 +13,7 @@ export type ToolbarDialog =
   | "andamento"
   | "audiencias"
   | "summary"
+  | "subjects"
   | "people"
   | "sectors"
   | "relatedList"

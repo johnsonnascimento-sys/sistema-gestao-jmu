@@ -723,6 +723,7 @@ export function PreDemandaDetailPage() {
             <ToolbarActionButton icon={RotateCcw} label="Reabrir" onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" />
           ) : null}
           <ToolbarActionButton icon={LayoutDashboard} label="Resumo" onClick={() => setToolbarDialog("summary")} title={sectionSummaries?.resumo ?? "Abrir resumo executivo"} />
+          <ToolbarActionButton icon={FilePlus2} label="Assuntos" onClick={() => setToolbarDialog("subjects")} title="Gerenciar assuntos vinculados e checklist automatico" />
           <ToolbarActionButton icon={Users} label="Pessoas" onClick={() => setToolbarDialog("people")} title={sectionSummaries?.pessoas ?? "Abrir pessoas vinculadas"} />
           <ToolbarActionButton icon={Building2} label="Setores" onClick={() => setToolbarDialog("sectors")} title={sectionSummaries?.setores ?? "Abrir setores ativos"} />
           <ToolbarActionButton icon={GitBranch} label="Relacionamentos" onClick={() => setToolbarDialog("relatedList")} title={sectionSummaries?.relacionados ?? "Abrir processos relacionados"} />
@@ -1451,6 +1452,96 @@ export function PreDemandaDetailPage() {
                 </div>
               ) : null}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog onOpenChange={(open) => !open && setToolbarDialog(null)} open={toolbarDialog === "subjects"}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Assuntos do processo</DialogTitle>
+            <DialogDescription>Adicione ou remova assuntos. Assuntos com procedimentos podem gerar checklist automatico.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
+                <p className="text-xs text-slate-500">Assuntos com procedimentos criam tarefas automaticas e usam o prazo do processo.</p>
+              </div>
+              {record.assuntos.some((item) => item.assunto.procedimentos.length > 0) ? (
+                <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
+                  Checklist automatico ativo
+                </span>
+              ) : null}
+            </div>
+
+            {record.assuntos.length === 0 ? (
+              <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto vinculado.</p>
+            ) : (
+              <div className="grid gap-3">
+                {record.assuntos.map((item) => (
+                  <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.assunto.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-950">{item.assunto.nome}</p>
+                        <p className="text-sm text-slate-500">{item.assunto.procedimentos.length} passos • {item.assunto.normas.length} normas</p>
+                        {item.assunto.normas.length ? <p className="mt-1 text-xs text-slate-500">Normas: {item.assunto.normas.map((norma) => norma.numero).join(", ")}</p> : null}
+                      </div>
+                      <Button
+                        onClick={() =>
+                          void runMutation(
+                            () => removePreDemandaAssunto(preId, item.assunto.id).then((next) => setRecord(next)),
+                            "Assunto removido e tarefas automaticas pendentes foram revistas.",
+                          )
+                        }
+                        size="sm"
+                        type="button"
+                        variant="ghost"
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                    {item.assunto.procedimentos.length ? (
+                      <ol className="mt-3 grid gap-2 text-sm text-slate-600">
+                        {item.assunto.procedimentos.map((procedimento) => (
+                          <li className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2" key={procedimento.id}>
+                            <span className="font-semibold">{procedimento.ordem}. </span>
+                            {procedimento.descricao}
+                            {procedimento.setorDestino ? <span className="ml-2 text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">→ {procedimento.setorDestino.sigla}</span> : null}
+                          </li>
+                        ))}
+                      </ol>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {availableAssuntos.length ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {availableAssuntos.map((assunto) => (
+                  <button
+                    className="rounded-[20px] border border-dashed border-slate-300 bg-white px-4 py-3 text-left text-sm hover:border-slate-400"
+                    key={assunto.id}
+                    onClick={() =>
+                      void runMutation(
+                        () => addPreDemandaAssunto(preId, assunto.id).then((next) => setRecord(next)),
+                        `Assunto ${assunto.nome} vinculado e checklist gerado.`,
+                      )
+                    }
+                    type="button"
+                  >
+                    <span className="block font-semibold text-slate-950">{assunto.nome}</span>
+                    <span className="block text-slate-500">{assunto.procedimentos.length} passos • {assunto.normas.length} normas</span>
+                    {assunto.procedimentos.length ? (
+                      <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-sky-700">Vai criar checklist automatico</span>
+                    ) : (
+                      <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Sem checklist automatico</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>
