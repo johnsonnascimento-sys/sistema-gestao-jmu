@@ -13,7 +13,7 @@ import { formatAppError, getDashboardSummary } from "../lib/api";
 import { formatDateOnlyPtBr, formatDateTimePtBr } from "../lib/date";
 import { getQueueHealth } from "../lib/queue-health";
 import type { PreDemanda, PreDemandaDashboardSummary, TarefaRecorrenciaTipo } from "../types";
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Pie, PieChart, Tooltip } from "recharts";
 import { motion } from "framer-motion";
 
 function buildAnalyticalTableHref(overrides: Record<string, string>) {
@@ -350,18 +350,16 @@ export function DashboardPage() {
                       <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-sky-500"></div>No prazo: {noPrazo}</div>
                     </div>
                   </div>
-                  <div className="relative z-10 h-[100px] w-[100px]">
+                  <div className="relative z-10 flex h-[100px] w-[100px] items-center justify-center">
                     {total > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={data} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" stroke="none">
-                            {data.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} itemStyle={{ color: '#334155' }} />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <PieChart height={100} width={100}>
+                        <Pie data={data} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" stroke="none">
+                          {data.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} itemStyle={{ color: '#334155' }} />
+                      </PieChart>
                     ) : (
                       <div className="flex h-full items-center justify-center rounded-full border border-dashed border-slate-300">
                         <span className="text-[10px] font-medium text-slate-400">Zeradão!</span>
@@ -397,18 +395,16 @@ export function DashboardPage() {
                     <Link className="flex w-fit items-center gap-2 hover:text-sky-600 transition-colors" to={buildAnalyticalTableHref({ deadlineCampo: item.campo, prazoRecorte: "soon" })}><div className="w-2 h-2 rounded-full bg-sky-500"></div>Na semana: {metrics.dueSoonTotal}</Link>
                   </div>
                 </div>
-                <div className="relative z-10 h-[100px] w-[100px]">
+                <div className="relative z-10 flex h-[100px] w-[100px] items-center justify-center">
                   {total > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie data={data} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" stroke="none">
-                          {data.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} itemStyle={{ color: '#334155' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    <PieChart height={100} width={100}>
+                      <Pie data={data} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value" stroke="none">
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px' }} itemStyle={{ color: '#334155' }} />
+                    </PieChart>
                   ) : (
                     <div className="flex h-full items-center justify-center rounded-full border border-dashed border-slate-300">
                       <span className="text-[10px] font-medium text-slate-400">Tranquilo!</span>
