@@ -1567,7 +1567,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     );
     this.touch(record);
 
-    return { record };
+    return {
+      preId: record.preId,
+      status: record.status,
+      allowedNextStatuses: record.allowedNextStatuses,
+    };
   }
 
   async listStatusAudit(preId: string) {

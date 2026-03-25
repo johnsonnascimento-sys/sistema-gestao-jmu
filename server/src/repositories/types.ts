@@ -103,7 +103,9 @@ export interface UpdatePreDemandaStatusInput {
 }
 
 export interface UpdatePreDemandaStatusResult {
-  record: PreDemandaDetail;
+  preId: string;
+  status: PreDemandaStatus;
+  allowedNextStatuses: PreDemandaStatus[];
 }
 
 export interface UpdatePreDemandaCaseDataInput {

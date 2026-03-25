@@ -839,7 +839,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
 
     return reply.send({
       ok: true,
-      data: result.record,
+      data: result,
       error: null,
     });
   });

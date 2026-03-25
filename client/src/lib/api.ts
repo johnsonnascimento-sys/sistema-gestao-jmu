@@ -345,7 +345,7 @@ export function updatePreDemandaAnotacoes(preId: string, anotacoes: string | nul
 }
 
 export function updatePreDemandaStatus(preId: string, payload: { status: PreDemandaStatus; motivo?: string; observacoes?: string; delete_pending_tasks?: boolean }) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/status`, {
+  return request<{ preId: string; status: PreDemandaStatus; allowedNextStatuses: PreDemandaStatus[] }>(`/api/pre-demandas/${preId}/status`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

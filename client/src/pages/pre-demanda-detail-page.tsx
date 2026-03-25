@@ -239,9 +239,8 @@ export function PreDemandaDetailPage() {
       setLoading(true);
     }
     try {
-      const [nextRecord, nextTimeline] = await Promise.all([getPreDemanda(preId), getTimeline(preId)]);
+      const nextRecord = await getPreDemanda(preId);
       setRecord(nextRecord);
-      setTimeline(nextTimeline);
       syncRecordDependentState(nextRecord);
       setError("");
     } catch (nextError) {
@@ -250,6 +249,15 @@ export function PreDemandaDetailPage() {
       if (showLoading) {
         setLoading(false);
       }
+    }
+  }
+
+  async function loadTimelineData() {
+    try {
+      const nextTimeline = await getTimeline(preId);
+      setTimeline(nextTimeline);
+    } catch {
+      // Timeline is loaded in the background to keep the detail page responsive.
     }
   }
 
@@ -282,6 +290,10 @@ export function PreDemandaDetailPage() {
 
   useEffect(() => {
     void loadRecordData(true);
+  }, [preId]);
+
+  useEffect(() => {
+    void loadTimelineData();
   }, [preId]);
 
   useEffect(() => {
@@ -518,6 +530,7 @@ export function PreDemandaDetailPage() {
     try {
       await action();
       await loadRecordData();
+      void loadTimelineData();
       setMessage(successMessage);
     } catch (nextError) {
       setError(formatPreDemandaMutationError(nextError, "Falha ao executar a operacao."));
@@ -557,6 +570,7 @@ export function PreDemandaDetailPage() {
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
       await loadRecordData();
+      void loadTimelineData();
       setTaskPrazoChange(null);
       setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
       setMessage("Tarefa criada.");
@@ -598,6 +612,7 @@ export function PreDemandaDetailPage() {
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
       await loadRecordData();
+      void loadTimelineData();
       setTaskPrazoChange(null);
       setEditingTask(null);
       setMessage("Tarefa atualizada.");

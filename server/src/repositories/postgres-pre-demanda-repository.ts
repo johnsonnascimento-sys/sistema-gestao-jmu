@@ -3192,7 +3192,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult> {
-    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
       const currentResult = await client.query(
         `
@@ -3289,12 +3288,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
-      if (!record) {
-        throw new AppError(500, "PRE_DEMANDA_STATUS_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
-      }
-
-      return { record };
+      return {
+        preId: input.preId,
+        status: input.status,
+        allowedNextStatuses: getAllowedNextStatuses({
+          currentStatus: input.status,
+          hasAssociation,
+        }),
+      };
     });
   }
 
