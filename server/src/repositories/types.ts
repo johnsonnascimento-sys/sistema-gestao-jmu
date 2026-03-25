@@ -501,6 +501,7 @@ export interface PreDemandaRepository {
   removeAssunto(input: RemoveDemandaAssuntoInput): Promise<PreDemandaDetail>;
   addInteressado(input: AddDemandaInteressadoInput): Promise<DemandaInteressado[]>;
   removeInteressado(input: RemoveDemandaInteressadoInput): Promise<DemandaInteressado[]>;
+  listInteressados(preId: string): Promise<DemandaInteressado[]>;
   addVinculo(input: AddDemandaVinculoInput): Promise<DemandaVinculo[]>;
   removeVinculo(input: RemoveDemandaVinculoInput): Promise<DemandaVinculo[]>;
   listVinculos(preId: string): Promise<DemandaVinculo[]>;
@@ -516,6 +517,7 @@ export interface PreDemandaRepository {
   removeDocumento(input: RemoveDocumentoInput): Promise<DemandaDocumento[]>;
   downloadDocumento(preId: string, documentoId: string): Promise<DocumentoDownloadResult>;
   listSetoresAtivos(preId: string): Promise<DemandaSetorFluxo[]>;
+  listSeiAssociations(preId: string): Promise<SeiAssociation[]>;
   associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult>;
   updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult>;
   listAudit(preId: string): Promise<PreDemandaAuditRecord[]>;

@@ -1311,18 +1311,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [assuntos, interessados, tarefasPendentes, audiencias, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
+    const [assuntos, tarefasPendentes, audiencias, recentAndamentos] = await Promise.all([
       this.loadAssuntos(queryable, detail.id),
-      this.loadInteressados(queryable, detail.id),
       this.loadTarefas(queryable, detail.id, detail.preId),
       loadAudiencias(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 20),
-      this.loadSeiAssociations(queryable, detail.id, detail.preId),
-      this.loadNumerosJudiciais(queryable, detail.id),
     ]);
 
     detail.assuntos = assuntos;
-    detail.interessados = interessados;
+    detail.interessados = [];
     detail.vinculos = [];
     detail.setoresAtivos = [];
     detail.documentos = [];
@@ -1330,16 +1327,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.tarefasPendentes = tarefasPendentes;
     detail.audiencias = audiencias;
     detail.recentAndamentos = recentAndamentos;
-    detail.seiAssociations = seiAssociations;
-    detail.currentAssociation = seiAssociations.find((item) => item.principal) ?? detail.currentAssociation;
-    detail.numerosJudiciais = numerosJudiciais;
-    detail.numeroJudicial = numerosJudiciais.find((item) => item.principal)?.numero ?? detail.numeroJudicial;
+    detail.seiAssociations = [];
+    detail.numerosJudiciais = [];
     detail.principalNumero = detail.currentAssociation?.seiNumero ?? detail.numeroJudicial ?? detail.preId;
     detail.principalTipo = detail.currentAssociation ? "sei" : "demanda";
-    detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.interessados[0]?.interessado.nome ?? detail.solicitante;
-    if (!detail.pessoaPrincipal) {
-      detail.pessoaPrincipal = detail.interessados[0]?.interessado ?? null;
-    }
+    detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.solicitante;
 
     return detail;
   }
@@ -2256,6 +2248,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return this.loadVinculos(this.pool, demanda.id);
   }
 
+  async listInteressados(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadInteressados(this.pool, demanda.id);
+  }
+
   async tramitar(input: TramitarPreDemandaInput) {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
@@ -3078,8 +3075,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return this.loadSetoresAtivos(this.pool, demanda.id);
   }
 
+  async listSeiAssociations(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadSeiAssociations(this.pool, demanda.id, demanda.preId);
+  }
+
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
-    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
       const demanda = await client.query(
         `
@@ -3180,13 +3181,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         );
       }
 
-      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
-      if (!record?.currentAssociation) {
+      const associations = await this.loadSeiAssociations(client, Number(demanda.rows[0].id), input.preId);
+      const currentAssociation = associations.find((item) => item.principal) ?? null;
+      if (!currentAssociation) {
         throw new AppError(500, "PRE_DEMANDA_ASSOCIATION_FAILED", "Falha ao carregar a associacao atualizada.");
       }
 
       return {
-        association: record.currentAssociation,
+        association: currentAssociation,
         audited,
       };
     });

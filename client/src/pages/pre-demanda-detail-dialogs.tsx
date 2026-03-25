@@ -446,6 +446,8 @@ export function TarefasDialog({
   open,
   onClose,
   record,
+  interessados,
+  interessadosLoading,
   setores,
   taskForm,
   onTaskFormChange,
@@ -470,6 +472,8 @@ export function TarefasDialog({
   open: boolean;
   onClose: () => void;
   record: PreDemanda;
+  interessados: PreDemanda["interessados"];
+  interessadosLoading: boolean;
   setores: Setor[];
   taskForm: TaskCreateForm;
   onTaskFormChange: (form: TaskCreateForm) => void;
@@ -662,11 +666,13 @@ export function TarefasDialog({
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                   Pessoas vinculadas ao processo
                 </p>
-                {record.interessados.length === 0 ? (
+                {interessadosLoading ? (
+                  <p className="text-xs text-slate-400">Carregando pessoas vinculadas...</p>
+                ) : interessados.length === 0 ? (
                   <p className="text-xs text-slate-400">Nenhuma pessoa vinculada a este processo.</p>
                 ) : (
                   <div className="grid gap-2">
-                    {record.interessados.map((item) => (
+                    {interessados.map((item) => (
                       <button
                         className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${
                           taskForm.assinatura_interessado_id === item.interessado.id

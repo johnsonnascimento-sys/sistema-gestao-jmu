@@ -78,6 +78,8 @@ import {
   getPreDemanda,
   getTimeline,
   listAssuntos,
+  listPreDemandaInteressados,
+  listPreDemandaSeiAssociations,
   listPreDemandaSetoresAtivos,
   listPreDemandaVinculos,
   listPreDemandaComentarios,
@@ -162,6 +164,8 @@ export function PreDemandaDetailPage() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [documentos, setDocumentos] = useState<PreDemanda["documentos"]>([]);
   const [comentarios, setComentarios] = useState<PreDemanda["comentarios"]>([]);
+  const [interessados, setInteressados] = useState<PreDemanda["interessados"]>([]);
+  const [seiAssociations, setSeiAssociations] = useState<PreDemanda["seiAssociations"]>([]);
   const [vinculos, setVinculos] = useState<PreDemanda["vinculos"]>([]);
   const [setoresAtivos, setSetoresAtivos] = useState<PreDemanda["setoresAtivos"]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
@@ -221,10 +225,14 @@ export function PreDemandaDetailPage() {
   const [processSearch, setProcessSearch] = useState("");
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [interessadosLoaded, setInteressadosLoaded] = useState(false);
+  const [seiLoaded, setSeiLoaded] = useState(false);
   const [relatedLoaded, setRelatedLoaded] = useState(false);
   const [activeSetoresLoaded, setActiveSetoresLoaded] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [interessadosLoading, setInteressadosLoading] = useState(false);
+  const [seiLoading, setSeiLoading] = useState(false);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [activeSetoresLoading, setActiveSetoresLoading] = useState(false);
   const isSeiValid = isValidSei(associationForm.sei_numero);
@@ -318,6 +326,36 @@ export function PreDemandaDetailPage() {
     }
   }
 
+  async function loadInteressadosData(force = false) {
+    if (!force && (interessadosLoaded || interessadosLoading)) {
+      return;
+    }
+
+    setInteressadosLoading(true);
+    try {
+      const nextInteressados = await listPreDemandaInteressados(preId);
+      setInteressados(nextInteressados);
+      setInteressadosLoaded(true);
+    } finally {
+      setInteressadosLoading(false);
+    }
+  }
+
+  async function loadSeiData(force = false) {
+    if (!force && (seiLoaded || seiLoading)) {
+      return;
+    }
+
+    setSeiLoading(true);
+    try {
+      const nextAssociations = await listPreDemandaSeiAssociations(preId);
+      setSeiAssociations(nextAssociations);
+      setSeiLoaded(true);
+    } finally {
+      setSeiLoading(false);
+    }
+  }
+
   async function loadVinculosData(force = false) {
     if (!force && (relatedLoaded || relatedLoading)) {
       return;
@@ -379,14 +417,20 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     setDocumentos([]);
     setComentarios([]);
+    setInteressados([]);
+    setSeiAssociations([]);
     setVinculos([]);
     setSetoresAtivos([]);
     setDocumentsLoaded(false);
     setCommentsLoaded(false);
+    setInteressadosLoaded(false);
+    setSeiLoaded(false);
     setRelatedLoaded(false);
     setActiveSetoresLoaded(false);
     setDocumentsLoading(false);
     setCommentsLoading(false);
+    setInteressadosLoading(false);
+    setSeiLoading(false);
     setRelatedLoading(false);
     setActiveSetoresLoading(false);
   }, [preId]);
@@ -397,6 +441,12 @@ export function PreDemandaDetailPage() {
     }
     if (toolbarDialog === "comments") {
       void loadComentariosData();
+    }
+    if (toolbarDialog === "people" || toolbarDialog === "tasks") {
+      void loadInteressadosData();
+    }
+    if (toolbarDialog === "summary" || toolbarDialog === "seiAssociation") {
+      void loadSeiData();
     }
     if (toolbarDialog === "relatedList") {
       void loadVinculosData();
@@ -559,13 +609,13 @@ export function PreDemandaDetailPage() {
   const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor";
   const requiresTaskSignaturePerson = taskForm.descricao.trim() === "Assinatura de pessoa";
   const selectedSignaturePerson = useMemo(() => {
-    const fromInteressados = record?.interessados.find((item) => item.interessado.id === taskForm.assinatura_interessado_id)?.interessado ?? null;
+    const fromInteressados = interessados.find((item) => item.interessado.id === taskForm.assinatura_interessado_id)?.interessado ?? null;
     if (fromInteressados) return fromInteressados;
     const fromSearch = signatureSearchResults.find((item) => item.id === taskForm.assinatura_interessado_id) ?? null;
     if (fromSearch) return fromSearch;
     if (taskForm.assinatura_interessado_id && signatureSelectedName) return { nome: signatureSelectedName } as { nome: string };
     return null;
-  }, [record, signatureSearchResults, taskForm.assinatura_interessado_id, signatureSelectedName]);
+  }, [interessados, signatureSearchResults, taskForm.assinatura_interessado_id, signatureSelectedName]);
 
   function getTaskPrazoChangeState(error: unknown, payload: TaskPrazoChangeState["payload"], mode: "create" | "edit"): TaskPrazoChangeState | null {
     if (!(error instanceof Error) || !("code" in error) || !("details" in error)) {
@@ -615,18 +665,18 @@ export function PreDemandaDetailPage() {
                 : record.metadata.audienciaHorarioInicio
                   ? `Próxima audiência ${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
                   : "Sem audiência cadastrada",
-            pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
+            pessoas: interessados.length ? `${interessados.length} pessoa(s) vinculada(s)` : interessadosLoaded ? "Nenhuma pessoa vinculada" : record.pessoaPrincipal?.nome ?? "Abrir pessoas",
             setores: setoresAtivos.length ? `${setoresAtivos.length} setor(es) ativo(s)` : activeSetoresLoaded ? "Sem setores ativos" : "Abrir setores",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
             visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
             relacionados: vinculos.length ? `${vinculos.length} vinculo(s) ativo(s)` : relatedLoaded ? "Sem processos relacionados" : "Abrir relacionamentos",
-            associacaoSei: record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
+            associacaoSei: seiAssociations.find((item) => item.principal)?.seiNumero ?? record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
             documentos: documentos.length ? `${documentos.length} documento(s) anexado(s)` : documentsLoaded ? "Sem documentos anexados" : "Abrir documentos",
             comentarios: comentarios.length ? `${comentarios.length} comentario(s) registrado(s)` : commentsLoaded ? "Sem comentarios" : "Abrir discussao",
             historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
-    [activeSetoresLoaded, comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, setoresAtivos.length, timeline.length, vinculos.length],
+    [activeSetoresLoaded, comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, interessados.length, interessadosLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, seiAssociations, setoresAtivos.length, timeline.length, vinculos.length],
   );
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
@@ -741,11 +791,21 @@ export function PreDemandaDetailPage() {
       return;
     }
     await runMutation(
-      () =>
-        associateSei(preId, {
+      async () => {
+        const result = await associateSei(preId, {
           ...associationForm,
           sei_numero: normalizeSeiValue(associationForm.sei_numero),
-        }).then(() => undefined),
+        });
+        if (!result.association) {
+          setSeiLoaded(false);
+          return;
+        }
+        setSeiAssociations((current) => [
+          result.association,
+          ...current.filter((item) => item.seiNumero !== result.association.seiNumero).map((item) => ({ ...item, principal: false })),
+        ]);
+        setSeiLoaded(true);
+      },
       "Associacao SEI atualizada.",
     );
   }
@@ -1109,11 +1169,13 @@ export function PreDemandaDetailPage() {
                 <div className="grid gap-3">
                   <div className="grid gap-2 rounded-[20px] border border-slate-200 bg-slate-50/80 p-3">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Pessoas vinculadas ao processo</p>
-                    {record.interessados.length === 0 ? (
+                    {interessadosLoading && !interessadosLoaded ? (
+                      <p className="text-xs text-slate-400">Carregando pessoas vinculadas...</p>
+                    ) : interessados.length === 0 ? (
                       <p className="text-xs text-slate-400">Nenhuma pessoa vinculada a este processo.</p>
                     ) : (
                       <div className="grid gap-2">
-                        {record.interessados.map((item) => (
+                        {interessados.map((item) => (
                           <button
                             className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${
                               taskForm.assinatura_interessado_id === item.interessado.id
@@ -1529,7 +1591,16 @@ export function PreDemandaDetailPage() {
               <SummaryItem label="Data da audiencia" value={record.metadata.audienciaHorarioInicio ? formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio) : formatDateOnlyPtBr(record.metadata.audienciaData)} />
               <SummaryItem label="Status da audiencia" value={record.metadata.audienciaStatus ?? "-"} />
               <SummaryItem label="Sala da audiencia" value={record.metadata.audienciaSala ?? "-"} />
-              <SummaryItem label="SEIs relacionados" value={record.seiAssociations.length ? record.seiAssociations.map((item) => item.seiNumero).join(", ") : "Ainda nao associado"} />
+              <SummaryItem
+                label="SEIs relacionados"
+                value={
+                  seiLoading && !seiLoaded
+                    ? "Carregando..."
+                    : seiAssociations.length
+                      ? seiAssociations.map((item) => item.seiNumero).join(", ")
+                      : record.currentAssociation?.seiNumero ?? "Ainda nao associado"
+                }
+              />
               <SummaryItem label="Ultima movimentacao" value={lastEvent ? `${new Date(lastEvent.occurredAt).toLocaleString("pt-BR")} - ${lastEvent.descricao ?? "Evento registrado"}` : "Nenhum evento registrado"} />
               <SummaryItem label="Saude da fila" value={queueHealth.summary} />
               <SummaryItem label="Detalhe da fila" value={queueHealth.detail} />
@@ -1724,7 +1795,11 @@ export function PreDemandaDetailPage() {
               <Button
                 onClick={() =>
                   interessadoResults[0]
-                    ? void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0]!.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")
+                    ? void runMutation(async () => {
+                      const nextInteressados = await addPreDemandaInteressado(preId, { interessado_id: interessadoResults[0]!.id, papel: "interessado" });
+                      setInteressados(nextInteressados);
+                      setInteressadosLoaded(true);
+                    }, "Pessoa vinculada.")
                     : undefined
                 }
                 type="button"
@@ -1743,7 +1818,11 @@ export function PreDemandaDetailPage() {
                     <button
                       className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:border-slate-300"
                       key={item.id}
-                      onClick={() => void runMutation(() => addPreDemandaInteressado(preId, { interessado_id: item.id, papel: "interessado" }).then(() => undefined), "Pessoa vinculada.")}
+                      onClick={() => void runMutation(async () => {
+                        const nextInteressados = await addPreDemandaInteressado(preId, { interessado_id: item.id, papel: "interessado" });
+                        setInteressados(nextInteressados);
+                        setInteressadosLoaded(true);
+                      }, "Pessoa vinculada.")}
                       type="button"
                     >
                       <span>
@@ -1777,7 +1856,9 @@ export function PreDemandaDetailPage() {
                           matricula: newInteressadoForm.matricula || null,
                           cpf: newInteressadoForm.cpf || null,
                         });
-                        await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: "interessado" });
+                        const nextInteressados = await addPreDemandaInteressado(preId, { interessado_id: created.id, papel: "interessado" });
+                        setInteressados(nextInteressados);
+                        setInteressadosLoaded(true);
                         setNewInteressadoForm({ nome: "", cargo: "", matricula: "", cpf: "" });
                         setInteressadoSearch(created.nome);
                         setInteressadoResults([created]);
@@ -1792,17 +1873,30 @@ export function PreDemandaDetailPage() {
               </div>
             </div>
 
-            {record.interessados.length === 0 ? (
+            {interessadosLoading && !interessadosLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Carregando pessoas vinculadas...</p>
+            ) : interessados.length === 0 ? (
               <EmptyState description="Vincule pessoas ao processo para destravar tarefas, tramitacoes e relacoes processuais." title="Sem pessoas vinculadas" />
             ) : (
               <div className="grid gap-3">
-                {record.interessados.map((item) => (
+                {interessados.map((item) => (
                   <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.interessado.id}>
                     <div>
                       <p className="font-semibold text-slate-950">{item.interessado.nome}</p>
                       <p className="text-sm text-slate-500">Interessado - {item.interessado.cargo ?? item.interessado.cpf ?? item.interessado.matricula ?? "Sem CPF/matricula"}</p>
                     </div>
-                    <Button onClick={() => void runMutation(() => removePreDemandaInteressado(preId, item.interessado.id).then(() => undefined), "Pessoa removida.")} size="sm" type="button" variant="ghost">
+                    <Button
+                      onClick={() =>
+                        void runMutation(async () => {
+                          const nextInteressados = await removePreDemandaInteressado(preId, item.interessado.id);
+                          setInteressados(nextInteressados);
+                          setInteressadosLoaded(true);
+                        }, "Pessoa removida.")
+                      }
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1982,6 +2076,19 @@ export function PreDemandaDetailPage() {
             <DialogTitle>Associacao PRE para SEI</DialogTitle>
             <DialogDescription>Validacao e mascara seguem o backend para manter o vinculo confiavel.</DialogDescription>
           </DialogHeader>
+          {seiLoading && !seiLoaded ? (
+            <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Carregando associacoes SEI...</p>
+          ) : seiAssociations.length ? (
+            <div className="mb-4 grid gap-2 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+              <p className="text-sm font-semibold text-slate-950">Associacoes registradas</p>
+              {seiAssociations.map((item) => (
+                <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600" key={`${item.seiNumero}-${item.updatedAt}`}>
+                  <p className="font-semibold text-slate-950">{item.seiNumero}</p>
+                  <p>{item.principal ? "Principal" : "Historico"} - atualizado em {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <form className="grid gap-4" onSubmit={handleAssociation}>
             <FormField hint={<code>000181/26-02.227</code>} label="Numero SEI">
               <Input onChange={(event) => setAssociationForm((current) => ({ ...current, sei_numero: formatSeiInput(event.target.value) }))} placeholder="000181/26-02.227" value={associationForm.sei_numero} />
@@ -2459,6 +2566,8 @@ export function PreDemandaDetailPage() {
           onTaskFormChange={setTaskForm}
           open={toolbarDialog === "tasks"}
           pendingTasks={pendingTasks}
+          interessados={interessados}
+          interessadosLoading={interessadosLoading && !interessadosLoaded}
           record={record}
           requiresTaskSetorDestino={requiresTaskSetorDestino}
           requiresTaskSignaturePerson={requiresTaskSignaturePerson}

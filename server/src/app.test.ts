@@ -953,6 +953,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return record.interessados;
   }
 
+  async listInteressados(preId: string) {
+    const record = this.records.find((item) => item.preId === preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    return record.interessados;
+  }
+
   async addVinculo(input: AddDemandaVinculoInput) {
     const origem = this.records.find((item) => item.preId === input.preId);
     const destino = this.records.find((item) => item.preId === input.destinoPreId);
@@ -1464,6 +1472,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
   async listSetoresAtivos(preId: string) {
     return this.records.find((item) => item.preId === preId)?.setoresAtivos ?? [];
+  }
+
+  async listSeiAssociations(preId: string) {
+    return this.records.find((item) => item.preId === preId)?.seiAssociations ?? [];
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {

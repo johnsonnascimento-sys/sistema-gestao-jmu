@@ -25,6 +25,7 @@ import type {
   PreDemandaSortBy,
   PreDemandaStatus,
   RuntimeStatus,
+  SeiAssociation,
   Setor,
   SortOrder,
   StatusCount,
@@ -361,6 +362,10 @@ export function associateSei(preId: string, payload: { sei_numero: string; motiv
   });
 }
 
+export function listPreDemandaSeiAssociations(preId: string) {
+  return request<SeiAssociation[]>(`/api/pre-demandas/${preId}/associacoes-sei`);
+}
+
 export function addPreDemandaInteressado(preId: string, payload: { interessado_id: string; papel: DemandaInteressadoPapel }) {
   return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados`, {
     method: "POST",
@@ -372,6 +377,10 @@ export function removePreDemandaInteressado(preId: string, interessadoId: string
   return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados/${interessadoId}`, {
     method: "DELETE",
   });
+}
+
+export function listPreDemandaInteressados(preId: string) {
+  return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados`);
 }
 
 export function addPreDemandaVinculo(preId: string, destinoPreId: string) {

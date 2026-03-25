@@ -506,6 +506,17 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
   });
 
+  app.get("/api/pre-demandas/:preId/interessados", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const items = await preDemandaRepository.listInteressados(params.preId);
+
+    return reply.send({
+      ok: true,
+      data: items,
+      error: null,
+    });
+  });
+
   app.get("/api/pre-demandas/:preId/vinculos", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_vinculos")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const items = await preDemandaRepository.listVinculos(params.preId);
@@ -889,6 +900,17 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.send({
       ok: true,
       data: result,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/associacoes-sei", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const items = await preDemandaRepository.listSeiAssociations(params.preId);
+
+    return reply.send({
+      ok: true,
+      data: items,
       error: null,
     });
   });
