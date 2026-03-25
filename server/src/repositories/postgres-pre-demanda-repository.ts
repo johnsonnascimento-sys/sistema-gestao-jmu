@@ -3,6 +3,7 @@ import type {
   Assunto,
   Andamento,
   AuditActor,
+  DashboardTaskItem,
   DemandaAssunto,
   DemandaComentario,
   DemandaDocumento,
@@ -3965,5 +3966,50 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       })),
       recentTimeline,
     };
+  }
+
+  async listDashboardTasks(): Promise<DashboardTaskItem[]> {
+    const result = await this.pool.query(
+      `
+        select
+          tarefa.id,
+          pd.pre_id,
+          coalesce(nullif(pd.numero_sei, ''), nullif(pd.numero_judicial, ''), pd.pre_id) as pre_numero,
+          pd.assunto,
+          tarefa.descricao,
+          tarefa.tipo,
+          tarefa.prazo_conclusao,
+          tarefa.horario_inicio,
+          tarefa.horario_fim,
+          tarefa.recorrencia_tipo,
+          setor_destino.sigla as setor_destino_sigla,
+          tarefa.gerada_automaticamente,
+          tarefa.concluida,
+          tarefa.concluida_em,
+          tarefa.created_at
+        from adminlog.tarefas_pendentes tarefa
+        inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+        left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
+        order by tarefa.concluida asc, tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
+      `,
+    );
+
+    return result.rows.map((row) => ({
+      id: String(row.id),
+      preId: String(row.pre_id),
+      preNumero: String(row.pre_numero),
+      assunto: String(row.assunto),
+      descricao: String(row.descricao),
+      tipo: row.tipo as DashboardTaskItem["tipo"],
+      prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
+      horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
+      horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
+      recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as DashboardTaskItem["recorrenciaTipo"]) : null,
+      setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
+      geradaAutomaticamente: Boolean(row.gerada_automaticamente),
+      concluida: Boolean(row.concluida),
+      concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
+      createdAt: new Date(row.created_at).toISOString(),
+    }));
   }
 }

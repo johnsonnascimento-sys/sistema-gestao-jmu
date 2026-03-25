@@ -448,6 +448,24 @@ export interface PreDemandaDashboardSummary {
   recentTimeline: TimelineEvent[];
 }
 
+export interface DashboardTaskItem {
+  id: string;
+  preId: string;
+  preNumero: string;
+  assunto: string;
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  prazoConclusao: string;
+  horarioInicio: string | null;
+  horarioFim: string | null;
+  recorrenciaTipo: TarefaRecorrenciaTipo | null;
+  setorDestinoSigla: string | null;
+  geradaAutomaticamente: boolean;
+  concluida: boolean;
+  concluidaEm: string | null;
+  createdAt: string;
+}
+
 export interface QueueHealthConfig {
   attentionDays: number;
   criticalDays: number;

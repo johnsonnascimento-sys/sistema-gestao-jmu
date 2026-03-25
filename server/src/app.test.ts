@@ -1778,6 +1778,30 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       recentTimeline,
     };
   }
+
+  async listDashboardTasks() {
+    return this.records
+      .flatMap((item) =>
+        item.tarefasPendentes.map((task) => ({
+          id: task.id,
+          preId: item.preId,
+          preNumero: item.principalNumero,
+          assunto: item.assunto,
+          descricao: task.descricao,
+          tipo: task.tipo,
+          prazoConclusao: task.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
+          horarioInicio: task.horarioInicio ?? null,
+          horarioFim: task.horarioFim ?? null,
+          recorrenciaTipo: task.recorrenciaTipo ?? null,
+          setorDestinoSigla: task.setorDestino?.sigla ?? null,
+          geradaAutomaticamente: task.geradaAutomaticamente,
+          concluida: task.concluida,
+          concluidaEm: task.concluidaEm,
+          createdAt: task.createdAt,
+        })),
+      )
+      .sort((left, right) => Number(left.concluida) - Number(right.concluida) || left.prazoConclusao.localeCompare(right.prazoConclusao) || left.createdAt.localeCompare(right.createdAt));
+  }
 }
 
 class InMemoryInteressadoRepository implements InteressadoRepository {

@@ -6,6 +6,7 @@ import type {
   Audiencia,
   Assunto,
   AuthUser,
+  DashboardTaskItem,
   DemandaComentario,
   DemandaInteressado,
   DemandaInteressadoPapel,
@@ -575,6 +576,10 @@ export function getRecentTimeline(limit = 8) {
 
 export function getDashboardSummary() {
   return request<PreDemandaDashboardSummary>("/api/pre-demandas/dashboard/resumo");
+}
+
+export function listDashboardTasks() {
+  return request<DashboardTaskItem[]>("/api/pre-demandas/dashboard/tarefas");
 }
 
 export function listInteressados(params: ListInteressadosParams = {}) {

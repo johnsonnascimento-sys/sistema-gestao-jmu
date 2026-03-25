@@ -4,6 +4,7 @@ import type {
   Andamento,
   Audiencia,
   AppUser,
+  DashboardTaskItem,
   DemandaComentario,
   DemandaInteressado,
   DemandaDocumento,
@@ -518,4 +519,5 @@ export interface PreDemandaRepository {
   listTimeline(preId: string): Promise<TimelineEvent[]>;
   listRecentTimeline(limit?: number): Promise<TimelineEvent[]>;
   getDashboardSummary(): Promise<PreDemandaDashboardSummary>;
+  listDashboardTasks(): Promise<DashboardTaskItem[]>;
 }

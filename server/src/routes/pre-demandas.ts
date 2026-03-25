@@ -349,6 +349,15 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
   });
 
+  app.get("/api/pre-demandas/dashboard/tarefas", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (_request, reply) => {
+    const tasks = await preDemandaRepository.listDashboardTasks();
+    return reply.send({
+      ok: true,
+      data: tasks,
+      error: null,
+    });
+  });
+
   app.get("/api/pre-demandas/timeline/recentes", { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] }, async (request, reply) => {
     const query = listRecentTimelineSchema.parse(request.query);
     const items = await preDemandaRepository.listRecentTimeline(query.limit ?? 8);

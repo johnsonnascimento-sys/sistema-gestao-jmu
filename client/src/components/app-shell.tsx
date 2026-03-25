@@ -90,6 +90,10 @@ export function AppShell() {
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
               </NavLink>
+              <NavLink className={navLinkClassName} to="/tarefas">
+                <ListTodo className="h-4 w-4" />
+                Tarefas
+              </NavLink>
               <NavLink className={navLinkClassName} to="/pauta-audiencias">
                 <CalendarClock className="h-4 w-4" />
                 Pauta de audiências
