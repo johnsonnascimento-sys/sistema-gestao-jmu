@@ -432,6 +432,13 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.status(201).send({ ok: true, data, error: null });
   });
 
+  app.get("/api/pre-demandas/:preId/assuntos", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const data = await preDemandaRepository.listAssuntos(params.preId);
+
+    return reply.send({ ok: true, data, error: null });
+  });
+
   app.delete("/api/pre-demandas/:preId/assuntos/:assuntoId", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), assuntoId: z.string().uuid() }).parse(request.params);
     const data = await preDemandaRepository.removeAssunto({

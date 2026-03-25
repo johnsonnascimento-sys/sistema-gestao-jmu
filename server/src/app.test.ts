@@ -850,6 +850,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return this.touch(record);
   }
 
+  async listAssuntos(preId: string) {
+    const record = this.records.find((item) => item.preId === preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    return record.assuntos;
+  }
+
   async removeAssunto(input: RemoveDemandaAssuntoInput) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {

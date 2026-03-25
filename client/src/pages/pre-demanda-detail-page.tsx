@@ -78,6 +78,7 @@ import {
   getPreDemanda,
   getTimeline,
   listAssuntos,
+  listPreDemandaAssuntos,
   listPreDemandaInteressados,
   listPreDemandaSeiAssociations,
   listPreDemandaSetoresAtivos,
@@ -162,6 +163,7 @@ export function PreDemandaDetailPage() {
   const { hasPermission } = useAuth();
   const [record, setRecord] = useState<PreDemanda | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [assuntosLinked, setAssuntosLinked] = useState<PreDemanda["assuntos"]>([]);
   const [documentos, setDocumentos] = useState<PreDemanda["documentos"]>([]);
   const [comentarios, setComentarios] = useState<PreDemanda["comentarios"]>([]);
   const [interessados, setInteressados] = useState<PreDemanda["interessados"]>([]);
@@ -225,12 +227,14 @@ export function PreDemandaDetailPage() {
   const [processSearch, setProcessSearch] = useState("");
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [assuntosLoaded, setAssuntosLoaded] = useState(false);
   const [interessadosLoaded, setInteressadosLoaded] = useState(false);
   const [seiLoaded, setSeiLoaded] = useState(false);
   const [relatedLoaded, setRelatedLoaded] = useState(false);
   const [activeSetoresLoaded, setActiveSetoresLoaded] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [assuntosLoading, setAssuntosLoading] = useState(false);
   const [interessadosLoading, setInteressadosLoading] = useState(false);
   const [seiLoading, setSeiLoading] = useState(false);
   const [relatedLoading, setRelatedLoading] = useState(false);
@@ -308,6 +312,21 @@ export function PreDemandaDetailPage() {
       setDocumentsLoaded(true);
     } finally {
       setDocumentsLoading(false);
+    }
+  }
+
+  async function loadAssuntosData(force = false) {
+    if (!force && (assuntosLoaded || assuntosLoading)) {
+      return;
+    }
+
+    setAssuntosLoading(true);
+    try {
+      const nextAssuntos = await listPreDemandaAssuntos(preId);
+      setAssuntosLinked(nextAssuntos);
+      setAssuntosLoaded(true);
+    } finally {
+      setAssuntosLoading(false);
     }
   }
 
@@ -415,18 +434,21 @@ export function PreDemandaDetailPage() {
   }, []);
 
   useEffect(() => {
+    setAssuntosLinked([]);
     setDocumentos([]);
     setComentarios([]);
     setInteressados([]);
     setSeiAssociations([]);
     setVinculos([]);
     setSetoresAtivos([]);
+    setAssuntosLoaded(false);
     setDocumentsLoaded(false);
     setCommentsLoaded(false);
     setInteressadosLoaded(false);
     setSeiLoaded(false);
     setRelatedLoaded(false);
     setActiveSetoresLoaded(false);
+    setAssuntosLoading(false);
     setDocumentsLoading(false);
     setCommentsLoading(false);
     setInteressadosLoading(false);
@@ -436,6 +458,9 @@ export function PreDemandaDetailPage() {
   }, [preId]);
 
   useEffect(() => {
+    if (toolbarDialog === "summary" || toolbarDialog === "subjects") {
+      void loadAssuntosData();
+    }
     if (toolbarDialog === "documents") {
       void loadDocumentosData();
     }
@@ -651,8 +676,8 @@ export function PreDemandaDetailPage() {
     );
   }
   const availableAssuntos = useMemo(
-    () => assuntosCatalogo.filter((item) => !record?.assuntos.some((linked) => linked.assunto.id === item.id)),
-    [assuntosCatalogo, record],
+    () => assuntosCatalogo.filter((item) => !assuntosLinked.some((linked) => linked.assunto.id === item.id)),
+    [assuntosCatalogo, assuntosLinked],
   );
   const sectionSummaries = useMemo(
     () =>
@@ -1614,18 +1639,20 @@ export function PreDemandaDetailPage() {
                   <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
                   <p className="text-xs text-slate-500">Assuntos com procedimentos criam tarefas automáticas e usam o prazo do processo.</p>
                 </div>
-                {record.assuntos.some((item) => item.assunto.procedimentos.length > 0) ? (
+                {assuntosLinked.some((item) => item.assunto.procedimentos.length > 0) ? (
                   <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
                     Checklist automático ativo
                   </span>
                 ) : null}
               </div>
 
-              {record.assuntos.length === 0 ? (
+              {assuntosLoading && !assuntosLoaded ? (
+                <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Carregando assuntos vinculados...</p>
+              ) : assuntosLinked.length === 0 ? (
                 <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto vinculado.</p>
               ) : (
                 <div className="grid gap-3">
-                  {record.assuntos.map((item) => (
+                  {assuntosLinked.map((item) => (
                     <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.assunto.id}>
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -1636,7 +1663,13 @@ export function PreDemandaDetailPage() {
                         <Button
                           onClick={() =>
                             void runMutation(
-                              () => removePreDemandaAssunto(preId, item.assunto.id).then((next) => setRecord(next)),
+                              async () => {
+                                const next = await removePreDemandaAssunto(preId, item.assunto.id);
+                                setRecord(next);
+                                syncRecordDependentState(next);
+                                setAssuntosLinked(next.assuntos);
+                                setAssuntosLoaded(true);
+                              },
                               "Assunto removido e tarefas automáticas pendentes foram revistas.",
                             )
                           }
@@ -1671,7 +1704,13 @@ export function PreDemandaDetailPage() {
                       key={assunto.id}
                       onClick={() =>
                         void runMutation(
-                          () => addPreDemandaAssunto(preId, assunto.id).then((next) => setRecord(next)),
+                          async () => {
+                            const next = await addPreDemandaAssunto(preId, assunto.id);
+                            setRecord(next);
+                            syncRecordDependentState(next);
+                            setAssuntosLinked(next.assuntos);
+                            setAssuntosLoaded(true);
+                          },
                           `Assunto ${assunto.nome} vinculado e checklist gerado.`,
                         )
                       }
@@ -1705,18 +1744,20 @@ export function PreDemandaDetailPage() {
                 <p className="text-sm font-semibold text-slate-950">Assuntos vinculados</p>
                 <p className="text-xs text-slate-500">Assuntos com procedimentos criam tarefas automaticas e usam o prazo do processo.</p>
               </div>
-              {record.assuntos.some((item) => item.assunto.procedimentos.length > 0) ? (
+              {assuntosLinked.some((item) => item.assunto.procedimentos.length > 0) ? (
                 <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
                   Checklist automatico ativo
                 </span>
               ) : null}
             </div>
 
-            {record.assuntos.length === 0 ? (
+            {assuntosLoading && !assuntosLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Carregando assuntos vinculados...</p>
+            ) : assuntosLinked.length === 0 ? (
               <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto vinculado.</p>
             ) : (
               <div className="grid gap-3">
-                {record.assuntos.map((item) => (
+                {assuntosLinked.map((item) => (
                   <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.assunto.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -1727,7 +1768,13 @@ export function PreDemandaDetailPage() {
                       <Button
                         onClick={() =>
                           void runMutation(
-                            () => removePreDemandaAssunto(preId, item.assunto.id).then((next) => setRecord(next)),
+                            async () => {
+                              const next = await removePreDemandaAssunto(preId, item.assunto.id);
+                              setRecord(next);
+                              syncRecordDependentState(next);
+                              setAssuntosLinked(next.assuntos);
+                              setAssuntosLoaded(true);
+                            },
                             "Assunto removido e tarefas automaticas pendentes foram revistas.",
                           )
                         }
@@ -1762,7 +1809,13 @@ export function PreDemandaDetailPage() {
                     key={assunto.id}
                     onClick={() =>
                       void runMutation(
-                        () => addPreDemandaAssunto(preId, assunto.id).then((next) => setRecord(next)),
+                        async () => {
+                          const next = await addPreDemandaAssunto(preId, assunto.id);
+                          setRecord(next);
+                          syncRecordDependentState(next);
+                          setAssuntosLinked(next.assuntos);
+                          setAssuntosLoaded(true);
+                        },
                         `Assunto ${assunto.nome} vinculado e checklist gerado.`,
                       )
                     }

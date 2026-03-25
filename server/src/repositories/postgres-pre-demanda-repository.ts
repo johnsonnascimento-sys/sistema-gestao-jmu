@@ -1311,14 +1311,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [assuntos, tarefasPendentes, audiencias, recentAndamentos] = await Promise.all([
-      this.loadAssuntos(queryable, detail.id),
+    const [tarefasPendentes, audiencias, recentAndamentos] = await Promise.all([
       this.loadTarefas(queryable, detail.id, detail.preId),
       loadAudiencias(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 20),
     ]);
 
-    detail.assuntos = assuntos;
+    detail.assuntos = [];
     detail.interessados = [];
     detail.vinculos = [];
     detail.setoresAtivos = [];
@@ -1334,6 +1333,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.solicitante = detail.pessoaPrincipal?.nome ?? detail.solicitante;
 
     return detail;
+  }
+
+  async listAssuntos(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadAssuntos(this.pool, demanda.id);
   }
 
   private async getDetailByPreId(queryable: Queryable, preId: string, queueHealthThresholds: QueueHealthThresholds) {
@@ -1947,6 +1951,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
       }
+      record.assuntos = await this.loadAssuntos(client, demanda.id);
       return record;
     });
   }
@@ -1985,6 +1990,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
       }
+      record.assuntos = await this.loadAssuntos(client, demanda.id);
       return record;
     });
   }

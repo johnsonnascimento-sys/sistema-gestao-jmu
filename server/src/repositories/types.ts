@@ -5,6 +5,7 @@ import type {
   Audiencia,
   AppUser,
   DashboardTaskItem,
+  DemandaAssunto,
   DemandaComentario,
   DemandaInteressado,
   DemandaDocumento,
@@ -497,6 +498,7 @@ export interface PreDemandaRepository {
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
   updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaDetail>;
   updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaDetail>;
+  listAssuntos(preId: string): Promise<DemandaAssunto[]>;
   addAssunto(input: AddDemandaAssuntoInput): Promise<PreDemandaDetail>;
   removeAssunto(input: RemoveDemandaAssuntoInput): Promise<PreDemandaDetail>;
   addInteressado(input: AddDemandaInteressadoInput): Promise<DemandaInteressado[]>;
