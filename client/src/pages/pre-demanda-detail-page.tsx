@@ -124,6 +124,19 @@ const AUDIENCIA_FORM_DEFAULT: AudienciaForm = {
   observacoes: "",
 };
 
+function formatTaskTimeLabel(task: Pick<TarefaPendente, "horarioInicio" | "horarioFim">) {
+  if (task.horarioInicio && task.horarioFim) {
+    return `${task.horarioInicio} - ${task.horarioFim}`;
+  }
+  if (task.horarioInicio) {
+    return `Inicio ${task.horarioInicio}`;
+  }
+  if (task.horarioFim) {
+    return `Termino ${task.horarioFim}`;
+  }
+  return null;
+}
+
 function formatDateTimePtBrSafe(value: unknown, fallback = "-") {
   if (typeof value !== "string" || !value.trim()) {
     return fallback;
@@ -1163,6 +1176,7 @@ export function PreDemandaDetailPage() {
                               <td className="px-4 py-3 text-slate-600">
                                 <div className="grid gap-1">
                                   <span>{formatDateOnlyPtBr(task.prazoConclusao)}</span>
+                                  {formatTaskTimeLabel(task) ? <span>Horario: {formatTaskTimeLabel(task)}</span> : null}
                                   {(() => {
                                     const signal = getTaskSignal(task.prazoConclusao);
                                     return signal ? (
@@ -1224,17 +1238,15 @@ export function PreDemandaDetailPage() {
                             />
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-slate-950">{task.descricao}</p>
+                              {formatTaskTimeLabel(task) ? (
+                                <p className="mt-1 text-sm font-medium text-sky-700">Horario: {formatTaskTimeLabel(task)}</p>
+                              ) : null}
                               <p className="text-sm text-slate-500">
                                 {task.tipo}
                                 {formatRecorrenciaLabel(task) ? ` - ${formatRecorrenciaLabel(task)}` : ""}
                               </p>
                               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <span>Prazo: {formatDateOnlyPtBr(task.prazoConclusao)}</span>
-                                {task.horarioInicio || task.horarioFim ? (
-                                  <span>
-                                    Horario: {task.horarioInicio ?? "--:--"}{task.horarioFim ? ` - ${task.horarioFim}` : ""}
-                                  </span>
-                                ) : null}
                                 {task.setorDestino ? <span>Setor destino: {task.setorDestino.sigla}</span> : null}
                                 <span>{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lancamento manual"}</span>
                               </div>
