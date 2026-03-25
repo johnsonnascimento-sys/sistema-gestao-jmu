@@ -1311,11 +1311,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [assuntos, interessados, vinculos, setoresAtivos, tarefasPendentes, audiencias, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
+    const [assuntos, interessados, tarefasPendentes, audiencias, recentAndamentos, seiAssociations, numerosJudiciais] = await Promise.all([
       this.loadAssuntos(queryable, detail.id),
       this.loadInteressados(queryable, detail.id),
-      this.loadVinculos(queryable, detail.id),
-      this.loadSetoresAtivos(queryable, detail.id),
       this.loadTarefas(queryable, detail.id, detail.preId),
       loadAudiencias(queryable, detail.id, detail.preId),
       this.loadAndamentos(queryable, detail.id, detail.preId, 20),
@@ -1325,8 +1323,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     detail.assuntos = assuntos;
     detail.interessados = interessados;
-    detail.vinculos = vinculos;
-    detail.setoresAtivos = setoresAtivos;
+    detail.vinculos = [];
+    detail.setoresAtivos = [];
     detail.documentos = [];
     detail.comentarios = [];
     detail.tarefasPendentes = tarefasPendentes;
@@ -2251,6 +2249,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
       return this.loadVinculos(client, origem.id);
     });
+  }
+
+  async listVinculos(preId: string) {
+    const demanda = await getResolvedPreDemanda(this.pool, preId);
+    return this.loadVinculos(this.pool, demanda.id);
   }
 
   async tramitar(input: TramitarPreDemandaInput) {

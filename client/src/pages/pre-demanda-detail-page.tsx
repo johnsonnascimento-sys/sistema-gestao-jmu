@@ -78,6 +78,8 @@ import {
   getPreDemanda,
   getTimeline,
   listAssuntos,
+  listPreDemandaSetoresAtivos,
+  listPreDemandaVinculos,
   listPreDemandaComentarios,
   listPreDemandaDocumentos,
   listPessoas,
@@ -160,6 +162,8 @@ export function PreDemandaDetailPage() {
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [documentos, setDocumentos] = useState<PreDemanda["documentos"]>([]);
   const [comentarios, setComentarios] = useState<PreDemanda["comentarios"]>([]);
+  const [vinculos, setVinculos] = useState<PreDemanda["vinculos"]>([]);
+  const [setoresAtivos, setSetoresAtivos] = useState<PreDemanda["setoresAtivos"]>([]);
   const [setores, setSetores] = useState<Setor[]>([]);
   const [assuntosCatalogo, setAssuntosCatalogo] = useState<Assunto[]>([]);
   const [interessadoResults, setInteressadoResults] = useState<Interessado[]>([]);
@@ -217,8 +221,12 @@ export function PreDemandaDetailPage() {
   const [processSearch, setProcessSearch] = useState("");
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
+  const [relatedLoaded, setRelatedLoaded] = useState(false);
+  const [activeSetoresLoaded, setActiveSetoresLoaded] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [relatedLoading, setRelatedLoading] = useState(false);
+  const [activeSetoresLoading, setActiveSetoresLoading] = useState(false);
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
   function syncRecordDependentState(nextRecord: PreDemanda) {
@@ -310,6 +318,36 @@ export function PreDemandaDetailPage() {
     }
   }
 
+  async function loadVinculosData(force = false) {
+    if (!force && (relatedLoaded || relatedLoading)) {
+      return;
+    }
+
+    setRelatedLoading(true);
+    try {
+      const nextVinculos = await listPreDemandaVinculos(preId);
+      setVinculos(nextVinculos);
+      setRelatedLoaded(true);
+    } finally {
+      setRelatedLoading(false);
+    }
+  }
+
+  async function loadSetoresAtivosData(force = false) {
+    if (!force && (activeSetoresLoaded || activeSetoresLoading)) {
+      return;
+    }
+
+    setActiveSetoresLoading(true);
+    try {
+      const nextSetoresAtivos = await listPreDemandaSetoresAtivos(preId);
+      setSetoresAtivos(nextSetoresAtivos);
+      setActiveSetoresLoaded(true);
+    } finally {
+      setActiveSetoresLoading(false);
+    }
+  }
+
   useEffect(() => {
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
@@ -341,10 +379,16 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     setDocumentos([]);
     setComentarios([]);
+    setVinculos([]);
+    setSetoresAtivos([]);
     setDocumentsLoaded(false);
     setCommentsLoaded(false);
+    setRelatedLoaded(false);
+    setActiveSetoresLoaded(false);
     setDocumentsLoading(false);
     setCommentsLoading(false);
+    setRelatedLoading(false);
+    setActiveSetoresLoading(false);
   }, [preId]);
 
   useEffect(() => {
@@ -353,6 +397,12 @@ export function PreDemandaDetailPage() {
     }
     if (toolbarDialog === "comments") {
       void loadComentariosData();
+    }
+    if (toolbarDialog === "relatedList") {
+      void loadVinculosData();
+    }
+    if (toolbarDialog === "sectors") {
+      void loadSetoresAtivosData();
     }
   }, [toolbarDialog]);
 
@@ -566,17 +616,17 @@ export function PreDemandaDetailPage() {
                   ? `Próxima audiência ${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
                   : "Sem audiência cadastrada",
             pessoas: record.interessados.length ? `${record.interessados.length} pessoa(s) vinculada(s)` : "Nenhuma pessoa vinculada",
-            setores: record.setoresAtivos.length ? `${record.setoresAtivos.length} setor(es) ativo(s)` : "Sem setores ativos",
+            setores: setoresAtivos.length ? `${setoresAtivos.length} setor(es) ativo(s)` : activeSetoresLoaded ? "Sem setores ativos" : "Abrir setores",
             checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
             visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
-            relacionados: record.vinculos.length ? `${record.vinculos.length} vinculo(s) ativo(s)` : "Sem processos relacionados",
+            relacionados: vinculos.length ? `${vinculos.length} vinculo(s) ativo(s)` : relatedLoaded ? "Sem processos relacionados" : "Abrir relacionamentos",
             associacaoSei: record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
             documentos: documentos.length ? `${documentos.length} documento(s) anexado(s)` : documentsLoaded ? "Sem documentos anexados" : "Abrir documentos",
             comentarios: comentarios.length ? `${comentarios.length} comentario(s) registrado(s)` : commentsLoaded ? "Sem comentarios" : "Abrir discussao",
             historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
-    [comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, timeline.length],
+    [activeSetoresLoaded, comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, setoresAtivos.length, timeline.length, vinculos.length],
   );
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
@@ -1770,10 +1820,12 @@ export function PreDemandaDetailPage() {
             <DialogDescription>O mesmo processo pode correr em paralelo por mais de um setor.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
-            {record.setoresAtivos.length === 0 ? (
+            {activeSetoresLoading && !activeSetoresLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Carregando setores ativos...</p>
+            ) : setoresAtivos.length === 0 ? (
               <EmptyState description="Abra a acao Tramitar para distribuir o processo entre um ou mais setores." title="Sem setores ativos" />
             ) : (
-              record.setoresAtivos.map((item) => (
+              setoresAtivos.map((item) => (
                 <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.id}>
                   <div>
                     <p className="font-semibold text-slate-950">{item.setor.sigla} - {item.setor.nomeCompleto}</p>
@@ -1784,7 +1836,10 @@ export function PreDemandaDetailPage() {
                   </div>
                   <Button
                     disabled={isSubmitting}
-                    onClick={() => void runMutation(() => concluirTramitacaoSetor(preId, item.setor.id).then(() => undefined), `Tramitacao concluida em ${item.setor.sigla}.`)}
+                    onClick={() => void runMutation(async () => {
+                      await concluirTramitacaoSetor(preId, item.setor.id);
+                      await loadSetoresAtivosData(true);
+                    }, `Tramitacao concluida em ${item.setor.sigla}.`)}
                     size="sm"
                     type="button"
                     variant="secondary"
@@ -1837,6 +1892,7 @@ export function PreDemandaDetailPage() {
                           prazo_processo: relatedForm.prazo_processo,
                         });
                         await addPreDemandaVinculo(preId, created.preId);
+                        await loadVinculosData(true);
                         navigate(`/pre-demandas/${created.preId}`);
                       },
                       "Processo relacionado criado.",
@@ -1857,7 +1913,11 @@ export function PreDemandaDetailPage() {
               <Input onChange={(event) => setProcessSearch(event.target.value)} placeholder="Buscar por PRE ou assunto" value={processSearch} />
               <div className="grid gap-2">
                 {linkedProcessResults.map((item) => (
-                  <button className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300" key={item.preId} onClick={() => void runMutation(() => addPreDemandaVinculo(preId, item.preId).then(() => setToolbarDialog("relatedList")), "Vinculo criado.")} type="button">
+                  <button className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300" key={item.preId} onClick={() => void runMutation(async () => {
+                    await addPreDemandaVinculo(preId, item.preId);
+                    await loadVinculosData(true);
+                    setToolbarDialog("relatedList");
+                  }, "Vinculo criado.")} type="button">
                     <span>
                       <span className="block font-semibold text-slate-950">{item.principalNumero}</span>
                       <span className="text-xs text-slate-400">{item.preId}</span>
@@ -1875,10 +1935,12 @@ export function PreDemandaDetailPage() {
                 <p className="text-sm font-semibold text-slate-950">Relacionamentos ativos</p>
                 <p className="text-xs text-slate-500">Consulte os vinculos atuais, abra o processo relacionado ou remova a associacao.</p>
               </div>
-            {record.vinculos.length === 0 ? (
+            {relatedLoading && !relatedLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Carregando relacionamentos...</p>
+            ) : vinculos.length === 0 ? (
                 <EmptyState description="Nenhum relacionamento criado ate agora." title="Sem vinculos" />
             ) : (
-              record.vinculos.map((item) => (
+              vinculos.map((item) => (
                 <div className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3" key={item.processo.preId}>
                   <div>
                     <p className="font-semibold text-slate-950">{item.processo.principalNumero}</p>
@@ -1889,7 +1951,20 @@ export function PreDemandaDetailPage() {
                     <Button onClick={() => navigate(`/pre-demandas/${item.processo.preId}`)} size="sm" type="button" variant="secondary">
                       Abrir
                     </Button>
-                    <Button onClick={() => void runMutation(() => removePreDemandaVinculo(preId, item.processo.preId).then(() => undefined), "Vinculo removido.")} size="sm" type="button" variant="ghost">
+                    <Button
+                      onClick={() =>
+                        void runMutation(
+                          async () => {
+                            await removePreDemandaVinculo(preId, item.processo.preId);
+                            await loadVinculosData(true);
+                          },
+                          "Vinculo removido.",
+                        )
+                      }
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>

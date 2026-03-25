@@ -387,6 +387,10 @@ export function removePreDemandaVinculo(preId: string, destinoPreId: string) {
   });
 }
 
+export function listPreDemandaVinculos(preId: string) {
+  return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos`);
+}
+
 export function createPreDemandaAudiencia(
   preId: string,
   payload: {
@@ -606,7 +610,7 @@ export function removePreDemandaDocumento(preId: string, documentoId: string) {
 }
 
 export function listPreDemandaSetoresAtivos(preId: string) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}`).then((item) => item.setoresAtivos);
+  return request<DemandaSetorFluxo[]>(`/api/pre-demandas/${preId}/setores-ativos`);
 }
 
 export function getRecentTimeline(limit = 8) {

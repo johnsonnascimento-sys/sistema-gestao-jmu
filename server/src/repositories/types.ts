@@ -503,6 +503,7 @@ export interface PreDemandaRepository {
   removeInteressado(input: RemoveDemandaInteressadoInput): Promise<DemandaInteressado[]>;
   addVinculo(input: AddDemandaVinculoInput): Promise<DemandaVinculo[]>;
   removeVinculo(input: RemoveDemandaVinculoInput): Promise<DemandaVinculo[]>;
+  listVinculos(preId: string): Promise<DemandaVinculo[]>;
   addNumeroJudicial(input: AddNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
   removeNumeroJudicial(input: RemoveNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
   tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;

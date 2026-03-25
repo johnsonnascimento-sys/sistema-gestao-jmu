@@ -506,6 +506,16 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
   });
 
+  app.get("/api/pre-demandas/:preId/vinculos", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_vinculos")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const items = await preDemandaRepository.listVinculos(params.preId);
+    return reply.send({
+      ok: true,
+      data: items,
+      error: null,
+    });
+  });
+
   app.post("/api/pre-demandas/:preId/tramitar", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tramitacao")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = tramitarSchema.parse(request.body);
@@ -540,6 +550,16 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.send({
       ok: true,
       data: record,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/setores-ativos", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const setoresAtivos = await preDemandaRepository.listSetoresAtivos(params.preId);
+    return reply.send({
+      ok: true,
+      data: setoresAtivos,
       error: null,
     });
   });

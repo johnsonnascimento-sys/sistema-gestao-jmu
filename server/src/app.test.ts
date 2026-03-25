@@ -996,6 +996,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return origem.vinculos;
   }
 
+  async listVinculos(preId: string) {
+    const record = this.records.find((item) => item.preId === preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+    return record.vinculos;
+  }
+
   async tramitar(input: TramitarPreDemandaInput) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {
