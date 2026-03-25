@@ -445,6 +445,10 @@ export function removePreDemandaAudiencia(preId: string, audienciaId: string) {
   });
 }
 
+export function listPreDemandaAudiencias(preId: string) {
+  return request<Audiencia[]>(`/api/pre-demandas/${preId}/audiencias`);
+}
+
 export function tramitarPreDemanda(preId: string, setorDestinoId: string) {
   return request<PreDemanda>(`/api/pre-demandas/${preId}/tramitar`, {
     method: "POST",

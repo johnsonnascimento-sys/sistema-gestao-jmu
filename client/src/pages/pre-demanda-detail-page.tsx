@@ -79,9 +79,11 @@ import {
   getTimeline,
   listAssuntos,
   listPreDemandaAssuntos,
+  listPreDemandaAudiencias,
   listPreDemandaInteressados,
   listPreDemandaSeiAssociations,
   listPreDemandaSetoresAtivos,
+  listPreDemandaTarefas,
   listPreDemandaVinculos,
   listPreDemandaComentarios,
   listPreDemandaDocumentos,
@@ -164,6 +166,8 @@ export function PreDemandaDetailPage() {
   const [record, setRecord] = useState<PreDemanda | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [assuntosLinked, setAssuntosLinked] = useState<PreDemanda["assuntos"]>([]);
+  const [tarefas, setTarefas] = useState<PreDemanda["tarefasPendentes"]>([]);
+  const [audiencias, setAudiencias] = useState<PreDemanda["audiencias"]>([]);
   const [documentos, setDocumentos] = useState<PreDemanda["documentos"]>([]);
   const [comentarios, setComentarios] = useState<PreDemanda["comentarios"]>([]);
   const [interessados, setInteressados] = useState<PreDemanda["interessados"]>([]);
@@ -228,6 +232,8 @@ export function PreDemandaDetailPage() {
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [assuntosLoaded, setAssuntosLoaded] = useState(false);
+  const [tarefasLoaded, setTarefasLoaded] = useState(false);
+  const [audienciasLoaded, setAudienciasLoaded] = useState(false);
   const [interessadosLoaded, setInteressadosLoaded] = useState(false);
   const [seiLoaded, setSeiLoaded] = useState(false);
   const [relatedLoaded, setRelatedLoaded] = useState(false);
@@ -235,6 +241,8 @@ export function PreDemandaDetailPage() {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [assuntosLoading, setAssuntosLoading] = useState(false);
+  const [tarefasLoading, setTarefasLoading] = useState(false);
+  const [audienciasLoading, setAudienciasLoading] = useState(false);
   const [interessadosLoading, setInteressadosLoading] = useState(false);
   const [seiLoading, setSeiLoading] = useState(false);
   const [relatedLoading, setRelatedLoading] = useState(false);
@@ -327,6 +335,36 @@ export function PreDemandaDetailPage() {
       setAssuntosLoaded(true);
     } finally {
       setAssuntosLoading(false);
+    }
+  }
+
+  async function loadTarefasData(force = false) {
+    if (!force && (tarefasLoaded || tarefasLoading)) {
+      return;
+    }
+
+    setTarefasLoading(true);
+    try {
+      const nextTarefas = await listPreDemandaTarefas(preId);
+      setTarefas(nextTarefas);
+      setTarefasLoaded(true);
+    } finally {
+      setTarefasLoading(false);
+    }
+  }
+
+  async function loadAudienciasData(force = false) {
+    if (!force && (audienciasLoaded || audienciasLoading)) {
+      return;
+    }
+
+    setAudienciasLoading(true);
+    try {
+      const nextAudiencias = await listPreDemandaAudiencias(preId);
+      setAudiencias(nextAudiencias);
+      setAudienciasLoaded(true);
+    } finally {
+      setAudienciasLoading(false);
     }
   }
 
@@ -434,6 +472,8 @@ export function PreDemandaDetailPage() {
   }, []);
 
   useEffect(() => {
+    setTarefas([]);
+    setAudiencias([]);
     setAssuntosLinked([]);
     setDocumentos([]);
     setComentarios([]);
@@ -441,6 +481,8 @@ export function PreDemandaDetailPage() {
     setSeiAssociations([]);
     setVinculos([]);
     setSetoresAtivos([]);
+    setTarefasLoaded(false);
+    setAudienciasLoaded(false);
     setAssuntosLoaded(false);
     setDocumentsLoaded(false);
     setCommentsLoaded(false);
@@ -448,6 +490,8 @@ export function PreDemandaDetailPage() {
     setSeiLoaded(false);
     setRelatedLoaded(false);
     setActiveSetoresLoaded(false);
+    setTarefasLoading(false);
+    setAudienciasLoading(false);
     setAssuntosLoading(false);
     setDocumentsLoading(false);
     setCommentsLoading(false);
@@ -460,6 +504,12 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     if (toolbarDialog === "summary" || toolbarDialog === "subjects") {
       void loadAssuntosData();
+    }
+    if (toolbarDialog === "tasks") {
+      void loadTarefasData();
+    }
+    if (toolbarDialog === "audiencias") {
+      void loadAudienciasData();
     }
     if (toolbarDialog === "documents") {
       void loadDocumentosData();
@@ -480,6 +530,16 @@ export function PreDemandaDetailPage() {
       void loadSetoresAtivosData();
     }
   }, [toolbarDialog]);
+
+  useEffect(() => {
+    if (!record) {
+      return;
+    }
+    void loadTarefasData();
+    if (record.numeroJudicial || record.metadata.audienciaHorarioInicio) {
+      void loadAudienciasData();
+    }
+  }, [record?.id]);
 
   useEffect(() => {
     if (toolbarDialog !== "link" || processSearch.trim().length < 2) {
@@ -592,12 +652,12 @@ export function PreDemandaDetailPage() {
   }, [preId]);
 
   const queueHealth = useMemo(() => (record ? getQueueHealth(record) : null), [record]);
-  const pendingTasks = useMemo(() => record?.tarefasPendentes.filter((item) => !item.concluida) ?? [], [record]);
-  const completedTasks = useMemo(() => record?.tarefasPendentes.filter((item) => item.concluida) ?? [], [record]);
+  const pendingTasks = useMemo(() => tarefas.filter((item) => !item.concluida), [tarefas]);
+  const completedTasks = useMemo(() => tarefas.filter((item) => item.concluida), [tarefas]);
   const isJudicialProcess = useMemo(() => Boolean(record?.numeroJudicial), [record?.numeroJudicial]);
   const orderedAudiencias = useMemo(
-    () => [...(record?.audiencias ?? [])].sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()),
-    [record?.audiencias],
+    () => [...audiencias].sort((a, b) => new Date(a.dataHoraInicio).getTime() - new Date(b.dataHoraInicio).getTime()),
+    [audiencias],
   );
   const nextAudiencia = orderedAudiencias[0] ?? null;
   const editableAndamentoIds = useMemo(
@@ -627,10 +687,10 @@ export function PreDemandaDetailPage() {
   }, [record]);
   const taskShortcutOptions = useMemo(() => {
     const items = [...FIXED_TASKS];
-    const interessadoShortcuts = (record?.interessados ?? []).slice(0, 6).map((item) => `Assinatura de ${item.interessado.nome}`);
+    const interessadoShortcuts = interessados.slice(0, 6).map((item) => `Assinatura de ${item.interessado.nome}`);
 
     return Array.from(new Set([...items, ...interessadoShortcuts]));
-  }, [record]);
+  }, [interessados]);
   const requiresTaskSetorDestino = taskForm.descricao.trim() === "Envio para" || taskForm.descricao.trim() === "Retorno do setor";
   const requiresTaskSignaturePerson = taskForm.descricao.trim() === "Assinatura de pessoa";
   const selectedSignaturePerson = useMemo(() => {
@@ -657,20 +717,17 @@ export function PreDemandaDetailPage() {
   }
 
   async function handleReorderPendingTasksMotion(newPendingTasks: typeof pendingTasks) {
-    setRecord((current) => {
-      if (!current) return current;
-      const completed = current.tarefasPendentes.filter((t) => t.concluida);
-      return {
-        ...current,
-        tarefasPendentes: [...newPendingTasks, ...completed],
-      };
+    setTarefas((current) => {
+      const completed = current.filter((t) => t.concluida);
+      return [...newPendingTasks, ...completed];
     });
 
     await runMutation(
       async () => {
         const ids = newPendingTasks.map((t) => t.id);
         const tarefas = await reorderPreDemandaTarefas(preId, ids);
-        setRecord((current) => (current ? { ...current, tarefasPendentes: tarefas } : current));
+        setTarefas(tarefas);
+        setTarefasLoaded(true);
       },
       "Checklist reorganizada.",
     );
@@ -692,7 +749,7 @@ export function PreDemandaDetailPage() {
                   : "Sem audiência cadastrada",
             pessoas: interessados.length ? `${interessados.length} pessoa(s) vinculada(s)` : interessadosLoaded ? "Nenhuma pessoa vinculada" : record.pessoaPrincipal?.nome ?? "Abrir pessoas",
             setores: setoresAtivos.length ? `${setoresAtivos.length} setor(es) ativo(s)` : activeSetoresLoaded ? "Sem setores ativos" : "Abrir setores",
-            checklist: `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)`,
+            checklist: tarefasLoaded ? `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluida(s)` : "Carregando tarefas",
             visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
             relacionados: vinculos.length ? `${vinculos.length} vinculo(s) ativo(s)` : relatedLoaded ? "Sem processos relacionados" : "Abrir relacionamentos",
             associacaoSei: seiAssociations.find((item) => item.principal)?.seiNumero ?? record.currentAssociation?.seiNumero ?? "Sem numero SEI associado",
@@ -701,7 +758,7 @@ export function PreDemandaDetailPage() {
             historico: timeline.length ? `${timeline.length} evento(s) registrado(s)` : "Sem eventos registrados",
           }
         : null,
-    [activeSetoresLoaded, comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, interessados.length, interessadosLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, seiAssociations, setoresAtivos.length, timeline.length, vinculos.length],
+    [activeSetoresLoaded, comments.length, commentsLoaded, completedTasks.length, documents.length, documentsLoaded, interessados.length, interessadosLoaded, nextAction.title, orderedAudiencias, pendingTasks.length, queueHealth?.summary, record, relatedLoaded, seiAssociations, setoresAtivos.length, tarefasLoaded, timeline.length, vinculos.length],
   );
 
   async function runMutation(action: () => Promise<void>, successMessage: string) {
@@ -750,6 +807,7 @@ export function PreDemandaDetailPage() {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
+      await loadTarefasData(true);
       await loadRecordData();
       void loadTimelineData();
       setTaskPrazoChange(null);
@@ -792,6 +850,7 @@ export function PreDemandaDetailPage() {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
+      await loadTarefasData(true);
       await loadRecordData();
       void loadTimelineData();
       setTaskPrazoChange(null);
@@ -892,6 +951,7 @@ export function PreDemandaDetailPage() {
           await createPreDemandaAudiencia(preId, payload);
         }
 
+        await loadAudienciasData(true);
         resetAudienciaForm();
       },
       editingAudienciaId ? "Audiencia atualizada." : "Audiencia cadastrada.",
@@ -915,6 +975,7 @@ export function PreDemandaDetailPage() {
     await runMutation(
       async () => {
         await removePreDemandaAudiencia(preId, id);
+        await loadAudienciasData(true);
         if (editingAudienciaId === id) {
           resetAudienciaForm();
         }
@@ -1291,7 +1352,9 @@ export function PreDemandaDetailPage() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="grid gap-3">
                   <p className="text-sm font-semibold text-slate-950">Pendentes</p>
-                  {pendingTasks.length === 0 ? (
+                  {!tarefasLoaded && tarefasLoading ? (
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Carregando tarefas...</p>
+                  ) : pendingTasks.length === 0 ? (
                     <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nenhuma tarefa pendente.</p>
                   ) : (
                     <Reorder.Group axis="y" className="grid gap-3" onReorder={handleReorderPendingTasksMotion} values={pendingTasks}>
@@ -1305,7 +1368,10 @@ export function PreDemandaDetailPage() {
                                 className="mt-1 h-4 w-4 accent-slate-950"
                                 onChange={() =>
                                   void runMutation(
-                                    () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+                                    async () => {
+                                      await concluirPreDemandaTarefa(preId, task.id);
+                                      await loadTarefasData(true);
+                                    },
                                     formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
                                   )
                                 }
@@ -1446,7 +1512,9 @@ export function PreDemandaDetailPage() {
                     </p>
                   </div>
 
-                  {pendingTasks.length === 0 ? (
+                  {!tarefasLoaded && tarefasLoading ? (
+                    <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Carregando tarefas...</p>
+                  ) : pendingTasks.length === 0 ? (
                     <EmptyState
                       description="Nenhuma tarefa pendente no momento. Use o modal de tarefas para criar ou revisar o checklist."
                       title="Sem tarefas pendentes"
@@ -1460,7 +1528,10 @@ export function PreDemandaDetailPage() {
                               className="mt-1 h-4 w-4 shrink-0 accent-slate-950"
                               onChange={() =>
                                 void runMutation(
-                                  () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+                                  async () => {
+                                    await concluirPreDemandaTarefa(preId, task.id);
+                                    await loadTarefasData(true);
+                                  },
                                   formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
                                 )
                               }
@@ -2557,7 +2628,9 @@ export function PreDemandaDetailPage() {
                 <span className="text-xs text-slate-500">{orderedAudiencias.length} cadastrada(s)</span>
               </div>
 
-              {orderedAudiencias.length === 0 ? (
+              {!audienciasLoaded && audienciasLoading ? (
+                <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Carregando audiencias...</p>
+              ) : orderedAudiencias.length === 0 ? (
                 <EmptyState
                   description="Ainda nao ha audiencias estruturadas neste processo. Use o formulario acima para registrar a primeira."
                   title="Sem audiencias"
@@ -2600,7 +2673,10 @@ export function PreDemandaDetailPage() {
           onClose={() => setToolbarDialog(null)}
           onCompleteTask={(task) =>
             void runMutation(
-              () => concluirPreDemandaTarefa(preId, task.id).then(() => undefined),
+              async () => {
+                await concluirPreDemandaTarefa(preId, task.id);
+                await loadTarefasData(true);
+              },
               formatRecorrenciaLabel(task) ? "Tarefa concluida. Nova ocorrencia gerada." : "Tarefa concluida.",
             )
           }
@@ -2894,6 +2970,7 @@ export function PreDemandaDetailPage() {
                   ? void runMutation(
                       async () => {
                         await removePreDemandaTarefa(preId, deleteTask.id);
+                        await loadTarefasData(true);
                         setDeleteTask(null);
                       },
                       "Tarefa excluída.",

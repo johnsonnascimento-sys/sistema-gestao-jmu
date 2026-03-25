@@ -29,7 +29,6 @@ import type { DatabasePool } from "../db";
 import { getAllowedNextStatuses } from "../domain/pre-demanda-status";
 import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-health";
 import { AppError } from "../errors";
-import { loadAudiencias } from "./postgres-pre-demanda-utils";
 import type {
   AddAndamentoInput,
   AddDemandaAssuntoInput,
@@ -1311,11 +1310,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
   private async hydrateDetail(queryable: Queryable, row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds) {
     const detail = mapPreDemandaBase(row, queueHealthThresholds);
-    const [tarefasPendentes, audiencias, recentAndamentos] = await Promise.all([
-      this.loadTarefas(queryable, detail.id, detail.preId),
-      loadAudiencias(queryable, detail.id, detail.preId),
-      this.loadAndamentos(queryable, detail.id, detail.preId, 20),
-    ]);
+    const recentAndamentos = await this.loadAndamentos(queryable, detail.id, detail.preId, 20);
 
     detail.assuntos = [];
     detail.interessados = [];
@@ -1323,8 +1318,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     detail.setoresAtivos = [];
     detail.documentos = [];
     detail.comentarios = [];
-    detail.tarefasPendentes = tarefasPendentes;
-    detail.audiencias = audiencias;
+    detail.tarefasPendentes = [];
+    detail.audiencias = [];
     detail.recentAndamentos = recentAndamentos;
     detail.seiAssociations = [];
     detail.numerosJudiciais = [];
