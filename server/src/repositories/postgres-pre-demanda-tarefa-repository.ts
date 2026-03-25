@@ -114,6 +114,8 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             assunto_id,
             procedimento_id,
             prazo_conclusao,
+            horario_inicio,
+            horario_fim,
             recorrencia_tipo,
             recorrencia_dias_semana,
             recorrencia_dia_mes,
@@ -121,7 +123,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8, $9::jsonb, $10::int, $11::uuid, $12, $13)
+          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8::time, $9::time, $10, $11::jsonb, $12::int, $13::uuid, $14, $15)
           returning id
         `,
         [
@@ -132,6 +134,8 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           input.assuntoId ?? null,
           input.procedimentoId ?? null,
           input.prazoConclusao,
+          input.horarioInicio ?? null,
+          input.horarioFim ?? null,
           input.recorrenciaTipo ?? null,
           input.recorrenciaDiasSemana ? JSON.stringify(input.recorrenciaDiasSemana) : null,
           input.recorrenciaDiaMes ?? null,
@@ -178,7 +182,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
       await client.query(
         `
           update adminlog.tarefas_pendentes
-          set descricao = $3, tipo = $4, prazo_conclusao = $5::date, recorrencia_tipo = $6, recorrencia_dias_semana = $7::jsonb, recorrencia_dia_mes = $8::int
+          set descricao = $3, tipo = $4, prazo_conclusao = $5::date, horario_inicio = $6::time, horario_fim = $7::time, recorrencia_tipo = $8, recorrencia_dias_semana = $9::jsonb, recorrencia_dia_mes = $10::int
           where id = $1::uuid and pre_demanda_id = $2
         `,
         [
@@ -187,6 +191,8 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           input.descricao,
           input.tipo,
           input.prazoConclusao,
+          input.horarioInicio ?? null,
+          input.horarioFim ?? null,
           input.recorrenciaTipo ?? null,
           input.recorrenciaDiasSemana ? JSON.stringify(input.recorrenciaDiasSemana) : null,
           input.recorrenciaDiaMes ?? null,
@@ -300,7 +306,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         `
           select id, descricao, concluida, tipo, ordem, assunto_id, procedimento_id
                , setor_destino_id
-               , prazo_conclusao, recorrencia_tipo, recorrencia_dias_semana, recorrencia_dia_mes, gerada_automaticamente
+               , prazo_conclusao, horario_inicio, horario_fim, recorrencia_tipo, recorrencia_dias_semana, recorrencia_dia_mes, gerada_automaticamente
           from adminlog.tarefas_pendentes
           where id = $1::uuid and pre_demanda_id = $2
           limit 1
@@ -356,6 +362,8 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
               assunto_id,
               procedimento_id,
               prazo_conclusao,
+              horario_inicio,
+              horario_fim,
               recorrencia_tipo,
               recorrencia_dias_semana,
               recorrencia_dia_mes,
@@ -363,7 +371,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
               gerada_automaticamente,
               created_by_user_id
             )
-            values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8, $9::jsonb, $10::int, $11::uuid, $12, $13)
+            values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8::time, $9::time, $10, $11::jsonb, $12::int, $13::uuid, $14, $15)
           `,
           [
             demanda.id,
@@ -373,6 +381,8 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             current.rows[0].assunto_id ?? null,
             current.rows[0].procedimento_id ?? null,
             proximaDataRecorrente,
+            current.rows[0].horario_inicio ?? null,
+            current.rows[0].horario_fim ?? null,
             current.rows[0].recorrencia_tipo ?? null,
             current.rows[0].recorrencia_dias_semana ? JSON.stringify(current.rows[0].recorrencia_dias_semana) : null,
             current.rows[0].recorrencia_dia_mes ?? null,

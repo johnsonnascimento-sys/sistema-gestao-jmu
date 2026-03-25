@@ -184,9 +184,9 @@ export function PreDemandaDetailPage() {
   const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
-  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
+  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
+  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
   const [commentForm, setCommentForm] = useState("");
@@ -337,7 +337,7 @@ export function PreDemandaDetailPage() {
 
   useEffect(() => {
     if (!editingTask) {
-      setEditTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "" });
+      setEditTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "" });
       return;
     }
 
@@ -345,6 +345,8 @@ export function PreDemandaDetailPage() {
       descricao: editingTask.descricao,
       tipo: editingTask.tipo,
       prazo_conclusao: editingTask.prazoConclusao ?? "",
+      horario_inicio: editingTask.horarioInicio ?? "",
+      horario_fim: editingTask.horarioFim ?? "",
       recorrencia_tipo: editingTask.recorrenciaTipo ?? "",
       recorrencia_dias_semana: editingTask.recorrenciaDiasSemana ?? [],
       recorrencia_dia_mes: editingTask.recorrenciaDiaMes ? String(editingTask.recorrenciaDiaMes) : "",
@@ -503,6 +505,8 @@ export function PreDemandaDetailPage() {
       descricao: resolvedDescricao,
       tipo: taskForm.tipo,
       prazo_conclusao: taskForm.prazo_conclusao,
+      horario_inicio: taskForm.horario_inicio || null,
+      horario_fim: taskForm.horario_fim || null,
       recorrencia_tipo: taskForm.recorrencia_tipo || null,
       recorrencia_dias_semana: taskForm.recorrencia_tipo === "semanal" ? taskForm.recorrencia_dias_semana : null,
       recorrencia_dia_mes: taskForm.recorrencia_tipo === "mensal" && taskForm.recorrencia_dia_mes ? Number(taskForm.recorrencia_dia_mes) : null,
@@ -520,7 +524,7 @@ export function PreDemandaDetailPage() {
       });
       await load();
       setTaskPrazoChange(null);
-      setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
+      setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
       setMessage("Tarefa criada.");
     } catch (nextError) {
       const prazoChange = getTaskPrazoChangeState(nextError, payload, "create");
@@ -543,6 +547,8 @@ export function PreDemandaDetailPage() {
       descricao: editTaskForm.descricao.trim(),
       tipo: editTaskForm.tipo,
       prazo_conclusao: editTaskForm.prazo_conclusao,
+      horario_inicio: editTaskForm.horario_inicio || null,
+      horario_fim: editTaskForm.horario_fim || null,
       recorrencia_tipo: editTaskForm.recorrencia_tipo || null,
       recorrencia_dias_semana: editTaskForm.recorrencia_tipo === "semanal" ? editTaskForm.recorrencia_dias_semana : null,
       recorrencia_dia_mes: editTaskForm.recorrencia_tipo === "mensal" && editTaskForm.recorrencia_dia_mes ? Number(editTaskForm.recorrencia_dia_mes) : null,
@@ -1224,6 +1230,11 @@ export function PreDemandaDetailPage() {
                               </p>
                               <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                 <span>Prazo: {formatDateOnlyPtBr(task.prazoConclusao)}</span>
+                                {task.horarioInicio || task.horarioFim ? (
+                                  <span>
+                                    Horario: {task.horarioInicio ?? "--:--"}{task.horarioFim ? ` - ${task.horarioFim}` : ""}
+                                  </span>
+                                ) : null}
                                 {task.setorDestino ? <span>Setor destino: {task.setorDestino.sigla}</span> : null}
                                 <span>{task.geradaAutomaticamente ? "Fluxo do assunto" : "Lancamento manual"}</span>
                               </div>

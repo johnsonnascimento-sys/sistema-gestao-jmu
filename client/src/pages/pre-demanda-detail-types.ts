@@ -33,6 +33,8 @@ export type TaskPrazoChangeState = {
     descricao: string;
     tipo: "fixa" | "livre";
     prazo_conclusao: string;
+    horario_inicio?: string | null;
+    horario_fim?: string | null;
     recorrencia_tipo?: TarefaRecorrenciaTipo | null;
     recorrencia_dias_semana?: string[] | null;
     recorrencia_dia_mes?: number | null;

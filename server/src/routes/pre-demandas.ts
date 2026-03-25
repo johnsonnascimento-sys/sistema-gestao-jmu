@@ -150,10 +150,20 @@ const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
   prazo_conclusao: z.string().date(),
+  horario_inicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
+  horario_fim: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
   recorrencia_tipo: z.enum(["diaria", "semanal", "mensal"]).optional().nullable(),
   recorrencia_dias_semana: z.array(z.string().trim().min(3).max(16)).max(7).optional().nullable(),
   recorrencia_dia_mes: z.number().int().min(1).max(31).optional().nullable(),
   setor_destino_id: z.string().uuid().optional().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.horario_inicio && value.horario_fim && value.horario_fim < value.horario_inicio) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["horario_fim"],
+      message: "O horario de termino nao pode ser anterior ao horario de inicio.",
+    });
+  }
 });
 
 const tarefaOrderSchema = z.object({
@@ -599,6 +609,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       descricao: payload.descricao,
       tipo: payload.tipo,
       prazoConclusao: payload.prazo_conclusao,
+      horarioInicio: payload.horario_inicio ?? null,
+      horarioFim: payload.horario_fim ?? null,
       recorrenciaTipo: payload.recorrencia_tipo ?? null,
       recorrenciaDiasSemana: payload.recorrencia_dias_semana ?? null,
       recorrenciaDiaMes: payload.recorrencia_dia_mes ?? null,
@@ -624,6 +636,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       descricao: payload.descricao,
       tipo: payload.tipo,
       prazoConclusao: payload.prazo_conclusao,
+      horarioInicio: payload.horario_inicio ?? null,
+      horarioFim: payload.horario_fim ?? null,
       recorrenciaTipo: payload.recorrencia_tipo ?? null,
       recorrenciaDiasSemana: payload.recorrencia_dias_semana ?? null,
       recorrenciaDiaMes: payload.recorrencia_dia_mes ?? null,

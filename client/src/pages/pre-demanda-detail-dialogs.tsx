@@ -24,6 +24,22 @@ import { getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 
 type RunMutation = (action: () => Promise<void>, successMessage: string) => Promise<void>;
 
+function formatTaskTimeLabel(task: Pick<TarefaPendente, "horarioInicio" | "horarioFim">) {
+  if (task.horarioInicio && task.horarioFim) {
+    return `${task.horarioInicio} - ${task.horarioFim}`;
+  }
+
+  if (task.horarioInicio) {
+    return `Inicio ${task.horarioInicio}`;
+  }
+
+  if (task.horarioFim) {
+    return `Termino ${task.horarioFim}`;
+  }
+
+  return null;
+}
+
 // ── AndamentoDialogs ─────────────────────────────────────────────────────────
 
 export function AndamentoCreateDialog({
@@ -180,6 +196,8 @@ type EditTaskForm = {
   descricao: string;
   tipo: "fixa" | "livre";
   prazo_conclusao: string;
+  horario_inicio: string;
+  horario_fim: string;
   recorrencia_tipo: "" | TarefaRecorrenciaTipo;
   recorrencia_dias_semana: string[];
   recorrencia_dia_mes: string;
@@ -235,6 +253,22 @@ export function TarefaEditDialog({
               value={form.prazo_conclusao}
             />
           </FormField>
+          <div className="grid gap-4 md:grid-cols-2">
+            <FormField hint="Opcional." label="Horario de inicio">
+              <Input
+                onChange={(e) => onFormChange({ ...form, horario_inicio: e.target.value })}
+                type="time"
+                value={form.horario_inicio}
+              />
+            </FormField>
+            <FormField hint="Opcional." label="Horario de termino">
+              <Input
+                onChange={(e) => onFormChange({ ...form, horario_fim: e.target.value })}
+                type="time"
+                value={form.horario_fim}
+              />
+            </FormField>
+          </div>
           <FormField label="Recorrencia">
             <select
               className={selectClassName}
@@ -399,6 +433,8 @@ type TaskCreateForm = {
   descricao: string;
   tipo: "fixa" | "livre";
   prazo_conclusao: string;
+  horario_inicio: string;
+  horario_fim: string;
   recorrencia_tipo: "" | TarefaRecorrenciaTipo;
   recorrencia_dias_semana: string[];
   recorrencia_dia_mes: string;
@@ -493,6 +529,22 @@ export function TarefasDialog({
                   onChange={(event) => onTaskFormChange({ ...taskForm, prazo_conclusao: event.target.value })}
                   type="date"
                   value={taskForm.prazo_conclusao}
+                />
+              </FormField>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <FormField hint="Opcional." label="Horario de inicio">
+                <Input
+                  onChange={(event) => onTaskFormChange({ ...taskForm, horario_inicio: event.target.value })}
+                  type="time"
+                  value={taskForm.horario_inicio}
+                />
+              </FormField>
+              <FormField hint="Opcional." label="Horario de termino">
+                <Input
+                  onChange={(event) => onTaskFormChange({ ...taskForm, horario_fim: event.target.value })}
+                  type="time"
+                  value={taskForm.horario_fim}
                 />
               </FormField>
             </div>
@@ -792,6 +844,11 @@ export function TarefasDialog({
                                 Prazo de conclusao: {formatDateOnlyPtBr(task.prazoConclusao)}
                               </span>
                             ) : null}
+                            {formatTaskTimeLabel(task) ? (
+                              <span className="block text-xs text-slate-500">
+                                Horario: {formatTaskTimeLabel(task)}
+                              </span>
+                            ) : null}
                             {(() => {
                               const signal = getTaskSignal(task.prazoConclusao);
                               return signal ? (
@@ -852,6 +909,7 @@ export function TarefasDialog({
                     <p className="text-sm text-emerald-800">
                       Concluida em {task.concluidaEm ? new Date(task.concluidaEm).toLocaleString("pt-BR") : "-"}
                     </p>
+                    {formatTaskTimeLabel(task) ? <p className="mt-1 text-xs text-emerald-900/80">Horario: {formatTaskTimeLabel(task)}</p> : null}
                     <p className="mt-1 text-xs text-emerald-900/80">
                       {task.tipo}
                       {task.concluidaPor ? ` - ${task.concluidaPor.name}` : ""}

@@ -247,6 +247,8 @@ export interface TarefaPendente {
   assuntoId: string | null;
   procedimentoId: string | null;
   prazoConclusao?: string;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
   recorrenciaTipo?: TarefaRecorrenciaTipo | null;
   recorrenciaDiasSemana?: string[] | null;
   recorrenciaDiaMes?: number | null;

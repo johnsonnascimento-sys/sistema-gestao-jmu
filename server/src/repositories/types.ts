@@ -200,6 +200,8 @@ export interface CreateTarefaInput {
   descricao: string;
   tipo: TarefaPendenteTipo;
   prazoConclusao: string;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
   recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
   recorrenciaDiasSemana?: string[] | null;
   recorrenciaDiaMes?: number | null;
@@ -218,6 +220,8 @@ export interface UpdateTarefaInput {
   descricao: string;
   tipo: TarefaPendenteTipo;
   prazoConclusao: string;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
   recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
   recorrenciaDiasSemana?: string[] | null;
   recorrenciaDiaMes?: number | null;

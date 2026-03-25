@@ -440,6 +440,8 @@ export function createPreDemandaTarefa(
     descricao: string;
     tipo: TarefaPendenteTipo;
     prazo_conclusao: string;
+    horario_inicio?: string | null;
+    horario_fim?: string | null;
     recorrencia_tipo?: TarefaRecorrenciaTipo | null;
     recorrencia_dias_semana?: string[] | null;
     recorrencia_dia_mes?: number | null;
@@ -460,6 +462,8 @@ export function updatePreDemandaTarefa(
     descricao: string;
     tipo: TarefaPendenteTipo;
     prazo_conclusao: string;
+    horario_inicio?: string | null;
+    horario_fim?: string | null;
     recorrencia_tipo?: TarefaRecorrenciaTipo | null;
     recorrencia_dias_semana?: string[] | null;
     recorrencia_dia_mes?: number | null;
