@@ -109,25 +109,6 @@ const BASE_FROM = `
     order by di.created_at desc, pessoa.nome asc
     limit 1
   ) pessoa_principal on true
-  left join lateral (
-    select json_agg(json_build_object(
-      'interessado', json_build_object(
-        'id', pessoa.id,
-        'nome', pessoa.nome,
-        'cargo', pessoa.cargo,
-        'matricula', pessoa.matricula,
-        'cpf', pessoa.cpf,
-        'dataNascimento', pessoa.data_nascimento,
-        'createdAt', pessoa.created_at,
-        'updatedAt', pessoa.updated_at
-      ),
-      'papel', di.papel,
-      'createdAt', di.created_at
-    )) as interessados_json
-    from adminlog.demanda_interessados di
-    inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
-    where di.pre_demanda_id = pd.id
-  ) all_interessados on true
   left join adminlog.setores setor on setor.id = pd.setor_atual_id
 `;
 
@@ -182,8 +163,7 @@ const BASE_SELECT = `
     linked_by.id as linked_by_id,
     linked_by.email as linked_by_email,
     linked_by.name as linked_by_name,
-    linked_by.role as linked_by_role,
-    all_interessados.interessados_json
+    linked_by.role as linked_by_role
   ${BASE_FROM}
 `;
 
@@ -349,21 +329,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     numerosJudiciais: numeroJudicial
       ? [{ numero: numeroJudicial, principal: true, createdAt: new Date(row.updated_at ?? row.created_at).toISOString() }]
       : [],
-    interessados: row.interessados_json ? (row.interessados_json as any[]).map((i: any) => ({
-      interessado: {
-        id: String(i.interessado.id),
-        nome: String(i.interessado.nome),
-        cargo: i.interessado.cargo ? String(i.interessado.cargo) : null,
-        matricula: i.interessado.matricula ? String(i.interessado.matricula) : null,
-        cpf: i.interessado.cpf ? String(i.interessado.cpf) : null,
-        dataNascimento: i.interessado.dataNascimento ? (i.interessado.dataNascimento instanceof Date ? i.interessado.dataNascimento.toISOString().slice(0, 10) : new Date(i.interessado.dataNascimento).toISOString().slice(0, 10)) : null,
-        createdAt: i.interessado.createdAt instanceof Date ? i.interessado.createdAt.toISOString() : new Date(i.interessado.createdAt).toISOString(),
-        updatedAt: i.interessado.updatedAt instanceof Date ? i.interessado.updatedAt.toISOString() : new Date(i.interessado.updatedAt).toISOString(),
-      },
-      papel: String(i.papel) as any,
-      linkedAt: i.createdAt instanceof Date ? i.createdAt.toISOString() : new Date(i.createdAt).toISOString(),
-      linkedBy: null,
-    })) : [],
+    interessados: [],
     vinculos: [],
     setoresAtivos: [],
     documentos: [],
@@ -901,10 +867,21 @@ async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
 }
 
 export class PostgresPreDemandaRepository implements PreDemandaRepository {
+  private dashboardSummaryCache:
+    | {
+        expiresAt: number;
+        value: PreDemandaDashboardSummary;
+      }
+    | null = null;
+
   constructor(
     private readonly pool: DatabasePool,
     private readonly settingsRepository: SettingsRepository,
   ) {}
+
+  private invalidateDashboardSummaryCache() {
+    this.dashboardSummaryCache = null;
+  }
 
   private async loadQueueHealthThresholds() {
     const config = await this.settingsRepository.getQueueHealthConfig();
@@ -1869,6 +1846,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         }
       }
 
+      this.invalidateDashboardSummaryCache();
       return { preId: input.preId };
     });
   }
@@ -1888,6 +1866,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
     }
 
+    this.invalidateDashboardSummaryCache();
     return { preId: input.preId };
   }
 
@@ -1931,6 +1910,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         });
       }
 
+      this.invalidateDashboardSummaryCache();
       const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
@@ -1970,6 +1950,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
@@ -2132,6 +2113,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return this.loadInteressados(client, demanda.id);
     });
   }
@@ -2163,6 +2145,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return this.loadInteressados(client, demanda.id);
     });
   }
@@ -2199,6 +2182,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return this.loadVinculos(client, origem.id);
     });
   }
@@ -2229,6 +2213,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return this.loadVinculos(client, origem.id);
     });
   }
@@ -2313,6 +2298,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return { preId: input.preId };
     });
   }
@@ -2379,6 +2365,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return { preId: input.preId };
     });
   }
@@ -2386,7 +2373,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   async addAndamento(input: AddAndamentoInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
-      return this.insertAndamento(client, {
+      const andamento = await this.insertAndamento(client, {
         preDemandaId: demanda.id,
         preId: demanda.preId,
         descricao: input.descricao,
@@ -2394,6 +2381,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
         dataHora: input.dataHora ?? null,
       });
+      this.invalidateDashboardSummaryCache();
+      return andamento;
     });
   }
 
@@ -2459,6 +2448,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.andamentoId, demanda.preId],
       );
 
+      this.invalidateDashboardSummaryCache();
       return mapAndamento(updated.rows[0]);
     });
   }
@@ -2497,6 +2487,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return { removedId: input.andamentoId };
     });
   }
@@ -2872,6 +2863,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [inserted.rows[0].id, demanda.preId],
       );
 
+      this.invalidateDashboardSummaryCache();
       return mapComentario(result.rows[0]);
     });
   }
@@ -2921,6 +2913,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.comentarioId, demanda.preId],
       );
 
+      this.invalidateDashboardSummaryCache();
       return mapComentario(result.rows[0]);
     });
   }
@@ -2980,6 +2973,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [inserted.rows[0].id, demanda.preId],
       );
 
+      this.invalidateDashboardSummaryCache();
       return mapDocumento(result.rows[0]);
     });
   }
@@ -3009,6 +3003,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return this.loadDocumentos(client, demanda.id, demanda.preId);
     });
   }
@@ -3166,6 +3161,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(500, "PRE_DEMANDA_ASSOCIATION_FAILED", "Falha ao carregar a associacao atualizada.");
       }
 
+      this.invalidateDashboardSummaryCache();
       return {
         association: currentAssociation,
         audited,
@@ -3270,6 +3266,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      this.invalidateDashboardSummaryCache();
       return {
         preId: input.preId,
         status: input.status,
@@ -3666,6 +3663,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
+    const now = Date.now();
+    if (this.dashboardSummaryCache && this.dashboardSummaryCache.expiresAt > now) {
+      return this.dashboardSummaryCache.value;
+    }
+
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, oldestOpenTasksResult, upcomingAudienciasResult, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
@@ -3932,7 +3934,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       this.listRecentTimeline(8),
     ]);
 
-    return {
+    const summary = {
       counts,
       deadlines: {
         processo: {
@@ -3992,6 +3994,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       })),
       recentTimeline,
     };
+
+    this.dashboardSummaryCache = {
+      expiresAt: now + 15_000,
+      value: summary,
+    };
+
+    return summary;
   }
 
   async listDashboardTasks(): Promise<DashboardTaskItem[]> {
