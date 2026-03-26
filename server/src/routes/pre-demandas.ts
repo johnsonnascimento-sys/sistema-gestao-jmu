@@ -3,7 +3,7 @@ import { emitPreDemandaUpdate } from "../lib/events";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
 import { AppError } from "../errors";
-import type { PreDemandaRepository, PreDemandaAndamentoRepository, PreDemandaTarefaRepository } from "../repositories/types";
+import type { AssuntoRepository, PreDemandaRepository, PreDemandaAndamentoRepository, PreDemandaTarefaRepository } from "../repositories/types";
 
 const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
@@ -266,12 +266,13 @@ function parseQueueHealthLevels(input: string | string[] | undefined) {
   return normalized as QueueHealthLevel[];
 }
 
-export async function registerPreDemandaRoutes(app: FastifyInstance, options: { 
+export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
   preDemandaRepository: PreDemandaRepository,
+  assuntoRepository: AssuntoRepository,
   preDemandaAndamentoRepository: PreDemandaAndamentoRepository,
   preDemandaTarefaRepository: PreDemandaTarefaRepository
 }) {
-  const { preDemandaRepository, preDemandaAndamentoRepository, preDemandaTarefaRepository } = options;
+  const { preDemandaRepository, assuntoRepository, preDemandaAndamentoRepository, preDemandaTarefaRepository } = options;
 
   app.post("/api/pre-demandas", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (request, reply) => {
     const payload = createSchema.parse(request.body);
@@ -459,6 +460,13 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
   app.get("/api/pre-demandas/:preId/assuntos", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const data = await preDemandaRepository.listAssuntos(params.preId);
+
+    return reply.send({ ok: true, data, error: null });
+  });
+
+  app.get("/api/pre-demandas/:preId/assuntos/catalogo", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
+    z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const data = await assuntoRepository.list();
 
     return reply.send({ ok: true, data, error: null });
   });

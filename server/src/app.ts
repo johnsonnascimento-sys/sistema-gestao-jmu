@@ -144,7 +144,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   await registerAssuntoRoutes(app, { assuntoRepository });
   await registerSetorRoutes(app, { setorRepository });
   await registerNormaRoutes(app, { normaRepository });
-  await registerPreDemandaRoutes(app, { preDemandaRepository, preDemandaTarefaRepository, preDemandaAndamentoRepository });
+  await registerPreDemandaRoutes(app, { preDemandaRepository, assuntoRepository, preDemandaTarefaRepository, preDemandaAndamentoRepository });
   await registerPreDemandaAudienciaRoutes(app, { preDemandaAudienciaRepository });
   await registerEventsRoutes(app);
   await registerAdminOperationsRoutes(app, { config, pool, operationsStore, settingsRepository });

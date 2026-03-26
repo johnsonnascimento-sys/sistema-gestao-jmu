@@ -396,6 +396,10 @@ export function listPreDemandaAssuntos(preId: string) {
   return request<PreDemanda["assuntos"]>(`/api/pre-demandas/${preId}/assuntos`);
 }
 
+export function listPreDemandaAssuntosCatalogo(preId: string) {
+  return request<Assunto[]>(`/api/pre-demandas/${preId}/assuntos/catalogo`);
+}
+
 export function addPreDemandaVinculo(preId: string, destinoPreId: string) {
   return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos`, {
     method: "POST",

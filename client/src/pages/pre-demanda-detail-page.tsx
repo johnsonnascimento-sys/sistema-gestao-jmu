@@ -77,8 +77,8 @@ import {
   formatAppError,
   getPreDemanda,
   getTimeline,
-  listAssuntos,
   listPreDemandaAssuntos,
+  listPreDemandaAssuntosCatalogo,
   listPreDemandaAudiencias,
   listPreDemandaInteressados,
   listPreDemandaSeiAssociations,
@@ -248,6 +248,7 @@ export function PreDemandaDetailPage() {
   const [documentsLoaded, setDocumentsLoaded] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
   const [assuntosLoaded, setAssuntosLoaded] = useState(false);
+  const [assuntosCatalogoLoaded, setAssuntosCatalogoLoaded] = useState(false);
   const [tarefasLoaded, setTarefasLoaded] = useState(false);
   const [audienciasLoaded, setAudienciasLoaded] = useState(false);
   const [interessadosLoaded, setInteressadosLoaded] = useState(false);
@@ -257,6 +258,7 @@ export function PreDemandaDetailPage() {
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [assuntosLoading, setAssuntosLoading] = useState(false);
+  const [assuntosCatalogoLoading, setAssuntosCatalogoLoading] = useState(false);
   const [tarefasLoading, setTarefasLoading] = useState(false);
   const [audienciasLoading, setAudienciasLoading] = useState(false);
   const [interessadosLoading, setInteressadosLoading] = useState(false);
@@ -315,12 +317,10 @@ export function PreDemandaDetailPage() {
 
   async function loadCatalogData() {
     try {
-      const [nextSetores, nextAssuntos] = await Promise.all([listSetores(), listAssuntos()]);
+      const nextSetores = await listSetores();
       setSetores(nextSetores);
-      setAssuntosCatalogo(nextAssuntos);
     } catch {
       setSetores([]);
-      setAssuntosCatalogo([]);
     }
   }
 
@@ -352,6 +352,24 @@ export function PreDemandaDetailPage() {
       setAssuntosLoaded(true);
     } finally {
       setAssuntosLoading(false);
+    }
+  }
+
+  async function loadAssuntosCatalogoData(force = false) {
+    if (!force && (assuntosCatalogoLoaded || assuntosCatalogoLoading)) {
+      return;
+    }
+
+    setAssuntosCatalogoLoading(true);
+    try {
+      const nextAssuntosCatalogo = await listPreDemandaAssuntosCatalogo(preId);
+      setAssuntosCatalogo(nextAssuntosCatalogo);
+      setAssuntosCatalogoLoaded(true);
+    } catch {
+      setAssuntosCatalogo([]);
+      setAssuntosCatalogoLoaded(false);
+    } finally {
+      setAssuntosCatalogoLoading(false);
     }
   }
 
@@ -501,6 +519,7 @@ export function PreDemandaDetailPage() {
     setTarefasLoaded(false);
     setAudienciasLoaded(false);
     setAssuntosLoaded(false);
+    setAssuntosCatalogoLoaded(false);
     setDocumentsLoaded(false);
     setCommentsLoaded(false);
     setInteressadosLoaded(false);
@@ -510,6 +529,7 @@ export function PreDemandaDetailPage() {
     setTarefasLoading(false);
     setAudienciasLoading(false);
     setAssuntosLoading(false);
+    setAssuntosCatalogoLoading(false);
     setDocumentsLoading(false);
     setCommentsLoading(false);
     setInteressadosLoading(false);
@@ -523,6 +543,7 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     if (toolbarDialog === "summary" || toolbarDialog === "subjects") {
       void loadAssuntosData();
+      void loadAssuntosCatalogoData();
     }
     if (toolbarDialog === "tasks") {
       void loadTarefasData();
@@ -1189,7 +1210,9 @@ export function PreDemandaDetailPage() {
                     <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto vinculado.</p>
                   )}
                 </div>
-                {availableAssuntos.length ? (
+                {assuntosCatalogoLoading && !assuntosCatalogoLoaded ? (
+                  <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Carregando catalogo de assuntos...</p>
+                ) : availableAssuntos.length ? (
                   <div className="grid gap-2 md:grid-cols-2">
                     {availableAssuntos.map((assunto) => (
                       <button
@@ -1771,6 +1794,8 @@ export function PreDemandaDetailPage() {
                   <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
                     Checklist automático ativo
                   </span>
+                ) : assuntosCatalogoLoaded ? (
+                  <p className="rounded-[20px] border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto disponivel para vincular.</p>
                 ) : null}
               </div>
 
@@ -1929,7 +1954,9 @@ export function PreDemandaDetailPage() {
               </div>
             )}
 
-            {availableAssuntos.length ? (
+            {assuntosCatalogoLoading && !assuntosCatalogoLoaded ? (
+              <p className="rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Carregando catalogo de assuntos...</p>
+            ) : availableAssuntos.length ? (
               <div className="grid gap-2 md:grid-cols-2">
                 {availableAssuntos.map((assunto) => (
                   <button
@@ -1959,6 +1986,8 @@ export function PreDemandaDetailPage() {
                   </button>
                 ))}
               </div>
+            ) : assuntosCatalogoLoaded ? (
+              <p className="rounded-[20px] border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">Nenhum assunto disponivel para vincular.</p>
             ) : null}
           </div>
         </DialogContent>
