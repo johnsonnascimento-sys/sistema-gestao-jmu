@@ -476,6 +476,14 @@ export interface DashboardTaskItem {
   createdAt: string;
 }
 
+export interface OpenProcessWithoutTaskItem {
+  preId: string;
+  preNumero: string;
+  assunto: string;
+  status: PreDemandaStatus;
+  updatedAt: string;
+}
+
 export type DashboardTaskStatusFilter = "pendentes" | "concluidas";
 export type DashboardTaskSortMode = "prazo_asc" | "created_desc" | "created_asc";
 
@@ -487,6 +495,10 @@ export interface DashboardTaskListResult {
   counts: {
     pendentes: number;
     concluidas: number;
+  };
+  openProcessesWithoutTasks: {
+    total: number;
+    items: OpenProcessWithoutTaskItem[];
   };
 }
 

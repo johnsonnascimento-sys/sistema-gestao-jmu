@@ -9,7 +9,7 @@ import { Input } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, listDashboardTasks } from "../lib/api";
 import { formatDateOnlyPtBr } from "../lib/date";
-import type { DashboardTaskItem, DashboardTaskSortMode, DashboardTaskStatusFilter, TarefaRecorrenciaTipo } from "../types";
+import type { DashboardTaskItem, DashboardTaskSortMode, DashboardTaskStatusFilter, OpenProcessWithoutTaskItem, TarefaRecorrenciaTipo } from "../types";
 
 const PAGE_SIZE = 20;
 
@@ -96,37 +96,54 @@ function TaskCard({ task }: { task: DashboardTaskItem }) {
   );
 }
 
-function TaskGroup({
-  title,
-  description,
-  items,
-  emptyTitle,
-  emptyDescription,
-}: {
-  title: string;
-  description: string;
-  items: DashboardTaskItem[];
-  emptyTitle: string;
-  emptyDescription: string;
-}) {
+function ProcessTaskGroupCard({ preId, preNumero, assunto, hasAudiencia, tasks }: { preId: string; preNumero: string; assunto: string; hasAudiencia: boolean; tasks: DashboardTaskItem[] }) {
   return (
-    <div className="grid gap-3">
-      <div>
-        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
-          {title} <span className="normal-case tracking-normal text-slate-400">({items.length})</span>
-        </h3>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
-      </div>
-      {items.length === 0 ? (
-        <EmptyState title={emptyTitle} description={emptyDescription} />
-      ) : (
-        <div className="grid gap-3">
-          {items.map((task) => (
-            <TaskCard key={task.id} task={task} />
-          ))}
+    <Link
+      className="rounded-[24px] border border-slate-200 bg-white/95 px-5 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      to={`/pre-demandas/${preId}`}
+    >
+      <div className="grid gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-sky-700">{preNumero}</p>
+            {hasAudiencia ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-800 ring-1 ring-amber-200">
+                <Gavel className="h-3.5 w-3.5" />
+                Processo com audiencia
+              </span>
+            ) : null}
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-700 ring-1 ring-slate-200">
+              {tasks.length} tarefa(s)
+            </span>
+          </div>
+          <h3 className="mt-2 text-base font-semibold text-slate-950">{assunto}</h3>
         </div>
-      )}
-    </div>
+
+        <div className="grid gap-2">
+          {tasks.map((task) => {
+            const timeLabel = formatTaskTime(task);
+            return (
+              <div key={task.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-slate-900">{task.descricao}</p>
+                  <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${getTaskDeadlineTone(task.prazoConclusao)}`}>
+                    Prazo {formatDateOnlyPtBr(task.prazoConclusao)}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-700 ring-1 ring-slate-200">
+                    {formatTaskRecurrence(task.recorrenciaTipo)}
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                  <span>Tipo: {task.tipo}</span>
+                  {timeLabel ? <span>Horario: {timeLabel}</span> : null}
+                  {task.setorDestinoSigla ? <span>Setor destino: {task.setorDestinoSigla}</span> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Link>
   );
 }
 
@@ -134,13 +151,33 @@ function TaskTabPanel({
   items,
   emptyTitle,
   emptyDescription,
+  unifyByProcess,
 }: {
   items: DashboardTaskItem[];
   emptyTitle: string;
   emptyDescription: string;
+  unifyByProcess: boolean;
 }) {
   const audienciaItems = useMemo(() => items.filter((item) => item.hasAudiencia), [items]);
   const regularItems = useMemo(() => items.filter((item) => !item.hasAudiencia), [items]);
+  const groupByProcess = (groupItems: DashboardTaskItem[]) => {
+    const grouped = groupItems.reduce((map, item) => {
+      const current = map.get(item.preId) ?? {
+        preId: item.preId,
+        preNumero: item.preNumero,
+        assunto: item.assunto,
+        hasAudiencia: item.hasAudiencia,
+        tasks: [] as DashboardTaskItem[],
+      };
+      current.tasks.push(item);
+      map.set(item.preId, current);
+      return map;
+    }, new Map<string, { preId: string; preNumero: string; assunto: string; hasAudiencia: boolean; tasks: DashboardTaskItem[] }>());
+
+    return Array.from(grouped.values());
+  };
+  const audienciaProcessos = useMemo(() => groupByProcess(audienciaItems), [audienciaItems]);
+  const regularProcessos = useMemo(() => groupByProcess(regularItems), [regularItems]);
 
   if (items.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
@@ -148,29 +185,106 @@ function TaskTabPanel({
 
   return (
     <div className="grid gap-6">
-      <TaskGroup
-        description="Tarefas ligadas a processos que possuem audiencia cadastrada."
-        emptyDescription="Nenhuma tarefa de processo com audiencia neste grupo."
-        emptyTitle="Sem tarefas de audiencias"
-        items={audienciaItems}
-        title="Processos com audiencia"
-      />
-      <TaskGroup
-        description="Demais tarefas operacionais da fila geral."
-        emptyDescription="Nenhuma tarefa fora de processos com audiencia neste grupo."
-        emptyTitle="Sem outras tarefas"
-        items={regularItems}
-        title="Demais processos"
-      />
+      <div className="grid gap-3">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
+            Processos com audiencia <span className="normal-case tracking-normal text-slate-400">({unifyByProcess ? audienciaProcessos.length : audienciaItems.length})</span>
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">Tarefas ligadas a processos que possuem audiencia cadastrada.</p>
+        </div>
+        {unifyByProcess ? (
+          audienciaProcessos.length === 0 ? (
+            <EmptyState title="Sem tarefas de audiencias" description="Nenhuma tarefa de processo com audiencia neste grupo." />
+          ) : (
+            <div className="grid gap-3">
+              {audienciaProcessos.map((processo) => (
+                <ProcessTaskGroupCard key={processo.preId} {...processo} />
+              ))}
+            </div>
+          )
+        ) : (
+          audienciaItems.length === 0 ? (
+            <EmptyState title="Sem tarefas de audiencias" description="Nenhuma tarefa de processo com audiencia neste grupo." />
+          ) : (
+            <div className="grid gap-3">
+              {audienciaItems.map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </div>
+          )
+        )}
+      </div>
+
+      <div className="grid gap-3">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
+            Demais processos <span className="normal-case tracking-normal text-slate-400">({unifyByProcess ? regularProcessos.length : regularItems.length})</span>
+          </h3>
+          <p className="mt-1 text-sm text-slate-500">Demais tarefas operacionais da fila geral.</p>
+        </div>
+        {unifyByProcess ? (
+          regularProcessos.length === 0 ? (
+            <EmptyState title="Sem outras tarefas" description="Nenhuma tarefa fora de processos com audiencia neste grupo." />
+          ) : (
+            <div className="grid gap-3">
+              {regularProcessos.map((processo) => (
+                <ProcessTaskGroupCard key={processo.preId} {...processo} />
+              ))}
+            </div>
+          )
+        ) : (
+          regularItems.length === 0 ? (
+            <EmptyState title="Sem outras tarefas" description="Nenhuma tarefa fora de processos com audiencia neste grupo." />
+          ) : (
+            <div className="grid gap-3">
+              {regularItems.map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </div>
+          )
+        )}
+      </div>
     </div>
+  );
+}
+
+function OpenProcessesWithoutTasksCard({ items, total }: { items: OpenProcessWithoutTaskItem[]; total: number }) {
+  return (
+    <Card className="rounded-[28px] border border-amber-200/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.95),rgba(255,247,237,0.88))] shadow-[0_12px_24px_rgba(120,53,15,0.05)]">
+      <CardHeader>
+        <CardTitle>Processos abertos sem tarefas</CardTitle>
+        <CardDescription>{total} processo(s) aberto(s) sem tarefa cadastrada.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <EmptyState title="Sem lacunas operacionais" description="Todos os processos abertos possuem ao menos uma tarefa cadastrada." />
+        ) : (
+          <div className="grid gap-3">
+            {items.map((item) => (
+              <Link
+                key={item.preId}
+                className="rounded-[20px] border border-amber-200/70 bg-white/90 px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                to={`/pre-demandas/${item.preId}`}
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">{item.preNumero}</p>
+                <h3 className="mt-2 text-sm font-semibold text-slate-950">{item.assunto}</h3>
+                <p className="mt-2 text-xs text-slate-500">Atualizado em {new Date(item.updatedAt).toLocaleString("pt-BR")}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 export function TarefasPage() {
   const [items, setItems] = useState<DashboardTaskItem[]>([]);
+  const [openProcessesWithoutTasks, setOpenProcessesWithoutTasks] = useState<{ total: number; items: OpenProcessWithoutTaskItem[] }>({ total: 0, items: [] });
   const [currentTab, setCurrentTab] = useState<DashboardTaskStatusFilter>("pendentes");
   const [sortMode, setSortMode] = useState<DashboardTaskSortMode>("prazo_asc");
   const [selectedDate, setSelectedDate] = useState("");
+  const [unifyByProcess, setUnifyByProcess] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState({ pendentes: 0, concluidas: 0 });
@@ -194,6 +308,7 @@ export function TarefasPage() {
           setItems(next.items);
           setTotal(next.total);
           setCounts(next.counts);
+          setOpenProcessesWithoutTasks(next.openProcessesWithoutTasks);
           setError("");
         }
       } catch (nextError) {
@@ -257,6 +372,13 @@ export function TarefasPage() {
               </select>
             </div>
             <div className="grid gap-2 sm:max-w-xs">
+              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Agrupamento</label>
+              <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                <input checked={unifyByProcess} className="h-4 w-4 rounded border-slate-300" onChange={(event) => setUnifyByProcess(event.target.checked)} type="checkbox" />
+                Unificar tarefas por processo
+              </label>
+            </div>
+            <div className="grid gap-2 sm:max-w-xs">
               <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="task-date-filter">
                 Data da tarefa
               </label>
@@ -296,6 +418,7 @@ export function TarefasPage() {
                   emptyDescription="Nenhuma tarefa pendente encontrada."
                   emptyTitle="Sem pendencias"
                   items={currentTab === "pendentes" ? items : []}
+                  unifyByProcess={unifyByProcess}
                 />
               </TabsContent>
               <TabsContent value="concluidas">
@@ -303,6 +426,7 @@ export function TarefasPage() {
                   emptyDescription="Nenhuma tarefa concluida encontrada."
                   emptyTitle="Sem concluidas"
                   items={currentTab === "concluidas" ? items : []}
+                  unifyByProcess={unifyByProcess}
                 />
               </TabsContent>
             </Tabs>
@@ -331,6 +455,10 @@ export function TarefasPage() {
             </div>
           </CardContent>
         </Card>
+      </motion.div>
+
+      <motion.div animate={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 16 }} transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}>
+        <OpenProcessesWithoutTasksCard items={openProcessesWithoutTasks.items} total={openProcessesWithoutTasks.total} />
       </motion.div>
     </section>
   );

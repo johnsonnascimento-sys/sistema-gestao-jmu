@@ -4113,7 +4113,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const limitPlaceholder = pushValue(params.pageSize);
     const offsetPlaceholder = pushValue((params.page - 1) * params.pageSize);
 
-    const [itemsResult, countResult] = await Promise.all([
+    const [itemsResult, countResult, openProcessesWithoutTasksResult] = await Promise.all([
       this.pool.query(
         `
           select
@@ -4164,6 +4164,33 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `,
         values.slice(0, params.date ? 2 : 1),
       ),
+      this.pool.query(
+        `
+          select
+            count(*) over()::int as total_open_without_tasks,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
+            pd.assunto,
+            pd.status,
+            pd.updated_at
+          from adminlog.pre_demanda pd
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          where pd.status <> 'encerrada'
+            and not exists (
+              select 1
+              from adminlog.tarefas_pendentes tarefa
+              where tarefa.pre_demanda_id = pd.id
+            )
+          order by pd.updated_at desc, pd.id desc
+          limit 12
+        `,
+      ),
     ]);
 
     return {
@@ -4191,6 +4218,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       counts: {
         pendentes: Number(countResult.rows[0]?.pendentes ?? 0),
         concluidas: Number(countResult.rows[0]?.concluidas ?? 0),
+      },
+      openProcessesWithoutTasks: {
+        total: Number(openProcessesWithoutTasksResult.rows[0]?.total_open_without_tasks ?? 0),
+        items: openProcessesWithoutTasksResult.rows.map((row) => ({
+          preId: String(row.pre_id),
+          preNumero: String(row.pre_numero),
+          assunto: String(row.assunto),
+          status: row.status as DashboardTaskListResult["openProcessesWithoutTasks"]["items"][number]["status"],
+          updatedAt: new Date(row.updated_at).toISOString(),
+        })),
       },
     };
   }

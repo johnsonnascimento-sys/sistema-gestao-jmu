@@ -1848,6 +1848,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .filter((item) => !params.date || item.prazoConclusao === params.date);
 
     allItems.sort((left, right) => {
+      if (left.hasAudiencia !== right.hasAudiencia) {
+        return left.hasAudiencia ? -1 : 1;
+      }
       if (params.sort === "created_desc") {
         return right.createdAt.localeCompare(left.createdAt);
       }
@@ -1866,6 +1869,19 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       )
       .filter((item) => !params.date || item.prazoConclusao === params.date);
 
+    const openProcessesWithoutTasks = this.records
+      .filter((item) => item.status !== "encerrada")
+      .filter((item) => item.tarefasPendentes.length === 0)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+      .slice(0, 12)
+      .map((item) => ({
+        preId: item.preId,
+        preNumero: item.principalNumero,
+        assunto: item.assunto,
+        status: item.status,
+        updatedAt: item.updatedAt,
+      }));
+
     const start = (params.page - 1) * params.pageSize;
     return {
       items: allItems.slice(start, start + params.pageSize),
@@ -1875,6 +1891,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       counts: {
         pendentes: filteredBase.filter((item) => !item.concluida).length,
         concluidas: filteredBase.filter((item) => item.concluida).length,
+      },
+      openProcessesWithoutTasks: {
+        total: this.records.filter((item) => item.status !== "encerrada" && item.tarefasPendentes.length === 0).length,
+        items: openProcessesWithoutTasks,
       },
     };
   }
