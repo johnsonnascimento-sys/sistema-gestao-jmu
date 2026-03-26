@@ -36,6 +36,7 @@ trap cleanup_failure EXIT
 rm -f "$tmp_sql_file" "$tmp_backup_file"
 
 docker run --rm \
+  --network "$DOCKER_NETWORK" \
   -e DATABASE_URL="$DATABASE_URL" \
   -e SCHEMA_NAME="$SCHEMA_NAME" \
   -e TMP_SQL_FILE_BASENAME="$(basename "$tmp_sql_file")" \

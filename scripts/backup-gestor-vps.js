@@ -37,6 +37,7 @@ function buildRemoteScript(options) {
     `BACKUP_LABEL=${bashSingleQuote(options.backupLabel)}`,
     `KEEP_LATEST=${bashSingleQuote(options.keepLatest)}`,
     `PG_IMAGE=${bashSingleQuote(options.pgImage)}`,
+    `DOCKER_NETWORK=${bashSingleQuote(options.dockerNetwork)}`,
     "",
     'if [ ! -f .env ]; then echo ".env remoto nao encontrado." >&2; exit 1; fi',
     "set -a",
@@ -54,7 +55,8 @@ function buildRemoteScript(options) {
     'TMP_BACKUP_FILE="$TMP_SQL_FILE.gz"',
     "",
     'rm -f "$TMP_SQL_FILE" "$TMP_BACKUP_FILE"',
-    'docker run --rm -e DATABASE_URL="$DATABASE_URL" -e SCHEMA_NAME="$SCHEMA_NAME" -e TMP_SQL_BASENAME="$TMP_SQL_BASENAME" -v "$BACKUP_DIR:/backup" "$PG_IMAGE" /bin/sh -lc \'pg_dump --no-owner --no-privileges --schema "$SCHEMA_NAME" -f "/backup/$TMP_SQL_BASENAME" "$DATABASE_URL"\'',
+    'docker network inspect "$DOCKER_NETWORK" >/dev/null 2>&1 || docker network create "$DOCKER_NETWORK" >/dev/null',
+    'docker run --rm --network "$DOCKER_NETWORK" -e DATABASE_URL="$DATABASE_URL" -e SCHEMA_NAME="$SCHEMA_NAME" -e TMP_SQL_BASENAME="$TMP_SQL_BASENAME" -v "$BACKUP_DIR:/backup" "$PG_IMAGE" /bin/sh -lc \'pg_dump --no-owner --no-privileges --schema "$SCHEMA_NAME" -f "/backup/$TMP_SQL_BASENAME" "$DATABASE_URL"\'',
     'if [ ! -s "$TMP_SQL_FILE" ]; then echo "Backup SQL gerado com tamanho zero." >&2; rm -f "$TMP_SQL_FILE"; exit 1; fi',
     'gzip -9 "$TMP_SQL_FILE"',
     'gzip -t "$TMP_BACKUP_FILE"',
@@ -106,6 +108,7 @@ async function run() {
     backupLabel: sanitizeSegment(process.env.JMU_BACKUP_LABEL || ""),
     keepLatest: String(Number(process.env.JMU_BACKUP_KEEP_LATEST || "15")),
     pgImage: process.env.JMU_PG_IMAGE || "postgres:17",
+    dockerNetwork: process.env.JMU_DOCKER_NETWORK || "gestor-jmu-net",
   };
 
   const remoteScript = buildRemoteScript(options);
