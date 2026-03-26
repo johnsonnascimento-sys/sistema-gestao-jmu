@@ -953,11 +953,36 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         value: PreDemandaDashboardSummary;
       }
     | null = null;
+  private assuntoNormasSupport:
+    | {
+        checked: boolean;
+        available: boolean;
+      }
+    | null = null;
 
   constructor(
     private readonly pool: DatabasePool,
     private readonly settingsRepository: SettingsRepository,
   ) {}
+
+  private async hasAssuntoNormasSupport(queryable: Queryable) {
+    if (this.assuntoNormasSupport?.checked) {
+      return this.assuntoNormasSupport.available;
+    }
+
+    const result = await queryable.query(
+      `
+        select
+          to_regclass('adminlog.assunto_normas') is not null as has_assunto_normas,
+          to_regclass('adminlog.normas') is not null as has_normas
+      `,
+    );
+
+    const row = result.rows[0] ?? {};
+    const available = Boolean(row.has_assunto_normas) && Boolean(row.has_normas);
+    this.assuntoNormasSupport = { checked: true, available };
+    return available;
+  }
 
   private invalidateDashboardCaches() {
     this.dashboardSummaryCache = null;
@@ -1090,31 +1115,22 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   private async loadAssuntoNormas(queryable: Queryable, assuntoIds: string[]): Promise<{ rows: QueryResultRow[] }> {
-    try {
-      return await queryable.query(
-        `
-          select
-            assunto_norma.assunto_id,
-            norma.*
-          from adminlog.assunto_normas assunto_norma
-          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
-          where assunto_norma.assunto_id = any($1::uuid[])
-          order by norma.data_norma desc, norma.numero asc
-        `,
-        [assuntoIds],
-      );
-    } catch (error) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error as { code?: string }).code === "42P01"
-      ) {
-        return { rows: [] };
-      }
-
-      throw error;
+    if (!(await this.hasAssuntoNormasSupport(queryable))) {
+      return { rows: [] };
     }
+
+    return await queryable.query(
+      `
+        select
+          assunto_norma.assunto_id,
+          norma.*
+        from adminlog.assunto_normas assunto_norma
+        inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
+        where assunto_norma.assunto_id = any($1::uuid[])
+        order by norma.data_norma desc, norma.numero asc
+      `,
+      [assuntoIds],
+    );
   }
 
   private async loadSeiAssociations(queryable: Queryable, preDemandaId: number, preId: string) {

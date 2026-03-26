@@ -18,7 +18,33 @@ function mapSetor(row: QueryResultRow, prefix: string) {
 }
 
 export class PostgresAssuntoRepository implements AssuntoRepository {
+  private assuntoNormasSupport:
+    | {
+        checked: boolean;
+        available: boolean;
+      }
+    | null = null;
+
   constructor(private readonly pool: Pool) {}
+
+  private async hasAssuntoNormasSupport() {
+    if (this.assuntoNormasSupport?.checked) {
+      return this.assuntoNormasSupport.available;
+    }
+
+    const result = await this.pool.query(
+      `
+        select
+          to_regclass('adminlog.assunto_normas') is not null as has_assunto_normas,
+          to_regclass('adminlog.normas') is not null as has_normas
+      `,
+    );
+
+    const row = result.rows[0] ?? {};
+    const available = Boolean(row.has_assunto_normas) && Boolean(row.has_normas);
+    this.assuntoNormasSupport = { checked: true, available };
+    return available;
+  }
 
   async list() {
     const assuntos = await this.pool.query("select * from adminlog.assuntos order by nome asc");
@@ -67,18 +93,25 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
   }
 
   private async syncChildren(assuntoId: string, input: CreateAssuntoInput) {
-    await this.pool.query("delete from adminlog.assunto_normas where assunto_id = $1::uuid", [assuntoId]);
+    const hasAssuntoNormasSupport = await this.hasAssuntoNormasSupport();
+
+    if (hasAssuntoNormasSupport) {
+      await this.pool.query("delete from adminlog.assunto_normas where assunto_id = $1::uuid", [assuntoId]);
+    }
+
     await this.pool.query("delete from adminlog.assunto_procedimentos where assunto_id = $1::uuid", [assuntoId]);
 
-    for (const normaId of input.normaIds ?? []) {
-      await this.pool.query(
-        `
-          insert into adminlog.assunto_normas (assunto_id, norma_id)
-          values ($1::uuid, $2::uuid)
-          on conflict do nothing
-        `,
-        [assuntoId, normaId],
-      );
+    if (hasAssuntoNormasSupport) {
+      for (const normaId of input.normaIds ?? []) {
+        await this.pool.query(
+          `
+            insert into adminlog.assunto_normas (assunto_id, norma_id)
+            values ($1::uuid, $2::uuid)
+            on conflict do nothing
+          `,
+          [assuntoId, normaId],
+        );
+      }
     }
 
     const procedimentos = (input.procedimentos ?? [])
@@ -152,28 +185,19 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
   }
 
   private async loadNormasByAssuntoId(id: string): Promise<{ rows: QueryResultRow[] }> {
-    try {
-      return await this.pool.query(
-        `
-          select norma.*
-          from adminlog.assunto_normas assunto_norma
-          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
-          where assunto_norma.assunto_id = $1::uuid
-          order by norma.data_norma desc, norma.numero asc
-        `,
-        [id],
-      );
-    } catch (error) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error as { code?: string }).code === "42P01"
-      ) {
-        return { rows: [] };
-      }
-
-      throw error;
+    if (!(await this.hasAssuntoNormasSupport())) {
+      return { rows: [] };
     }
+
+    return await this.pool.query(
+      `
+        select norma.*
+        from adminlog.assunto_normas assunto_norma
+        inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
+        where assunto_norma.assunto_id = $1::uuid
+        order by norma.data_norma desc, norma.numero asc
+      `,
+      [id],
+    );
   }
 }
