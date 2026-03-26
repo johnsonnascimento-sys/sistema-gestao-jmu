@@ -4,6 +4,9 @@ import type {
   Andamento,
   AuditActor,
   DashboardTaskItem,
+  DashboardTaskListResult,
+  DashboardTaskSortMode,
+  DashboardTaskStatusFilter,
   DemandaAssunto,
   DemandaComentario,
   DemandaDocumento,
@@ -246,6 +249,11 @@ const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
 const ALL_STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
 const FILTERABLE_QUEUE_HEALTH_LEVELS: QueueHealthLevel[] = ["fresh", "attention", "critical"];
 const DEFAULT_INITIAL_SETOR_SIGLA = "SETAD2A2CJM";
+const DASHBOARD_TASK_SORT_SQL: Record<DashboardTaskSortMode, string> = {
+  prazo_asc: "tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc",
+  created_desc: "tarefa.created_at desc, tarefa.id desc",
+  created_asc: "tarefa.created_at asc, tarefa.id asc",
+};
 
 function formatNumeroJudicialValue(value: string | null | undefined) {
   if (!value) {
@@ -4067,18 +4075,49 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return summary;
   }
 
-  async listDashboardTasks(): Promise<DashboardTaskItem[]> {
-    const result = await this.pool.query(
-      `
+  async listDashboardTasks(params: {
+    status: DashboardTaskStatusFilter;
+    sort: DashboardTaskSortMode;
+    date?: string;
+    page: number;
+    pageSize: number;
+  }): Promise<DashboardTaskListResult> {
+    const values: Array<string | number | boolean> = [];
+    const conditions: string[] = [];
+    const countsConditions: string[] = [];
+    const pushValue = (value: string | number | boolean) => {
+      values.push(value);
+      return `$${values.length}`;
+    };
+
+    const statusPlaceholder = pushValue(params.status === "concluidas");
+    conditions.push(`tarefa.concluida = ${statusPlaceholder}`);
+    countsConditions.push(params.date ? "" : "");
+
+    if (params.date) {
+      const datePlaceholder = pushValue(params.date);
+      conditions.push(`tarefa.prazo_conclusao = ${datePlaceholder}::date`);
+      countsConditions.push(`tarefa.prazo_conclusao = ${datePlaceholder}::date`);
+    }
+
+    const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
+    const countsWhereClause = countsConditions.filter(Boolean).length ? `where ${countsConditions.filter(Boolean).join(" and ")}` : "";
+    const orderByClause = DASHBOARD_TASK_SORT_SQL[params.sort];
+    const limitPlaceholder = pushValue(params.pageSize);
+    const offsetPlaceholder = pushValue((params.page - 1) * params.pageSize);
+
+    const [itemsResult, countResult] = await Promise.all([
+      this.pool.query(
+        `
           select
             tarefa.id,
             pd.pre_id,
             coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
             pd.assunto,
-          tarefa.descricao,
-          tarefa.tipo,
-          tarefa.prazo_conclusao,
-          tarefa.horario_inicio,
+            tarefa.descricao,
+            tarefa.tipo,
+            tarefa.prazo_conclusao,
+            tarefa.horario_inicio,
             tarefa.horario_fim,
             tarefa.recorrencia_tipo,
             setor_destino.sigla as setor_destino_sigla,
@@ -4091,37 +4130,61 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             tarefa.concluida,
             tarefa.concluida_em,
             tarefa.created_at
-        from adminlog.tarefas_pendentes tarefa
-        inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
-        left join lateral (
-          select link.sei_numero
-          from adminlog.pre_to_sei_link link
-          where link.pre_id = pd.pre_id
-          order by link.updated_at desc, link.id desc
-          limit 1
-        ) pts on true
-        left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
-        order by tarefa.concluida asc, tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
-      `,
-    );
+          from adminlog.tarefas_pendentes tarefa
+          inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
+          ${whereClause}
+          order by ${orderByClause}
+          limit ${limitPlaceholder} offset ${offsetPlaceholder}
+        `,
+        values,
+      ),
+      this.pool.query(
+        `
+          select
+            count(*) filter (where tarefa.concluida = false)::int as pendentes,
+            count(*) filter (where tarefa.concluida = true)::int as concluidas,
+            count(*) filter (where tarefa.concluida = ${statusPlaceholder})::int as total_status
+          from adminlog.tarefas_pendentes tarefa
+          ${countsWhereClause}
+        `,
+        values.slice(0, params.date ? 2 : 1),
+      ),
+    ]);
 
-    return result.rows.map((row) => ({
-      id: String(row.id),
-      preId: String(row.pre_id),
-      preNumero: String(row.pre_numero),
-      assunto: String(row.assunto),
-      descricao: String(row.descricao),
-      tipo: row.tipo as DashboardTaskItem["tipo"],
+    return {
+      items: itemsResult.rows.map((row) => ({
+        id: String(row.id),
+        preId: String(row.pre_id),
+        preNumero: String(row.pre_numero),
+        assunto: String(row.assunto),
+        descricao: String(row.descricao),
+        tipo: row.tipo as DashboardTaskItem["tipo"],
         prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
         horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
         horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
         recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as DashboardTaskItem["recorrenciaTipo"]) : null,
         setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
         hasAudiencia: Boolean(row.has_audiencia),
-      geradaAutomaticamente: Boolean(row.gerada_automaticamente),
-      concluida: Boolean(row.concluida),
-      concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
-      createdAt: new Date(row.created_at).toISOString(),
-    }));
+        geradaAutomaticamente: Boolean(row.gerada_automaticamente),
+        concluida: Boolean(row.concluida),
+        concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
+        createdAt: new Date(row.created_at).toISOString(),
+      })),
+      total: Number(countResult.rows[0]?.total_status ?? 0),
+      page: params.page,
+      pageSize: params.pageSize,
+      counts: {
+        pendentes: Number(countResult.rows[0]?.pendentes ?? 0),
+        concluidas: Number(countResult.rows[0]?.concluidas ?? 0),
+      },
+    };
   }
 }

@@ -1822,8 +1822,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
-  async listDashboardTasks() {
-    return this.records
+  async listDashboardTasks(params: { status: "pendentes" | "concluidas"; sort: "prazo_asc" | "created_desc" | "created_asc"; date?: string; page: number; pageSize: number }) {
+    const allItems = this.records
       .flatMap((item) =>
         item.tarefasPendentes.map((task) => ({
           id: task.id,
@@ -1844,7 +1844,39 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           createdAt: task.createdAt,
         })),
       )
-      .sort((left, right) => Number(left.concluida) - Number(right.concluida) || left.prazoConclusao.localeCompare(right.prazoConclusao) || left.createdAt.localeCompare(right.createdAt));
+      .filter((item) => item.concluida === (params.status === "concluidas"))
+      .filter((item) => !params.date || item.prazoConclusao === params.date);
+
+    allItems.sort((left, right) => {
+      if (params.sort === "created_desc") {
+        return right.createdAt.localeCompare(left.createdAt);
+      }
+      if (params.sort === "created_asc") {
+        return left.createdAt.localeCompare(right.createdAt);
+      }
+      return left.prazoConclusao.localeCompare(right.prazoConclusao) || left.createdAt.localeCompare(right.createdAt);
+    });
+
+    const filteredBase = this.records
+      .flatMap((item) =>
+        item.tarefasPendentes.map((task) => ({
+          concluida: task.concluida,
+          prazoConclusao: task.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
+        })),
+      )
+      .filter((item) => !params.date || item.prazoConclusao === params.date);
+
+    const start = (params.page - 1) * params.pageSize;
+    return {
+      items: allItems.slice(start, start + params.pageSize),
+      total: allItems.length,
+      page: params.page,
+      pageSize: params.pageSize,
+      counts: {
+        pendentes: filteredBase.filter((item) => !item.concluida).length,
+        concluidas: filteredBase.filter((item) => item.concluida).length,
+      },
+    };
   }
 }
 

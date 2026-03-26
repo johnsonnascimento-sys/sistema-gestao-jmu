@@ -84,6 +84,14 @@ const listRecentTimelineSchema = z.object({
   limit: z.coerce.number().int().positive().max(50).optional(),
 });
 
+const listDashboardTasksSchema = z.object({
+  status: z.enum(["pendentes", "concluidas"]).default("pendentes"),
+  sort: z.enum(["prazo_asc", "created_desc", "created_asc"]).default("prazo_asc"),
+  date: z.string().date().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 const associateSchema = z.object({
   sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido."),
   motivo: z.string().trim().max(2000).optional().nullable(),
@@ -350,8 +358,15 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
   });
 
-  app.get("/api/pre-demandas/dashboard/tarefas", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (_request, reply) => {
-    const tasks = await preDemandaRepository.listDashboardTasks();
+  app.get("/api/pre-demandas/dashboard/tarefas", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (request, reply) => {
+    const query = listDashboardTasksSchema.parse(request.query);
+    const tasks = await preDemandaRepository.listDashboardTasks({
+      status: query.status,
+      sort: query.sort,
+      date: query.date,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
     return reply.send({
       ok: true,
       data: tasks,

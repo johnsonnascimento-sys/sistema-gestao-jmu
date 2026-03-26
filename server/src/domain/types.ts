@@ -467,6 +467,20 @@ export interface DashboardTaskItem {
   createdAt: string;
 }
 
+export type DashboardTaskStatusFilter = "pendentes" | "concluidas";
+export type DashboardTaskSortMode = "prazo_asc" | "created_desc" | "created_asc";
+
+export interface DashboardTaskListResult {
+  items: DashboardTaskItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  counts: {
+    pendentes: number;
+    concluidas: number;
+  };
+}
+
 export interface QueueHealthConfig {
   attentionDays: number;
   criticalDays: number;

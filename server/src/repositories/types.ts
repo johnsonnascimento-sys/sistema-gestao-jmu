@@ -5,6 +5,9 @@ import type {
   Audiencia,
   AppUser,
   DashboardTaskItem,
+  DashboardTaskListResult,
+  DashboardTaskSortMode,
+  DashboardTaskStatusFilter,
   DemandaAssunto,
   DemandaComentario,
   DemandaInteressado,
@@ -531,5 +534,11 @@ export interface PreDemandaRepository {
   listTimeline(preId: string): Promise<TimelineEvent[]>;
   listRecentTimeline(limit?: number): Promise<TimelineEvent[]>;
   getDashboardSummary(): Promise<PreDemandaDashboardSummary>;
-  listDashboardTasks(): Promise<DashboardTaskItem[]>;
+  listDashboardTasks(params: {
+    status: DashboardTaskStatusFilter;
+    sort: DashboardTaskSortMode;
+    date?: string;
+    page: number;
+    pageSize: number;
+  }): Promise<DashboardTaskListResult>;
 }

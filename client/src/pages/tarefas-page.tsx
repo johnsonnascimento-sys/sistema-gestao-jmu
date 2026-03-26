@@ -9,11 +9,11 @@ import { Input } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { formatAppError, listDashboardTasks } from "../lib/api";
 import { formatDateOnlyPtBr } from "../lib/date";
-import type { DashboardTaskItem, TarefaRecorrenciaTipo } from "../types";
+import type { DashboardTaskItem, DashboardTaskSortMode, DashboardTaskStatusFilter, TarefaRecorrenciaTipo } from "../types";
 
-type TaskSortMode = "prazo_asc" | "created_desc" | "created_asc";
+const PAGE_SIZE = 20;
 
-const SORT_OPTIONS: Array<{ value: TaskSortMode; label: string }> = [
+const SORT_OPTIONS: Array<{ value: DashboardTaskSortMode; label: string }> = [
   { value: "prazo_asc", label: "Melhor ordem: prazo mais antigo primeiro" },
   { value: "created_desc", label: "Mais novas primeiro" },
   { value: "created_asc", label: "Mais antigas primeiro" },
@@ -42,24 +42,6 @@ function getTaskDeadlineTone(prazoConclusao: string) {
   if (diffDays < 0) return "bg-rose-100 text-rose-700 ring-1 ring-rose-200";
   if (diffDays === 0) return "bg-amber-100 text-amber-800 ring-1 ring-amber-200";
   return "bg-sky-100 text-sky-700 ring-1 ring-sky-200";
-}
-
-function sortTasks(items: DashboardTaskItem[], mode: TaskSortMode) {
-  const copy = [...items];
-  copy.sort((left, right) => {
-    if (mode === "created_desc") {
-      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
-    }
-
-    if (mode === "created_asc") {
-      return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-    }
-
-    const dueDiff = new Date(`${left.prazoConclusao}T00:00:00`).getTime() - new Date(`${right.prazoConclusao}T00:00:00`).getTime();
-    if (dueDiff !== 0) return dueDiff;
-    return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-  });
-  return copy;
 }
 
 function TaskCard({ task }: { task: DashboardTaskItem }) {
@@ -148,20 +130,17 @@ function TaskGroup({
 
 function TaskTabPanel({
   items,
-  sortMode,
   emptyTitle,
   emptyDescription,
 }: {
   items: DashboardTaskItem[];
-  sortMode: TaskSortMode;
   emptyTitle: string;
   emptyDescription: string;
 }) {
-  const sortedItems = useMemo(() => sortTasks(items, sortMode), [items, sortMode]);
-  const audienciaItems = useMemo(() => sortedItems.filter((item) => item.hasAudiencia), [sortedItems]);
-  const regularItems = useMemo(() => sortedItems.filter((item) => !item.hasAudiencia), [sortedItems]);
+  const audienciaItems = useMemo(() => items.filter((item) => item.hasAudiencia), [items]);
+  const regularItems = useMemo(() => items.filter((item) => !item.hasAudiencia), [items]);
 
-  if (sortedItems.length === 0) {
+  if (items.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
 
@@ -187,19 +166,32 @@ function TaskTabPanel({
 
 export function TarefasPage() {
   const [items, setItems] = useState<DashboardTaskItem[]>([]);
-  const [sortMode, setSortMode] = useState<TaskSortMode>("prazo_asc");
+  const [currentTab, setCurrentTab] = useState<DashboardTaskStatusFilter>("pendentes");
+  const [sortMode, setSortMode] = useState<DashboardTaskSortMode>("prazo_asc");
   const [selectedDate, setSelectedDate] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [counts, setCounts] = useState({ pendentes: 0, concluidas: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
 
     void (async () => {
       try {
-        const next = await listDashboardTasks();
+        const next = await listDashboardTasks({
+          status: currentTab,
+          sort: sortMode,
+          date: selectedDate || undefined,
+          page,
+          pageSize: PAGE_SIZE,
+        });
         if (mounted) {
-          setItems(next);
+          setItems(next.items);
+          setTotal(next.total);
+          setCounts(next.counts);
           setError("");
         }
       } catch (nextError) {
@@ -216,14 +208,13 @@ export function TarefasPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentTab, page, selectedDate, sortMode]);
 
-  const filteredItems = useMemo(
-    () => items.filter((item) => !selectedDate || item.prazoConclusao === selectedDate),
-    [items, selectedDate],
-  );
-  const pending = useMemo(() => filteredItems.filter((item) => !item.concluida), [filteredItems]);
-  const completed = useMemo(() => filteredItems.filter((item) => item.concluida), [filteredItems]);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [currentTab, selectedDate, sortMode]);
 
   if (loading) {
     return <LoadingState description="Carregando tarefas pendentes e concluidas." title="Tarefas" />;
@@ -244,7 +235,7 @@ export function TarefasPage() {
           <CardHeader className="gap-4">
             <div>
               <CardTitle>Fila geral de tarefas</CardTitle>
-              <CardDescription>{pending.length} pendente(s) e {completed.length} concluida(s).</CardDescription>
+              <CardDescription>{counts.pendentes} pendente(s) e {counts.concluidas} concluida(s).</CardDescription>
             </div>
             <div className="grid gap-2 sm:max-w-sm">
               <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="task-sort-mode">
@@ -270,14 +261,20 @@ export function TarefasPage() {
               <div className="flex items-center gap-2">
                 <Input
                   id="task-date-filter"
-                  onChange={(event) => setSelectedDate(event.target.value)}
+                  onChange={(event) => {
+                    setSelectedDate(event.target.value);
+                    setPage(1);
+                  }}
                   type="date"
                   value={selectedDate}
                 />
                 {selectedDate ? (
                   <button
                     className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900"
-                    onClick={() => setSelectedDate("")}
+                    onClick={() => {
+                      setSelectedDate("");
+                      setPage(1);
+                    }}
                     type="button"
                   >
                     Limpar
@@ -287,7 +284,7 @@ export function TarefasPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="pendentes">
+            <Tabs onValueChange={(value) => setCurrentTab(value as DashboardTaskStatusFilter)} value={currentTab}>
               <TabsList className="mb-4">
                 <TabsTrigger value="pendentes">Pendentes</TabsTrigger>
                 <TabsTrigger value="concluidas">Concluidas</TabsTrigger>
@@ -296,19 +293,40 @@ export function TarefasPage() {
                 <TaskTabPanel
                   emptyDescription="Nenhuma tarefa pendente encontrada."
                   emptyTitle="Sem pendencias"
-                  items={pending}
-                  sortMode={sortMode}
+                  items={currentTab === "pendentes" ? items : []}
                 />
               </TabsContent>
               <TabsContent value="concluidas">
                 <TaskTabPanel
                   emptyDescription="Nenhuma tarefa concluida encontrada."
                   emptyTitle="Sem concluidas"
-                  items={completed}
-                  sortMode={sortMode}
+                  items={currentTab === "concluidas" ? items : []}
                 />
               </TabsContent>
             </Tabs>
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-slate-500">
+                Pagina {page} de {totalPages} • {total} item(ns) nesta aba
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  Anterior
+                </button>
+                <button
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  type="button"
+                >
+                  Proxima
+                </button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>

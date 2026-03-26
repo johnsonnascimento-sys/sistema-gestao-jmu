@@ -6,6 +6,9 @@ import type {
   Audiencia,
   Assunto,
   AuthUser,
+  DashboardTaskListResult,
+  DashboardTaskSortMode,
+  DashboardTaskStatusFilter,
   DashboardTaskItem,
   DemandaComentario,
   DemandaInteressado,
@@ -52,8 +55,10 @@ type CatalogCacheEntry<T> = {
 };
 
 const CATALOG_CACHE_TTL_MS = 60_000;
+const RUNTIME_CACHE_TTL_MS = 30_000;
 const setoresCache: CatalogCacheEntry<Setor[]> = { value: null, expiresAt: 0, pending: null };
 const assuntosCache: CatalogCacheEntry<Assunto[]> = { value: null, expiresAt: 0, pending: null };
+const runtimeCache: CatalogCacheEntry<RuntimeStatus> = { value: null, expiresAt: 0, pending: null };
 
 function invalidateCatalogCache(entry: CatalogCacheEntry<unknown>) {
   entry.value = null;
@@ -231,7 +236,10 @@ export function getCurrentUser() {
 }
 
 export function getRuntimeHealth() {
-  return request<RuntimeStatus>("/api/health");
+  return loadCachedCatalog(runtimeCache, () => request<RuntimeStatus>("/api/health").catch((error) => {
+    invalidateCatalogCache(runtimeCache);
+    throw error;
+  }));
 }
 
 export function getAdminOpsSummary(limit = 12, days = 30) {
@@ -638,8 +646,20 @@ export function getDashboardSummary() {
   return request<PreDemandaDashboardSummary>("/api/pre-demandas/dashboard/resumo");
 }
 
-export function listDashboardTasks() {
-  return request<DashboardTaskItem[]>("/api/pre-demandas/dashboard/tarefas");
+export function listDashboardTasks(params: {
+  status: DashboardTaskStatusFilter;
+  sort: DashboardTaskSortMode;
+  date?: string;
+  page?: number;
+  pageSize?: number;
+}) {
+  const search = new URLSearchParams();
+  search.set("status", params.status);
+  search.set("sort", params.sort);
+  if (params.date) search.set("date", params.date);
+  search.set("page", String(params.page ?? 1));
+  search.set("pageSize", String(params.pageSize ?? 20));
+  return request<DashboardTaskListResult>(`/api/pre-demandas/dashboard/tarefas?${search.toString()}`);
 }
 
 export function listInteressados(params: ListInteressadosParams = {}) {
