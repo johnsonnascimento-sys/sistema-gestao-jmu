@@ -373,6 +373,19 @@ export function PreDemandaDetailPage() {
     }
   }
 
+  async function refreshAssuntosViewData() {
+    const [nextAssuntos, nextAssuntosCatalogo] = await Promise.all([
+      listPreDemandaAssuntos(preId),
+      listPreDemandaAssuntosCatalogo(preId),
+    ]);
+
+    setAssuntosLinked(nextAssuntos);
+    setAssuntosLoaded(true);
+    setAssuntosCatalogo(nextAssuntosCatalogo);
+    setAssuntosCatalogoLoaded(true);
+    setRecord((current) => (current ? { ...current, assuntos: nextAssuntos } : current));
+  }
+
   async function loadTarefasData(force = false) {
     if (!force && (tarefasLoaded || tarefasLoading)) {
       return;
@@ -1182,7 +1195,12 @@ export function PreDemandaDetailPage() {
                           <Button
                             onClick={() =>
                               void runMutation(
-                                () => removePreDemandaAssunto(preId, item.assunto.id).then((next) => setRecord(next)),
+                                async () => {
+                                  const next = await removePreDemandaAssunto(preId, item.assunto.id);
+                                  setRecord(next);
+                                  syncRecordDependentState(next);
+                                  await refreshAssuntosViewData();
+                                },
                                 "Assunto removido e tarefas automáticas pendentes foram revistas.",
                               )
                             }
@@ -1220,7 +1238,12 @@ export function PreDemandaDetailPage() {
                         key={assunto.id}
                         onClick={() =>
                           void runMutation(
-                            () => addPreDemandaAssunto(preId, assunto.id).then((next) => setRecord(next)),
+                            async () => {
+                              const next = await addPreDemandaAssunto(preId, assunto.id);
+                              setRecord(next);
+                              syncRecordDependentState(next);
+                              await refreshAssuntosViewData();
+                            },
                             `Assunto ${assunto.nome} vinculado e checklist gerado.`,
                           )
                         }
@@ -1820,8 +1843,7 @@ export function PreDemandaDetailPage() {
                                 const next = await removePreDemandaAssunto(preId, item.assunto.id);
                                 setRecord(next);
                                 syncRecordDependentState(next);
-                                setAssuntosLinked(next.assuntos);
-                                setAssuntosLoaded(true);
+                                await refreshAssuntosViewData();
                               },
                               "Assunto removido e tarefas automáticas pendentes foram revistas.",
                             )
@@ -1861,8 +1883,7 @@ export function PreDemandaDetailPage() {
                             const next = await addPreDemandaAssunto(preId, assunto.id);
                             setRecord(next);
                             syncRecordDependentState(next);
-                            setAssuntosLinked(next.assuntos);
-                            setAssuntosLoaded(true);
+                            await refreshAssuntosViewData();
                           },
                           `Assunto ${assunto.nome} vinculado e checklist gerado.`,
                         )
@@ -1925,8 +1946,7 @@ export function PreDemandaDetailPage() {
                               const next = await removePreDemandaAssunto(preId, item.assunto.id);
                               setRecord(next);
                               syncRecordDependentState(next);
-                              setAssuntosLinked(next.assuntos);
-                              setAssuntosLoaded(true);
+                              await refreshAssuntosViewData();
                             },
                             "Assunto removido e tarefas automaticas pendentes foram revistas.",
                           )
@@ -1968,8 +1988,7 @@ export function PreDemandaDetailPage() {
                           const next = await addPreDemandaAssunto(preId, assunto.id);
                           setRecord(next);
                           syncRecordDependentState(next);
-                          setAssuntosLinked(next.assuntos);
-                          setAssuntosLoaded(true);
+                          await refreshAssuntosViewData();
                         },
                         `Assunto ${assunto.nome} vinculado e checklist gerado.`,
                       )
