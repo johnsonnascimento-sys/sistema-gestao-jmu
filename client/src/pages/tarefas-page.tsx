@@ -112,7 +112,9 @@ function TaskGroup({
   return (
     <div className="grid gap-3">
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">{title}</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
+          {title} <span className="normal-case tracking-normal text-slate-400">({items.length})</span>
+        </h3>
         <p className="mt-1 text-sm text-slate-500">{description}</p>
       </div>
       {items.length === 0 ? (
@@ -244,7 +246,7 @@ export function TarefasPage() {
               <select
                 className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-200/50"
                 id="task-sort-mode"
-                onChange={(event) => setSortMode(event.target.value as TaskSortMode)}
+                onChange={(event) => setSortMode(event.target.value as DashboardTaskSortMode)}
                 value={sortMode}
               >
                 {SORT_OPTIONS.map((option) => (

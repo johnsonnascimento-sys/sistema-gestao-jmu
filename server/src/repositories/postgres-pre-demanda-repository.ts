@@ -4100,7 +4100,6 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     const statusPlaceholder = pushValue(params.status === "concluidas");
     conditions.push(`tarefa.concluida = ${statusPlaceholder}`);
-    countsConditions.push(params.date ? "" : "");
 
     if (params.date) {
       const datePlaceholder = pushValue(params.date);
@@ -4149,7 +4148,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           ) pts on true
           left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
           ${whereClause}
-          order by ${orderByClause}
+          order by has_audiencia desc, ${orderByClause}
           limit ${limitPlaceholder} offset ${offsetPlaceholder}
         `,
         values,
