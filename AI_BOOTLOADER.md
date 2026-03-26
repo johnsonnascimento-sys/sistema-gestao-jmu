@@ -35,6 +35,8 @@ Projeto: "Sistema de Gestao JMU"
 ### Banco atual
 - O runtime atual nao depende de `pgvector`, embeddings, `match_documents*` nem tabelas auxiliares de indexacao juridica.
 - A limpeza definitiva desses objetos faz parte do schema versionado do projeto.
+- O banco primario do Gestor Web esta hospedado na propria VPS, no container `gestor-jmu-db`.
+- A aplicacao usa rede Docker dedicada `gestor-jmu-net` e `DATABASE_URL` com `sslmode=disable` para o banco local.
 
 ---
 
@@ -43,6 +45,7 @@ Projeto: "Sistema de Gestao JMU"
 - O foco atual do repositorio e exclusivamente o modulo Gestor JMU.
 - O app suporta autenticacao propria, dashboard, fila de tarefas, painel de processos, assuntos, tramitacoes, audiencias e administracao.
 - O deploy produtivo e feito com os scripts operacionais da VPS documentados no runbook.
+- O Supabase deixou de ser banco ativo da aplicacao e permanece apenas como contingencia temporaria ate descarte operacional.
 
 Referencia rapida:
 - `docs/GESTOR_WEB_V1.md`

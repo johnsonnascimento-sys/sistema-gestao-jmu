@@ -6,6 +6,7 @@ Aplicacao propria do Gestor JMU para o fluxo pre-SEI/SEI.
 - Frontend: React + Vite
 - Backend: Fastify + PostgreSQL
 - Auth: cookie `HttpOnly` assinado
+- Banco primario de producao: PostgreSQL local na VPS
 
 ## Variaveis de ambiente
 Copie `.env.example` para `.env` e ajuste os valores:
@@ -87,4 +88,4 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 
-Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. O banco operacional atual tambem nao depende de `pgvector` nem de artefatos de embeddings.
+Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. O banco operacional atual tambem nao depende de `pgvector` nem de artefatos de embeddings. A producao usa PostgreSQL local na VPS, com o Supabase apenas como contingencia temporaria apos o cutover.

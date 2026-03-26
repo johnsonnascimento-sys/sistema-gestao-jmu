@@ -19,6 +19,8 @@
 - O runbook cobre apenas o Gestor Web proprio.
 - Appsmith, n8n e RAG nao fazem parte do runtime atual.
 - Os scripts operacionais usam PostgreSQL padrao e nao dependem de `pgvector`.
+- O banco primario do ambiente produtivo esta na propria VPS.
+- O container do banco e `gestor-jmu-db`, na rede `gestor-jmu-net`.
 
 ### Deploy automatizado da VPS
 Use `npm run deploy:vps` com:
@@ -27,6 +29,7 @@ Use `npm run deploy:vps` com:
 - `JMU_SSH_USER`
 - `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_CONTAINER_NAME`, `JMU_CONTAINER_BIND`, `JMU_BRANCH`
+- opcionais: `JMU_DOCKER_NETWORK` para a rede Docker do app e do banco
 - opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`
 - opcionais para exigir smoke autenticado: `JMU_SMOKE_TEST_REQUIRE_AUTH=true`
 - opcionais para smoke administrativo: `JMU_SMOKE_TEST_ADMIN_EMAIL`, `JMU_SMOKE_TEST_ADMIN_PASSWORD`
@@ -73,6 +76,7 @@ Use `npm run backup:vps` com:
 - `JMU_SSH_USER`
 - `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_BACKUP_DIR`, `JMU_DATABASE_SCHEMA`, `JMU_PG_IMAGE`
+- opcionais: `JMU_DOCKER_NETWORK`
 - opcionais: `JMU_BACKUP_LABEL` para identificar o dump
 - opcionais: `JMU_BACKUP_KEEP_LATEST` para retencao automatica no diretorio remoto
 
@@ -110,12 +114,19 @@ Use `npm run restore:vps` com:
 - `JMU_RESTORE_CONFIRM=ERASE_ADMINLOG`
 - `JMU_RESTORE_FILE=<arquivo>` ou `JMU_RESTORE_LATEST=true`
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_BACKUP_DIR`, `JMU_DATABASE_SCHEMA`, `JMU_PG_IMAGE`
+- opcionais: `JMU_DOCKER_NETWORK`
 - opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`
 - opcionais para exigir smoke autenticado: `JMU_SMOKE_TEST_REQUIRE_AUTH=true`
 - opcionais para smoke administrativo: `JMU_SMOKE_TEST_ADMIN_EMAIL`, `JMU_SMOKE_TEST_ADMIN_PASSWORD`
 - opcionais para exigir smoke administrativo: `JMU_SMOKE_TEST_REQUIRE_ADMIN=true`
 
 O restore cria antes um dump de seguranca `pre-restore`, para o container atual, restaura o schema `adminlog`, reaplica `db:migrate` dentro do container e executa `health`, `ready` e `smoke-test`.
+
+### Estado atual do banco
+- banco primario: PostgreSQL local na VPS
+- container: `gestor-jmu-db`
+- rede: `gestor-jmu-net`
+- o Supabase nao participa mais do runtime ativo da aplicacao
 
 ### Checklist pos-restore
 1. Confirmar `GET /api/health` e `GET /api/ready`.

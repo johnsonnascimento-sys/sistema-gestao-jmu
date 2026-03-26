@@ -19,6 +19,8 @@
 - VPS Hostinger
 - Docker para empacotamento e execucao
 - scripts operacionais para deploy, rollback, backup, restore, status e smoke test
+- PostgreSQL local em container dedicado `gestor-jmu-db`
+- rede Docker dedicada `gestor-jmu-net`
 
 ### E) Sistemas externos
 - SEI/e-Proc permanecem externos
@@ -31,7 +33,7 @@
 1. Usuario acessa o frontend React
 2. Frontend consome a API Fastify
 3. Backend aplica validacao, regras de dominio e auditoria
-4. Dados persistem no PostgreSQL
+4. Dados persistem no PostgreSQL local da VPS
 5. Dashboard, fila de tarefas e detalhe do processo refletem o estado consolidado
 
 ---

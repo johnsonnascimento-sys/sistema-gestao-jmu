@@ -31,6 +31,8 @@ Regra de ouro:
 - VPS Hostinger com Docker
 - scripts operacionais versionados em `scripts/`
 - backup, restore, rollback, status e smoke test documentados no runbook
+- banco primario executado no container `gestor-jmu-db`
+- rede Docker dedicada do Gestor: `gestor-jmu-net`
 
 ### Estado de integracoes antigas
 - Appsmith: fora do runtime atual
@@ -43,7 +45,8 @@ Regra de ouro:
 - O Gestor Web e a unica interface ativa deste repositorio.
 - O sistema ja cobre dashboard, processos, tarefas, audiencias, pauta, assuntos, pessoas, setores, comentarios, documentos e auditoria.
 - O deploy produtivo e feito pelos scripts `deploy:vps`, `rollback:vps`, `status:vps`, `backup:vps` e `restore:vps`.
-- O foco de continuidade e evolucao do Gestor Web, performance, estabilidade e migracao futura do banco quando decidido.
+- O banco primario ja foi migrado para a VPS.
+- O Supabase permanece apenas como contingencia temporaria, fora do runtime ativo.
 
 ---
 
@@ -82,5 +85,6 @@ cd C:\Users\johnsontn\Documents\Playground\sistema-gestao-jmu
 
 ## 6. Observacoes de Operacao
 - Segredos permanecem fora do repositorio
-- O banco atual ainda pode estar hospedado no Supabase, mas o app depende apenas de PostgreSQL generico via `DATABASE_URL`
+- O app em producao usa `DATABASE_URL` local da VPS com `sslmode=disable`
+- O banco local fica no container `gestor-jmu-db`, conectado pela rede `gestor-jmu-net`
 - A limpeza estrutural ja removeu do projeto/runtime e do schema versionado as dependencias de Appsmith, n8n e RAG
