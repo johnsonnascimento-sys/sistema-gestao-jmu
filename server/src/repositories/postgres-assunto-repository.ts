@@ -105,16 +105,7 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
 
   private async hydrate(id: string, row: QueryResultRow): Promise<Assunto> {
     const [normasResult, procedimentosResult] = await Promise.all([
-      this.pool.query(
-        `
-          select norma.*
-          from adminlog.assunto_normas assunto_norma
-          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
-          where assunto_norma.assunto_id = $1::uuid
-          order by norma.data_norma desc, norma.numero asc
-        `,
-        [id],
-      ),
+      this.loadNormasByAssuntoId(id),
       this.pool.query(
         `
           select
@@ -158,5 +149,31 @@ export class PostgresAssuntoRepository implements AssuntoRepository {
         updatedAt: new Date(procedimento.updated_at).toISOString(),
       })),
     };
+  }
+
+  private async loadNormasByAssuntoId(id: string): Promise<{ rows: QueryResultRow[] }> {
+    try {
+      return await this.pool.query(
+        `
+          select norma.*
+          from adminlog.assunto_normas assunto_norma
+          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
+          where assunto_norma.assunto_id = $1::uuid
+          order by norma.data_norma desc, norma.numero asc
+        `,
+        [id],
+      );
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code?: string }).code === "42P01"
+      ) {
+        return { rows: [] };
+      }
+
+      throw error;
+    }
   }
 }
