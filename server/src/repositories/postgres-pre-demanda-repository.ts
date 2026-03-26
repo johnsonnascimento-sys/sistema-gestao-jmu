@@ -167,6 +167,70 @@ const BASE_SELECT = `
   ${BASE_FROM}
 `;
 
+const DASHBOARD_BASE_FROM = `
+  from adminlog.pre_demanda pd
+  left join lateral (
+    select
+      link.id,
+      link.pre_id,
+      link.sei_numero,
+      link.sei_numero_inicial,
+      link.linked_at,
+      link.updated_at,
+      link.observacoes,
+      link.linked_by_user_id
+    from adminlog.pre_to_sei_link link
+    where link.pre_id = pd.pre_id
+    order by link.updated_at desc, link.id desc
+    limit 1
+  ) pts on true
+  left join lateral (
+    select min(tarefa.prazo_conclusao) as proximo_prazo_tarefa
+    from adminlog.tarefas_pendentes tarefa
+    where tarefa.pre_demanda_id = pd.id
+      and tarefa.concluida = false
+  ) prox_tarefa on true
+  left join adminlog.setores setor on setor.id = pd.setor_atual_id
+`;
+
+const DASHBOARD_BASE_SELECT = `
+  select
+    pd.id,
+    pd.pre_id,
+    pd.solicitante,
+    pd.assunto,
+    pd.data_referencia,
+    pd.status,
+    pd.descricao,
+    pd.fonte,
+    pd.observacoes,
+    pd.prazo_processo,
+    pd.data_conclusao,
+    pd.numero_judicial,
+    pd.anotacoes,
+    pd.metadata,
+    pd.created_at,
+    pd.updated_at,
+    setor.id as setor_id,
+    setor.sigla as setor_sigla,
+    setor.nome_completo as setor_nome_completo,
+    setor.created_at as setor_created_at,
+    setor.updated_at as setor_updated_at,
+    pts.id as sei_link_id,
+    pts.sei_numero,
+    pts.sei_numero_inicial,
+    pts.linked_at,
+    pts.updated_at as link_updated_at,
+    pts.observacoes as link_observacoes,
+    pts.linked_by_user_id,
+    prox_tarefa.proximo_prazo_tarefa,
+    case
+      when pd.prazo_processo < current_date then 'atrasado'
+      else 'no_prazo'
+    end as prazo_status
+  ${DASHBOARD_BASE_FROM}
+`;
+
 const SORT_COLUMN_MAP: Record<PreDemandaSortBy, string> = {
   updatedAt: "pd.updated_at",
   createdAt: "pd.created_at",
@@ -879,7 +943,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     private readonly settingsRepository: SettingsRepository,
   ) {}
 
-  private invalidateDashboardSummaryCache() {
+  private invalidateDashboardCaches() {
     this.dashboardSummaryCache = null;
   }
 
@@ -1663,7 +1727,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       const duplicateSolicitante = input.solicitante?.trim() || "Nao informado";
       const duplicate = await this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           where pd.solicitante_norm = lower(regexp_replace(trim($1), '\s+', ' ', 'g'))
             and pd.assunto_norm = lower(regexp_replace(trim($2), '\s+', ' ', 'g'))
             and pd.data_referencia = $3::date
@@ -1698,7 +1762,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const [itemsResult, totalResult] = await Promise.all([
       this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           ${where}
           ${orderBy}
           limit $${limitIndex}
@@ -1846,7 +1910,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         }
       }
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return { preId: input.preId };
     });
   }
@@ -1866,7 +1930,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
     }
 
-    this.invalidateDashboardSummaryCache();
+    this.invalidateDashboardCaches();
     return { preId: input.preId };
   }
 
@@ -1910,7 +1974,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         });
       }
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
@@ -1950,7 +2014,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
       if (!record) {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
@@ -2113,7 +2177,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return this.loadInteressados(client, demanda.id);
     });
   }
@@ -2145,7 +2209,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return this.loadInteressados(client, demanda.id);
     });
   }
@@ -2182,7 +2246,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return this.loadVinculos(client, origem.id);
     });
   }
@@ -2213,7 +2277,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return this.loadVinculos(client, origem.id);
     });
   }
@@ -2298,7 +2362,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return { preId: input.preId };
     });
   }
@@ -2365,7 +2429,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return { preId: input.preId };
     });
   }
@@ -2381,7 +2445,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
         dataHora: input.dataHora ?? null,
       });
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return andamento;
     });
   }
@@ -2448,7 +2512,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.andamentoId, demanda.preId],
       );
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return mapAndamento(updated.rows[0]);
     });
   }
@@ -2487,7 +2551,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return { removedId: input.andamentoId };
     });
   }
@@ -2863,7 +2927,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [inserted.rows[0].id, demanda.preId],
       );
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return mapComentario(result.rows[0]);
     });
   }
@@ -2913,7 +2977,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [input.comentarioId, demanda.preId],
       );
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return mapComentario(result.rows[0]);
     });
   }
@@ -2973,7 +3037,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         [inserted.rows[0].id, demanda.preId],
       );
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return mapDocumento(result.rows[0]);
     });
   }
@@ -3003,7 +3067,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return this.loadDocumentos(client, demanda.id, demanda.preId);
     });
   }
@@ -3161,7 +3225,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(500, "PRE_DEMANDA_ASSOCIATION_FAILED", "Falha ao carregar a associacao atualizada.");
       }
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return {
         association: currentAssociation,
         audited,
@@ -3266,7 +3330,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      this.invalidateDashboardSummaryCache();
+      this.invalidateDashboardCaches();
       return {
         preId: input.preId,
         status: input.status,
@@ -3688,7 +3752,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       ),
       this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           where pd.status <> 'encerrada'
             and pd.updated_at <= now() - make_interval(days => $1::int)
           order by pd.updated_at asc, pd.data_referencia asc, pd.id asc
@@ -3698,7 +3762,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       ),
       this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           where pd.status = 'aguardando_sei'
           order by pd.data_referencia asc, pd.updated_at desc, pd.id desc
           limit 5
@@ -3816,7 +3880,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       ),
       this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           where pd.status <> 'encerrada'
             and coalesce(prox_tarefa.proximo_prazo_tarefa, pd.prazo_processo) between current_date and current_date + interval '7 days'
           order by coalesce(prox_tarefa.proximo_prazo_tarefa, pd.prazo_processo) asc, pd.updated_at asc, pd.id asc
@@ -3825,7 +3889,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       ),
       this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           where pd.status <> 'encerrada'
             and coalesce((pd.metadata ->> 'pagamento_envolvido')::boolean, false) = true
           order by pd.prazo_processo asc nulls last, pd.updated_at asc, pd.id asc
@@ -3834,7 +3898,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       ),
       this.pool.query(
         `
-          ${BASE_SELECT}
+          ${DASHBOARD_BASE_SELECT}
           where pd.status <> 'encerrada'
             and coalesce((pd.metadata ->> 'urgente')::boolean, false) = true
           order by pd.prazo_processo asc nulls last, pd.updated_at asc, pd.id asc
@@ -4054,10 +4118,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         recorrenciaTipo: row.recorrencia_tipo ? (String(row.recorrencia_tipo) as DashboardTaskItem["recorrenciaTipo"]) : null,
         setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
         hasAudiencia: Boolean(row.has_audiencia),
-        geradaAutomaticamente: Boolean(row.gerada_automaticamente),
-        concluida: Boolean(row.concluida),
-        concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
-        createdAt: new Date(row.created_at).toISOString(),
+      geradaAutomaticamente: Boolean(row.gerada_automaticamente),
+      concluida: Boolean(row.concluida),
+      concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
+      createdAt: new Date(row.created_at).toISOString(),
     }));
   }
 }
