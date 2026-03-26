@@ -4182,10 +4182,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
                 from adminlog.demanda_audiencias_judiciais audiencia
                 where audiencia.pre_demanda_id = pd.id
               )
-              or pd.audiencia_data is not null
-              or pd.audiencia_horario_inicio is not null
-              or pd.audiencia_horario_fim is not null
-              or pd.audiencia_status is not null
+              or coalesce(pd.metadata ->> 'audiencia_data', '') <> ''
+              or coalesce(pd.metadata ->> 'audiencia_horario_inicio', '') <> ''
+              or coalesce(pd.metadata ->> 'audiencia_horario_fim', '') <> ''
+              or coalesce(pd.metadata ->> 'audiencia_status', '') <> ''
             ) as has_audiencia,
             tarefa.gerada_automaticamente,
             tarefa.concluida,
