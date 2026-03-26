@@ -634,6 +634,8 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
         tokenClauses.push(`(
           ${buildNormalizedLikeExpression("pd.assunto", index)}
           or ${buildNormalizedLikeExpression("pd.solicitante", index)}
+          or ${buildNormalizedLikeExpression("pd.descricao", index)}
+          or ${buildNormalizedLikeExpression("pd.observacoes", index)}
           or exists (
             select 1
             from adminlog.demanda_interessados di_busca
