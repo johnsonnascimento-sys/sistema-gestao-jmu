@@ -847,7 +847,7 @@ export function PreDemandaDetailPage() {
       horario_fim: taskForm.horario_fim || null,
       recorrencia_tipo: taskForm.recorrencia_tipo || null,
       recorrencia_dias_semana: taskForm.recorrencia_tipo === "semanal" ? taskForm.recorrencia_dias_semana : null,
-      recorrencia_dia_mes: taskForm.recorrencia_tipo === "mensal" && taskForm.recorrencia_dia_mes ? Number(taskForm.recorrencia_dia_mes) : null,
+      recorrencia_dia_mes: ["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(taskForm.recorrencia_tipo) && taskForm.recorrencia_dia_mes ? Number(taskForm.recorrencia_dia_mes) : null,
       setor_destino_id: taskForm.setor_destino_id || null,
     };
 
@@ -891,7 +891,7 @@ export function PreDemandaDetailPage() {
       horario_fim: editTaskForm.horario_fim || null,
       recorrencia_tipo: editTaskForm.recorrencia_tipo || null,
       recorrencia_dias_semana: editTaskForm.recorrencia_tipo === "semanal" ? editTaskForm.recorrencia_dias_semana : null,
-      recorrencia_dia_mes: editTaskForm.recorrencia_tipo === "mensal" && editTaskForm.recorrencia_dia_mes ? Number(editTaskForm.recorrencia_dia_mes) : null,
+      recorrencia_dia_mes: ["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(editTaskForm.recorrencia_tipo) && editTaskForm.recorrencia_dia_mes ? Number(editTaskForm.recorrencia_dia_mes) : null,
     };
 
     setIsSubmitting(true);
@@ -1239,11 +1239,15 @@ export function PreDemandaDetailPage() {
                   hint="Escolha apenas se a tarefa precisar voltar a ser criada depois da conclusão."
                   label="Recorrência"
                 >
-                  <select className={selectClassName} onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: event.target.value === "mensal" ? current.recorrencia_dia_mes : "" }))} value={taskForm.recorrencia_tipo}>
+                  <select className={selectClassName} onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: ["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(event.target.value) ? current.recorrencia_dia_mes : "" }))} value={taskForm.recorrencia_tipo}>
                     <option value="">Sem repetição</option>
                     <option value="diaria">Diária</option>
                     <option value="semanal">Semanal</option>
                     <option value="mensal">Mensal</option>
+                    <option value="trimestral">Trimestral</option>
+                    <option value="quadrimestral">Quadrimestral</option>
+                    <option value="semestral">Semestral</option>
+                    <option value="anual">Anual</option>
                   </select>
                 </FormField>
 
@@ -1269,8 +1273,8 @@ export function PreDemandaDetailPage() {
                   </div>
                 ) : null}
 
-                {taskForm.recorrencia_tipo === "mensal" ? (
-                  <FormField hint="A tarefa será repetida nesse dia em cada mês." label="Dia do mês">
+                {["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(taskForm.recorrencia_tipo) ? (
+                  <FormField hint="A tarefa será repetida nesse mesmo dia conforme a periodicidade escolhida." label="Dia do mês">
                     <Input max="31" min="1" onChange={(event) => setTaskForm((current) => ({ ...current, recorrencia_dia_mes: event.target.value }))} type="number" value={taskForm.recorrencia_dia_mes} />
                   </FormField>
                 ) : taskForm.recorrencia_tipo === "diaria" ? (
@@ -2922,11 +2926,15 @@ export function PreDemandaDetailPage() {
               hint="Escolha apenas se a tarefa precisar voltar a ser criada depois da conclusão."
               label="Recorrência"
             >
-              <select className={selectClassName} onChange={(event) => setEditTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: event.target.value === "mensal" ? current.recorrencia_dia_mes : "" }))} value={editTaskForm.recorrencia_tipo}>
+              <select className={selectClassName} onChange={(event) => setEditTaskForm((current) => ({ ...current, recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: event.target.value === "semanal" ? current.recorrencia_dias_semana : [], recorrencia_dia_mes: ["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(event.target.value) ? current.recorrencia_dia_mes : "" }))} value={editTaskForm.recorrencia_tipo}>
                 <option value="">Sem repetição</option>
                 <option value="diaria">Diária</option>
                 <option value="semanal">Semanal</option>
                 <option value="mensal">Mensal</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="quadrimestral">Quadrimestral</option>
+                <option value="semestral">Semestral</option>
+                <option value="anual">Anual</option>
               </select>
             </FormField>
             {editTaskForm.recorrencia_tipo ? (
@@ -2943,8 +2951,8 @@ export function PreDemandaDetailPage() {
                 <div className="flex flex-wrap gap-2">{WEEKDAY_OPTIONS.map((item) => <Button key={`edit-${item}`} onClick={() => setEditTaskForm((current) => ({ ...current, recorrencia_dias_semana: current.recorrencia_dias_semana.includes(item) ? current.recorrencia_dias_semana.filter((value) => value !== item) : [...current.recorrencia_dias_semana, item] }))} size="sm" type="button" variant={editTaskForm.recorrencia_dias_semana.includes(item) ? "primary" : "outline"}>{item}</Button>)}</div>
               </div>
             ) : null}
-            {editTaskForm.recorrencia_tipo === "mensal" ? (
-              <FormField hint="A tarefa será repetida nesse dia em cada mês." label="Dia do mês">
+            {["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(editTaskForm.recorrencia_tipo) ? (
+              <FormField hint="A tarefa será repetida nesse mesmo dia conforme a periodicidade escolhida." label="Dia do mês">
                 <Input max="31" min="1" onChange={(event) => setEditTaskForm((current) => ({ ...current, recorrencia_dia_mes: event.target.value }))} type="number" value={editTaskForm.recorrencia_dia_mes} />
               </FormField>
             ) : editTaskForm.recorrencia_tipo === "diaria" ? (

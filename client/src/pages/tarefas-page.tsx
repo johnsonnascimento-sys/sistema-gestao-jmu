@@ -25,13 +25,21 @@ const RECURRENCE_OPTIONS: Array<{ value: TarefaRecorrenciaTipo | "sem_recorrenci
   { value: "diaria", label: "Diaria" },
   { value: "semanal", label: "Semanal" },
   { value: "mensal", label: "Mensal" },
+  { value: "trimestral", label: "Trimestral" },
+  { value: "quadrimestral", label: "Quadrimestral" },
+  { value: "semestral", label: "Semestral" },
+  { value: "anual", label: "Anual" },
 ];
 
 function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
   if (!recorrenciaTipo) return "Sem recorrencia";
   if (recorrenciaTipo === "diaria") return "Diaria";
   if (recorrenciaTipo === "semanal") return "Semanal";
-  return "Mensal";
+  if (recorrenciaTipo === "mensal") return "Mensal";
+  if (recorrenciaTipo === "trimestral") return "Trimestral";
+  if (recorrenciaTipo === "quadrimestral") return "Quadrimestral";
+  if (recorrenciaTipo === "semestral") return "Semestral";
+  return "Anual";
 }
 
 function formatTaskTime(task: Pick<DashboardTaskItem, "horarioInicio" | "horarioFim">) {

@@ -216,7 +216,7 @@ export interface CreateTarefaInput {
   prazoConclusao: string;
   horarioInicio?: string | null;
   horarioFim?: string | null;
-  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+  recorrenciaTipo?: TarefaRecorrenciaTipo | null;
   recorrenciaDiasSemana?: string[] | null;
   recorrenciaDiaMes?: number | null;
   prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null;
@@ -236,7 +236,7 @@ export interface UpdateTarefaInput {
   prazoConclusao: string;
   horarioInicio?: string | null;
   horarioFim?: string | null;
-  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+  recorrenciaTipo?: TarefaRecorrenciaTipo | null;
   recorrenciaDiasSemana?: string[] | null;
   recorrenciaDiaMes?: number | null;
   prazoReferencia?: "prazoInicial" | "prazoIntermediario" | "prazoFinal" | null;
@@ -358,7 +358,7 @@ export interface ListPreDemandasParams {
   prazoCampo?: "prazoInicial" | "prazoIntermediario" | "prazoFinal";
   deadlineCampo?: "prazoProcesso" | "proximoPrazoTarefa";
   prazoRecorte?: "overdue" | "today" | "soon";
-  taskRecurrence?: "diaria" | "semanal" | "mensal" | "sem_recorrencia";
+  taskRecurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
   paymentInvolved?: boolean;
   hasInteressados?: boolean;
   closedWithinDays?: number;

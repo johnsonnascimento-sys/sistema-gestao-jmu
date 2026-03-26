@@ -105,7 +105,7 @@ function addDays(value: string, amount: number) {
 
 function getNextRecurringDate(input: {
   prazoConclusao: string;
-  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
+  recorrenciaTipo?: "diaria" | "semanal" | "mensal" | "trimestral" | "quadrimestral" | "semestral" | "anual" | null;
   recorrenciaDiasSemana?: string[] | null;
   recorrenciaDiaMes?: number | null;
 }) {
@@ -147,7 +147,17 @@ function getNextRecurringDate(input: {
 
   const current = new Date(`${input.prazoConclusao}T00:00:00`);
   const day = input.recorrenciaDiaMes ?? current.getUTCDate();
-  const nextMonthDate = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 1, 1));
+  const monthOffset =
+    input.recorrenciaTipo === "mensal"
+      ? 1
+      : input.recorrenciaTipo === "trimestral"
+        ? 3
+        : input.recorrenciaTipo === "quadrimestral"
+          ? 4
+          : input.recorrenciaTipo === "semestral"
+            ? 6
+            : 12;
+  const nextMonthDate = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + monthOffset, 1));
   const lastDay = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
   nextMonthDate.setUTCDate(Math.min(day, lastDay));
   return nextMonthDate.toISOString().slice(0, 10);
@@ -1856,7 +1866,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     status: "pendentes" | "concluidas";
     sort: "prazo_asc" | "created_desc" | "created_asc";
     date?: string;
-    recurrence?: "diaria" | "semanal" | "mensal" | "sem_recorrencia";
+    recurrence?: "diaria" | "semanal" | "mensal" | "trimestral" | "quadrimestral" | "semestral" | "anual" | "sem_recorrencia";
     openWithoutTasksQ?: string;
     page: number;
     pageSize: number;
@@ -2907,6 +2917,72 @@ describe("Gestor JMU API", () => {
       tarefasPendentes.some(
         (item: { descricao: string; prazoConclusao: string; recorrenciaTipo: string }) =>
           item.descricao === "Revisar fila" && item.prazoConclusao === "2026-03-13" && item.recorrenciaTipo === "diaria",
+      ),
+    ).toBe(true);
+  });
+
+  it("supports quarterly recurrence when concluding a task", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Carlos Trimestral",
+        assunto: "Fluxo trimestral",
+        data_referencia: "2026-03-10",
+        prazo_processo: "2026-12-31",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const preId = created.json().data.preId as string;
+
+    const tarefa = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/tarefas`,
+      headers: { cookie },
+      payload: {
+        descricao: "Revisao trimestral",
+        tipo: "livre",
+        prazo_conclusao: "2026-03-12",
+        recorrencia_tipo: "trimestral",
+        recorrencia_dia_mes: 12,
+      },
+    });
+
+    expect(tarefa.statusCode).toBe(201);
+    const tarefaId = tarefa.json().data.id as string;
+
+    const concluida = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
+      headers: { cookie },
+    });
+
+    expect(concluida.statusCode).toBe(200);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie },
+    });
+
+    expect(detail.statusCode).toBe(200);
+    const tarefasPendentes = detail.json().data.tarefasPendentes.filter((item: { concluida: boolean }) => !item.concluida);
+    expect(
+      tarefasPendentes.some(
+        (item: { descricao: string; prazoConclusao: string; recorrenciaTipo: string }) =>
+          item.descricao === "Revisao trimestral" && item.prazoConclusao === "2026-06-12" && item.recorrenciaTipo === "trimestral",
       ),
     ).toBe(true);
   });

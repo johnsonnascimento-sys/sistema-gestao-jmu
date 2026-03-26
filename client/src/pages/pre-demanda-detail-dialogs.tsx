@@ -294,7 +294,7 @@ export function TarefaEditDialog({
                   ...form,
                   recorrencia_tipo: v,
                   recorrencia_dias_semana: v === "semanal" ? form.recorrencia_dias_semana : [],
-                  recorrencia_dia_mes: v === "mensal" ? form.recorrencia_dia_mes : "",
+                  recorrencia_dia_mes: ["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(v) ? form.recorrencia_dia_mes : "",
                 });
               }}
               value={form.recorrencia_tipo}
@@ -303,6 +303,10 @@ export function TarefaEditDialog({
               <option value="diaria">Diaria</option>
               <option value="semanal">Semanal</option>
               <option value="mensal">Mensal</option>
+              <option value="trimestral">Trimestral</option>
+              <option value="quadrimestral">Quadrimestral</option>
+              <option value="semestral">Semestral</option>
+              <option value="anual">Anual</option>
             </select>
           </FormField>
           {form.recorrencia_tipo === "semanal" ? (
@@ -327,7 +331,7 @@ export function TarefaEditDialog({
               ))}
             </div>
           ) : null}
-          {form.recorrencia_tipo === "mensal" ? (
+          {["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(form.recorrencia_tipo) ? (
             <FormField label="Dia do mes">
               <Input
                 max="31"
@@ -626,7 +630,7 @@ export function TarefasDialog({
                     ...taskForm,
                     recorrencia_tipo: event.target.value as "" | TarefaRecorrenciaTipo,
                     recorrencia_dias_semana: event.target.value === "semanal" ? taskForm.recorrencia_dias_semana : [],
-                    recorrencia_dia_mes: event.target.value === "mensal" ? taskForm.recorrencia_dia_mes : "",
+                    recorrencia_dia_mes: ["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(event.target.value) ? taskForm.recorrencia_dia_mes : "",
                   })
                 }
                 value={taskForm.recorrencia_tipo}
@@ -635,6 +639,10 @@ export function TarefasDialog({
                 <option value="diaria">Diaria</option>
                 <option value="semanal">Semanal</option>
                 <option value="mensal">Mensal</option>
+                <option value="trimestral">Trimestral</option>
+                <option value="quadrimestral">Quadrimestral</option>
+                <option value="semestral">Semestral</option>
+                <option value="anual">Anual</option>
               </select>
             </FormField>
 
@@ -674,8 +682,8 @@ export function TarefasDialog({
               </div>
             ) : null}
 
-            {taskForm.recorrencia_tipo === "mensal" ? (
-              <FormField hint="A tarefa sera repetida nesse dia em cada mes." label="Dia do mes">
+            {["mensal", "trimestral", "quadrimestral", "semestral", "anual"].includes(taskForm.recorrencia_tipo) ? (
+              <FormField hint="A tarefa sera repetida nesse mesmo dia conforme a periodicidade escolhida." label="Dia do mes">
                 <Input
                   max="31"
                   min="1"

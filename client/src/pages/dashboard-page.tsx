@@ -45,7 +45,11 @@ function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
 
   if (recorrenciaTipo === "diaria") return "Diária";
   if (recorrenciaTipo === "semanal") return "Semanal";
-  return "Mensal";
+  if (recorrenciaTipo === "mensal") return "Mensal";
+  if (recorrenciaTipo === "trimestral") return "Trimestral";
+  if (recorrenciaTipo === "quadrimestral") return "Quadrimestral";
+  if (recorrenciaTipo === "semestral") return "Semestral";
+  return "Anual";
 }
 
 function formatAudienciaSituacao(situacao: string) {

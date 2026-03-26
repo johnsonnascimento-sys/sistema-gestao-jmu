@@ -109,7 +109,14 @@ export type SortOrder = "asc" | "desc";
 export type QueueHealthLevel = "fresh" | "attention" | "critical" | "closed";
 export type DemandaInteressadoPapel = "solicitante" | "interessado";
 export type TarefaPendenteTipo = "fixa" | "livre";
-export type TarefaRecorrenciaTipo = "diaria" | "semanal" | "mensal";
+export type TarefaRecorrenciaTipo =
+  | "diaria"
+  | "semanal"
+  | "mensal"
+  | "trimestral"
+  | "quadrimestral"
+  | "semestral"
+  | "anual";
 export type DemandaSetorFluxoStatus = "ativo" | "concluido";
 export type DemandaComentarioFormato = "markdown";
 export type AudienciaSituacao = "designada" | "convertida_diligencia" | "nao_realizada" | "realizada" | "cancelada";

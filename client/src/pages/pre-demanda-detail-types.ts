@@ -75,9 +75,29 @@ export function formatRecorrenciaLabel(
       ? `Recorrente semanal (${task.recorrenciaDiasSemana.join(", ")})`
       : "Recorrente semanal";
   }
+  if (task.recorrenciaTipo === "mensal") {
+    return task.recorrenciaDiaMes
+      ? `Recorrente mensal (dia ${task.recorrenciaDiaMes})`
+      : "Recorrente mensal";
+  }
+  if (task.recorrenciaTipo === "trimestral") {
+    return task.recorrenciaDiaMes
+      ? `Recorrente trimestral (dia ${task.recorrenciaDiaMes})`
+      : "Recorrente trimestral";
+  }
+  if (task.recorrenciaTipo === "quadrimestral") {
+    return task.recorrenciaDiaMes
+      ? `Recorrente quadrimestral (dia ${task.recorrenciaDiaMes})`
+      : "Recorrente quadrimestral";
+  }
+  if (task.recorrenciaTipo === "semestral") {
+    return task.recorrenciaDiaMes
+      ? `Recorrente semestral (dia ${task.recorrenciaDiaMes})`
+      : "Recorrente semestral";
+  }
   return task.recorrenciaDiaMes
-    ? `Recorrente mensal (dia ${task.recorrenciaDiaMes})`
-    : "Recorrente mensal";
+    ? `Recorrente anual (dia ${task.recorrenciaDiaMes})`
+    : "Recorrente anual";
 }
 
 export function getTaskSignal(prazoConclusao: string | null | undefined): TaskSignal | null {

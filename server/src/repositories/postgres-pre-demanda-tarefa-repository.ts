@@ -25,6 +25,14 @@ const TASK_SUGGESTION_SLOTS = [
   { inicio: "16:00", fim: "17:00" },
 ] as const;
 
+const RECORRENCIA_MESES: Record<Exclude<TarefaRecorrenciaTipo, "diaria" | "semanal">, number> = {
+  mensal: 1,
+  trimestral: 3,
+  quadrimestral: 4,
+  semestral: 6,
+  anual: 12,
+};
+
 export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepository {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -36,6 +44,15 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
     const date = new Date(`${value}T00:00:00`);
     date.setDate(date.getDate() + amount);
     return this.formatLocalDate(date);
+  }
+
+  private addMonthsKeepingDay(value: string, amount: number, desiredDay?: number | null) {
+    const current = new Date(`${value}T00:00:00`);
+    const day = desiredDay ?? current.getUTCDate();
+    const nextMonthDate = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + amount, 1));
+    const lastDay = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
+    nextMonthDate.setUTCDate(Math.min(day, lastDay));
+    return nextMonthDate.toISOString().slice(0, 10);
   }
 
   private buildCandidateDates(start: string, end: string, selectedDate?: string | null) {
@@ -110,14 +127,12 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
       }
     }
 
-    if (input.recorrenciaTipo === "mensal") {
-      const day = input.recorrenciaDiaMes ?? current.getDate();
-      const year = current.getUTCFullYear();
-      const month = current.getUTCMonth() + 1;
-      const nextMonthDate = new Date(Date.UTC(year, month, 1));
-      const lastDay = new Date(Date.UTC(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth() + 1, 0)).getUTCDate();
-      nextMonthDate.setUTCDate(Math.min(day, lastDay));
-      return nextMonthDate.toISOString().slice(0, 10);
+    if (input.recorrenciaTipo in RECORRENCIA_MESES) {
+      return this.addMonthsKeepingDay(
+        input.prazoConclusao,
+        RECORRENCIA_MESES[input.recorrenciaTipo as Exclude<TarefaRecorrenciaTipo, "diaria" | "semanal">],
+        input.recorrenciaDiaMes,
+      );
     }
 
     return null;
