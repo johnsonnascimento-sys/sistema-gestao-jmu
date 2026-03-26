@@ -32,14 +32,9 @@ Projeto: "Sistema de Gestao JMU"
 - n8n nao faz parte do sistema atual
 - RAG/indexacao juridica nao fazem parte do sistema atual
 
-### Objetos legados mantidos no banco
-Os seguintes artefatos podem continuar existindo no banco por seguranca historica, mas nao pertencem ao runtime atual do Gestor Web:
-- `adminlog.normas_index`
-- `adminlog.ai_generation_log`
-- funcoes `match_documents*`
-- extensao `vector`
-
-Esses objetos nao devem ser removidos nem reutilizados sem solicitacao explicita.
+### Banco atual
+- O runtime atual nao depende de `pgvector`, embeddings, `match_documents*` nem tabelas auxiliares de indexacao juridica.
+- A limpeza definitiva desses objetos faz parte do schema versionado do projeto.
 
 ---
 

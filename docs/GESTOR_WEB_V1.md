@@ -87,4 +87,4 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 
-Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. Objetos legados de RAG podem continuar existindo no banco por seguranca historica, mas nao fazem parte da operacao do Gestor Web.
+Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. O banco operacional atual tambem nao depende de `pgvector` nem de artefatos de embeddings.

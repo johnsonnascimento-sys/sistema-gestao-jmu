@@ -18,7 +18,7 @@
 ## Escopo operacional atual
 - O runbook cobre apenas o Gestor Web proprio.
 - Appsmith, n8n e RAG nao fazem parte do runtime atual.
-- Objetos legados de RAG ainda podem existir no banco e, por isso, os scripts continuam compativeis com `pgvector`.
+- Os scripts operacionais usam PostgreSQL padrao e nao dependem de `pgvector`.
 
 ### Deploy automatizado da VPS
 Use `npm run deploy:vps` com:
@@ -61,7 +61,7 @@ Use `npm run rollback:vps` com:
 O rollback recria o container com a imagem alvo, valida `GET /api/health`, `GET /api/ready` e `smoke-test`, e restaura a imagem que estava em execucao se a reversao falhar.
 
 ## Rotacao de segredos
-- Rotacionar `DATABASE_URL` no Supabase e atualizar o `.env`.
+- Rotacionar `DATABASE_URL` no provedor atual de PostgreSQL e atualizar o `.env`.
 - Rotacionar `SESSION_SECRET` em cada incidente de exposicao.
 - Rotacionar credenciais administrativas temporarias apos bootstrap.
 
@@ -74,10 +74,10 @@ Use `npm run backup:vps` com:
 - `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_BACKUP_DIR`, `JMU_DATABASE_SCHEMA`, `JMU_PG_IMAGE`
 - opcionais: `JMU_BACKUP_LABEL` para identificar o dump
-- opcionais: `JMU_BACKUP_KEEP_LATEST` para retenção automática no diretório remoto
+- opcionais: `JMU_BACKUP_KEEP_LATEST` para retencao automatica no diretorio remoto
 
-O script lê a `DATABASE_URL` da `.env` remota, gera `pg_dump` comprimido do schema `adminlog` usando a imagem oficial do Postgres, valida o gzip e mostra checksum/arquivos recentes.
-Por omissao, os scripts operacionais usam `pgvector/pgvector:pg17`, para que backups, restores e drills consigam lidar com objetos que referenciam `extensions.vector`.
+O script le a `DATABASE_URL` da `.env` remota, gera `pg_dump` comprimido do schema `adminlog` usando a imagem oficial do PostgreSQL, valida o gzip e mostra checksum/arquivos recentes.
+Por omissao, os scripts operacionais usam `postgres:17`.
 
 ### Instalacao da rotina operacional
 Use `npm run install:ops:vps` com:

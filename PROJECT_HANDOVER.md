@@ -37,15 +37,6 @@ Regra de ouro:
 - n8n: fora do runtime atual
 - RAG/indexacao juridica: fora do runtime atual
 
-### Objetos legados mantidos no banco
-Os objetos abaixo podem continuar existindo no banco por seguranca historica, mas estao fora do escopo operacional do Gestor Web:
-- `adminlog.normas_index`
-- `adminlog.ai_generation_log`
-- `match_documents*`
-- extensao `vector`
-
-Nao remover nem reutilizar esses objetos sem solicitacao explicita.
-
 ---
 
 ## 3. Status Atual
@@ -85,11 +76,11 @@ cd C:\Users\johnsontn\Documents\Playground\sistema-gestao-jmu
 - `ARCHITECTURE.md`: arquitetura tecnica do Gestor Web
 - `docs/GESTOR_WEB_V1.md`: visao funcional da aplicacao
 - `docs/GESTOR_WEB_RUNBOOK.md`: operacao de VPS, backup, restore, deploy e rollback
-- `docs/SESSION_LOG_2026-03-26.md`: registro da remocao estrutural de Appsmith, n8n e RAG do repositorio/runtime
+- `docs/SESSION_LOG_2026-03-26.md`: registro da limpeza estrutural de Appsmith, n8n e RAG
 
 ---
 
 ## 6. Observacoes de Operacao
 - Segredos permanecem fora do repositorio
 - O banco atual ainda pode estar hospedado no Supabase, mas o app depende apenas de PostgreSQL generico via `DATABASE_URL`
-- A remocao desta fase foi apenas de projeto/runtime; os objetos legados de RAG no banco foram mantidos por seguranca
+- A limpeza estrutural ja removeu do projeto/runtime e do schema versionado as dependencias de Appsmith, n8n e RAG

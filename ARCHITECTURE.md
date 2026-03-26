@@ -59,20 +59,16 @@
 
 ---
 
-## 4. Banco e Objetos Legados
+## 4. Banco e Historico de Integracoes
 
 ### Banco operacional
 - schema principal: `adminlog`
 - uso corrente: tabelas e rotas do Gestor Web
 
-### Objetos legados mantidos
-Alguns objetos historicos de RAG ainda podem existir no banco, mas nao fazem parte do runtime do sistema:
-- `adminlog.normas_index`
-- `adminlog.ai_generation_log`
-- funcoes `match_documents*`
-- extensao `vector`
-
-Esses objetos foram mantidos por seguranca historica e nao devem ser removidos sem pedido explicito.
+### Fora do banco operacional atual
+- RAG/indexacao juridica nao fazem parte do Gestor Web atual
+- Appsmith e n8n nao fazem parte da arquitetura atual
+- o schema versionado remove os objetos legados de embeddings e `pgvector`
 
 ---
 
