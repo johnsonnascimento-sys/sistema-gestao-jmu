@@ -1030,18 +1030,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     const assuntoIds = links.rows.map((row) => String(row.assunto_id));
     const [normasResult, procedimentosResult] = await Promise.all([
-      queryable.query(
-        `
-          select
-            assunto_norma.assunto_id,
-            norma.*
-          from adminlog.assunto_normas assunto_norma
-          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
-          where assunto_norma.assunto_id = any($1::uuid[])
-          order by norma.data_norma desc, norma.numero asc
-        `,
-        [assuntoIds],
-      ),
+      this.loadAssuntoNormas(queryable, assuntoIds),
       queryable.query(
         `
           select
@@ -1100,6 +1089,34 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         linkedBy: mapActor(row, "linked_by"),
       };
     });
+  }
+
+  private async loadAssuntoNormas(queryable: Queryable, assuntoIds: string[]): Promise<{ rows: QueryResultRow[] }> {
+    try {
+      return await queryable.query(
+        `
+          select
+            assunto_norma.assunto_id,
+            norma.*
+          from adminlog.assunto_normas assunto_norma
+          inner join adminlog.normas norma on norma.id = assunto_norma.norma_id
+          where assunto_norma.assunto_id = any($1::uuid[])
+          order by norma.data_norma desc, norma.numero asc
+        `,
+        [assuntoIds],
+      );
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        (error as { code?: string }).code === "42P01"
+      ) {
+        return { rows: [] };
+      }
+
+      throw error;
+    }
   }
 
   private async loadSeiAssociations(queryable: Queryable, preDemandaId: number, preId: string) {
