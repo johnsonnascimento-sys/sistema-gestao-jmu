@@ -19,6 +19,14 @@ const SORT_OPTIONS: Array<{ value: DashboardTaskSortMode; label: string }> = [
   { value: "created_asc", label: "Mais antigas primeiro" },
 ];
 
+const RECURRENCE_OPTIONS: Array<{ value: TarefaRecorrenciaTipo | "sem_recorrencia" | ""; label: string }> = [
+  { value: "", label: "Todas as recorrencias" },
+  { value: "sem_recorrencia", label: "Sem recorrencia" },
+  { value: "diaria", label: "Diaria" },
+  { value: "semanal", label: "Semanal" },
+  { value: "mensal", label: "Mensal" },
+];
+
 function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
   if (!recorrenciaTipo) return "Sem recorrencia";
   if (recorrenciaTipo === "diaria") return "Diaria";
@@ -284,6 +292,8 @@ export function TarefasPage() {
   const [currentTab, setCurrentTab] = useState<DashboardTaskStatusFilter>("pendentes");
   const [sortMode, setSortMode] = useState<DashboardTaskSortMode>("prazo_asc");
   const [selectedDate, setSelectedDate] = useState("");
+  const [selectedRecurrence, setSelectedRecurrence] = useState<TarefaRecorrenciaTipo | "sem_recorrencia" | "">("");
+  const [openWithoutTasksQ, setOpenWithoutTasksQ] = useState("");
   const [unifyByProcess, setUnifyByProcess] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -301,6 +311,8 @@ export function TarefasPage() {
           status: currentTab,
           sort: sortMode,
           date: selectedDate || undefined,
+          recurrence: selectedRecurrence || undefined,
+          openWithoutTasksQ: openWithoutTasksQ || undefined,
           page,
           pageSize: PAGE_SIZE,
         });
@@ -325,13 +337,13 @@ export function TarefasPage() {
     return () => {
       mounted = false;
     };
-  }, [currentTab, page, selectedDate, sortMode]);
+  }, [currentTab, openWithoutTasksQ, page, selectedDate, selectedRecurrence, sortMode]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   useEffect(() => {
     setPage(1);
-  }, [currentTab, selectedDate, sortMode]);
+  }, [currentTab, selectedDate, selectedRecurrence, sortMode]);
 
   if (loading) {
     return <LoadingState description="Carregando tarefas pendentes e concluidas." title="Tarefas" />;
@@ -377,6 +389,26 @@ export function TarefasPage() {
                 <input checked={unifyByProcess} className="h-4 w-4 rounded border-slate-300" onChange={(event) => setUnifyByProcess(event.target.checked)} type="checkbox" />
                 Unificar tarefas por processo
               </label>
+            </div>
+            <div className="grid gap-2 sm:max-w-xs">
+              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="task-recurrence-filter">
+                Recorrencia
+              </label>
+              <select
+                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 shadow-sm outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-200/50"
+                id="task-recurrence-filter"
+                onChange={(event) => {
+                  setSelectedRecurrence(event.target.value as TarefaRecorrenciaTipo | "sem_recorrencia" | "");
+                  setPage(1);
+                }}
+                value={selectedRecurrence}
+              >
+                {RECURRENCE_OPTIONS.map((option) => (
+                  <option key={option.value || "all"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="grid gap-2 sm:max-w-xs">
               <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="task-date-filter">
@@ -458,6 +490,17 @@ export function TarefasPage() {
       </motion.div>
 
       <motion.div animate={{ opacity: 1, y: 0 }} initial={{ opacity: 0, y: 16 }} transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}>
+        <div className="mb-3 grid gap-2 sm:max-w-md">
+          <label className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="open-without-tasks-filter">
+            Filtrar processos abertos sem tarefas
+          </label>
+          <Input
+            id="open-without-tasks-filter"
+            onChange={(event) => setOpenWithoutTasksQ(event.target.value)}
+            placeholder="Buscar por numero, SEI, numero judicial ou assunto"
+            value={openWithoutTasksQ}
+          />
+        </div>
         <OpenProcessesWithoutTasksCard items={openProcessesWithoutTasks.items} total={openProcessesWithoutTasks.total} />
       </motion.div>
     </section>

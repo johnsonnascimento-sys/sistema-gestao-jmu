@@ -33,6 +33,7 @@ import type {
   SeiAssociation,
   SortOrder,
   TarefaPendente,
+  TarefaRecorrenciaTipo,
   TarefaPendenteTipo,
   TimelineEvent,
 } from "../domain/types";
@@ -538,6 +539,8 @@ export interface PreDemandaRepository {
     status: DashboardTaskStatusFilter;
     sort: DashboardTaskSortMode;
     date?: string;
+    recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+    openWithoutTasksQ?: string;
     page: number;
     pageSize: number;
   }): Promise<DashboardTaskListResult>;

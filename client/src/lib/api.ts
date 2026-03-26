@@ -650,6 +650,8 @@ export function listDashboardTasks(params: {
   status: DashboardTaskStatusFilter;
   sort: DashboardTaskSortMode;
   date?: string;
+  recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+  openWithoutTasksQ?: string;
   page?: number;
   pageSize?: number;
 }) {
@@ -657,6 +659,8 @@ export function listDashboardTasks(params: {
   search.set("status", params.status);
   search.set("sort", params.sort);
   if (params.date) search.set("date", params.date);
+  if (params.recurrence) search.set("recurrence", params.recurrence);
+  if (params.openWithoutTasksQ) search.set("openWithoutTasksQ", params.openWithoutTasksQ);
   search.set("page", String(params.page ?? 1));
   search.set("pageSize", String(params.pageSize ?? 20));
   return request<DashboardTaskListResult>(`/api/pre-demandas/dashboard/tarefas?${search.toString()}`);

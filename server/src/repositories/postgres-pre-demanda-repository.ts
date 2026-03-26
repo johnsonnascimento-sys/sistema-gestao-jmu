@@ -4087,6 +4087,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     status: DashboardTaskStatusFilter;
     sort: DashboardTaskSortMode;
     date?: string;
+    recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+    openWithoutTasksQ?: string;
     page: number;
     pageSize: number;
   }): Promise<DashboardTaskListResult> {
@@ -4107,11 +4109,57 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       countsConditions.push(`tarefa.prazo_conclusao = ${datePlaceholder}::date`);
     }
 
+    if (params.recurrence) {
+      if (params.recurrence === "sem_recorrencia") {
+        conditions.push("tarefa.recorrencia_tipo is null");
+        countsConditions.push("tarefa.recorrencia_tipo is null");
+      } else {
+        const recurrencePlaceholder = pushValue(params.recurrence);
+        conditions.push(`tarefa.recorrencia_tipo = ${recurrencePlaceholder}`);
+        countsConditions.push(`tarefa.recorrencia_tipo = ${recurrencePlaceholder}`);
+      }
+    }
+
     const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
     const countsWhereClause = countsConditions.filter(Boolean).length ? `where ${countsConditions.filter(Boolean).join(" and ")}` : "";
     const orderByClause = DASHBOARD_TASK_SORT_SQL[params.sort];
     const limitPlaceholder = pushValue(params.pageSize);
     const offsetPlaceholder = pushValue((params.page - 1) * params.pageSize);
+
+    const openWithoutTasksConditions: string[] = [`pd.status <> 'encerrada'`, `not exists (
+              select 1
+              from adminlog.tarefas_pendentes tarefa
+              where tarefa.pre_demanda_id = pd.id
+            )`];
+    const openWithoutTasksValues: Array<string> = [];
+
+    if (params.openWithoutTasksQ) {
+      const normalizedOpenSearch = normalizeSearchTerm(params.openWithoutTasksQ);
+      const tokens = normalizedOpenSearch.split(/\s+/).filter(Boolean);
+      const tokenClauses: string[] = [];
+      for (const token of tokens) {
+        openWithoutTasksValues.push(`%${token}%`);
+        const idx = openWithoutTasksValues.length;
+        tokenClauses.push(`(
+          ${buildNormalizedLikeExpression("pd.assunto", idx)}
+          or ${buildNormalizedLikeExpression("pd.pre_id", idx)}
+          or ${buildNormalizedLikeExpression("pd.solicitante", idx)}
+          or ${buildNormalizedLikeExpression("pd.numero_judicial", idx)}
+          or exists (
+            select 1
+            from adminlog.pre_to_sei_link link_open
+            where link_open.pre_id = pd.pre_id
+              and ${buildNormalizedLikeExpression("link_open.sei_numero", idx)}
+          )
+        )`);
+      }
+      if (tokenClauses.length) {
+        openWithoutTasksConditions.push(`(${tokenClauses.join(" and ")})`);
+      }
+    }
+
+    const openWithoutTasksWhereClause = openWithoutTasksConditions.length ? `where ${openWithoutTasksConditions.join(" and ")}` : "";
+    const countValues = values.slice(0, values.length - 2);
 
     const [itemsResult, countResult, openProcessesWithoutTasksResult] = await Promise.all([
       this.pool.query(
@@ -4162,7 +4210,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           from adminlog.tarefas_pendentes tarefa
           ${countsWhereClause}
         `,
-        values.slice(0, params.date ? 2 : 1),
+        countValues,
       ),
       this.pool.query(
         `
@@ -4181,15 +4229,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             order by link.updated_at desc, link.id desc
             limit 1
           ) pts on true
-          where pd.status <> 'encerrada'
-            and not exists (
-              select 1
-              from adminlog.tarefas_pendentes tarefa
-              where tarefa.pre_demanda_id = pd.id
-            )
+          ${openWithoutTasksWhereClause}
           order by pd.updated_at desc, pd.id desc
           limit 12
         `,
+        openWithoutTasksValues,
       ),
     ]);
 

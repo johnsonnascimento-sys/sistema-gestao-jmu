@@ -1822,7 +1822,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
-  async listDashboardTasks(params: { status: "pendentes" | "concluidas"; sort: "prazo_asc" | "created_desc" | "created_asc"; date?: string; page: number; pageSize: number }) {
+  async listDashboardTasks(params: {
+    status: "pendentes" | "concluidas";
+    sort: "prazo_asc" | "created_desc" | "created_asc";
+    date?: string;
+    recurrence?: "diaria" | "semanal" | "mensal" | "sem_recorrencia";
+    openWithoutTasksQ?: string;
+    page: number;
+    pageSize: number;
+  }) {
     const allItems = this.records
       .flatMap((item) =>
         item.tarefasPendentes.map((task) => ({
@@ -1845,7 +1853,12 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         })),
       )
       .filter((item) => item.concluida === (params.status === "concluidas"))
-      .filter((item) => !params.date || item.prazoConclusao === params.date);
+      .filter((item) => !params.date || item.prazoConclusao === params.date)
+      .filter((item) => {
+        if (!params.recurrence) return true;
+        if (params.recurrence === "sem_recorrencia") return item.recorrenciaTipo === null;
+        return item.recorrenciaTipo === params.recurrence;
+      });
 
     allItems.sort((left, right) => {
       if (left.hasAudiencia !== right.hasAudiencia) {
@@ -1865,13 +1878,28 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         item.tarefasPendentes.map((task) => ({
           concluida: task.concluida,
           prazoConclusao: task.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
+          recorrenciaTipo: task.recorrenciaTipo ?? null,
         })),
       )
-      .filter((item) => !params.date || item.prazoConclusao === params.date);
+      .filter((item) => !params.date || item.prazoConclusao === params.date)
+      .filter((item) => {
+        if (!params.recurrence) return true;
+        if (params.recurrence === "sem_recorrencia") return item.recorrenciaTipo === null;
+        return item.recorrenciaTipo === params.recurrence;
+      });
 
+    const normalizedOpenWithoutTasksQ = params.openWithoutTasksQ?.trim().toLowerCase() ?? "";
     const openProcessesWithoutTasks = this.records
       .filter((item) => item.status !== "encerrada")
       .filter((item) => item.tarefasPendentes.length === 0)
+      .filter((item) => {
+        if (!normalizedOpenWithoutTasksQ) return true;
+        return (
+          item.preId.toLowerCase().includes(normalizedOpenWithoutTasksQ) ||
+          item.principalNumero.toLowerCase().includes(normalizedOpenWithoutTasksQ) ||
+          item.assunto.toLowerCase().includes(normalizedOpenWithoutTasksQ)
+        );
+      })
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
       .slice(0, 12)
       .map((item) => ({
@@ -1893,7 +1921,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         concluidas: filteredBase.filter((item) => item.concluida).length,
       },
       openProcessesWithoutTasks: {
-        total: this.records.filter((item) => item.status !== "encerrada" && item.tarefasPendentes.length === 0).length,
+        total: this.records.filter((item) => item.status !== "encerrada" && item.tarefasPendentes.length === 0).filter((item) => {
+          if (!normalizedOpenWithoutTasksQ) return true;
+          return (
+            item.preId.toLowerCase().includes(normalizedOpenWithoutTasksQ) ||
+            item.principalNumero.toLowerCase().includes(normalizedOpenWithoutTasksQ) ||
+            item.assunto.toLowerCase().includes(normalizedOpenWithoutTasksQ)
+          );
+        }).length,
         items: openProcessesWithoutTasks,
       },
     };
