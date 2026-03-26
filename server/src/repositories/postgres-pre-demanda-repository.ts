@@ -1029,25 +1029,23 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     }
 
     const assuntoIds = links.rows.map((row) => String(row.assunto_id));
-    const [normasResult, procedimentosResult] = await Promise.all([
-      this.loadAssuntoNormas(queryable, assuntoIds),
-      queryable.query(
-        `
-          select
-            procedimento.*,
-            setor.id as setor_id,
-            setor.sigla as setor_sigla,
-            setor.nome_completo as setor_nome_completo,
-            setor.created_at as setor_created_at,
-            setor.updated_at as setor_updated_at
-          from adminlog.assunto_procedimentos procedimento
-          left join adminlog.setores setor on setor.id = procedimento.setor_destino_id
-          where procedimento.assunto_id = any($1::uuid[])
-          order by procedimento.ordem asc, procedimento.created_at asc
-        `,
-        [assuntoIds],
-      ),
-    ]);
+    const normasResult = await this.loadAssuntoNormas(queryable, assuntoIds);
+    const procedimentosResult = await queryable.query(
+      `
+        select
+          procedimento.*,
+          setor.id as setor_id,
+          setor.sigla as setor_sigla,
+          setor.nome_completo as setor_nome_completo,
+          setor.created_at as setor_created_at,
+          setor.updated_at as setor_updated_at
+        from adminlog.assunto_procedimentos procedimento
+        left join adminlog.setores setor on setor.id = procedimento.setor_destino_id
+        where procedimento.assunto_id = any($1::uuid[])
+        order by procedimento.ordem asc, procedimento.created_at asc
+      `,
+      [assuntoIds],
+    );
 
     const normasByAssunto = new Map<string, Assunto["normas"]>();
     for (const row of normasResult.rows) {
