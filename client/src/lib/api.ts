@@ -332,14 +332,14 @@ export function getPreDemanda(preId: string) {
 }
 
 export function updatePreDemandaCase(preId: string, payload: UpdatePreDemandaCasePayload) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}`, {
+  return request<{ preId: string }>(`/api/pre-demandas/${preId}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
 export function updatePreDemandaAnotacoes(preId: string, anotacoes: string | null) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/anotacoes`, {
+  return request<{ preId: string }>(`/api/pre-demandas/${preId}/anotacoes`, {
     method: "PATCH",
     body: JSON.stringify({ anotacoes }),
   });
@@ -450,21 +450,21 @@ export function listPreDemandaAudiencias(preId: string) {
 }
 
 export function tramitarPreDemanda(preId: string, setorDestinoId: string) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/tramitar`, {
+  return request<{ preId: string }>(`/api/pre-demandas/${preId}/tramitar`, {
     method: "POST",
     body: JSON.stringify({ setor_destino_id: setorDestinoId }),
   });
 }
 
 export function tramitarPreDemandaMultiplos(preId: string, setorDestinoIds: string[], observacoes?: string | null) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/tramitar`, {
+  return request<{ preId: string }>(`/api/pre-demandas/${preId}/tramitar`, {
     method: "POST",
     body: JSON.stringify({ setores_destino_ids: setorDestinoIds, observacoes }),
   });
 }
 
 export function concluirTramitacaoSetor(preId: string, setorId: string, observacoes?: string | null) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/setores/${setorId}/concluir-tramitacao`, {
+  return request<{ preId: string }>(`/api/pre-demandas/${preId}/setores/${setorId}/concluir-tramitacao`, {
     method: "PATCH",
     body: JSON.stringify({ observacoes }),
   });

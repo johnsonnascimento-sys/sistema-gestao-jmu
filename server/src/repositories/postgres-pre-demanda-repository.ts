@@ -1869,17 +1869,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         }
       }
 
-      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
-      if (!record) {
-        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
-      }
-
-      return record;
+      return { preId: input.preId };
     });
   }
 
   async updateAnotacoes(input: UpdatePreDemandaAnotacoesInput) {
-    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const result = await this.pool.query(
       `
         update adminlog.pre_demanda
@@ -1894,12 +1888,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
     }
 
-    const record = await this.getDetailByPreId(this.pool, input.preId, queueHealthThresholds);
-    if (!record) {
-      throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
-    }
-
-    return record;
+    return { preId: input.preId };
   }
 
   async addAssunto(input: AddDemandaAssuntoInput) {
@@ -2324,17 +2313,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
-      if (!record) {
-        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
-      }
-
-      return record;
+      return { preId: input.preId };
     });
   }
 
   async concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput) {
-    const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
       const row = await getPreDemandaRowByPreId(client, input.preId);
       if (!row) {
@@ -2396,12 +2379,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
-      const record = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
-      if (!record) {
-        throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
-      }
-
-      return record;
+      return { preId: input.preId };
     });
   }
 

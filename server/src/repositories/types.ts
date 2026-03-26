@@ -109,6 +109,10 @@ export interface UpdatePreDemandaStatusResult {
   allowedNextStatuses: PreDemandaStatus[];
 }
 
+export interface PreDemandaMutationAck {
+  preId: string;
+}
+
 export interface UpdatePreDemandaCaseDataInput {
   preId: string;
   assunto?: string;
@@ -496,8 +500,8 @@ export interface PreDemandaRepository {
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
   getStatusCounts(): Promise<Array<{ status: PreDemandaStatus; total: number }>>;
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
-  updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaDetail>;
-  updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaDetail>;
+  updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaMutationAck>;
+  updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaMutationAck>;
   listAssuntos(preId: string): Promise<DemandaAssunto[]>;
   addAssunto(input: AddDemandaAssuntoInput): Promise<PreDemandaDetail>;
   removeAssunto(input: RemoveDemandaAssuntoInput): Promise<PreDemandaDetail>;
@@ -509,8 +513,8 @@ export interface PreDemandaRepository {
   listVinculos(preId: string): Promise<DemandaVinculo[]>;
   addNumeroJudicial(input: AddNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
   removeNumeroJudicial(input: RemoveNumeroJudicialInput): Promise<DemandaNumeroJudicial[]>;
-  tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaDetail>;
-  concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput): Promise<PreDemandaDetail>;
+  tramitar(input: TramitarPreDemandaInput): Promise<PreDemandaMutationAck>;
+  concluirTramitacaoSetor(input: ConcluirTramitacaoSetorInput): Promise<PreDemandaMutationAck>;
   listComentarios(preId: string): Promise<DemandaComentario[]>;
   createComentario(input: CreateComentarioInput): Promise<DemandaComentario>;
   updateComentario(input: UpdateComentarioInput): Promise<DemandaComentario>;
