@@ -83,6 +83,7 @@ import {
   listPreDemandaInteressados,
   listPreDemandaSeiAssociations,
   listPreDemandaSetoresAtivos,
+  listPreDemandaTaskScheduleSuggestions,
   listPreDemandaTarefas,
   listPreDemandaVinculos,
   listPreDemandaComentarios,
@@ -113,7 +114,20 @@ import { formatNumeroJudicialInput, normalizeNumeroJudicialValue } from "../lib/
 import { formatAllowedStatuses, getPreferredReopenStatus, getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatSeiInput, isValidSei, normalizeSeiValue } from "../lib/sei";
-import type { Andamento, Assunto, Audiencia, AudienciaSituacao, Interessado, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo, TimelineEvent } from "../types";
+import type {
+  Andamento,
+  Assunto,
+  Audiencia,
+  AudienciaSituacao,
+  Interessado,
+  PreDemanda,
+  PreDemandaStatus,
+  Setor,
+  TaskScheduleSuggestion,
+  TarefaPendente,
+  TarefaRecorrenciaTipo,
+  TimelineEvent,
+} from "../types";
 
 type AudienciaForm = {
   inicio: string;
@@ -220,6 +234,8 @@ export function PreDemandaDetailPage() {
   const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
+  const [taskSuggestions, setTaskSuggestions] = useState<TaskScheduleSuggestion[]>([]);
+  const [taskSuggestionsLoading, setTaskSuggestionsLoading] = useState(false);
   const [commentForm, setCommentForm] = useState("");
   const [documentForm, setDocumentForm] = useState<{ file: File | null; descricao: string }>({ file: null, descricao: "" });
   const [interessadoSearch, setInteressadoSearch] = useState("");
@@ -499,6 +515,8 @@ export function PreDemandaDetailPage() {
     setSeiLoading(false);
     setRelatedLoading(false);
     setActiveSetoresLoading(false);
+    setTaskSuggestions([]);
+    setTaskSuggestionsLoading(false);
   }, [preId]);
 
   useEffect(() => {
@@ -563,6 +581,40 @@ export function PreDemandaDetailPage() {
       active = false;
     };
   }, [preId, processSearch, toolbarDialog]);
+
+  useEffect(() => {
+    if (toolbarDialog !== "tasks" || !record) {
+      setTaskSuggestions([]);
+      setTaskSuggestionsLoading(false);
+      return;
+    }
+
+    let active = true;
+    setTaskSuggestionsLoading(true);
+    void listPreDemandaTaskScheduleSuggestions(preId, {
+      prazo_conclusao: taskForm.prazo_conclusao || null,
+      limit: taskForm.prazo_conclusao ? 3 : 4,
+    })
+      .then((nextSuggestions) => {
+        if (active) {
+          setTaskSuggestions(nextSuggestions);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setTaskSuggestions([]);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setTaskSuggestionsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [preId, record?.id, taskForm.prazo_conclusao, toolbarDialog]);
 
   useEffect(() => {
     if (interessadoSearch.trim().length < 2) {
@@ -2671,6 +2723,14 @@ export function PreDemandaDetailPage() {
           completedTasks={completedTasks}
           isSubmitting={isSubmitting}
           onClose={() => setToolbarDialog(null)}
+          onApplyTaskSuggestion={(suggestion) =>
+            setTaskForm((current) => ({
+              ...current,
+              prazo_conclusao: suggestion.data,
+              horario_inicio: suggestion.horarioInicio,
+              horario_fim: suggestion.horarioFim,
+            }))
+          }
           onCompleteTask={(task) =>
             void runMutation(
               async () => {
@@ -2705,6 +2765,8 @@ export function PreDemandaDetailPage() {
           signatureSearch={signatureSearch}
           signatureSearchResults={signatureSearchResults}
           signatureSelectedName={signatureSelectedName}
+          taskSuggestions={taskSuggestions}
+          taskSuggestionsLoading={taskSuggestionsLoading}
           taskForm={taskForm}
           taskShortcutOptions={taskShortcutOptions}
         />

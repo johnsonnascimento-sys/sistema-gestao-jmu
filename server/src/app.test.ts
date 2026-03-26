@@ -35,6 +35,7 @@ import type {
   QueueHealthConfig,
   Setor,
   SeiAssociation,
+  TaskScheduleSuggestion,
   TarefaPendente,
   TimelineEvent,
 } from "./domain/types";
@@ -1118,6 +1119,29 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return this.records.find((item) => item.preId === preId)?.tarefasPendentes ?? [];
   }
 
+  async listSchedulingSuggestions(params: { preId: string; prazoConclusao?: string | null; limit?: number }) {
+    const record = this.records.find((item) => item.preId === params.preId);
+    if (!record) {
+      throw new Error("not found");
+    }
+
+    const baseDate = params.prazoConclusao ?? addDays(new Date().toISOString().slice(0, 10), 1);
+    const candidates = [
+      { data: baseDate, horarioInicio: "09:00", horarioFim: "10:00" },
+      { data: params.prazoConclusao ?? addDays(baseDate, 1), horarioInicio: "11:00", horarioFim: "12:00" },
+      { data: params.prazoConclusao ?? addDays(baseDate, 2), horarioInicio: "14:00", horarioFim: "15:00" },
+    ];
+
+    return candidates.slice(0, params.limit ?? 4).map<TaskScheduleSuggestion>((item) => ({
+      ...item,
+      totalTarefasNoDia: record.tarefasPendentes.filter((task) => !task.concluida && task.prazoConclusao === item.data).length,
+      totalTarefasNaFaixa: record.tarefasPendentes.filter(
+        (task) => !task.concluida && task.prazoConclusao === item.data && task.horarioInicio === item.horarioInicio,
+      ).length,
+      scopedToDate: Boolean(params.prazoConclusao),
+    }));
+  }
+
   async createTarefa(input: CreateTarefaInput) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {
@@ -1136,6 +1160,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       assuntoId: input.assuntoId ?? null,
       procedimentoId: input.procedimentoId ?? null,
       prazoConclusao: input.prazoConclusao,
+      horarioInicio: input.horarioInicio ?? null,
+      horarioFim: input.horarioFim ?? null,
       recorrenciaTipo: input.recorrenciaTipo ?? null,
       recorrenciaDiasSemana: input.recorrenciaDiasSemana ?? null,
       recorrenciaDiaMes: input.recorrenciaDiaMes ?? null,
@@ -1174,6 +1200,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     descricao: string;
     tipo: "fixa" | "livre";
     prazoConclusao: string;
+    horarioInicio?: string | null;
+    horarioFim?: string | null;
     recorrenciaTipo?: "diaria" | "semanal" | "mensal" | null;
     recorrenciaDiasSemana?: string[] | null;
     recorrenciaDiaMes?: number | null;
@@ -1198,6 +1226,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       throw new Error("prazo invalid");
     }
     tarefa.prazoConclusao = input.prazoConclusao;
+    tarefa.horarioInicio = input.horarioInicio ?? null;
+    tarefa.horarioFim = input.horarioFim ?? null;
     tarefa.recorrenciaTipo = input.recorrenciaTipo ?? null;
     tarefa.recorrenciaDiasSemana = input.recorrenciaDiasSemana ?? null;
     tarefa.recorrenciaDiaMes = input.recorrenciaDiaMes ?? null;

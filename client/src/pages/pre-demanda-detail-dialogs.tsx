@@ -15,7 +15,15 @@ import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import { deadlineSignalLabel, deadlineSignalTone } from "../lib/deadline-signal";
 import { formatDateOnlyPtBr } from "../lib/date";
-import type { Andamento, PreDemanda, PreDemandaStatus, Setor, TarefaPendente, TarefaRecorrenciaTipo } from "../types";
+import type {
+  Andamento,
+  PreDemanda,
+  PreDemandaStatus,
+  Setor,
+  TaskScheduleSuggestion,
+  TarefaPendente,
+  TarefaRecorrenciaTipo,
+} from "../types";
 import { selectClassName, TaskPrazoChangeState, WEEKDAY_OPTIONS } from "./pre-demanda-detail-types";
 import { formatRecorrenciaLabel, getTaskSignal, toIsoFromDateTimeLocal } from "./pre-demanda-detail-types";
 import { getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
@@ -38,6 +46,14 @@ function formatTaskTimeLabel(task: Pick<TarefaPendente, "horarioInicio" | "horar
   }
 
   return null;
+}
+
+function formatTaskSuggestionDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("pt-BR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+  });
 }
 
 // ── AndamentoDialogs ─────────────────────────────────────────────────────────
@@ -462,7 +478,10 @@ export function TarefasDialog({
   signatureSelectedName,
   pendingTasks,
   completedTasks,
+  taskSuggestions,
+  taskSuggestionsLoading,
   isSubmitting,
+  onApplyTaskSuggestion,
   onCreateTask,
   onCompleteTask,
   onEditTask,
@@ -488,7 +507,10 @@ export function TarefasDialog({
   signatureSelectedName: string;
   pendingTasks: TarefaPendente[];
   completedTasks: TarefaPendente[];
+  taskSuggestions: TaskScheduleSuggestion[];
+  taskSuggestionsLoading: boolean;
   isSubmitting: boolean;
+  onApplyTaskSuggestion: (suggestion: TaskScheduleSuggestion) => void;
   onCreateTask: () => void;
   onCompleteTask: (task: TarefaPendente) => void;
   onEditTask: (task: TarefaPendente) => void;
@@ -551,6 +573,44 @@ export function TarefasDialog({
                   value={taskForm.horario_fim}
                 />
               </FormField>
+            </div>
+
+            <div className="grid gap-2 rounded-[20px] border border-amber-200 bg-amber-50/70 p-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-amber-800">Sugestoes de agenda</p>
+                <p className="text-xs text-amber-900/80">
+                  Dias e horarios com menor carga de tarefas pendentes. Clique em uma sugestao para preencher.
+                </p>
+              </div>
+              {taskSuggestionsLoading ? (
+                <p className="text-xs text-slate-500">Calculando agenda mais livre...</p>
+              ) : taskSuggestions.length === 0 ? (
+                <p className="text-xs text-slate-500">Nao ha sugestoes disponiveis para a janela atual do processo.</p>
+              ) : (
+                <div className="grid gap-2 md:grid-cols-2">
+                  {taskSuggestions.map((suggestion) => (
+                    <button
+                      className="rounded-2xl border border-amber-200 bg-white px-4 py-3 text-left transition hover:border-amber-300 hover:bg-amber-50"
+                      key={`${suggestion.data}-${suggestion.horarioInicio}`}
+                      onClick={() => onApplyTaskSuggestion(suggestion)}
+                      type="button"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-semibold text-slate-950">{formatTaskSuggestionDate(suggestion.data)}</span>
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold text-amber-900">
+                          {suggestion.horarioInicio} - {suggestion.horarioFim}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs text-slate-600">
+                        {suggestion.scopedToDate ? "Melhor faixa encontrada para o dia selecionado." : "Combinacao sugerida pelo volume atual."}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Dia com {suggestion.totalTarefasNoDia} tarefa(s) pendente(s) e faixa com {suggestion.totalTarefasNaFaixa}.
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

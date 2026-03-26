@@ -16,10 +16,43 @@ import type {
   ReorderTarefasInput,
   UpdateTarefaInput,
 } from "./types";
-import type { TarefaRecorrenciaTipo } from "../domain/types";
+import type { TaskScheduleSuggestion, TarefaRecorrenciaTipo } from "../domain/types";
+
+const TASK_SUGGESTION_SLOTS = [
+  { inicio: "09:00", fim: "10:00" },
+  { inicio: "11:00", fim: "12:00" },
+  { inicio: "14:00", fim: "15:00" },
+  { inicio: "16:00", fim: "17:00" },
+] as const;
 
 export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepository {
   constructor(private readonly pool: DatabasePool) {}
+
+  private formatLocalDate(date: Date) {
+    return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
+  private addDays(value: string, amount: number) {
+    const date = new Date(`${value}T00:00:00`);
+    date.setDate(date.getDate() + amount);
+    return this.formatLocalDate(date);
+  }
+
+  private buildCandidateDates(start: string, end: string, selectedDate?: string | null) {
+    if (selectedDate) {
+      return selectedDate >= start && selectedDate <= end ? [selectedDate] : [];
+    }
+
+    const dates: string[] = [];
+    let cursor = start;
+    let guard = 0;
+    while (cursor <= end && guard < 21) {
+      dates.push(cursor);
+      cursor = this.addDays(cursor, 1);
+      guard += 1;
+    }
+    return dates;
+  }
 
   private validatePrazoConclusaoTarefa(demanda: { prazoProcesso: string }, prazoConclusao: string) {
     if (!prazoConclusao) {
@@ -93,6 +126,100 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
   async listTarefas(preId: string) {
     const demanda = await getResolvedPreDemanda(this.pool, preId);
     return loadTarefas(this.pool, demanda.id, demanda.preId);
+  }
+
+  async listSchedulingSuggestions(params: { preId: string; prazoConclusao?: string | null; limit?: number }) {
+    const demanda = await getResolvedPreDemanda(this.pool, params.preId);
+    const now = new Date();
+    const today = this.formatLocalDate(now);
+    const endDate = params.prazoConclusao
+      ? params.prazoConclusao <= demanda.prazoProcesso
+        ? params.prazoConclusao
+        : demanda.prazoProcesso
+      : [this.addDays(today, 13), demanda.prazoProcesso].sort()[0] ?? demanda.prazoProcesso;
+    const candidateDates = this.buildCandidateDates(today, endDate, params.prazoConclusao);
+
+    if (!candidateDates.length) {
+      return [];
+    }
+
+    const rangeStart = candidateDates[0]!;
+    const rangeEnd = candidateDates[candidateDates.length - 1]!;
+
+    const loadRows = await this.pool.query(
+      `
+        select
+          tarefa.prazo_conclusao::text as data,
+          count(*)::int as total_dia,
+          count(*) filter (where tarefa.horario_inicio >= time '09:00' and tarefa.horario_inicio < time '10:00')::int as slot_0900,
+          count(*) filter (where tarefa.horario_inicio >= time '11:00' and tarefa.horario_inicio < time '12:00')::int as slot_1100,
+          count(*) filter (where tarefa.horario_inicio >= time '14:00' and tarefa.horario_inicio < time '15:00')::int as slot_1400,
+          count(*) filter (where tarefa.horario_inicio >= time '16:00' and tarefa.horario_inicio < time '17:00')::int as slot_1600
+        from adminlog.tarefas_pendentes tarefa
+        where tarefa.concluida = false
+          and tarefa.prazo_conclusao between $1::date and $2::date
+        group by tarefa.prazo_conclusao
+      `,
+      [rangeStart, rangeEnd],
+    );
+
+    const loadMap = new Map<string, {
+      totalDia: number;
+      slot0900: number;
+      slot1100: number;
+      slot1400: number;
+      slot1600: number;
+    }>();
+    for (const row of loadRows.rows) {
+      loadMap.set(String(row.data), {
+        totalDia: Number(row.total_dia ?? 0),
+        slot0900: Number(row.slot_0900 ?? 0),
+        slot1100: Number(row.slot_1100 ?? 0),
+        slot1400: Number(row.slot_1400 ?? 0),
+        slot1600: Number(row.slot_1600 ?? 0),
+      });
+    }
+
+    const currentHour = now.getHours();
+    const suggestions = candidateDates.flatMap((date) => {
+      const load = loadMap.get(date) ?? {
+        totalDia: 0,
+        slot0900: 0,
+        slot1100: 0,
+        slot1400: 0,
+        slot1600: 0,
+      };
+      const dateOffset = Math.round((new Date(`${date}T00:00:00`).getTime() - new Date(`${today}T00:00:00`).getTime()) / 86400000);
+      const isWeekend = [0, 6].includes(new Date(`${date}T00:00:00`).getDay());
+
+      return TASK_SUGGESTION_SLOTS
+        .filter((slot) => date !== today || Number(slot.inicio.slice(0, 2)) > currentHour)
+        .map((slot) => {
+          const totalNaFaixa =
+            slot.inicio === "09:00"
+              ? load.slot0900
+              : slot.inicio === "11:00"
+                ? load.slot1100
+                : slot.inicio === "14:00"
+                  ? load.slot1400
+                  : load.slot1600;
+
+          return {
+            data: date,
+            horarioInicio: slot.inicio,
+            horarioFim: slot.fim,
+            totalTarefasNoDia: load.totalDia,
+            totalTarefasNaFaixa: totalNaFaixa,
+            scopedToDate: Boolean(params.prazoConclusao),
+            score: load.totalDia * 100 + totalNaFaixa * 10 + dateOffset + (isWeekend ? 3 : 0),
+          };
+        });
+    });
+
+    return suggestions
+      .sort((left, right) => left.score - right.score || left.data.localeCompare(right.data) || left.horarioInicio.localeCompare(right.horarioInicio))
+      .slice(0, params.limit ?? 4)
+      .map(({ score: _score, ...suggestion }): TaskScheduleSuggestion => suggestion);
   }
 
   async createTarefa(input: CreateTarefaInput) {

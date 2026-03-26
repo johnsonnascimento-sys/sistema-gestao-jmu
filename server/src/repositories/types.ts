@@ -32,6 +32,7 @@ import type {
   Setor,
   SeiAssociation,
   SortOrder,
+  TaskScheduleSuggestion,
   TarefaPendente,
   TarefaRecorrenciaTipo,
   TarefaPendenteTipo,
@@ -492,6 +493,7 @@ export interface PreDemandaAndamentoRepository {
 
 export interface PreDemandaTarefaRepository {
   listTarefas(preId: string): Promise<TarefaPendente[]>;
+  listSchedulingSuggestions(params: { preId: string; prazoConclusao?: string | null; limit?: number }): Promise<TaskScheduleSuggestion[]>;
   createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
   updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
   reorderTarefas(input: ReorderTarefasInput): Promise<TarefaPendente[]>;

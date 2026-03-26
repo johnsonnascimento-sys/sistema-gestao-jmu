@@ -265,6 +265,15 @@ export interface TarefaPendente {
   createdBy: AuditActor | null;
 }
 
+export interface TaskScheduleSuggestion {
+  data: string;
+  horarioInicio: string;
+  horarioFim: string;
+  totalTarefasNoDia: number;
+  totalTarefasNaFaixa: number;
+  scopedToDate: boolean;
+}
+
 export interface DemandaAssunto {
   assunto: Assunto;
   linkedAt: string;

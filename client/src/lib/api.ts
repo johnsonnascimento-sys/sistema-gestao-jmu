@@ -32,6 +32,7 @@ import type {
   Setor,
   SortOrder,
   StatusCount,
+  TaskScheduleSuggestion,
   TarefaPendente,
   TarefaRecorrenciaTipo,
   TarefaPendenteTipo,
@@ -501,6 +502,21 @@ export function removePreDemandaAndamento(preId: string, andamentoId: string, co
 
 export function listPreDemandaTarefas(preId: string) {
   return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas`);
+}
+
+export function listPreDemandaTaskScheduleSuggestions(
+  preId: string,
+  params?: { prazo_conclusao?: string | null; limit?: number },
+) {
+  const search = new URLSearchParams();
+  if (params?.prazo_conclusao) {
+    search.set("prazo_conclusao", params.prazo_conclusao);
+  }
+  if (params?.limit) {
+    search.set("limit", String(params.limit));
+  }
+  const qs = search.toString();
+  return request<TaskScheduleSuggestion[]>(`/api/pre-demandas/${preId}/tarefas/sugestoes${qs ? `?${qs}` : ""}`);
 }
 
 export function createPreDemandaTarefa(

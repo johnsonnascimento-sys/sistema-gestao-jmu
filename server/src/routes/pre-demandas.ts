@@ -181,6 +181,11 @@ const tarefaOrderSchema = z.object({
   tarefa_ids: z.array(z.string().uuid()).min(1),
 });
 
+const tarefaSuggestionsSchema = z.object({
+  prazo_conclusao: z.string().date().optional(),
+  limit: z.coerce.number().int().positive().max(8).optional().default(4),
+});
+
 const comentarioSchema = z.object({
   conteudo: z.string().trim().min(1).max(20000),
   formato: z.literal("markdown").optional().default("markdown"),
@@ -664,6 +669,21 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.send({
       ok: true,
       data: tarefas,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/tarefas/sugestoes", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const query = tarefaSuggestionsSchema.parse(request.query);
+    const suggestions = await preDemandaTarefaRepository.listSchedulingSuggestions({
+      preId: params.preId,
+      prazoConclusao: query.prazo_conclusao ?? null,
+      limit: query.limit,
+    });
+    return reply.send({
+      ok: true,
+      data: suggestions,
       error: null,
     });
   });
