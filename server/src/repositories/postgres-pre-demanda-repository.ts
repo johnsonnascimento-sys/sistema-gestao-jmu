@@ -634,7 +634,13 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
         tokenClauses.push(`(
           ${buildNormalizedLikeExpression("pd.assunto", index)}
           or ${buildNormalizedLikeExpression("pd.solicitante", index)}
-          or ${buildNormalizedLikeExpression("pessoa_principal.pessoa_principal_nome", index)}
+          or exists (
+            select 1
+            from adminlog.demanda_interessados di_busca
+            inner join adminlog.interessados pessoa_busca on pessoa_busca.id = di_busca.interessado_id
+            where di_busca.pre_demanda_id = pd.id
+              and ${buildNormalizedLikeExpression("pessoa_busca.nome", index)}
+          )
           or ${buildNormalizedLikeExpression("pd.pre_id", index)}
           or exists (
             select 1
