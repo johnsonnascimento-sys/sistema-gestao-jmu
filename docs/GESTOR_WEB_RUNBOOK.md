@@ -15,6 +15,11 @@
 5. Subir ou reciclar o container/processo.
 6. Executar `npm run smoke:test`.
 
+## Escopo operacional atual
+- O runbook cobre apenas o Gestor Web proprio.
+- Appsmith, n8n e RAG nao fazem parte do runtime atual.
+- Objetos legados de RAG ainda podem existir no banco e, por isso, os scripts continuam compativeis com `pgvector`.
+
 ### Deploy automatizado da VPS
 Use `npm run deploy:vps` com:
 
@@ -37,7 +42,7 @@ Use `npm run status:vps` com:
 - `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_CONTAINER_NAME`, `JMU_HEALTH_URL`, `JMU_READY_URL`
 
-O comando mostra branch, commit actual, estado do checkout remoto, container activo, health/readiness e as ultimas tags de imagem disponiveis para rollback.
+O comando mostra branch, commit atual, estado do checkout remoto, container ativo, health/readiness e as ultimas tags de imagem disponiveis para rollback.
 Tambem mostra se o smoke autenticado e o administrativo estao exigidos na `.env` remota, sem expor segredos, alem dos cron jobs `JMU_GESTOR_*`, backups visiveis e ultimos eventos operacionais.
 
 ## Rollback
@@ -72,7 +77,7 @@ Use `npm run backup:vps` com:
 - opcionais: `JMU_BACKUP_KEEP_LATEST` para retenção automática no diretório remoto
 
 O script lê a `DATABASE_URL` da `.env` remota, gera `pg_dump` comprimido do schema `adminlog` usando a imagem oficial do Postgres, valida o gzip e mostra checksum/arquivos recentes.
-Por omissao, os scripts operacionais usam `pgvector/pgvector:pg17`, para que backups, restores e drills consigam lidar com objectos que referenciam `extensions.vector`.
+Por omissao, os scripts operacionais usam `pgvector/pgvector:pg17`, para que backups, restores e drills consigam lidar com objetos que referenciam `extensions.vector`.
 
 ### Instalacao da rotina operacional
 Use `npm run install:ops:vps` com:
@@ -110,7 +115,7 @@ Use `npm run restore:vps` com:
 - opcionais para smoke administrativo: `JMU_SMOKE_TEST_ADMIN_EMAIL`, `JMU_SMOKE_TEST_ADMIN_PASSWORD`
 - opcionais para exigir smoke administrativo: `JMU_SMOKE_TEST_REQUIRE_ADMIN=true`
 
-O restore cria antes um dump de seguranca `pre-restore`, para o container actual, restaura o schema `adminlog`, reaplica `db:migrate` dentro do container e executa `health`, `ready` e `smoke-test`.
+O restore cria antes um dump de seguranca `pre-restore`, para o container atual, restaura o schema `adminlog`, reaplica `db:migrate` dentro do container e executa `health`, `ready` e `smoke-test`.
 
 ### Checklist pos-restore
 1. Confirmar `GET /api/health` e `GET /api/ready`.

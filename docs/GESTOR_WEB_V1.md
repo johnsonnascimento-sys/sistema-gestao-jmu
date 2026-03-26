@@ -1,6 +1,6 @@
 # Gestor Web JMU v1
 
-Aplicacao propria do Gestor JMU, substituindo o Appsmith no fluxo pre-SEI/SEI.
+Aplicacao propria do Gestor JMU para o fluxo pre-SEI/SEI.
 
 ## Stack
 - Frontend: React + Vite
@@ -87,4 +87,4 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 
-RAG, indexacao juridica e telas do Appsmith ficam fora desta entrega.
+Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. Objetos legados de RAG podem continuar existindo no banco por seguranca historica, mas nao fazem parte da operacao do Gestor Web.

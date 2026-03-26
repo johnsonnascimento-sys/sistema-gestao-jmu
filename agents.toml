@@ -71,7 +71,7 @@ role = "database_specialist"
 description = "Especialista em PostgreSQL, migrations, modelagem, integridade de schema, queries e repositorios."
 domains = [
   "sql/migrations/*",
-  "sql/setup_rag_v1.sql",
+  "sql/*.sql",
   "server/src/db.ts",
   "server/src/repositories/*"
 ]
@@ -85,13 +85,11 @@ reasoning_complex = "xhigh"
 [[agents]]
 name = "Turing"
 role = "backend_integrations_specialist"
-description = "Especialista em Fastify, dominio, MCP, n8n, rotas HTTP e integracoes."
+description = "Especialista em Fastify, dominio, rotas HTTP, contratos e integracoes internas."
 domains = [
   "server/src/routes/*",
   "server/src/domain/*",
-  "mcp/*",
-  "docs/n8n/*",
-  "n8n_manager.js"
+  "server/src/scripts/*"
 ]
 model_simple = "gpt-5.4-mini"
 model_medium = "gpt-5.4-mini"
@@ -105,8 +103,7 @@ name = "Ada"
 role = "frontend_uiux_specialist"
 description = "Especialista em React, TypeScript, UI, UX, estado e integracao com API."
 domains = [
-  "client/src/*",
-  "scripts/appsmith_*.js"
+  "client/src/*"
 ]
 model_simple = "gpt-5.4-mini"
 model_medium = "gpt-5.4-mini"
@@ -121,7 +118,6 @@ role = "qa_devops_specialist"
 description = "Especialista em Docker, deploy, backup, restore, smoke test, monitoracao e operacoes."
 domains = [
   "Dockerfile",
-  "deploy.js",
   "ops/*",
   "scripts/*",
   "server/src/scripts/smoke-test.ts"

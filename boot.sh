@@ -2,48 +2,41 @@
 
 # ==========================================
 # BOOTLOADER DO AGENTE DE IA
-# Copia o contexto mestre para a área de transferência
+# Copia o contexto mestre para a area de transferencia
 # ==========================================
 
 set -euo pipefail
 
 CONTEXT_FILE="AI_BOOTLOADER.md"
 
-# 1. Verifica se o arquivo existe
 if [ ! -f "$CONTEXT_FILE" ]; then
-    echo "❌ Erro: Arquivo '$CONTEXT_FILE' não encontrado na raiz!"
+    echo "Erro: Arquivo '$CONTEXT_FILE' nao encontrado na raiz!"
     exit 1
 fi
 
-# 2. Lê o conteúdo
 CONTENT=$(cat "$CONTEXT_FILE")
 
-# 3. Monta o Prompt Perfeito
-PROMPT="CONTEXTO MESTRE DO PROJETO (JMU):\n\n$CONTENT\n\n---\n\nAGENTE: Leia o status acima com cuidado. O Backend (N8N/Banco) ja esta pronto. Nao tente recria-lo.\n\nAguardo sua confirmacao para prosseguirmos com o DEPLOY DO APPSMITH."
+PROMPT="CONTEXTO MESTRE DO PROJETO (JMU):\n\n$CONTENT\n\n---\n\nAGENTE: Leia o contexto acima com cuidado. O sistema atual e o Gestor Web proprio em React + Fastify + PostgreSQL.\nAppsmith, n8n e RAG estao fora do runtime atual e nao devem ser retomados sem instrucao explicita.\n\nProssiga a partir da arquitetura e do runbook atuais do Gestor Web."
 
-# 4. Copia para o Clipboard (Compatível com Linux, Mac, Windows/WSL)
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Tenta usar xclip, se falhar tenta xsel
     if command -v xclip &> /dev/null; then
         echo -e "$PROMPT" | xclip -selection clipboard
     elif command -v xsel &> /dev/null; then
         echo -e "$PROMPT" | xsel --clipboard --input
     else
-        echo "⚠️  Aviso: 'xclip' ou 'xsel' não instalados. Apenas exibindo o texto abaixo:"
+        echo "Aviso: 'xclip' ou 'xsel' nao instalados. Apenas exibindo o texto abaixo:"
         echo "------------------------------------------------"
         echo -e "$PROMPT"
         echo "------------------------------------------------"
         exit 0
     fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    # Mac
     echo -e "$PROMPT" | pbcopy
 else
-    # Windows (Git Bash / WSL com clip.exe)
     if command -v clip.exe &> /dev/null; then
         echo -e "$PROMPT" | clip.exe
     else
-        echo "⚠️  Aviso: 'clip.exe' não encontrado. Apenas exibindo o texto abaixo:"
+        echo "Aviso: 'clip.exe' nao encontrado. Apenas exibindo o texto abaixo:"
         echo "------------------------------------------------"
         echo -e "$PROMPT"
         echo "------------------------------------------------"
@@ -51,6 +44,4 @@ else
     fi
 fi
 
-echo "✅ Contexto copiado com sucesso!"
-echo "👉 Vá no Chat da IDE agora e pressione Ctrl+V (ou Cmd+V)."
-
+echo "Contexto copiado com sucesso!"

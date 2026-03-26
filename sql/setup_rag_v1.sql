@@ -1,4 +1,8 @@
 -- =====================================================
+-- LEGADO FORA DO RUNTIME ATUAL DO GESTOR WEB
+-- Mantido apenas como referencia historica para objetos ainda existentes no banco.
+-- Nao reutilizar nem reaplicar sem solicitacao explicita.
+--
 -- SETUP RAG V1 (Fundacao) - SISTEMA DE GESTAO JMU
 -- =====================================================
 -- Objetivo:

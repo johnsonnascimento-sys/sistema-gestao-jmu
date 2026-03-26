@@ -1,5 +1,9 @@
 -- =====================================================
--- SCHEMA RAG (INTEGRAÇÃO 3.0) - SISTEMA DE GESTÃO JMU
+-- LEGADO FORA DO RUNTIME ATUAL DO GESTOR WEB
+-- Mantido apenas como referencia historica para objetos ainda existentes no banco.
+-- Nao reutilizar nem reaplicar sem solicitacao explicita.
+--
+-- SCHEMA RAG (INTEGRACAO 3.0) - SISTEMA DE GESTAO JMU
 -- =====================================================
 -- Descrição: Tabelas para indexação de normas e modelos documentais
 -- Requisito: A função adminlog.fn_set_updated_at() já deve existir

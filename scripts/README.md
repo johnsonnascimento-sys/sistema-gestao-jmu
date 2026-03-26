@@ -1,23 +1,18 @@
-# Scripts (Appsmith/N8N Ops)
+# Scripts Operacionais do Gestor Web
 
-Este diretorio contem scripts pontuais para automatizar ajustes no Appsmith via API (login + XSRF).
+Este directorio contem apenas scripts operacionais do Gestor Web para a VPS.
 
 ## Regras
-- Segredos ficam em `MEUS_SEGREDOS.txt` (gitignored). Nunca hardcode.
-- Scripts sao "cirurgicos": rode apenas quando voce entende o que eles mudam.
+- Segredos ficam em `.env` local ou em variaveis de ambiente da VPS. Nunca hardcode.
+- Os scripts daqui fazem parte da operacao atual do sistema.
+- Backup, restore, rollback, deploy e status devem seguir o runbook em `docs/GESTOR_WEB_RUNBOOK.md`.
 
-## Estado atual (Fase 2 - Appsmith / Busca_Normas)
-- Action de embeddings em uso: `GerarEmbedding2`
-- Actions de busca:
-  - `BuscarNormas` (semantica via RPC `match_documents`)
-  - `BuscarNormasFTS` (fallback lexical via `match_documents_lexical`)
-
-Alguns scripts antigos ainda referenciam `GerarEmbedding` (nome legado) e podem falhar se rodados sem adaptacao.
-
-## Scripts uteis
-- `scripts/appsmith_publish_app.js`: publica (deploy) o app (unpublished -> published).
-- `scripts/appsmith_phase2_cache_vectors_and_origin.js`: cache client-side de vetores + coluna Tipo (origem) + backup local.
-- `scripts/appsmith_phase3_upload_page_web.js`: cria/atualiza a pagina `Upload_Normas` e action `IngerirNormaWeb`.
-- `scripts/appsmith_replace_action_refs_in_dsl.js`: troca referencias de um nome de action para outro no DSL.
-- `scripts/appsmith_delete_action.js`: remove actions antigas/teste (por id).
-- `scripts/appsmith_patch_busca_normas_err_visibility.js`: reduz ruido na tela publicada (so mostra erro apos busca).
+## Scripts disponiveis
+- `backup-gestor-vps.js`: gera dump remoto do schema operacional.
+- `bootstrap-audit-vps.js`: audita bootstrap, `.env`, cron e artefactos operacionais.
+- `deploy-gestor-vps.js`: faz deploy remoto com validacao e rollback automatico.
+- `drill-restore-vps.js`: testa restore em ambiente temporario.
+- `install-ops-cron-vps.js`: instala jobs remotos de backup, monitoracao e auditoria.
+- `restore-gestor-vps.js`: restaura backup remoto com validacoes de seguranca.
+- `rollback-gestor-vps.js`: executa rollback remoto para uma release anterior.
+- `status-gestor-vps.js`: mostra o estado do ambiente remoto.

@@ -1,8 +1,8 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 
 # ==========================================
 # BOOTLOADER DO AGENTE DE IA (Windows/PowerShell)
-# Copia o contexto mestre para a área de transferência
+# Copia o contexto mestre para a area de transferencia
 # ==========================================
 
 $ContextFile = Join-Path $PSScriptRoot 'AI_BOOTLOADER.md'
@@ -20,9 +20,10 @@ $content
 
 ---
 
-AGENTE: Leia o status acima com cuidado. O Backend (N8N/Banco) ja esta pronto. Nao tente recria-lo.
+AGENTE: Leia o contexto acima com cuidado. O sistema atual e o Gestor Web proprio em React + Fastify + PostgreSQL.
+Appsmith, n8n e RAG estao fora do runtime atual e nao devem ser retomados sem instrucao explicita.
 
-Aguardo sua confirmacao para prosseguirmos com o DEPLOY DO APPSMITH.
+Prossiga a partir da arquitetura e do runbook atuais do Gestor Web.
 "@
 
 if (Get-Command -Name Set-Clipboard -ErrorAction SilentlyContinue) {
@@ -31,7 +32,6 @@ if (Get-Command -Name Set-Clipboard -ErrorAction SilentlyContinue) {
   exit 0
 }
 
-# Fallback: clip.exe
 if (Get-Command -Name clip.exe -ErrorAction SilentlyContinue) {
   $prompt | clip.exe
   Write-Host "Contexto copiado com sucesso (clip.exe)."
@@ -43,4 +43,3 @@ Write-Host "------------------------------------------------"
 Write-Host $prompt
 Write-Host "------------------------------------------------"
 exit 0
-

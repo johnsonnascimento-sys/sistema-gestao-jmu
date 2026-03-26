@@ -11,48 +11,49 @@ Se estiver em uma maquina nova ou em uma sessao nova, leia tambem `START_HERE_AG
 ## 1. Conceito
 Projeto: "Sistema de Gestao JMU"
 
-- O que e: **Memoria administrativa pessoal + Motor de Automacao de Pareceres e Normas (RAG)** para a Justica Militar da Uniao.
-- Missao: 
-  1. Organizar demandas informais (WhatsApp/corredor) e historico pre-processual
-  2. Indexar normas e modelos documentais em arquitetura Database-First
-  3. Automatizar geracao de documentos fundamentados via IA (Retrieval-Augmented Generation)
-- Limites: nao substitui o SEI e nao executa atos oficiais automaticamente. IA gera sugestoes, humano valida.
+- O que e: aplicacao propria para controle de processos, demandas pre-SEI, tarefas, tramitacoes, audiencias, pessoas, setores e historico operacional.
+- Missao:
+  1. Organizar demandas informais e o ciclo ate a formalizacao processual
+  2. Centralizar o acompanhamento operacional de processos administrativos e judiciais
+  3. Manter trilha de auditoria, fila de trabalho, tarefas e informacoes de apoio em uma interface unica
+- Limites: nao substitui o SEI/e-Proc e nao executa atos oficiais automaticamente. O sistema apoia organizacao, registro e acompanhamento.
 
 ---
 
 ## 2. Arquitetura Tecnica (Resumo)
-- Backend: n8n (workflows + webhooks + Advanced AI nodes para Agente RAG).
-- Banco: Supabase Postgres (schema `adminlog`) como Fonte da Verdade.
-  - Tabelas RAG: `normas_index`, `ai_generation_log`
-- Front-end: Appsmith (painel de controle + interfaces RAG).
-  - App atual (Fase 2): `JMU_Gestao_Inteligente` / pagina `Busca_Normas`
-- Google Workspace:
-  - Google Sheets: cache estruturado de chunks de normas
-  - Google Docs: templates de modelos e documentos gerados
-- Seguranca: reverse proxy (CloudPanel/Nginx) + webhooks com API Key (`x-api-key`).
-- Regra de ouro: nao acessar SEI/e-Proc diretamente (sem scrapers/bots).
+- Frontend: React + Vite
+- Backend: Fastify + TypeScript
+- Banco: PostgreSQL acessado via `DATABASE_URL`, usando o schema `adminlog` como fonte de verdade
+- Infra: VPS com Docker, deploy automatizado e rotinas de backup, restore e smoke test
+- Regra de ouro: nao acessar SEI/e-Proc diretamente com scrapers, bots ou automacoes de clique
+
+### Fora do runtime atual
+- Appsmith nao faz parte do sistema atual
+- n8n nao faz parte do sistema atual
+- RAG/indexacao juridica nao fazem parte do sistema atual
+
+### Objetos legados mantidos no banco
+Os seguintes artefatos podem continuar existindo no banco por seguranca historica, mas nao pertencem ao runtime atual do Gestor Web:
+- `adminlog.normas_index`
+- `adminlog.ai_generation_log`
+- funcoes `match_documents*`
+- extensao `vector`
+
+Esses objetos nao devem ser removidos nem reutilizados sem solicitacao explicita.
 
 ---
 
 ## 3. Status Atual
-Concluido:
-- Banco (Supabase): schema `adminlog` provisionado (pre_demanda, pre_to_sei_link, audit, funcoes/triggers).
-- Fase 0 (RAG): extensao `vector` + tabelas `adminlog.normas_index` e `adminlog.ai_generation_log` (ver `sql/setup_rag_v1.sql` e `sql/adminlog_rag_schema.sql`).
-- Fase 1 (N8N -> Supabase): workflow `JMU_Indexador_Atomico_RAG_Supabase` gravando chunks + embeddings no Supabase e mantendo Google Sheets (legado).
-- Appsmith: deploy via Docker concluido e acessivel via HTTPS no subdominio configurado.
-
-Fase atual (Fase 3-B - Ingestao PDF):
-- Fase 2 concluida: painel `Busca_Normas` em producao (hibrido + fallback lexical + cache client-side).
-- Fase 3-A concluida: pagina `Upload_Normas` criada no Appsmith + workflow web dedicado no n8n (`index-norma-web-v3`) operacional.
-- Validacao Fase 3-A: `LEI-8112-WEB-QA` indexada com 34 chunks e embeddings 768 em `adminlog.normas_index`.
-- Proxima entrega: Fase 3-B (ingestao PDF com upload, Drive e indexacao vetorial).
+- O sistema em uso e o Gestor Web proprio, com frontend React e backend Fastify.
+- O foco atual do repositorio e exclusivamente o modulo Gestor JMU.
+- O app suporta autenticacao propria, dashboard, fila de tarefas, painel de processos, assuntos, tramitacoes, audiencias e administracao.
+- O deploy produtivo e feito com os scripts operacionais da VPS documentados no runbook.
 
 Referencia rapida:
-- Docs Fase 2: `docs/FASE2_APPSMITH_BUSCA_RAG.md`
-- Docs Fase 3-A: `docs/FASE3_INGESTAO_WEB.md`
-- Log Fase 3-A: `docs/SESSION_LOG_2026-02-16_FASE3A.md`
-- Manual do usuario (Fase 2): `docs/MANUAL_USUARIO_JMU_GESTAO_INTELIGENTE.md`
-- Log da sessao: `docs/SESSION_LOG_2026-02-16_FASE3A.md`
+- `docs/GESTOR_WEB_V1.md`
+- `docs/GESTOR_WEB_RUNBOOK.md`
+- `PROJECT_HANDOVER.md`
+- `docs/SESSION_LOG_2026-03-26.md`
 
 ---
 
@@ -70,32 +71,21 @@ Referencia rapida:
 ### Regras Gerais
 - Idempotencia de demanda: `solicitante + assunto + data_referencia (YYYY-MM-DD)`.
 - Datas no banco: ISO 8601.
-- Chaves: suportar demandas sem `sei_numero` (usar `pre_id`).
-- Auditoria: reassociacao PRE->SEI permitida com registro em tabela de audit.
-- Segredos: nao versionar tokens/senhas/hosts sensiveis.
-
-### Regras RAG (Integracao 3.0)
-- Chunking de normas: 3-5 paginas por chunk, respeitando estrutura de artigos.
-- Normas revogadas: manter no indice com `status='revogado'` (historico).
-- Google Sheets como cache: evitar reprocessamento de PDFs ja indexados.
-- Auditoria de geracao IA: registrar em `ai_generation_log` (normas usadas, prompt, output).
-- Validacao humana obrigatoria: documentos gerados sao sempre sugestoes.
-
-### Regras Gemini (embeddings)
-- Modelo atual via API key (AI Studio): `models/gemini-embedding-001` com `embedContent`.
-- Dimensao: `768` (compatibilidade com `vector(768)` no Supabase).
-- Sem billing: deve existir fallback lexical (FTS/trigram) para manter a busca funcionando.
+- Chaves: suportar demandas sem `sei_numero` usando `pre_id`.
+- Auditoria: reassociacao PRE->SEI permitida com registro de historico.
+- Segredos: nao versionar tokens, senhas ou hosts sensiveis.
 
 ---
 
-## 5. Fluxo de Dados (Integracao 3.0)
+## 5. Fluxo de Dados Atual
 
-### Fluxo Classico (Demandas)
-Appsmith -> Webhook n8n -> Validacao/Normalizacao -> Supabase Postgres.
+### Fluxo classico do Gestor
+Usuario -> Frontend React -> API Fastify -> PostgreSQL (`adminlog`) -> Dashboard, detalhe do processo, tarefas e auditoria.
 
-### Fluxo RAG (Indexacao de Normas)
-Appsmith (Upload PDF) -> n8n Workflow (Chunking) -> Gemini API -> Google Sheets (chunks) -> Supabase (`normas_index` + link).
-
-### Fluxo RAG (Geracao de Documentos)
-Appsmith (Solicita parecer) -> n8n Agente RAG -> Tools (Query Supabase + Read Google Sheets + Get Template) -> LLM (Gemini/GPT-4) -> Google Docs (documento gerado) -> Appsmith (preview).
-
+### Fluxo de operacao
+- criacao e edicao de processo
+- alteracao de status e tramitacao
+- gestao de tarefas e assuntos
+- vinculacao PRE x SEI
+- controle de audiencias e pauta
+- relatorios e fila operacional
