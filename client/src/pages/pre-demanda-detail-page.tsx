@@ -348,6 +348,7 @@ export function PreDemandaDetailPage() {
     try {
       const nextAssuntos = await listPreDemandaAssuntos(preId);
       setAssuntosLinked(nextAssuntos);
+      setRecord((current) => (current ? { ...current, assuntos: nextAssuntos } : current));
       setAssuntosLoaded(true);
     } finally {
       setAssuntosLoading(false);

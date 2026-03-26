@@ -4176,10 +4176,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             tarefa.horario_fim,
             tarefa.recorrencia_tipo,
             setor_destino.sigla as setor_destino_sigla,
-            exists(
-              select 1
-              from adminlog.demanda_audiencias_judiciais audiencia
-              where audiencia.pre_demanda_id = pd.id
+            (
+              exists(
+                select 1
+                from adminlog.demanda_audiencias_judiciais audiencia
+                where audiencia.pre_demanda_id = pd.id
+              )
+              or pd.audiencia_data is not null
+              or pd.audiencia_horario_inicio is not null
+              or pd.audiencia_horario_fim is not null
+              or pd.audiencia_status is not null
             ) as has_audiencia,
             tarefa.gerada_automaticamente,
             tarefa.concluida,
