@@ -130,6 +130,7 @@ export interface UpdatePreDemandaCaseDataInput {
   prazoFinal?: string | null;
   numeroJudicial?: string | null;
   metadata?: Partial<PreDemandaMetadata>;
+  changedByUserId?: number | null;
 }
 
 export interface UpdatePreDemandaAnotacoesInput {

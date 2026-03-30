@@ -78,17 +78,20 @@ export function ToolbarActionButton({
   label,
   title,
   onClick,
+  disabled = false,
   variant = "secondary",
 }: {
   icon: typeof FilePlus2;
   label: string;
   title: string;
   onClick: () => void;
+  disabled?: boolean;
   variant?: "secondary" | "ghost";
 }) {
   return (
     <Button
       className="h-auto min-w-[92px] flex-col rounded-[24px] border border-white/10 px-4 py-3 text-xs shadow-[0_12px_26px_rgba(20,33,61,0.12)]"
+      disabled={disabled}
       onClick={onClick}
       title={title}
       type="button"

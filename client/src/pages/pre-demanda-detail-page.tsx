@@ -747,6 +747,10 @@ export function PreDemandaDetailPage() {
     [audiencias],
   );
   const nextAudiencia = orderedAudiencias[0] ?? null;
+  const hasDesignadaAudiencia = useMemo(
+    () => orderedAudiencias.some((audiencia) => audiencia.situacao === "designada") || record?.metadata.audienciaStatus === "designada",
+    [orderedAudiencias, record?.metadata.audienciaStatus],
+  );
   const editableAndamentoIds = useMemo(
     () => new Set((record?.recentAndamentos ?? []).filter((item) => item.tipo === "manual").map((item) => item.id)),
     [record],
@@ -1112,7 +1116,13 @@ export function PreDemandaDetailPage() {
           <ToolbarActionButton icon={ListTodo} label="Tarefas" onClick={() => setToolbarDialog("tasks")} title="Gerenciar tarefas do processo" />
           <ToolbarActionButton icon={Plus} label="Andamento" onClick={() => setToolbarDialog("andamento")} title="Registrar andamento manual" />
           {record.allowedNextStatuses.includes("encerrada") ? (
-            <ToolbarActionButton icon={CheckCircle} label="Concluir" onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })} title="Concluir processo" />
+            <ToolbarActionButton
+              disabled={hasDesignadaAudiencia}
+              icon={CheckCircle}
+              label="Concluir"
+              onClick={() => setStatusAction({ nextStatus: "encerrada", title: "Concluir processo", requireReason: true })}
+              title={hasDesignadaAudiencia ? "Nao e permitido concluir o processo com audiencia designada." : "Concluir processo"}
+            />
           ) : null}
           {record.status === "encerrada" && reopenStatus ? (
             <ToolbarActionButton icon={RotateCcw} label="Reabrir" onClick={() => setStatusAction({ nextStatus: reopenStatus, title: "Reabrir processo", requireReason: true })} title="Reabrir processo" />

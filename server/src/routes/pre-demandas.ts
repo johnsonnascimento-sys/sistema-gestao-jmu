@@ -421,6 +421,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       prazoProcesso: payload.prazo_processo === undefined ? undefined : payload.prazo_processo,
       numeroJudicial: payload.numero_judicial === undefined ? undefined : emptyToNull(payload.numero_judicial),
       metadata: normalizeMetadata(payload.metadata),
+      changedByUserId: request.user!.id,
     });
 
     return reply.send({
