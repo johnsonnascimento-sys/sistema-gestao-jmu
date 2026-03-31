@@ -13,6 +13,7 @@ export function ConfirmDialog({
   confirmLabel,
   requireReason,
   extraOption,
+  reopenScheduleOption,
   onConfirm,
 }: {
   open: boolean;
@@ -25,11 +26,21 @@ export function ConfirmDialog({
     label: string;
     description?: string;
   };
-  onConfirm: (payload: { motivo: string; observacoes: string; extraOptionChecked: boolean }) => Promise<void> | void;
+  reopenScheduleOption?: boolean;
+  onConfirm: (payload: {
+    motivo: string;
+    observacoes: string;
+    extraOptionChecked: boolean;
+    reopenSchedule: { mode: "days" | "date"; days?: number; date?: string } | null;
+  }) => Promise<void> | void;
 }) {
   const [motivo, setMotivo] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [extraOptionChecked, setExtraOptionChecked] = useState(false);
+  const [scheduleReopen, setScheduleReopen] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState<"days" | "date">("days");
+  const [scheduleDays, setScheduleDays] = useState("7");
+  const [scheduleDate, setScheduleDate] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,6 +49,10 @@ export function ConfirmDialog({
       setMotivo("");
       setObservacoes("");
       setExtraOptionChecked(false);
+      setScheduleReopen(false);
+      setScheduleMode("days");
+      setScheduleDays("7");
+      setScheduleDate("");
       setError("");
       setSubmitting(false);
     }
@@ -49,11 +64,31 @@ export function ConfirmDialog({
       return;
     }
 
+    if (scheduleReopen) {
+      if (scheduleMode === "days" && (!scheduleDays.trim() || Number(scheduleDays) <= 0)) {
+        setError("Informe em quantos dias o processo deve ser reaberto.");
+        return;
+      }
+      if (scheduleMode === "date" && !scheduleDate) {
+        setError("Informe a data da reabertura programada.");
+        return;
+      }
+    }
+
     setSubmitting(true);
     setError("");
 
     try {
-      await onConfirm({ motivo: motivo.trim(), observacoes: observacoes.trim(), extraOptionChecked });
+      await onConfirm({
+        motivo: motivo.trim(),
+        observacoes: observacoes.trim(),
+        extraOptionChecked,
+        reopenSchedule: scheduleReopen
+          ? scheduleMode === "days"
+            ? { mode: "days", days: Number(scheduleDays) }
+            : { mode: "date", date: scheduleDate }
+          : null,
+      });
       onOpenChange(false);
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao executar a acao."));
@@ -92,6 +127,42 @@ export function ConfirmDialog({
                 {extraOption.description ? <span className="text-slate-500">{extraOption.description}</span> : null}
               </span>
             </label>
+          ) : null}
+
+          {reopenScheduleOption ? (
+            <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+              <label className="flex items-center gap-3">
+                <input checked={!scheduleReopen} className="h-4 w-4 accent-slate-950" onChange={() => setScheduleReopen(false)} type="radio" />
+                <span>Somente concluir</span>
+              </label>
+              <label className="flex items-center gap-3">
+                <input checked={scheduleReopen} className="h-4 w-4 accent-slate-950" onChange={() => setScheduleReopen(true)} type="radio" />
+                <span>Concluir e agendar reabertura</span>
+              </label>
+              {scheduleReopen ? (
+                <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Reabertura programada</span>
+                  <label className="flex items-center gap-3">
+                    <input checked={scheduleMode === "date"} className="h-4 w-4 accent-slate-950" onChange={() => setScheduleMode("date")} type="radio" />
+                    <span>Data certa</span>
+                  </label>
+                  {scheduleMode === "date" ? <input className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100" onChange={(event) => setScheduleDate(event.target.value)} type="date" value={scheduleDate} /> : null}
+                  <label className="flex items-center gap-3">
+                    <input checked={scheduleMode === "days"} className="h-4 w-4 accent-slate-950" onChange={() => setScheduleMode("days")} type="radio" />
+                    <span>Prazo em dias</span>
+                  </label>
+                  {scheduleMode === "days" ? (
+                    <input
+                      className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                      min="1"
+                      onChange={(event) => setScheduleDays(event.target.value)}
+                      type="number"
+                      value={scheduleDays}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}

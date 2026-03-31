@@ -105,6 +105,13 @@ export interface UpdatePreDemandaStatusInput {
   motivo?: string | null;
   observacoes?: string | null;
   deletePendingTasks?: boolean;
+  reopenSchedule?:
+    | {
+        mode: "days" | "date";
+        days?: number;
+        date?: string;
+      }
+    | null;
   changedByUserId: number;
 }
 
@@ -537,6 +544,7 @@ export interface PreDemandaRepository {
   listStatusAudit(preId: string): Promise<PreDemandaStatusAuditRecord[]>;
   listTimeline(preId: string): Promise<TimelineEvent[]>;
   listRecentTimeline(limit?: number): Promise<TimelineEvent[]>;
+  processScheduledReopens(now?: Date): Promise<number>;
   getDashboardSummary(): Promise<PreDemandaDashboardSummary>;
   getAudienciasPauta(): Promise<PreDemandaDashboardSummary["upcomingAudiencias"]>;
   invalidateDashboardCaches(): void;

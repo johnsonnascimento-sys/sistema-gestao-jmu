@@ -354,7 +354,16 @@ export function updatePreDemandaAnotacoes(preId: string, anotacoes: string | nul
   });
 }
 
-export function updatePreDemandaStatus(preId: string, payload: { status: PreDemandaStatus; motivo?: string; observacoes?: string; delete_pending_tasks?: boolean }) {
+export function updatePreDemandaStatus(
+  preId: string,
+  payload: {
+    status: PreDemandaStatus;
+    motivo?: string;
+    observacoes?: string;
+    delete_pending_tasks?: boolean;
+    reopen_schedule?: { mode: "days" | "date"; days?: number; date?: string } | null;
+  },
+) {
   return request<{ preId: string; status: PreDemandaStatus; allowedNextStatuses: PreDemandaStatus[] }>(`/api/pre-demandas/${preId}/status`, {
     method: "PATCH",
     body: JSON.stringify(payload),

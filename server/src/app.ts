@@ -77,6 +77,7 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     partialDependencies?.preDemandaAudienciaRepository ??
     new PostgresPreDemandaAudienciaRepository(pool);
   const operationsStore = partialDependencies?.operationsStore ?? new OperationsStore();
+  let scheduledReopenInterval: NodeJS.Timeout | null = null;
 
   const app = fastify({ logger: true });
 
@@ -176,6 +177,23 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
     });
   });
 
+  const runScheduledReopens = async () => {
+    try {
+      const processed = await preDemandaRepository.processScheduledReopens();
+      if (processed > 0) {
+        app.log.info({ processed }, "pre-demanda.scheduled-reopen.processed");
+      }
+    } catch (error) {
+      app.log.error({ err: error }, "pre-demanda.scheduled-reopen.failed");
+    }
+  };
+
+  void runScheduledReopens();
+  scheduledReopenInterval = setInterval(() => {
+    void runScheduledReopens();
+  }, 60_000);
+  scheduledReopenInterval.unref?.();
+
   const clientRoot = join(process.cwd(), "dist", "client");
 
   if (existsSync(clientRoot)) {
@@ -260,6 +278,10 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   });
 
   app.addHook("onClose", async () => {
+    if (scheduledReopenInterval) {
+      clearInterval(scheduledReopenInterval);
+      scheduledReopenInterval = null;
+    }
     if (!partialDependencies?.pool) {
       await pool.end();
     }

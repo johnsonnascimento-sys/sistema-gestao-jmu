@@ -468,7 +468,8 @@ export function PreDemandasPage() {
               }
             : undefined
         }
-        onConfirm={async ({ motivo, observacoes, extraOptionChecked }) => {
+        reopenScheduleOption={quickAction?.nextStatus === "encerrada"}
+        onConfirm={async ({ motivo, observacoes, extraOptionChecked, reopenSchedule }) => {
           if (!quickAction) {
             return;
           }
@@ -481,6 +482,7 @@ export function PreDemandasPage() {
               motivo,
               observacoes,
               delete_pending_tasks: quickAction.nextStatus === "encerrada" ? extraOptionChecked : undefined,
+              reopen_schedule: quickAction.nextStatus === "encerrada" ? reopenSchedule : undefined,
             });
             setMessage(`Processo ${quickAction.item.principalNumero} atualizado para ${getPreDemandaStatusLabel(quickAction.nextStatus)}.`);
             await load();

@@ -611,6 +611,60 @@ function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | u
   };
 }
 
+function formatDatePtBr(value: string) {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function getBrazilToday() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function addDaysToDate(value: string, days: number) {
+  const parts = value.split("-").map(Number);
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day) || year === undefined || month === undefined || day === undefined) {
+    throw new AppError(400, "PRE_DEMANDA_REOPEN_SCHEDULE_INVALID_DATE", "Data invalida para agendamento de reabertura.");
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildScheduledReopenMetadata(
+  previousMetadata: unknown,
+  schedule: { mode: "days" | "date"; days?: number; date?: string } | null | undefined,
+  fallbackStatus: PreDemandaStatus,
+) {
+  const metadata =
+    previousMetadata && typeof previousMetadata === "object" && !Array.isArray(previousMetadata)
+      ? { ...(previousMetadata as Record<string, unknown>) }
+      : {};
+
+  delete metadata.reabertura_programada_data;
+  delete metadata.reabertura_programada_status;
+  delete metadata.reabertura_programada_modo;
+  delete metadata.reabertura_programada_dias;
+
+  if (!schedule) {
+    return metadata;
+  }
+
+  const scheduledDate = schedule.mode === "date" ? schedule.date! : addDaysToDate(getBrazilToday(), schedule.days!);
+  metadata.reabertura_programada_data = scheduledDate;
+  metadata.reabertura_programada_status = fallbackStatus;
+  metadata.reabertura_programada_modo = schedule.mode;
+  metadata.reabertura_programada_dias = schedule.mode === "days" ? schedule.days! : null;
+  return metadata;
+}
+
 function buildNormalizedLikeExpression(column: string, index: number) {
   return `translate(lower(coalesce(${column}, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
 }
@@ -3311,7 +3365,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return inTransaction(this.pool, async (client) => {
       const currentResult = await client.query(
         `
-          select pd.id, pd.status
+          select pd.id, pd.status, pd.metadata
           from adminlog.pre_demanda pd
           where pd.pre_id = $1
           limit 1
@@ -3336,6 +3390,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       );
       const hasAssociation = (associationResult.rowCount ?? 0) > 0;
       ensureStatusTransition(currentStatus, input.status, hasAssociation, input.motivo);
+      const scheduledReopenDate =
+        input.reopenSchedule?.mode === "date"
+          ? input.reopenSchedule.date!
+          : input.reopenSchedule
+            ? addDaysToDate(getBrazilToday(), input.reopenSchedule.days!)
+            : null;
 
       if (input.status === "encerrada") {
         const audienciaDesignadaResult = await client.query(
@@ -3365,6 +3425,12 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           );
         }
       }
+
+      const nextMetadata = buildScheduledReopenMetadata(
+        currentResult.rows[0].metadata,
+        input.status === "encerrada" ? input.reopenSchedule : null,
+        currentStatus === "encerrada" ? "em_andamento" : currentStatus,
+      );
 
       if (input.status === "encerrada" && input.deletePendingTasks) {
         const pendingTasks = await client.query(
@@ -3409,7 +3475,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         }
       }
 
-      await client.query("update adminlog.pre_demanda set status = $2 where pre_id = $1", [input.preId, input.status]);
+      await client.query("update adminlog.pre_demanda set status = $2, metadata = $3::jsonb where pre_id = $1", [
+        input.preId,
+        input.status,
+        JSON.stringify(nextMetadata),
+      ]);
       await client.query(
         `
           insert into adminlog.pre_demanda_status_audit (pre_id, status_anterior, status_novo, motivo, observacoes, changed_by_user_id)
@@ -3433,6 +3503,19 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         createdByUserId: input.changedByUserId,
       });
 
+      if (input.status === "encerrada" && scheduledReopenDate) {
+        await this.insertAndamento(client, {
+          preDemandaId: Number(currentResult.rows[0].id),
+          preId: input.preId,
+          descricao:
+            input.reopenSchedule?.mode === "days"
+              ? `Reabertura programada para ${formatDatePtBr(scheduledReopenDate)} (${input.reopenSchedule.days} dia(s)).`
+              : `Reabertura programada para ${formatDatePtBr(scheduledReopenDate)}.`,
+          tipo: "sistema",
+          createdByUserId: input.changedByUserId,
+        });
+      }
+
       this.invalidateDashboardCaches();
       return {
         preId: input.preId,
@@ -3442,6 +3525,74 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           hasAssociation,
         }),
       };
+    });
+  }
+
+  async processScheduledReopens(now = new Date()): Promise<number> {
+    const today = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(now);
+
+    return inTransaction(this.pool, async (client) => {
+      const dueResult = await client.query(
+        `
+          select pd.id, pd.pre_id, pd.metadata
+          from adminlog.pre_demanda pd
+          where pd.status = 'encerrada'
+            and nullif(pd.metadata ->> 'reabertura_programada_data', '') is not null
+            and (pd.metadata ->> 'reabertura_programada_data')::date <= $1::date
+          order by (pd.metadata ->> 'reabertura_programada_data')::date asc, pd.updated_at asc, pd.id asc
+          for update skip locked
+        `,
+        [today],
+      );
+
+      let processed = 0;
+
+      for (const row of dueResult.rows) {
+        const metadata = row.metadata && typeof row.metadata === "object" ? { ...(row.metadata as Record<string, unknown>) } : {};
+        const targetStatus =
+          metadata.reabertura_programada_status === "aguardando_sei" || metadata.reabertura_programada_status === "em_andamento"
+            ? (metadata.reabertura_programada_status as PreDemandaStatus)
+            : "em_andamento";
+        const scheduledDate =
+          typeof metadata.reabertura_programada_data === "string" ? String(metadata.reabertura_programada_data) : today;
+
+        delete metadata.reabertura_programada_data;
+        delete metadata.reabertura_programada_status;
+        delete metadata.reabertura_programada_modo;
+        delete metadata.reabertura_programada_dias;
+
+        await client.query("update adminlog.pre_demanda set status = $2, metadata = $3::jsonb where pre_id = $1", [
+          String(row.pre_id),
+          targetStatus,
+          JSON.stringify(metadata),
+        ]);
+        await client.query(
+          `
+            insert into adminlog.pre_demanda_status_audit (pre_id, status_anterior, status_novo, motivo, observacoes, changed_by_user_id)
+            values ($1, $2, $3, $4, $5, null)
+          `,
+          [String(row.pre_id), "encerrada", targetStatus, "Reabertura programada executada automaticamente.", `Agendamento previsto para ${formatDatePtBr(scheduledDate)}.`],
+        );
+        await this.insertAndamento(client, {
+          preDemandaId: Number(row.id),
+          preId: String(row.pre_id),
+          descricao: `Processo reaberto automaticamente conforme agendamento para ${formatDatePtBr(scheduledDate)}.`,
+          tipo: "status",
+          createdByUserId: null,
+        });
+        processed += 1;
+      }
+
+      if (processed > 0) {
+        this.invalidateDashboardCaches();
+      }
+
+      return processed;
     });
   }
 

@@ -3126,7 +3126,8 @@ export function PreDemandaDetailPage() {
               }
             : undefined
         }
-        onConfirm={async ({ motivo, observacoes, extraOptionChecked }) => {
+        reopenScheduleOption={statusAction?.nextStatus === "encerrada"}
+        onConfirm={async ({ motivo, observacoes, extraOptionChecked, reopenSchedule }) => {
           if (!statusAction) return;
           try {
             setError("");
@@ -3136,6 +3137,7 @@ export function PreDemandaDetailPage() {
               motivo,
               observacoes,
               delete_pending_tasks: statusAction.nextStatus === "encerrada" ? extraOptionChecked : undefined,
+              reopen_schedule: statusAction.nextStatus === "encerrada" ? reopenSchedule : undefined,
             });
             await loadRecordData();
             void loadTimelineData();

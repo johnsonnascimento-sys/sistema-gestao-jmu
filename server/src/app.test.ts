@@ -1867,6 +1867,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return (await this.getDashboardSummary()).upcomingAudiencias;
   }
 
+  async processScheduledReopens(): Promise<number> {
+    return 0;
+  }
+
   invalidateDashboardCaches(): void {}
 
   async listDashboardTasks(params: {

@@ -105,6 +105,30 @@ const statusSchema = z.object({
   motivo: z.string().trim().max(2000).optional().nullable(),
   observacoes: z.string().trim().max(2000).optional().nullable(),
   delete_pending_tasks: z.boolean().optional(),
+  reopen_schedule: z
+    .object({
+      mode: z.enum(["days", "date"]),
+      days: z.coerce.number().int().positive().max(3650).optional(),
+      date: z.string().date().optional(),
+    })
+    .superRefine((value, ctx) => {
+      if (value.mode === "days" && !value.days) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["days"], message: "Informe o prazo em dias." });
+      }
+      if (value.mode === "date" && !value.date) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["date"], message: "Informe a data da reabertura." });
+      }
+    })
+    .optional()
+    .nullable(),
+}).superRefine((value, ctx) => {
+  if (value.status !== "encerrada" && value.reopen_schedule) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["reopen_schedule"],
+      message: "O agendamento de reabertura so pode ser usado ao concluir o processo.",
+    });
+  }
 });
 
 const patchCaseSchema = z
