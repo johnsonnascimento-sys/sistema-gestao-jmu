@@ -1781,6 +1781,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             id: audiencia.id,
             preId: item.preId,
             preNumero: item.principalNumero,
+            numeroJudicial: item.numeroJudicial,
             assunto: item.assunto,
             magistradoNome: item.interessados.find((interessado) =>
               [

@@ -4064,6 +4064,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             audiencia.id,
             pd.pre_id,
             coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
+            pd.numero_judicial,
             pd.assunto,
             magistrado.nome as magistrado_nome,
             audiencia.data_hora_inicio,
@@ -4104,6 +4105,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             concat('legacy-', pd.id) as id,
             pd.pre_id,
             coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
+            pd.numero_judicial,
             pd.assunto,
             magistrado.nome as magistrado_nome,
             case
@@ -4213,6 +4215,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         id: String(row.id),
         preId: String(row.pre_id),
         preNumero: String(row.principal_numero),
+        numeroJudicial: row.numero_judicial ? String(row.numero_judicial) : null,
         assunto: String(row.assunto),
         magistradoNome: row.magistrado_nome ? String(row.magistrado_nome) : null,
         dataHoraInicio: new Date(row.data_hora_inicio).toISOString(),

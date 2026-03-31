@@ -453,6 +453,7 @@ export interface PreDemandaDashboardSummary {
     id: string;
     preId: string;
     preNumero: string;
+    numeroJudicial: string | null;
     assunto: string;
     magistradoNome: string | null;
     dataHoraInicio: string;

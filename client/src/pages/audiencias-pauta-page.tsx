@@ -87,7 +87,7 @@ export function AudienciasPautaPage() {
     return [...audiencias]
       .filter((item) => {
         const startDate = item.dataHoraInicio.slice(0, 10);
-        const searchableProcesso = normalizeText(`${item.preNumero} ${item.preId}`);
+        const searchableProcesso = normalizeText(`${item.preNumero} ${item.preId} ${item.numeroJudicial ?? ""}`);
         const searchableMagistrado = normalizeText(item.magistradoNome ?? "");
 
         if (appliedFilters.dataInicio && startDate < appliedFilters.dataInicio) {
