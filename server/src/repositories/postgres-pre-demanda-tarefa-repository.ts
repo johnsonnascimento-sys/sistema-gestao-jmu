@@ -36,6 +36,79 @@ const RECORRENCIA_MESES: Record<Exclude<TarefaRecorrenciaTipo, "diaria" | "seman
 export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepository {
   constructor(private readonly pool: DatabasePool) {}
 
+  private async syncProcessUrgenciaFromTasks(client: Queryable, params: { preDemandaId: number; preId: string; changedByUserId: number }) {
+    const metadataResult = await client.query(
+      `
+        select metadata
+        from adminlog.pre_demanda
+        where id = $1
+        limit 1
+        for update
+      `,
+      [params.preDemandaId],
+    );
+
+    const currentMetadata =
+      metadataResult.rows[0]?.metadata && typeof metadataResult.rows[0].metadata === "object"
+        ? (metadataResult.rows[0].metadata as Record<string, unknown>)
+        : {};
+
+    const urgentTasksResult = await client.query(
+      `
+        select exists(
+          select 1
+          from adminlog.tarefas_pendentes
+          where pre_demanda_id = $1
+            and concluida = false
+            and coalesce(urgente, false) = true
+        ) as has_urgent_task
+      `,
+      [params.preDemandaId],
+    );
+
+    const previousUrgente = currentMetadata.urgente === true;
+    const manualUrgente =
+      typeof currentMetadata.urgente_manual === "boolean"
+        ? currentMetadata.urgente_manual
+        : typeof currentMetadata.urgente === "boolean"
+          ? currentMetadata.urgente
+          : false;
+    const hasUrgentTask = Boolean(urgentTasksResult.rows[0]?.has_urgent_task);
+    const nextUrgente = manualUrgente || hasUrgentTask;
+
+    if (previousUrgente === nextUrgente && typeof currentMetadata.urgente_manual === "boolean") {
+      return;
+    }
+
+    await client.query(
+      `
+        update adminlog.pre_demanda
+        set metadata = $2::jsonb
+        where id = $1
+      `,
+      [
+        params.preDemandaId,
+        JSON.stringify({
+          ...currentMetadata,
+          urgente: nextUrgente,
+          urgente_manual: manualUrgente,
+        }),
+      ],
+    );
+
+    if (previousUrgente !== nextUrgente) {
+      await insertAndamento(client, {
+        preDemandaId: params.preDemandaId,
+        preId: params.preId,
+        descricao: nextUrgente
+          ? "Processo marcado como urgente por tarefa urgente."
+          : "Marcacao de urgente removida automaticamente por ausencia de tarefas urgentes.",
+        tipo: "sistema",
+        createdByUserId: params.changedByUserId,
+      });
+    }
+  }
+
   private formatLocalDate(date: Date) {
     return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
@@ -253,6 +326,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             ordem,
             descricao,
             tipo,
+            urgente,
             assunto_id,
             procedimento_id,
             prazo_conclusao,
@@ -265,7 +339,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             gerada_automaticamente,
             created_by_user_id
           )
-          values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8::time, $9::time, $10, $11::jsonb, $12::int, $13::uuid, $14, $15)
+          values ($1, $2, $3, $4, $5, $6::uuid, $7::uuid, $8::date, $9::time, $10::time, $11, $12::jsonb, $13::int, $14::uuid, $15, $16)
           returning id
         `,
         [
@@ -273,6 +347,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           nextOrdem,
           input.descricao,
           input.tipo,
+          input.urgente ?? false,
           input.assuntoId ?? null,
           input.procedimentoId ?? null,
           input.prazoConclusao,
@@ -286,6 +361,12 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           input.changedByUserId,
         ],
       );
+
+      await this.syncProcessUrgenciaFromTasks(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        changedByUserId: input.changedByUserId,
+      });
 
       const tarefas = await loadTarefas(client, demanda.id, demanda.preId);
       const tarefa = tarefas.find((item) => item.id === String(inserted.rows[0].id));
@@ -324,7 +405,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
       await client.query(
         `
           update adminlog.tarefas_pendentes
-          set descricao = $3, tipo = $4, prazo_conclusao = $5::date, horario_inicio = $6::time, horario_fim = $7::time, recorrencia_tipo = $8, recorrencia_dias_semana = $9::jsonb, recorrencia_dia_mes = $10::int
+          set descricao = $3, tipo = $4, urgente = $5, prazo_conclusao = $6::date, horario_inicio = $7::time, horario_fim = $8::time, recorrencia_tipo = $9, recorrencia_dias_semana = $10::jsonb, recorrencia_dia_mes = $11::int
           where id = $1::uuid and pre_demanda_id = $2
         `,
         [
@@ -332,6 +413,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           demanda.id,
           input.descricao,
           input.tipo,
+          input.urgente ?? false,
           input.prazoConclusao,
           input.horarioInicio ?? null,
           input.horarioFim ?? null,
@@ -340,6 +422,12 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           input.recorrenciaDiaMes ?? null,
         ],
       );
+
+      await this.syncProcessUrgenciaFromTasks(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        changedByUserId: input.changedByUserId,
+      });
 
       await insertAndamento(client, {
         preDemandaId: demanda.id,
@@ -429,6 +517,12 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         [input.tarefaId, demanda.id],
       );
 
+      await this.syncProcessUrgenciaFromTasks(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        changedByUserId: input.changedByUserId,
+      });
+
       await insertAndamento(client, {
         preDemandaId: demanda.id,
         preId: demanda.preId,
@@ -448,7 +542,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         `
           select id, descricao, concluida, tipo, ordem, assunto_id, procedimento_id
                , setor_destino_id
-               , prazo_conclusao, horario_inicio, horario_fim, recorrencia_tipo, recorrencia_dias_semana, recorrencia_dia_mes, gerada_automaticamente
+               , prazo_conclusao, horario_inicio, horario_fim, recorrencia_tipo, recorrencia_dias_semana, recorrencia_dia_mes, gerada_automaticamente, urgente
           from adminlog.tarefas_pendentes
           where id = $1::uuid and pre_demanda_id = $2
           limit 1
@@ -501,6 +595,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
               ordem,
               descricao,
               tipo,
+              urgente,
               assunto_id,
               procedimento_id,
               prazo_conclusao,
@@ -513,13 +608,14 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
               gerada_automaticamente,
               created_by_user_id
             )
-            values ($1, $2, $3, $4, $5::uuid, $6::uuid, $7::date, $8::time, $9::time, $10, $11::jsonb, $12::int, $13::uuid, $14, $15)
+            values ($1, $2, $3, $4, $5, $6::uuid, $7::uuid, $8::date, $9::time, $10::time, $11, $12::jsonb, $13::int, $14::uuid, $15, $16)
           `,
           [
             demanda.id,
             nextOrdem,
             String(current.rows[0].descricao),
             String(current.rows[0].tipo),
+            Boolean(current.rows[0].urgente),
             current.rows[0].assunto_id ?? null,
             current.rows[0].procedimento_id ?? null,
             proximaDataRecorrente,
@@ -542,6 +638,12 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           createdByUserId: input.changedByUserId,
         });
       }
+
+      await this.syncProcessUrgenciaFromTasks(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        changedByUserId: input.changedByUserId,
+      });
 
       if (current.rows[0].setor_destino_id) {
         await activateSetorFromTarefa(client, {

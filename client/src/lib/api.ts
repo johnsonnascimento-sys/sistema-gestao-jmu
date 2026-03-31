@@ -537,6 +537,7 @@ export function createPreDemandaTarefa(
   payload: {
     descricao: string;
     tipo: TarefaPendenteTipo;
+    urgente?: boolean | null;
     prazo_conclusao: string;
     horario_inicio?: string | null;
     horario_fim?: string | null;
@@ -559,6 +560,7 @@ export function updatePreDemandaTarefa(
   payload: {
     descricao: string;
     tipo: TarefaPendenteTipo;
+    urgente?: boolean | null;
     prazo_conclusao: string;
     horario_inicio?: string | null;
     horario_fim?: string | null;

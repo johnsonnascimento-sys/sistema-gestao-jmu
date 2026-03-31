@@ -229,9 +229,9 @@ export function PreDemandaDetailPage() {
   const [andamentoForm, setAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [editAndamentoForm, setEditAndamentoForm] = useState({ descricao: "", data_hora: "" });
   const [deleteAndamentoConfirm, setDeleteAndamentoConfirm] = useState("");
-  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
+  const [taskForm, setTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", urgente: false, prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
+  const [editTaskForm, setEditTaskForm] = useState({ descricao: "", tipo: "livre" as "fixa" | "livre", urgente: false, prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "" as "" | TarefaRecorrenciaTipo, recorrencia_dias_semana: [] as string[], recorrencia_dia_mes: "" });
   const [deleteTaskConfirm, setDeleteTaskConfirm] = useState("");
   const [taskPrazoChange, setTaskPrazoChange] = useState<TaskPrazoChangeState | null>(null);
   const [taskSuggestions, setTaskSuggestions] = useState<TaskScheduleSuggestion[]>([]);
@@ -711,13 +711,14 @@ export function PreDemandaDetailPage() {
 
   useEffect(() => {
     if (!editingTask) {
-      setEditTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "" });
+      setEditTaskForm({ descricao: "", tipo: "livre", urgente: false, prazo_conclusao: "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "" });
       return;
     }
 
     setEditTaskForm({
       descricao: editingTask.descricao,
       tipo: editingTask.tipo,
+      urgente: editingTask.urgente ?? false,
       prazo_conclusao: editingTask.prazoConclusao ?? "",
       horario_inicio: editingTask.horarioInicio ?? "",
       horario_fim: editingTask.horarioFim ?? "",
@@ -880,6 +881,7 @@ export function PreDemandaDetailPage() {
     const payload = {
       descricao: resolvedDescricao,
       tipo: taskForm.tipo,
+      urgente: taskForm.urgente,
       prazo_conclusao: taskForm.prazo_conclusao,
       horario_inicio: taskForm.horario_inicio || null,
       horario_fim: taskForm.horario_fim || null,
@@ -902,7 +904,7 @@ export function PreDemandaDetailPage() {
       await loadRecordData();
       void loadTimelineData();
       setTaskPrazoChange(null);
-      setTaskForm({ descricao: "", tipo: "livre", prazo_conclusao: record?.prazoProcesso ?? "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
+      setTaskForm({ descricao: "", tipo: "livre", urgente: false, prazo_conclusao: record?.prazoProcesso ?? "", horario_inicio: "", horario_fim: "", recorrencia_tipo: "", recorrencia_dias_semana: [], recorrencia_dia_mes: "", setor_destino_id: "", assinatura_interessado_id: "" });
       setMessage("Tarefa criada.");
     } catch (nextError) {
       const prazoChange = getTaskPrazoChangeState(nextError, payload, "create");
@@ -924,6 +926,7 @@ export function PreDemandaDetailPage() {
     const payload = {
       descricao: editTaskForm.descricao.trim(),
       tipo: editTaskForm.tipo,
+      urgente: editTaskForm.urgente,
       prazo_conclusao: editTaskForm.prazo_conclusao,
       horario_inicio: editTaskForm.horario_inicio || null,
       horario_fim: editTaskForm.horario_fim || null,
@@ -1492,6 +1495,11 @@ export function PreDemandaDetailPage() {
                               />
                               <div className="min-w-0 flex-1">
                                 <span className="block font-semibold text-slate-950">{task.descricao}</span>
+                                {task.urgente ? (
+                                  <span className="mt-1 inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+                                    Tarefa urgente
+                                  </span>
+                                ) : null}
                                 <span className="text-sm text-slate-500">{task.tipo}</span>
                                 {task.prazoConclusao ? <span className="block text-xs text-slate-500">Prazo de conclusao: {formatDateOnlyPtBr(task.prazoConclusao)}</span> : null}
                                 {(() => {
@@ -1546,6 +1554,11 @@ export function PreDemandaDetailPage() {
                     completedTasks.map((task) => (
                       <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3" key={task.id}>
                         <p className="font-semibold text-emerald-950">{task.descricao}</p>
+                        {task.urgente ? (
+                          <p className="mt-1 inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+                            Tarefa urgente
+                          </p>
+                        ) : null}
                         <p className="text-sm text-emerald-800">Concluida em {task.concluidaEm ? new Date(task.concluidaEm).toLocaleString("pt-BR") : "-"}</p>
                         <p className="mt-1 text-xs text-emerald-900/80">{task.tipo}{task.concluidaPor ? ` • ${task.concluidaPor.name}` : ""}</p>
                         {formatRecorrenciaLabel(task) ? <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-900">{formatRecorrenciaLabel(task)}</p> : null}

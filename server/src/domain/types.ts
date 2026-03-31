@@ -197,6 +197,7 @@ export interface PreDemandaMetadata {
   frequenciaDiaMes: number | null;
   pagamentoEnvolvido: boolean | null;
   urgente: boolean | null;
+  urgenteManual?: boolean | null;
   audienciaData: string | null;
   audienciaStatus: string | null;
   audienciaHorarioInicio?: string | null;
@@ -299,6 +300,7 @@ export interface TarefaPendente {
   ordem: number;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  urgente?: boolean;
   assuntoId: string | null;
   procedimentoId: string | null;
   prazoConclusao?: string;
@@ -472,6 +474,7 @@ export interface DashboardTaskItem {
   assunto: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  urgente?: boolean;
   prazoConclusao: string;
   horarioInicio: string | null;
   horarioFim: string | null;

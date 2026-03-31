@@ -221,6 +221,7 @@ export interface CreateTarefaInput {
   preId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  urgente?: boolean | null;
   prazoConclusao: string;
   horarioInicio?: string | null;
   horarioFim?: string | null;
@@ -241,6 +242,7 @@ export interface UpdateTarefaInput {
   tarefaId: string;
   descricao: string;
   tipo: TarefaPendenteTipo;
+  urgente?: boolean | null;
   prazoConclusao: string;
   horarioInicio?: string | null;
   horarioFim?: string | null;

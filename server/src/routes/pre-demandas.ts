@@ -184,6 +184,7 @@ const andamentoDeleteSchema = z.object({
 const tarefaSchema = z.object({
   descricao: z.string().trim().min(3).max(4000),
   tipo: z.enum(["fixa", "livre"]),
+  urgente: z.boolean().optional().nullable(),
   prazo_conclusao: z.string().date(),
   horario_inicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
   horario_fim: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
@@ -737,6 +738,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       preId: params.preId,
       descricao: payload.descricao,
       tipo: payload.tipo,
+      urgente: payload.urgente ?? false,
       prazoConclusao: payload.prazo_conclusao,
       horarioInicio: payload.horario_inicio ?? null,
       horarioFim: payload.horario_fim ?? null,
@@ -746,6 +748,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       setorDestinoId: payload.setor_destino_id ?? null,
       changedByUserId: request.user!.id,
     });
+
+    preDemandaRepository.invalidateDashboardCaches();
 
     emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "create" });
 
@@ -764,6 +768,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       tarefaId: params.tarefaId,
       descricao: payload.descricao,
       tipo: payload.tipo,
+      urgente: payload.urgente ?? false,
       prazoConclusao: payload.prazo_conclusao,
       horarioInicio: payload.horario_inicio ?? null,
       horarioFim: payload.horario_fim ?? null,
@@ -772,6 +777,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       recorrenciaDiaMes: payload.recorrencia_dia_mes ?? null,
       changedByUserId: request.user!.id,
     });
+
+    preDemandaRepository.invalidateDashboardCaches();
 
     return reply.send({
       ok: true,
@@ -803,6 +810,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       tarefaId: params.tarefaId,
       changedByUserId: request.user!.id,
     });
+
+    preDemandaRepository.invalidateDashboardCaches();
 
     return reply.send({
       ok: true,
@@ -923,6 +932,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       tarefaId: params.tarefaId,
       changedByUserId: request.user!.id,
     });
+
+    preDemandaRepository.invalidateDashboardCaches();
 
     emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "update" });
 

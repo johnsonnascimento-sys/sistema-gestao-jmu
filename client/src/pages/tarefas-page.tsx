@@ -82,6 +82,11 @@ function TaskCard({ task }: { task: DashboardTaskItem }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {task.urgente ? (
+            <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white">
+              Urgente
+            </span>
+          ) : null}
           <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${getTaskDeadlineTone(task.prazoConclusao)}`}>
             Prazo {formatDateOnlyPtBr(task.prazoConclusao)}
           </span>
@@ -142,6 +147,11 @@ function ProcessTaskGroupCard({ preId, preNumero, assunto, hasAudiencia, tasks }
               <div key={task.id} className="rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-sm font-semibold text-slate-900">{task.descricao}</p>
+                  {task.urgente ? (
+                    <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white">
+                      Urgente
+                    </span>
+                  ) : null}
                   <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${getTaskDeadlineTone(task.prazoConclusao)}`}>
                     Prazo {formatDateOnlyPtBr(task.prazoConclusao)}
                   </span>

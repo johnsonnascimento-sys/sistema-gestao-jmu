@@ -211,6 +211,7 @@ export function AndamentoDeleteDialog({
 type EditTaskForm = {
   descricao: string;
   tipo: "fixa" | "livre";
+  urgente: boolean;
   prazo_conclusao: string;
   horario_inicio: string;
   horario_fim: string;
@@ -261,6 +262,18 @@ export function TarefaEditDialog({
               <option value="fixa">Fixa</option>
             </select>
           </FormField>
+          <label className="flex items-center justify-between rounded-[20px] border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-slate-700">
+            <div className="pr-4">
+              <span className="block font-semibold text-slate-950">Marcar tarefa como urgente</span>
+              <span className="text-xs text-slate-600">Com a tarefa urgente, o processo tambem fica urgente.</span>
+            </div>
+            <input
+              checked={form.urgente}
+              className="h-5 w-5 accent-rose-600"
+              onChange={(e) => onFormChange({ ...form, urgente: e.target.checked })}
+              type="checkbox"
+            />
+          </label>
           <FormField label="Prazo de conclusao">
             <Input
               max={prazoMax}
@@ -452,6 +465,7 @@ export function TarefaPrazoChangeDialog({
 type TaskCreateForm = {
   descricao: string;
   tipo: "fixa" | "livre";
+  urgente: boolean;
   prazo_conclusao: string;
   horario_inicio: string;
   horario_fim: string;
@@ -562,6 +576,18 @@ export function TarefasDialog({
                 />
               </FormField>
             </div>
+            <label className="flex items-center justify-between rounded-[20px] border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-slate-700">
+              <div className="pr-4">
+                <span className="block font-semibold text-slate-950">Marcar tarefa como urgente</span>
+                <span className="text-xs text-slate-600">Com a tarefa urgente, o processo tambem fica urgente.</span>
+              </div>
+              <input
+                checked={taskForm.urgente}
+                className="h-5 w-5 accent-rose-600"
+                onChange={(event) => onTaskFormChange({ ...taskForm, urgente: event.target.checked })}
+                type="checkbox"
+              />
+            </label>
             <div className="grid gap-3 md:grid-cols-2">
               <FormField hint="Opcional." label="Horario de inicio">
                 <Input
@@ -912,6 +938,11 @@ export function TarefasDialog({
                           />
                           <div className="min-w-0 flex-1">
                             <span className="block font-semibold text-slate-950">{task.descricao}</span>
+                            {task.urgente ? (
+                              <span className="mt-1 inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+                                Tarefa urgente
+                              </span>
+                            ) : null}
                             <span className="text-sm text-slate-500">{task.tipo}</span>
                             {task.prazoConclusao ? (
                               <span className="block text-xs text-slate-500">
@@ -980,6 +1011,11 @@ export function TarefasDialog({
                 completedTasks.map((task) => (
                   <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3" key={task.id}>
                     <p className="font-semibold text-emerald-950">{task.descricao}</p>
+                    {task.urgente ? (
+                      <p className="mt-1 inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+                        Tarefa urgente
+                      </p>
+                    ) : null}
                     <p className="text-sm text-emerald-800">
                       Concluida em {task.concluidaEm ? new Date(task.concluidaEm).toLocaleString("pt-BR") : "-"}
                     </p>

@@ -294,6 +294,7 @@ function mapMetadata(raw: unknown): PreDemandaMetadata {
     frequenciaDiaMes: typeof value.frequencia_dia_mes === "number" ? value.frequencia_dia_mes : null,
     pagamentoEnvolvido: typeof value.pagamento_envolvido === "boolean" ? value.pagamento_envolvido : null,
     urgente: typeof value.urgente === "boolean" ? value.urgente : null,
+    urgenteManual: typeof value.urgente_manual === "boolean" ? value.urgente_manual : null,
     audienciaData: typeof value.audiencia_data === "string" ? value.audiencia_data : null,
     audienciaStatus: typeof value.audiencia_status === "string" ? value.audiencia_status : null,
     audienciaHorarioInicio: typeof value.audiencia_horario_inicio === "string" ? value.audiencia_horario_inicio : null,
@@ -506,6 +507,7 @@ function mapTarefa(row: QueryResultRow): TarefaPendente {
     ordem: Number(row.ordem),
     descricao: String(row.descricao),
     tipo: row.tipo as TarefaPendente["tipo"],
+    urgente: Boolean(row.urgente),
     assuntoId: row.assunto_id ? String(row.assunto_id) : null,
     procedimentoId: row.procedimento_id ? String(row.procedimento_id) : null,
     prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
@@ -602,6 +604,7 @@ function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | u
     frequencia_dia_mes: metadata.frequenciaDiaMes ?? null,
     pagamento_envolvido: metadata.pagamentoEnvolvido ?? null,
     urgente: metadata.urgente ?? null,
+    urgente_manual: metadata.urgenteManual ?? null,
     audiencia_data: metadata.audienciaData ?? null,
     audiencia_status: metadata.audienciaStatus ?? null,
     audiencia_horario_inicio: metadata.audienciaHorarioInicio ?? null,
@@ -1957,9 +1960,34 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       }
 
       if (input.metadata !== undefined) {
+        let hasUrgentPendingTask = false;
+        if (input.metadata.urgente !== undefined) {
+          const urgentTaskResult = await client.query(
+            `
+              select exists(
+                select 1
+                from adminlog.tarefas_pendentes
+                where pre_demanda_id = $1
+                  and concluida = false
+                  and coalesce(urgente, false) = true
+              ) as has_urgent_task
+            `,
+            [demanda.id],
+          );
+          hasUrgentPendingTask = Boolean(urgentTaskResult.rows[0]?.has_urgent_task);
+        }
+
         metadata = normalizeMetadataForDb({
           ...demanda.metadata,
           ...input.metadata,
+          urgenteManual:
+            input.metadata.urgente !== undefined
+              ? input.metadata.urgente
+              : demanda.metadata.urgenteManual ?? demanda.metadata.urgente,
+          urgente:
+            input.metadata.urgente !== undefined
+              ? Boolean(input.metadata.urgente) || hasUrgentPendingTask
+              : demanda.metadata.urgente,
         });
       }
 
@@ -4595,6 +4623,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             pd.assunto,
             tarefa.descricao,
             tarefa.tipo,
+            tarefa.urgente,
             tarefa.prazo_conclusao,
             tarefa.horario_inicio,
             tarefa.horario_fim,
@@ -4675,6 +4704,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         assunto: String(row.assunto),
         descricao: String(row.descricao),
         tipo: row.tipo as DashboardTaskItem["tipo"],
+        urgente: Boolean(row.urgente),
         prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
         horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
         horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
