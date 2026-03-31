@@ -1862,6 +1862,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
+  invalidateDashboardCaches(): void {}
+
   async listDashboardTasks(params: {
     status: "pendentes" | "concluidas";
     sort: "prazo_asc" | "created_desc" | "created_asc";

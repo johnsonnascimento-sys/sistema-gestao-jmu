@@ -984,7 +984,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return available;
   }
 
-  private invalidateDashboardCaches() {
+  invalidateDashboardCaches() {
     this.dashboardSummaryCache = null;
   }
 

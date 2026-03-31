@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { emitPreDemandaUpdate } from "../lib/events";
-import type { PreDemandaAudienciaRepository } from "../repositories/types";
+import type { PreDemandaAudienciaRepository, PreDemandaRepository } from "../repositories/types";
 
 const AUDIENCIA_SITUACOES = ["designada", "convertida_diligencia", "nao_realizada", "realizada", "cancelada"] as const;
 
@@ -39,9 +39,9 @@ function emptyToNull(value: string | null | undefined) {
 
 export async function registerPreDemandaAudienciaRoutes(
   app: FastifyInstance,
-  options: { preDemandaAudienciaRepository: PreDemandaAudienciaRepository },
+  options: { preDemandaAudienciaRepository: PreDemandaAudienciaRepository; preDemandaRepository: PreDemandaRepository },
 ) {
-  const { preDemandaAudienciaRepository } = options;
+  const { preDemandaAudienciaRepository, preDemandaRepository } = options;
 
   app.get("/api/pre-demandas/:preId/audiencias", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
@@ -66,6 +66,7 @@ export async function registerPreDemandaAudienciaRoutes(
       observacoes: emptyToNull(payload.observacoes),
       changedByUserId: request.user!.id,
     });
+    preDemandaRepository.invalidateDashboardCaches();
 
     emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
 
@@ -90,6 +91,7 @@ export async function registerPreDemandaAudienciaRoutes(
       observacoes: payload.observacoes === undefined ? undefined : emptyToNull(payload.observacoes),
       changedByUserId: request.user!.id,
     });
+    preDemandaRepository.invalidateDashboardCaches();
 
     emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "update" });
 
@@ -107,6 +109,7 @@ export async function registerPreDemandaAudienciaRoutes(
       audienciaId: params.audienciaId,
       changedByUserId: request.user!.id,
     });
+    preDemandaRepository.invalidateDashboardCaches();
 
     emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "delete" });
 
