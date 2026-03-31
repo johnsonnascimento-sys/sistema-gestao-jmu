@@ -366,6 +366,15 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
   });
 
+  app.get("/api/pre-demandas/pauta-audiencias", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (_request, reply) => {
+    const items = await preDemandaRepository.getAudienciasPauta();
+    return reply.send({
+      ok: true,
+      data: items,
+      error: null,
+    });
+  });
+
   app.get("/api/pre-demandas/dashboard/tarefas", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (request, reply) => {
     const query = listDashboardTasksSchema.parse(request.query);
     const tasks = await preDemandaRepository.listDashboardTasks({

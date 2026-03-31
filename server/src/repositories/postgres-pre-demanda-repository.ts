@@ -3829,6 +3829,127 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return result.rows.map(mapTimelineEvent);
   }
 
+  async getAudienciasPauta(): Promise<PreDemandaDashboardSummary["upcomingAudiencias"]> {
+    const [upcomingAudienciasResult, legacyAudienciasResult] = await Promise.all([
+      this.pool.query(
+        `
+          select
+            audiencia.id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
+            pd.numero_judicial,
+            pd.assunto,
+            magistrado.nome as magistrado_nome,
+            audiencia.data_hora_inicio,
+            audiencia.data_hora_fim,
+            audiencia.descricao,
+            audiencia.observacoes,
+            audiencia.situacao
+          from adminlog.demanda_audiencias_judiciais audiencia
+          inner join adminlog.pre_demanda pd on pd.id = audiencia.pre_demanda_id
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          left join lateral (
+            select pessoa.nome
+            from adminlog.demanda_interessados di
+            inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
+            where di.pre_demanda_id = pd.id
+              and pessoa.cargo in (
+                'JuÃ­za Federal da JustiÃ§a Militar',
+                'Juiz Federal da JustiÃ§a Militar',
+                'Juiz Federal Substituto da JustiÃ§a Militar',
+                'JuÃ­za Federal Substituta da JustiÃ§a Militar'
+              )
+            order by di.created_at desc, pessoa.nome asc
+            limit 1
+          ) magistrado on true
+          order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
+        `,
+      ),
+      this.pool.query(
+        `
+          select
+            concat('legacy-', pd.id) as id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
+            pd.numero_judicial,
+            pd.assunto,
+            magistrado.nome as magistrado_nome,
+            case
+              when nullif(pd.metadata ->> 'audiencia_horario_inicio', '') is not null
+                then concat(pd.metadata ->> 'audiencia_data', ' ', pd.metadata ->> 'audiencia_horario_inicio')::timestamp
+              else (pd.metadata ->> 'audiencia_data')::date::timestamp
+            end as data_hora_inicio,
+            case
+              when nullif(pd.metadata ->> 'audiencia_horario_fim', '') is not null
+                then concat(pd.metadata ->> 'audiencia_data', ' ', pd.metadata ->> 'audiencia_horario_fim')::timestamp
+              else null::timestamp
+            end as data_hora_fim,
+            nullif(pd.metadata ->> 'audiencia_descricao', '') as descricao,
+            null::text as observacoes,
+            coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') as situacao
+          from adminlog.pre_demanda pd
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          left join lateral (
+            select pessoa.nome
+            from adminlog.demanda_interessados di
+            inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
+            where di.pre_demanda_id = pd.id
+              and pessoa.cargo in (
+                'JuÃƒÂ­za Federal da JustiÃƒÂ§a Militar',
+                'Juiz Federal da JustiÃƒÂ§a Militar',
+                'Juiz Federal Substituto da JustiÃƒÂ§a Militar',
+                'JuÃƒÂ­za Federal Substituta da JustiÃƒÂ§a Militar'
+              )
+            order by di.created_at desc, pessoa.nome asc
+            limit 1
+          ) magistrado on true
+          where nullif(pd.metadata ->> 'audiencia_data', '') is not null
+            and not exists (
+              select 1
+              from adminlog.demanda_audiencias_judiciais audiencia
+              where audiencia.pre_demanda_id = pd.id
+            )
+          order by data_hora_inicio asc nulls last, pd.updated_at asc, pd.id asc
+        `,
+      ),
+    ]);
+
+    return [...upcomingAudienciasResult.rows, ...legacyAudienciasResult.rows]
+      .sort((left, right) => {
+        const leftTime = left.data_hora_inicio ? new Date(left.data_hora_inicio).getTime() : Number.MAX_SAFE_INTEGER;
+        const rightTime = right.data_hora_inicio ? new Date(right.data_hora_inicio).getTime() : Number.MAX_SAFE_INTEGER;
+        if (leftTime !== rightTime) {
+          return leftTime - rightTime;
+        }
+        return String(left.id).localeCompare(String(right.id));
+      })
+      .map((row) => ({
+        id: String(row.id),
+        preId: String(row.pre_id),
+        preNumero: String(row.principal_numero),
+        numeroJudicial: row.numero_judicial ? String(row.numero_judicial) : null,
+        assunto: String(row.assunto),
+        magistradoNome: row.magistrado_nome ? String(row.magistrado_nome) : null,
+        dataHoraInicio: new Date(row.data_hora_inicio).toISOString(),
+        dataHoraFim: row.data_hora_fim ? new Date(row.data_hora_fim).toISOString() : null,
+        descricao: row.descricao ? String(row.descricao) : null,
+        observacoes: row.observacoes ? String(row.observacoes) : null,
+        situacao: row.situacao as PreDemandaDashboardSummary["upcomingAudiencias"][number]["situacao"],
+      }));
+  }
+
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const now = Date.now();
     if (this.dashboardSummaryCache && this.dashboardSummaryCache.expiresAt > now) {

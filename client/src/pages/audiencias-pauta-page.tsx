@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { formatAppError, getDashboardSummary } from "../lib/api";
+import { formatAppError, getAudienciasPauta } from "../lib/api";
 import { formatDateTimePtBr } from "../lib/date";
 import type { PreDemandaDashboardSummary } from "../types";
 
@@ -49,7 +49,7 @@ function getSituacaoTone(situacao: string) {
 }
 
 export function AudienciasPautaPage() {
-  const [summary, setSummary] = useState<PreDemandaDashboardSummary | null>(null);
+  const [audiencias, setAudiencias] = useState<PreDemandaDashboardSummary["upcomingAudiencias"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [draftFilters, setDraftFilters] = useState<PautaFilters>(EMPTY_FILTERS);
@@ -57,7 +57,8 @@ export function AudienciasPautaPage() {
 
   async function loadSummary() {
     try {
-      setSummary(await getDashboardSummary());
+      setAudiencias(await getAudienciasPauta());
+      setError("");
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao carregar pauta de audiencias."));
     } finally {
@@ -77,8 +78,6 @@ export function AudienciasPautaPage() {
     window.addEventListener("pre-demanda-updated", handleUpdate);
     return () => window.removeEventListener("pre-demanda-updated", handleUpdate);
   }, []);
-
-  const audiencias = summary?.upcomingAudiencias ?? [];
 
   const filteredAudiencias = useMemo(() => {
     const processoQuery = normalizeText(appliedFilters.processo);

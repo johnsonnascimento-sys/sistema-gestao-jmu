@@ -1863,6 +1863,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
+  async getAudienciasPauta(): Promise<PreDemandaDashboardSummary["upcomingAudiencias"]> {
+    return (await this.getDashboardSummary()).upcomingAudiencias;
+  }
+
   invalidateDashboardCaches(): void {}
 
   async listDashboardTasks(params: {

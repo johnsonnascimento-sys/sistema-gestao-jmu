@@ -538,6 +538,7 @@ export interface PreDemandaRepository {
   listTimeline(preId: string): Promise<TimelineEvent[]>;
   listRecentTimeline(limit?: number): Promise<TimelineEvent[]>;
   getDashboardSummary(): Promise<PreDemandaDashboardSummary>;
+  getAudienciasPauta(): Promise<PreDemandaDashboardSummary["upcomingAudiencias"]>;
   invalidateDashboardCaches(): void;
   listDashboardTasks(params: {
     status: DashboardTaskStatusFilter;

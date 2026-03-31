@@ -666,6 +666,10 @@ export function getDashboardSummary() {
   return request<PreDemandaDashboardSummary>("/api/pre-demandas/dashboard/resumo");
 }
 
+export function getAudienciasPauta() {
+  return request<PreDemandaDashboardSummary["upcomingAudiencias"]>("/api/pre-demandas/pauta-audiencias");
+}
+
 export function listDashboardTasks(params: {
   status: DashboardTaskStatusFilter;
   sort: DashboardTaskSortMode;
