@@ -38,6 +38,7 @@ import type {
   TarefaPendenteTipo,
   TimelineEvent,
 } from "../types";
+import { buildPreDemandaApiPath, encodePathSegment } from "./pre-demanda-path";
 
 interface ApiEnvelope<T> {
   ok: boolean;
@@ -57,9 +58,21 @@ type CatalogCacheEntry<T> = {
 
 const CATALOG_CACHE_TTL_MS = 60_000;
 const RUNTIME_CACHE_TTL_MS = 30_000;
-const setoresCache: CatalogCacheEntry<Setor[]> = { value: null, expiresAt: 0, pending: null };
-const assuntosCache: CatalogCacheEntry<Assunto[]> = { value: null, expiresAt: 0, pending: null };
-const runtimeCache: CatalogCacheEntry<RuntimeStatus> = { value: null, expiresAt: 0, pending: null };
+const setoresCache: CatalogCacheEntry<Setor[]> = {
+  value: null,
+  expiresAt: 0,
+  pending: null,
+};
+const assuntosCache: CatalogCacheEntry<Assunto[]> = {
+  value: null,
+  expiresAt: 0,
+  pending: null,
+};
+const runtimeCache: CatalogCacheEntry<RuntimeStatus> = {
+  value: null,
+  expiresAt: 0,
+  pending: null,
+};
 
 function invalidateCatalogCache(entry: CatalogCacheEntry<unknown>) {
   entry.value = null;
@@ -67,7 +80,10 @@ function invalidateCatalogCache(entry: CatalogCacheEntry<unknown>) {
   entry.pending = null;
 }
 
-async function loadCachedCatalog<T>(entry: CatalogCacheEntry<T>, loader: () => Promise<T>) {
+async function loadCachedCatalog<T>(
+  entry: CatalogCacheEntry<T>,
+  loader: () => Promise<T>,
+) {
   const now = Date.now();
   if (entry.value && entry.expiresAt > now) {
     return entry.value;
@@ -96,7 +112,13 @@ export class ApiError extends Error {
   readonly status: number;
   readonly requestId?: string;
 
-  constructor(status: number, code: string, message: string, details?: unknown, requestId?: string) {
+  constructor(
+    status: number,
+    code: string,
+    message: string,
+    details?: unknown,
+    requestId?: string,
+  ) {
     super(message);
     this.status = status;
     this.code = code;
@@ -106,7 +128,8 @@ export class ApiError extends Error {
 }
 
 async function request<T>(input: string, init?: RequestInit): Promise<T> {
-  const hasJsonBody = init?.body !== undefined && !(init.body instanceof FormData);
+  const hasJsonBody =
+    init?.body !== undefined && !(init.body instanceof FormData);
   const response = await fetch(input, {
     credentials: "include",
     headers: {
@@ -118,20 +141,37 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
 
   const requestId = response.headers.get("x-request-id") ?? undefined;
   const contentType = response.headers.get("content-type") ?? "";
-  const body = contentType.includes("application/json") ? ((await response.json()) as ApiEnvelope<T>) : null;
+  const body = contentType.includes("application/json")
+    ? ((await response.json()) as ApiEnvelope<T>)
+    : null;
 
   if (!response.ok) {
-    throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "Falha na requisicao.", body?.error?.details, requestId);
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "REQUEST_FAILED",
+      body?.error?.message ?? "Falha na requisicao.",
+      body?.error?.details,
+      requestId,
+    );
   }
 
   if (!body?.ok) {
-    throw new ApiError(response.status, body?.error?.code ?? "INVALID_RESPONSE", body?.error?.message ?? "Resposta invalida do servidor.", body?.error?.details, requestId);
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "INVALID_RESPONSE",
+      body?.error?.message ?? "Resposta invalida do servidor.",
+      body?.error?.details,
+      requestId,
+    );
   }
 
   return body.data;
 }
 
-export function appendRequestReference(message: string, requestId?: string | null) {
+export function appendRequestReference(
+  message: string,
+  requestId?: string | null,
+) {
   if (!requestId) {
     return message;
   }
@@ -237,14 +277,18 @@ export function getCurrentUser() {
 }
 
 export function getRuntimeHealth() {
-  return loadCachedCatalog(runtimeCache, () => request<RuntimeStatus>("/api/health").catch((error) => {
-    invalidateCatalogCache(runtimeCache);
-    throw error;
-  }));
+  return loadCachedCatalog(runtimeCache, () =>
+    request<RuntimeStatus>("/api/health").catch((error) => {
+      invalidateCatalogCache(runtimeCache);
+      throw error;
+    }),
+  );
 }
 
 export function getAdminOpsSummary(limit = 12, days = 30) {
-  return request<AdminOpsSummary>(`/api/admin/ops/resumo?limit=${limit}&days=${days}`);
+  return request<AdminOpsSummary>(
+    `/api/admin/ops/resumo?limit=${limit}&days=${days}`,
+  );
 }
 
 export async function downloadAdminOpsCaseReportCsv(days = 30) {
@@ -256,8 +300,16 @@ export async function downloadAdminOpsCaseReportCsv(days = 30) {
 
   if (!response.ok) {
     const contentType = response.headers.get("content-type") ?? "";
-    const body = contentType.includes("application/json") ? ((await response.json()) as ApiEnvelope<never>) : null;
-    throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "Falha ao exportar relatorio.", body?.error?.details, requestId);
+    const body = contentType.includes("application/json")
+      ? ((await response.json()) as ApiEnvelope<never>)
+      : null;
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "REQUEST_FAILED",
+      body?.error?.message ?? "Falha ao exportar relatorio.",
+      body?.error?.details,
+      requestId,
+    );
   }
 
   const blob = await response.blob();
@@ -272,7 +324,10 @@ export async function downloadAdminOpsCaseReportCsv(days = 30) {
   window.URL.revokeObjectURL(url);
 }
 
-export function updateQueueHealthConfig(payload: { attentionDays: number; criticalDays: number }) {
+export function updateQueueHealthConfig(payload: {
+  attentionDays: number;
+  criticalDays: number;
+}) {
   return request<QueueHealthConfig>("/api/admin/ops/queue-health-config", {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -283,21 +338,33 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
   const searchParams = new URLSearchParams();
 
   if (params.q) searchParams.set("q", params.q);
-  if (params.status?.length) searchParams.set("status", params.status.join(","));
-  if (params.queueHealth?.length) searchParams.set("queueHealth", params.queueHealth.join(","));
+  if (params.status?.length)
+    searchParams.set("status", params.status.join(","));
+  if (params.queueHealth?.length)
+    searchParams.set("queueHealth", params.queueHealth.join(","));
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
-  if (params.hasSei !== undefined) searchParams.set("hasSei", String(params.hasSei));
-  if (params.setorAtualId) searchParams.set("setorAtualId", params.setorAtualId);
-  if (params.withoutSetor !== undefined) searchParams.set("withoutSetor", String(params.withoutSetor));
+  if (params.hasSei !== undefined)
+    searchParams.set("hasSei", String(params.hasSei));
+  if (params.setorAtualId)
+    searchParams.set("setorAtualId", params.setorAtualId);
+  if (params.withoutSetor !== undefined)
+    searchParams.set("withoutSetor", String(params.withoutSetor));
   if (params.dueState) searchParams.set("dueState", params.dueState);
-  if (params.deadlineCampo) searchParams.set("deadlineCampo", params.deadlineCampo);
-  if (params.prazoRecorte) searchParams.set("prazoRecorte", params.prazoRecorte);
-  if (params.taskRecurrence) searchParams.set("taskRecurrence", params.taskRecurrence);
-  if (params.paymentInvolved !== undefined) searchParams.set("paymentInvolved", String(params.paymentInvolved));
-  if (params.hasInteressados !== undefined) searchParams.set("hasInteressados", String(params.hasInteressados));
-  if (params.closedWithinDays) searchParams.set("closedWithinDays", String(params.closedWithinDays));
-  if (params.reopenedWithinDays) searchParams.set("reopenedWithinDays", String(params.reopenedWithinDays));
+  if (params.deadlineCampo)
+    searchParams.set("deadlineCampo", params.deadlineCampo);
+  if (params.prazoRecorte)
+    searchParams.set("prazoRecorte", params.prazoRecorte);
+  if (params.taskRecurrence)
+    searchParams.set("taskRecurrence", params.taskRecurrence);
+  if (params.paymentInvolved !== undefined)
+    searchParams.set("paymentInvolved", String(params.paymentInvolved));
+  if (params.hasInteressados !== undefined)
+    searchParams.set("hasInteressados", String(params.hasInteressados));
+  if (params.closedWithinDays)
+    searchParams.set("closedWithinDays", String(params.closedWithinDays));
+  if (params.reopenedWithinDays)
+    searchParams.set("reopenedWithinDays", String(params.reopenedWithinDays));
   if (params.sortBy) searchParams.set("sortBy", params.sortBy);
   if (params.sortOrder) searchParams.set("sortOrder", params.sortOrder);
 
@@ -317,41 +384,55 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
 }
 
 export function createPreDemanda(payload: CreatePreDemandaPayload) {
-  return request<PreDemanda & { idempotent: boolean; existingPreId: string | null }>("/api/pre-demandas", {
+  return request<
+    PreDemanda & { idempotent: boolean; existingPreId: string | null }
+  >("/api/pre-demandas", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export function addPreDemandaAssunto(preId: string, assuntoId: string) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/assuntos`, {
+  return request<PreDemanda>(buildPreDemandaApiPath(preId, "/assuntos"), {
     method: "POST",
     body: JSON.stringify({ assunto_id: assuntoId }),
   });
 }
 
 export function removePreDemandaAssunto(preId: string, assuntoId: string) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}/assuntos/${assuntoId}`, {
-    method: "DELETE",
-  });
+  return request<PreDemanda>(
+    buildPreDemandaApiPath(preId, `/assuntos/${assuntoId}`),
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function getPreDemanda(preId: string) {
-  return request<PreDemanda>(`/api/pre-demandas/${preId}`);
+  return request<PreDemanda>(buildPreDemandaApiPath(preId));
 }
 
-export function updatePreDemandaCase(preId: string, payload: UpdatePreDemandaCasePayload) {
-  return request<{ preId: string }>(`/api/pre-demandas/${preId}`, {
+export function updatePreDemandaCase(
+  preId: string,
+  payload: UpdatePreDemandaCasePayload,
+) {
+  return request<{ preId: string }>(buildPreDemandaApiPath(preId), {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePreDemandaAnotacoes(preId: string, anotacoes: string | null) {
-  return request<{ preId: string }>(`/api/pre-demandas/${preId}/anotacoes`, {
-    method: "PATCH",
-    body: JSON.stringify({ anotacoes }),
-  });
+export function updatePreDemandaAnotacoes(
+  preId: string,
+  anotacoes: string | null,
+) {
+  return request<{ preId: string }>(
+    buildPreDemandaApiPath(preId, "/anotacoes"),
+    {
+      method: "PATCH",
+      body: JSON.stringify({ anotacoes }),
+    },
+  );
 }
 
 export function updatePreDemandaStatus(
@@ -361,69 +442,106 @@ export function updatePreDemandaStatus(
     motivo?: string;
     observacoes?: string;
     delete_pending_tasks?: boolean;
-    reopen_schedule?: { mode: "days" | "date"; days?: number; date?: string } | null;
+    reopen_schedule?: {
+      mode: "days" | "date";
+      days?: number;
+      date?: string;
+    } | null;
   },
 ) {
-  return request<{ preId: string; status: PreDemandaStatus; allowedNextStatuses: PreDemandaStatus[] }>(`/api/pre-demandas/${preId}/status`, {
+  return request<{
+    preId: string;
+    status: PreDemandaStatus;
+    allowedNextStatuses: PreDemandaStatus[];
+  }>(buildPreDemandaApiPath(preId, "/status"), {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
-export function associateSei(preId: string, payload: { sei_numero: string; motivo?: string; observacoes?: string }) {
+export function associateSei(
+  preId: string,
+  payload: { sei_numero: string; motivo?: string; observacoes?: string },
+) {
   return request<{
     association: PreDemanda["currentAssociation"];
     audited: boolean;
-  }>(`/api/pre-demandas/${preId}/associacoes-sei`, {
+  }>(buildPreDemandaApiPath(preId, "/associacoes-sei"), {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
 export function listPreDemandaSeiAssociations(preId: string) {
-  return request<SeiAssociation[]>(`/api/pre-demandas/${preId}/associacoes-sei`);
+  return request<SeiAssociation[]>(
+    buildPreDemandaApiPath(preId, "/associacoes-sei"),
+  );
 }
 
-export function addPreDemandaInteressado(preId: string, payload: { interessado_id: string; papel: DemandaInteressadoPapel }) {
-  return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function addPreDemandaInteressado(
+  preId: string,
+  payload: { interessado_id: string; papel: DemandaInteressadoPapel },
+) {
+  return request<DemandaInteressado[]>(
+    buildPreDemandaApiPath(preId, "/interessados"),
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
-export function removePreDemandaInteressado(preId: string, interessadoId: string) {
-  return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados/${interessadoId}`, {
-    method: "DELETE",
-  });
+export function removePreDemandaInteressado(
+  preId: string,
+  interessadoId: string,
+) {
+  return request<DemandaInteressado[]>(
+    buildPreDemandaApiPath(preId, `/interessados/${interessadoId}`),
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function listPreDemandaInteressados(preId: string) {
-  return request<DemandaInteressado[]>(`/api/pre-demandas/${preId}/interessados`);
+  return request<DemandaInteressado[]>(
+    buildPreDemandaApiPath(preId, "/interessados"),
+  );
 }
 
 export function listPreDemandaAssuntos(preId: string) {
-  return request<PreDemanda["assuntos"]>(`/api/pre-demandas/${preId}/assuntos`);
+  return request<PreDemanda["assuntos"]>(
+    buildPreDemandaApiPath(preId, "/assuntos"),
+  );
 }
 
 export function listPreDemandaAssuntosCatalogo(preId: string) {
-  return request<Assunto[]>(`/api/pre-demandas/${preId}/assuntos/catalogo`);
+  return request<Assunto[]>(
+    buildPreDemandaApiPath(preId, "/assuntos/catalogo"),
+  );
 }
 
 export function addPreDemandaVinculo(preId: string, destinoPreId: string) {
-  return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos`, {
+  return request<DemandaVinculo[]>(buildPreDemandaApiPath(preId, "/vinculos"), {
     method: "POST",
     body: JSON.stringify({ destino_pre_id: destinoPreId }),
   });
 }
 
 export function removePreDemandaVinculo(preId: string, destinoPreId: string) {
-  return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos/${destinoPreId}`, {
-    method: "DELETE",
-  });
+  return request<DemandaVinculo[]>(
+    buildPreDemandaApiPath(
+      preId,
+      `/vinculos/${encodePathSegment(destinoPreId)}`,
+    ),
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function listPreDemandaVinculos(preId: string) {
-  return request<DemandaVinculo[]>(`/api/pre-demandas/${preId}/vinculos`);
+  return request<DemandaVinculo[]>(buildPreDemandaApiPath(preId, "/vinculos"));
 }
 
 export function createPreDemandaAudiencia(
@@ -437,7 +555,7 @@ export function createPreDemandaAudiencia(
     observacoes?: string | null;
   },
 ) {
-  return request<Audiencia>(`/api/pre-demandas/${preId}/audiencias`, {
+  return request<Audiencia>(buildPreDemandaApiPath(preId, "/audiencias"), {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -455,66 +573,109 @@ export function updatePreDemandaAudiencia(
     observacoes?: string | null;
   },
 ) {
-  return request<Audiencia>(`/api/pre-demandas/${preId}/audiencias/${audienciaId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+  return request<Audiencia>(
+    buildPreDemandaApiPath(preId, `/audiencias/${audienciaId}`),
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function removePreDemandaAudiencia(preId: string, audienciaId: string) {
-  return request<{ removedId: string }>(`/api/pre-demandas/${preId}/audiencias/${audienciaId}`, {
-    method: "DELETE",
-  });
+  return request<{ removedId: string }>(
+    buildPreDemandaApiPath(preId, `/audiencias/${audienciaId}`),
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function listPreDemandaAudiencias(preId: string) {
-  return request<Audiencia[]>(`/api/pre-demandas/${preId}/audiencias`);
+  return request<Audiencia[]>(buildPreDemandaApiPath(preId, "/audiencias"));
 }
 
 export function tramitarPreDemanda(preId: string, setorDestinoId: string) {
-  return request<{ preId: string }>(`/api/pre-demandas/${preId}/tramitar`, {
-    method: "POST",
-    body: JSON.stringify({ setor_destino_id: setorDestinoId }),
-  });
+  return request<{ preId: string }>(
+    buildPreDemandaApiPath(preId, "/tramitar"),
+    {
+      method: "POST",
+      body: JSON.stringify({ setor_destino_id: setorDestinoId }),
+    },
+  );
 }
 
-export function tramitarPreDemandaMultiplos(preId: string, setorDestinoIds: string[], observacoes?: string | null) {
-  return request<{ preId: string }>(`/api/pre-demandas/${preId}/tramitar`, {
-    method: "POST",
-    body: JSON.stringify({ setores_destino_ids: setorDestinoIds, observacoes }),
-  });
+export function tramitarPreDemandaMultiplos(
+  preId: string,
+  setorDestinoIds: string[],
+  observacoes?: string | null,
+) {
+  return request<{ preId: string }>(
+    buildPreDemandaApiPath(preId, "/tramitar"),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        setores_destino_ids: setorDestinoIds,
+        observacoes,
+      }),
+    },
+  );
 }
 
-export function concluirTramitacaoSetor(preId: string, setorId: string, observacoes?: string | null) {
-  return request<{ preId: string }>(`/api/pre-demandas/${preId}/setores/${setorId}/concluir-tramitacao`, {
-    method: "PATCH",
-    body: JSON.stringify({ observacoes }),
-  });
+export function concluirTramitacaoSetor(
+  preId: string,
+  setorId: string,
+  observacoes?: string | null,
+) {
+  return request<{ preId: string }>(
+    buildPreDemandaApiPath(preId, `/setores/${setorId}/concluir-tramitacao`),
+    {
+      method: "PATCH",
+      body: JSON.stringify({ observacoes }),
+    },
+  );
 }
 
-export function addPreDemandaAndamento(preId: string, payload: { descricao: string; data_hora?: string | null }) {
-  return request<Andamento>(`/api/pre-demandas/${preId}/andamentos`, {
+export function addPreDemandaAndamento(
+  preId: string,
+  payload: { descricao: string; data_hora?: string | null },
+) {
+  return request<Andamento>(buildPreDemandaApiPath(preId, "/andamentos"), {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePreDemandaAndamento(preId: string, andamentoId: string, payload: { descricao: string; data_hora?: string | null }) {
-  return request<Andamento>(`/api/pre-demandas/${preId}/andamentos/${andamentoId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+export function updatePreDemandaAndamento(
+  preId: string,
+  andamentoId: string,
+  payload: { descricao: string; data_hora?: string | null },
+) {
+  return request<Andamento>(
+    buildPreDemandaApiPath(preId, `/andamentos/${andamentoId}`),
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
-export function removePreDemandaAndamento(preId: string, andamentoId: string, confirmacao = "EXCLUIR") {
-  return request<{ removedId: string }>(`/api/pre-demandas/${preId}/andamentos/${andamentoId}`, {
-    method: "DELETE",
-    body: JSON.stringify({ confirmacao }),
-  });
+export function removePreDemandaAndamento(
+  preId: string,
+  andamentoId: string,
+  confirmacao = "EXCLUIR",
+) {
+  return request<{ removedId: string }>(
+    buildPreDemandaApiPath(preId, `/andamentos/${andamentoId}`),
+    {
+      method: "DELETE",
+      body: JSON.stringify({ confirmacao }),
+    },
+  );
 }
 
 export function listPreDemandaTarefas(preId: string) {
-  return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas`);
+  return request<TarefaPendente[]>(buildPreDemandaApiPath(preId, "/tarefas"));
 }
 
 export function listPreDemandaTaskScheduleSuggestions(
@@ -529,7 +690,9 @@ export function listPreDemandaTaskScheduleSuggestions(
     search.set("limit", String(params.limit));
   }
   const qs = search.toString();
-  return request<TaskScheduleSuggestion[]>(`/api/pre-demandas/${preId}/tarefas/sugestoes${qs ? `?${qs}` : ""}`);
+  return request<TaskScheduleSuggestion[]>(
+    `${buildPreDemandaApiPath(preId, "/tarefas/sugestoes")}${qs ? `?${qs}` : ""}`,
+  );
 }
 
 export function createPreDemandaTarefa(
@@ -548,7 +711,7 @@ export function createPreDemandaTarefa(
     confirmar_alteracao_prazo?: boolean;
   },
 ) {
-  return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas`, {
+  return request<TarefaPendente>(buildPreDemandaApiPath(preId, "/tarefas"), {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -570,82 +733,136 @@ export function updatePreDemandaTarefa(
     confirmar_alteracao_prazo?: boolean;
   },
 ) {
-  return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+  return request<TarefaPendente>(
+    buildPreDemandaApiPath(preId, `/tarefas/${tarefaId}`),
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function reorderPreDemandaTarefas(preId: string, tarefaIds: string[]) {
-  return request<TarefaPendente[]>(`/api/pre-demandas/${preId}/tarefas/ordem`, {
-    method: "PATCH",
-    body: JSON.stringify({ tarefa_ids: tarefaIds }),
-  });
+  return request<TarefaPendente[]>(
+    buildPreDemandaApiPath(preId, "/tarefas/ordem"),
+    {
+      method: "PATCH",
+      body: JSON.stringify({ tarefa_ids: tarefaIds }),
+    },
+  );
 }
 
 export function removePreDemandaTarefa(preId: string, tarefaId: string) {
-  return request<{ removedId: string }>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}`, {
-    method: "DELETE",
-  });
+  return request<{ removedId: string }>(
+    buildPreDemandaApiPath(preId, `/tarefas/${tarefaId}`),
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function concluirPreDemandaTarefa(preId: string, tarefaId: string) {
-  return request<TarefaPendente>(`/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`, {
-    method: "PATCH",
-    body: JSON.stringify({}),
-  });
+  return request<TarefaPendente>(
+    buildPreDemandaApiPath(preId, `/tarefas/${tarefaId}/concluir`),
+    {
+      method: "PATCH",
+      body: JSON.stringify({}),
+    },
+  );
 }
 
 export function getAudit(preId: string) {
-  return request<PreDemandaAuditRecord[]>(`/api/pre-demandas/${preId}/auditoria`);
+  return request<PreDemandaAuditRecord[]>(
+    buildPreDemandaApiPath(preId, "/auditoria"),
+  );
 }
 
 export function getTimeline(preId: string) {
-  return request<TimelineEvent[]>(`/api/pre-demandas/${preId}/timeline`);
+  return request<TimelineEvent[]>(buildPreDemandaApiPath(preId, "/timeline"));
 }
 
 export function listPreDemandaComentarios(preId: string) {
-  return request<DemandaComentario[]>(`/api/pre-demandas/${preId}/comentarios`);
+  return request<DemandaComentario[]>(
+    buildPreDemandaApiPath(preId, "/comentarios"),
+  );
 }
 
-export function createPreDemandaComentario(preId: string, payload: { conteudo: string; formato?: "markdown" }) {
-  return request<DemandaComentario>(`/api/pre-demandas/${preId}/comentarios`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+export function createPreDemandaComentario(
+  preId: string,
+  payload: { conteudo: string; formato?: "markdown" },
+) {
+  return request<DemandaComentario>(
+    buildPreDemandaApiPath(preId, "/comentarios"),
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
-export function updatePreDemandaComentario(preId: string, comentarioId: string, payload: { conteudo: string; formato?: "markdown" }) {
-  return request<DemandaComentario>(`/api/pre-demandas/${preId}/comentarios/${comentarioId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+export function updatePreDemandaComentario(
+  preId: string,
+  comentarioId: string,
+  payload: { conteudo: string; formato?: "markdown" },
+) {
+  return request<DemandaComentario>(
+    buildPreDemandaApiPath(preId, `/comentarios/${comentarioId}`),
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export function listPreDemandaDocumentos(preId: string) {
-  return request<DemandaDocumento[]>(`/api/pre-demandas/${preId}/documentos`);
+  return request<DemandaDocumento[]>(
+    buildPreDemandaApiPath(preId, "/documentos"),
+  );
 }
 
 export function createPreDemandaDocumento(
   preId: string,
-  payload: { nome_arquivo: string; mime_type: string; descricao?: string | null; conteudo_base64: string },
+  payload: {
+    nome_arquivo: string;
+    mime_type: string;
+    descricao?: string | null;
+    conteudo_base64: string;
+  },
 ) {
-  return request<DemandaDocumento>(`/api/pre-demandas/${preId}/documentos`, {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  return request<DemandaDocumento>(
+    buildPreDemandaApiPath(preId, "/documentos"),
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
-export async function downloadPreDemandaDocumento(preId: string, documentoId: string, nomeArquivo: string) {
-  const response = await fetch(`/api/pre-demandas/${preId}/documentos/${documentoId}/download`, {
-    credentials: "include",
-  });
+export async function downloadPreDemandaDocumento(
+  preId: string,
+  documentoId: string,
+  nomeArquivo: string,
+) {
+  const response = await fetch(
+    buildPreDemandaApiPath(preId, `/documentos/${documentoId}/download`),
+    {
+      credentials: "include",
+    },
+  );
 
   const requestId = response.headers.get("x-request-id") ?? undefined;
   if (!response.ok) {
     const contentType = response.headers.get("content-type") ?? "";
-    const body = contentType.includes("application/json") ? ((await response.json()) as ApiEnvelope<never>) : null;
-    throw new ApiError(response.status, body?.error?.code ?? "REQUEST_FAILED", body?.error?.message ?? "Falha ao baixar documento.", body?.error?.details, requestId);
+    const body = contentType.includes("application/json")
+      ? ((await response.json()) as ApiEnvelope<never>)
+      : null;
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "REQUEST_FAILED",
+      body?.error?.message ?? "Falha ao baixar documento.",
+      body?.error?.details,
+      requestId,
+    );
   }
 
   const blob = await response.blob();
@@ -660,25 +877,36 @@ export async function downloadPreDemandaDocumento(preId: string, documentoId: st
 }
 
 export function removePreDemandaDocumento(preId: string, documentoId: string) {
-  return request<DemandaDocumento[]>(`/api/pre-demandas/${preId}/documentos/${documentoId}`, {
-    method: "DELETE",
-  });
+  return request<DemandaDocumento[]>(
+    buildPreDemandaApiPath(preId, `/documentos/${documentoId}`),
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function listPreDemandaSetoresAtivos(preId: string) {
-  return request<DemandaSetorFluxo[]>(`/api/pre-demandas/${preId}/setores-ativos`);
+  return request<DemandaSetorFluxo[]>(
+    buildPreDemandaApiPath(preId, "/setores-ativos"),
+  );
 }
 
 export function getRecentTimeline(limit = 8) {
-  return request<TimelineEvent[]>(`/api/pre-demandas/timeline/recentes?limit=${limit}`);
+  return request<TimelineEvent[]>(
+    `/api/pre-demandas/timeline/recentes?limit=${limit}`,
+  );
 }
 
 export function getDashboardSummary() {
-  return request<PreDemandaDashboardSummary>("/api/pre-demandas/dashboard/resumo");
+  return request<PreDemandaDashboardSummary>(
+    "/api/pre-demandas/dashboard/resumo",
+  );
 }
 
 export function getAudienciasPauta() {
-  return request<PreDemandaDashboardSummary["upcomingAudiencias"]>("/api/pre-demandas/pauta-audiencias");
+  return request<PreDemandaDashboardSummary["upcomingAudiencias"]>(
+    "/api/pre-demandas/pauta-audiencias",
+  );
 }
 
 export function listDashboardTasks(params: {
@@ -695,10 +923,13 @@ export function listDashboardTasks(params: {
   search.set("sort", params.sort);
   if (params.date) search.set("date", params.date);
   if (params.recurrence) search.set("recurrence", params.recurrence);
-  if (params.openWithoutTasksQ) search.set("openWithoutTasksQ", params.openWithoutTasksQ);
+  if (params.openWithoutTasksQ)
+    search.set("openWithoutTasksQ", params.openWithoutTasksQ);
   search.set("page", String(params.page ?? 1));
   search.set("pageSize", String(params.pageSize ?? 20));
-  return request<DashboardTaskListResult>(`/api/pre-demandas/dashboard/tarefas?${search.toString()}`);
+  return request<DashboardTaskListResult>(
+    `/api/pre-demandas/dashboard/tarefas?${search.toString()}`,
+  );
 }
 
 export function listInteressados(params: ListInteressadosParams = {}) {
@@ -706,7 +937,12 @@ export function listInteressados(params: ListInteressadosParams = {}) {
   if (params.q) search.set("q", params.q);
   search.set("page", String(params.page ?? 1));
   search.set("pageSize", String(params.pageSize ?? 10));
-  return request<{ items: Interessado[]; total: number; page: number; pageSize: number }>(`/api/interessados?${search.toString()}`);
+  return request<{
+    items: Interessado[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>(`/api/interessados?${search.toString()}`);
 }
 
 export function listPessoas(params: ListPessoasParams = {}) {
@@ -714,31 +950,66 @@ export function listPessoas(params: ListPessoasParams = {}) {
   if (params.q) search.set("q", params.q);
   search.set("page", String(params.page ?? 1));
   search.set("pageSize", String(params.pageSize ?? 10));
-  return request<{ items: Interessado[]; total: number; page: number; pageSize: number }>(`/api/pessoas?${search.toString()}`);
+  return request<{
+    items: Interessado[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>(`/api/pessoas?${search.toString()}`);
 }
 
-export function createInteressado(payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function createInteressado(payload: {
+  nome: string;
+  cargo?: string | null;
+  matricula?: string | null;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+}) {
   return request<Interessado>("/api/interessados", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function createPessoa(payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function createPessoa(payload: {
+  nome: string;
+  cargo?: string | null;
+  matricula?: string | null;
+  cpf?: string | null;
+  data_nascimento?: string | null;
+}) {
   return request<Interessado>("/api/pessoas", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function updateInteressado(id: string, payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function updateInteressado(
+  id: string,
+  payload: {
+    nome: string;
+    cargo?: string | null;
+    matricula?: string | null;
+    cpf?: string | null;
+    data_nascimento?: string | null;
+  },
+) {
   return request<Interessado>(`/api/interessados/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
 }
 
-export function updatePessoa(id: string, payload: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; data_nascimento?: string | null }) {
+export function updatePessoa(
+  id: string,
+  payload: {
+    nome: string;
+    cargo?: string | null;
+    matricula?: string | null;
+    cpf?: string | null;
+    data_nascimento?: string | null;
+  },
+) {
   return request<Interessado>(`/api/pessoas/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -746,21 +1017,30 @@ export function updatePessoa(id: string, payload: { nome: string; cargo?: string
 }
 
 export function listSetores() {
-  return loadCachedCatalog(setoresCache, () => request<Setor[]>("/api/setores"));
+  return loadCachedCatalog(setoresCache, () =>
+    request<Setor[]>("/api/setores"),
+  );
 }
 
 export function listNormas() {
   return request<Norma[]>("/api/normas");
 }
 
-export function createNorma(payload: { numero: string; data_norma: string; origem: string }) {
+export function createNorma(payload: {
+  numero: string;
+  data_norma: string;
+  origem: string;
+}) {
   return request<Norma>("/api/normas", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function updateNorma(id: string, payload: { numero: string; data_norma: string; origem: string }) {
+export function updateNorma(
+  id: string,
+  payload: { numero: string; data_norma: string; origem: string },
+) {
   return request<Norma>(`/api/normas/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -768,14 +1048,22 @@ export function updateNorma(id: string, payload: { numero: string; data_norma: s
 }
 
 export function listAssuntos() {
-  return loadCachedCatalog(assuntosCache, () => request<Assunto[]>("/api/assuntos"));
+  return loadCachedCatalog(assuntosCache, () =>
+    request<Assunto[]>("/api/assuntos"),
+  );
 }
 
 export function createAssunto(payload: {
   nome: string;
   descricao?: string | null;
   norma_ids?: string[];
-  procedimentos?: Array<{ ordem?: number; descricao: string; horario_inicio?: string | null; horario_fim?: string | null; setor_destino_id?: string | null }>;
+  procedimentos?: Array<{
+    ordem?: number;
+    descricao: string;
+    horario_inicio?: string | null;
+    horario_fim?: string | null;
+    setor_destino_id?: string | null;
+  }>;
 }) {
   return request<Assunto>("/api/assuntos", {
     method: "POST",
@@ -792,7 +1080,13 @@ export function updateAssunto(
     nome: string;
     descricao?: string | null;
     norma_ids?: string[];
-    procedimentos?: Array<{ ordem?: number; descricao: string; horario_inicio?: string | null; horario_fim?: string | null; setor_destino_id?: string | null }>;
+    procedimentos?: Array<{
+      ordem?: number;
+      descricao: string;
+      horario_inicio?: string | null;
+      horario_fim?: string | null;
+      setor_destino_id?: string | null;
+    }>;
   },
 ) {
   return request<Assunto>(`/api/assuntos/${id}`, {
@@ -814,7 +1108,10 @@ export function createSetor(payload: { sigla: string; nome_completo: string }) {
   });
 }
 
-export function updateSetor(id: string, payload: { sigla: string; nome_completo: string }) {
+export function updateSetor(
+  id: string,
+  payload: { sigla: string; nome_completo: string },
+) {
   return request<Setor>(`/api/setores/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -829,17 +1126,27 @@ export function listAdminUsers() {
 }
 
 export function listAdminUserAudit(limit = 12) {
-  return request<AdminUserAuditRecord[]>(`/api/admin/users/auditoria?limit=${limit}`);
+  return request<AdminUserAuditRecord[]>(
+    `/api/admin/users/auditoria?limit=${limit}`,
+  );
 }
 
-export function createAdminUser(payload: { email: string; name: string; password: string; role: "admin" | "operador" }) {
+export function createAdminUser(payload: {
+  email: string;
+  name: string;
+  password: string;
+  role: "admin" | "operador";
+}) {
   return request<AdminUserSummary>("/api/admin/users", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-export function updateAdminUser(id: number, payload: { name?: string; role?: "admin" | "operador"; active?: boolean }) {
+export function updateAdminUser(
+  id: number,
+  payload: { name?: string; role?: "admin" | "operador"; active?: boolean },
+) {
   return request<AdminUserSummary>(`/api/admin/users/${id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),

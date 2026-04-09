@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import type { PreDemanda, PreDemandaStatus } from "../types";
 import { getQueueHealth } from "../lib/queue-health";
 import { formatDateOnlyPtBr } from "../lib/date";
@@ -7,9 +8,22 @@ import { StatusPill } from "./status-pill";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 
-const COLUMNS: Array<{ value: PreDemandaStatus; label: string; description: string }> = [
-  { value: "em_andamento", label: "Em andamento", description: "Processos em curso, com ou sem associacao processual concluida." },
-  { value: "aguardando_sei", label: "Aguardando SEI", description: "Pendencias aguardando vinculacao valida." },
+const COLUMNS: Array<{
+  value: PreDemandaStatus;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "em_andamento",
+    label: "Em andamento",
+    description:
+      "Processos em curso, com ou sem associacao processual concluida.",
+  },
+  {
+    value: "aguardando_sei",
+    label: "Aguardando SEI",
+    description: "Pendencias aguardando vinculacao valida.",
+  },
 ];
 
 export function KanbanBoard({
@@ -21,12 +35,17 @@ export function KanbanBoard({
   items: PreDemanda[];
   sectorRiskById?: Record<string, "normal" | "attention" | "critical">;
   selectedSetorId?: string;
-  onQuickAction?: (item: PreDemanda, action: "aguardando" | "encerrar" | "reabrir") => void;
+  onQuickAction?: (
+    item: PreDemanda,
+    action: "aguardando" | "encerrar" | "reabrir",
+  ) => void;
 }) {
   return (
     <div className="grid gap-4 xl:grid-cols-3">
       {COLUMNS.map((column) => {
-        const columnItems = items.filter((item) => item.status === column.value);
+        const columnItems = items.filter(
+          (item) => item.status === column.value,
+        );
 
         return (
           <section
@@ -35,7 +54,9 @@ export function KanbanBoard({
           >
             <header className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <h3 className="text-lg font-semibold text-slate-950">{column.label}</h3>
+                <h3 className="text-lg font-semibold text-slate-950">
+                  {column.label}
+                </h3>
                 <p className="text-sm text-slate-500">{column.description}</p>
               </div>
               <Badge variant="outline">{columnItems.length}</Badge>
@@ -46,9 +67,11 @@ export function KanbanBoard({
                 columnItems.map((item) => (
                   <article
                     className={`grid gap-4 rounded-[28px] border bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(247,241,233,0.76))] p-5 shadow-[0_14px_34px_rgba(20,33,61,0.08)] ${
-                      item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] === "critical"
+                      item.setorAtual?.id &&
+                      sectorRiskById?.[item.setorAtual.id] === "critical"
                         ? "border-rose-200 bg-[linear-gradient(180deg,rgba(255,241,242,0.98),rgba(255,247,247,0.88))]"
-                        : item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] === "attention"
+                        : item.setorAtual?.id &&
+                            sectorRiskById?.[item.setorAtual.id] === "attention"
                           ? "border-amber-200 bg-[linear-gradient(180deg,rgba(255,251,235,0.96),rgba(255,247,237,0.88))]"
                           : "border-white/80"
                     } ${selectedSetorId && item.setorAtual?.id === selectedSetorId ? "ring-2 ring-sky-300/70" : ""}`}
@@ -56,11 +79,19 @@ export function KanbanBoard({
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-rose-600">{item.principalNumero}</p>
-                        <h4 className="mt-2 text-base font-semibold text-slate-950">{item.assunto}</h4>
+                        <p className="text-xs font-bold uppercase tracking-[0.22em] text-rose-600">
+                          {item.principalNumero}
+                        </p>
+                        <h4 className="mt-2 text-base font-semibold text-slate-950">
+                          {item.assunto}
+                        </h4>
                       </div>
                       <div className="flex flex-wrap justify-end gap-2">
-                        {item.metadata.urgente ? <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">Urgente</span> : null}
+                        {item.metadata.urgente ? (
+                          <span className="rounded-full bg-rose-600 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white">
+                            Urgente
+                          </span>
+                        ) : null}
                         <StatusPill status={item.status} />
                         <QueueHealthPill item={item} />
                       </div>
@@ -68,14 +99,25 @@ export function KanbanBoard({
 
                     <div className="grid gap-2 text-sm text-slate-600">
                       <p>
-                        <span className="font-medium text-slate-950">Pessoa:</span> {item.pessoaPrincipal?.nome ?? "-"}
+                        <span className="font-medium text-slate-950">
+                          Pessoa:
+                        </span>{" "}
+                        {item.pessoaPrincipal?.nome ?? "-"}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Setor:</span> {item.setorAtual ? item.setorAtual.sigla : "Nao tramitado"}
+                        <span className="font-medium text-slate-950">
+                          Setor:
+                        </span>{" "}
+                        {item.setorAtual
+                          ? item.setorAtual.sigla
+                          : "Nao tramitado"}
                       </p>
-                      {item.setorAtual?.id && sectorRiskById?.[item.setorAtual.id] ? (
+                      {item.setorAtual?.id &&
+                      sectorRiskById?.[item.setorAtual.id] ? (
                         <p>
-                          <span className="font-medium text-slate-950">Risco do setor:</span>{" "}
+                          <span className="font-medium text-slate-950">
+                            Risco do setor:
+                          </span>{" "}
                           {sectorRiskById[item.setorAtual.id] === "critical"
                             ? "Em risco"
                             : sectorRiskById[item.setorAtual.id] === "attention"
@@ -84,41 +126,83 @@ export function KanbanBoard({
                         </p>
                       ) : null}
                       <p>
-                        <span className="font-medium text-slate-950">Data:</span> {formatDateOnlyPtBr(item.dataReferencia)}
+                        <span className="font-medium text-slate-950">
+                          Data:
+                        </span>{" "}
+                        {formatDateOnlyPtBr(item.dataReferencia)}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Prazo do processo:</span> {formatDateOnlyPtBr(item.prazoProcesso, "Nao definido")}
+                        <span className="font-medium text-slate-950">
+                          Prazo do processo:
+                        </span>{" "}
+                        {formatDateOnlyPtBr(item.prazoProcesso, "Nao definido")}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Proxima tarefa:</span> {formatDateOnlyPtBr(item.proximoPrazoTarefa, "Sem tarefas pendentes")}
+                        <span className="font-medium text-slate-950">
+                          Proxima tarefa:
+                        </span>{" "}
+                        {formatDateOnlyPtBr(
+                          item.proximoPrazoTarefa,
+                          "Sem tarefas pendentes",
+                        )}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Envolvidos:</span> {item.interessados.length}
+                        <span className="font-medium text-slate-950">
+                          Envolvidos:
+                        </span>{" "}
+                        {item.interessados.length}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Referencia interna:</span> {item.preId}
+                        <span className="font-medium text-slate-950">
+                          Referencia interna:
+                        </span>{" "}
+                        {item.preId}
                       </p>
                       <p>
-                        <span className="font-medium text-slate-950">Fila:</span> {getQueueHealth(item).detail}
+                        <span className="font-medium text-slate-950">
+                          Fila:
+                        </span>{" "}
+                        {getQueueHealth(item).detail}
                       </p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <Button asChild size="sm" variant="secondary">
-                        <Link to={`/pre-demandas/${item.preId}`}>Abrir detalhe</Link>
+                        <Link to={buildPreDemandaPath(item.preId)}>
+                          Abrir detalhe
+                        </Link>
                       </Button>
-                      {onQuickAction && item.allowedNextStatuses.includes("aguardando_sei") ? (
-                        <Button onClick={() => onQuickAction(item, "aguardando")} size="sm" type="button" variant="ghost">
+                      {onQuickAction &&
+                      item.allowedNextStatuses.includes("aguardando_sei") ? (
+                        <Button
+                          onClick={() => onQuickAction(item, "aguardando")}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
                           Aguardar SEI
                         </Button>
                       ) : null}
-                      {onQuickAction && item.allowedNextStatuses.includes("encerrada") ? (
-                        <Button onClick={() => onQuickAction(item, "encerrar")} size="sm" type="button" variant="ghost">
+                      {onQuickAction &&
+                      item.allowedNextStatuses.includes("encerrada") ? (
+                        <Button
+                          onClick={() => onQuickAction(item, "encerrar")}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
                           Encerrar
                         </Button>
                       ) : null}
-                      {onQuickAction && item.status === "encerrada" && item.allowedNextStatuses.length > 0 ? (
-                        <Button onClick={() => onQuickAction(item, "reabrir")} size="sm" type="button" variant="ghost">
+                      {onQuickAction &&
+                      item.status === "encerrada" &&
+                      item.allowedNextStatuses.length > 0 ? (
+                        <Button
+                          onClick={() => onQuickAction(item, "reabrir")}
+                          size="sm"
+                          type="button"
+                          variant="ghost"
+                        >
                           Reabrir
                         </Button>
                       ) : null}

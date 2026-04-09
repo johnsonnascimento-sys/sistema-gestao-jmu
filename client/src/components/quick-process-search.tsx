@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import { Loader2, Search } from "lucide-react";
 import { listPreDemandas } from "../lib/api";
 import { cn } from "../lib/utils";
@@ -45,22 +46,32 @@ export function QuickProcessSearch({
     try {
       const response = await listPreDemandas({ q: nextQuery, pageSize: 8 });
       const exactMatch = response.items.find((item) => {
-        const candidates = [item.preId, item.principalNumero, item.currentAssociation?.seiNumero, item.numeroJudicial].filter(Boolean) as string[];
-        return candidates.some((candidate) => normalizeToken(candidate) === normalizeToken(nextQuery));
+        const candidates = [
+          item.preId,
+          item.principalNumero,
+          item.currentAssociation?.seiNumero,
+          item.numeroJudicial,
+        ].filter(Boolean) as string[];
+        return candidates.some(
+          (candidate) =>
+            normalizeToken(candidate) === normalizeToken(nextQuery),
+        );
       });
       const firstItem = response.items[0];
 
       if (exactMatch) {
-        navigate(`/pre-demandas/${exactMatch.preId}`);
+        navigate(buildPreDemandaPath(exactMatch.preId));
         return;
       }
 
       if (response.items.length === 1 && firstItem) {
-        navigate(`/pre-demandas/${firstItem.preId}`);
+        navigate(buildPreDemandaPath(firstItem.preId));
         return;
       }
 
-      navigate(`/pre-demandas?${new URLSearchParams({ q: nextQuery, view: "table", page: "1" }).toString()}`);
+      navigate(
+        `/pre-demandas?${new URLSearchParams({ q: nextQuery, view: "table", page: "1" }).toString()}`,
+      );
     } finally {
       setLoading(false);
     }
@@ -87,7 +98,14 @@ export function QuickProcessSearch({
     >
       <div className={cn("space-y-4", variant === "sidebar" && "space-y-3")}>
         <div>
-          <p className={cn("text-xs font-bold uppercase tracking-[0.32em]", variant === "sidebar" ? "text-indigo-200" : "text-slate-500")}>Buscar</p>
+          <p
+            className={cn(
+              "text-xs font-bold uppercase tracking-[0.32em]",
+              variant === "sidebar" ? "text-indigo-200" : "text-slate-500",
+            )}
+          >
+            Buscar
+          </p>
         </div>
 
         <Input
@@ -103,12 +121,34 @@ export function QuickProcessSearch({
           value={query}
         />
 
-        <div className={cn("flex items-center gap-4", variant === "sidebar" && "flex-col items-stretch gap-2.5")}>
-          <Button className="h-10 flex-1 rounded-[16px] bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-500 text-white shadow-[0_16px_30px_rgba(79,70,229,0.2)] hover:-translate-y-0.5" disabled={loading} type="submit">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+        <div
+          className={cn(
+            "flex items-center gap-4",
+            variant === "sidebar" && "flex-col items-stretch gap-2.5",
+          )}
+        >
+          <Button
+            className="h-10 flex-1 rounded-[16px] bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-500 text-white shadow-[0_16px_30px_rgba(79,70,229,0.2)] hover:-translate-y-0.5"
+            disabled={loading}
+            type="submit"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
             Filtrar
           </Button>
-          <button className={cn("text-sm font-medium transition", variant === "sidebar" ? "text-indigo-100/80 hover:text-white" : "text-slate-600 hover:text-slate-950")} onClick={handleClear} type="button">
+          <button
+            className={cn(
+              "text-sm font-medium transition",
+              variant === "sidebar"
+                ? "text-indigo-100/80 hover:text-white"
+                : "text-slate-600 hover:text-slate-950",
+            )}
+            onClick={handleClear}
+            type="button"
+          >
             Limpar
           </button>
         </div>

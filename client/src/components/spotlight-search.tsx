@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import { Search, FileText, Calendar, ArrowRight, Loader2 } from "lucide-react";
 import { listPreDemandas } from "../lib/api";
 import { formatDateOnlyPtBr } from "../lib/date";
@@ -78,7 +79,9 @@ export function SpotlightSearch() {
         setSelectedIndex((prev) => (prev + 1) % results.length);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+        setSelectedIndex(
+          (prev) => (prev - 1 + results.length) % results.length,
+        );
       } else if (e.key === "Enter") {
         e.preventDefault();
         const selected = results[selectedIndex];
@@ -94,7 +97,7 @@ export function SpotlightSearch() {
 
   const handleSelect = (item: PreDemanda) => {
     setOpen(false);
-    navigate(`/pre-demandas/${item.preId}`);
+    navigate(buildPreDemandaPath(item.preId));
   };
 
   const getStatusColor = (status: string) => {
@@ -146,13 +149,19 @@ export function SpotlightSearch() {
           {query.trim() === "" ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <Search className="h-10 w-10 opacity-20" />
-              <p className="mt-3 text-sm">Digite para pesquisar em todo o sistema...</p>
-              <p className="mt-1 text-xs opacity-75">Busque por Assunto, CPF, SEI ou ID</p>
+              <p className="mt-3 text-sm">
+                Digite para pesquisar em todo o sistema...
+              </p>
+              <p className="mt-1 text-xs opacity-75">
+                Busque por Assunto, CPF, SEI ou ID
+              </p>
             </div>
           ) : results.length === 0 && !loading ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
               <FileText className="h-10 w-10 opacity-20" />
-              <p className="mt-3 text-sm">Nenhum processo encontrado para "{query}"</p>
+              <p className="mt-3 text-sm">
+                Nenhum processo encontrado para "{query}"
+              </p>
             </div>
           ) : (
             <div className="px-2">
@@ -163,32 +172,42 @@ export function SpotlightSearch() {
                     "flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left transition-all duration-150 animate-in fade-in-50",
                     index === selectedIndex
                       ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
-                      : "hover:bg-slate-50 text-slate-700"
+                      : "hover:bg-slate-50 text-slate-700",
                   )}
                   onClick={() => handleSelect(item)}
                   type="button"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className={cn(
-                        "text-sm font-semibold truncate",
-                        index === selectedIndex ? "text-white" : "text-slate-900"
-                      )}>
+                      <p
+                        className={cn(
+                          "text-sm font-semibold truncate",
+                          index === selectedIndex
+                            ? "text-white"
+                            : "text-slate-900",
+                        )}
+                      >
                         {item.assunto}
                       </p>
-                      <span className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-medium border",
-                        index === selectedIndex 
-                          ? "bg-white/10 text-white border-white/20" 
-                          : getStatusColor(item.status)
-                      )}>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-medium border",
+                          index === selectedIndex
+                            ? "bg-white/10 text-white border-white/20"
+                            : getStatusColor(item.status),
+                        )}
+                      >
                         {translateStatus(item.status)}
                       </span>
                     </div>
-                    <div className={cn(
-                      "mt-1 flex items-center gap-3 text-xs",
-                      index === selectedIndex ? "text-slate-200" : "text-slate-500"
-                    )}>
+                    <div
+                      className={cn(
+                        "mt-1 flex items-center gap-3 text-xs",
+                        index === selectedIndex
+                          ? "text-slate-200"
+                          : "text-slate-500",
+                      )}
+                    >
                       {item.currentAssociation?.seiNumero ? (
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
@@ -207,10 +226,14 @@ export function SpotlightSearch() {
                       )}
                     </div>
                   </div>
-                  <ArrowRight className={cn(
-                    "h-4 w-4 shrink-0 transition-transform",
-                    index === selectedIndex ? "translate-x-1 text-white" : "text-slate-300"
-                  )} />
+                  <ArrowRight
+                    className={cn(
+                      "h-4 w-4 shrink-0 transition-transform",
+                      index === selectedIndex
+                        ? "translate-x-1 text-white"
+                        : "text-slate-300",
+                    )}
+                  />
                 </button>
               ))}
             </div>
@@ -220,11 +243,20 @@ export function SpotlightSearch() {
         {results.length > 0 && (
           <div className="border-t border-slate-200/60 bg-slate-50/80 px-4 py-2.5 text-[11px] text-slate-400 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="bg-white border select-none rounded px-1 shadow-sm font-mono">↑↓</span> Navegar
-              <span className="bg-white border select-none rounded px-1 shadow-sm font-mono mt-0.5">Enter</span> Selecionar
+              <span className="bg-white border select-none rounded px-1 shadow-sm font-mono">
+                ↑↓
+              </span>{" "}
+              Navegar
+              <span className="bg-white border select-none rounded px-1 shadow-sm font-mono mt-0.5">
+                Enter
+              </span>{" "}
+              Selecionar
             </div>
             <div>
-              <span className="bg-white border select-none rounded px-1 shadow-sm font-mono">Esc</span> Fechar
+              <span className="bg-white border select-none rounded px-1 shadow-sm font-mono">
+                Esc
+              </span>{" "}
+              Fechar
             </div>
           </div>
         )}
