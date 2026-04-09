@@ -264,12 +264,6 @@ export function PreDemandaDetailPage() {
     pagamento_envolvido: false,
     urgente: false,
   });
-  const [relatedForm, setRelatedForm] = useState({
-    assunto: "",
-    data_referencia: new Date().toISOString().slice(0, 10),
-    descricao: "",
-    prazo_processo: "",
-  });
   const [audienciaForm, setAudienciaForm] = useState<AudienciaForm>(
     AUDIENCIA_FORM_DEFAULT,
   );
@@ -698,7 +692,7 @@ export function PreDemandaDetailPage() {
   }, [record?.id]);
 
   useEffect(() => {
-    if (toolbarDialog !== "link" || processSearch.trim().length < 2) {
+    if (toolbarDialog !== "relatedList" || processSearch.trim().length < 2) {
       setLinkedProcessResults([]);
       return;
     }
@@ -3417,109 +3411,24 @@ export function PreDemandaDetailPage() {
           <DialogHeader>
             <DialogTitle>Relacionamentos de processo</DialogTitle>
             <DialogDescription>
-              Crie, vincule, consulte e remova relacionamentos deste processo em
-              um unico lugar.
+              Vincule, consulte e remova relacionamentos deste processo em um
+              unico lugar.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-5">
-            <div className="grid gap-4 rounded-[24px] border border-dashed border-slate-300 p-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-950">
-                  Criar novo relacionado
-                </p>
-                <p className="text-xs text-slate-500">
-                  Abra um novo processo vinculado sem sair deste detalhe.
-                </p>
-              </div>
-              <div className="grid gap-4">
-                <FormField label="Assunto">
-                  <Input
-                    onChange={(event) =>
-                      setRelatedForm((current) => ({
-                        ...current,
-                        assunto: event.target.value,
-                      }))
-                    }
-                    value={relatedForm.assunto}
-                  />
-                </FormField>
-                <FormField label="Data de referencia">
-                  <Input
-                    onChange={(event) =>
-                      setRelatedForm((current) => ({
-                        ...current,
-                        data_referencia: event.target.value,
-                      }))
-                    }
-                    type="date"
-                    value={relatedForm.data_referencia}
-                  />
-                </FormField>
-                <FormField label="Prazo do processo">
-                  <Input
-                    onChange={(event) =>
-                      setRelatedForm((current) => ({
-                        ...current,
-                        prazo_processo: event.target.value,
-                      }))
-                    }
-                    type="date"
-                    value={relatedForm.prazo_processo}
-                  />
-                </FormField>
-                <FormField label="Descricao">
-                  <Textarea
-                    onChange={(event) =>
-                      setRelatedForm((current) => ({
-                        ...current,
-                        descricao: event.target.value,
-                      }))
-                    }
-                    rows={4}
-                    value={relatedForm.descricao}
-                  />
-                </FormField>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  disabled={
-                    !relatedForm.prazo_processo ||
-                    relatedForm.assunto.trim().length < 3 ||
-                    isSubmitting
-                  }
-                  onClick={() =>
-                    void runMutation(async () => {
-                      const created = await createPreDemanda({
-                        assunto: relatedForm.assunto,
-                        data_referencia: relatedForm.data_referencia,
-                        descricao: relatedForm.descricao,
-                        prazo_processo: relatedForm.prazo_processo,
-                      });
-                      await addPreDemandaVinculo(preId, created.preId);
-                      await loadVinculosData(true);
-                      navigate(buildPreDemandaPath(created.preId));
-                    }, "Processo relacionado criado.")
-                  }
-                  type="button"
-                >
-                  Criar relacionado
-                </Button>
-              </div>
-            </div>
-
             <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
               <div>
                 <p className="text-sm font-semibold text-slate-950">
                   Vincular processo existente
                 </p>
                 <p className="text-xs text-slate-500">
-                  Pesquise por PRE ou assunto para adicionar um vinculo ja
-                  existente.
+                  Pesquise por PRE, numero SEI ou assunto para adicionar um
+                  vinculo existente.
                 </p>
               </div>
               <Input
                 onChange={(event) => setProcessSearch(event.target.value)}
-                placeholder="Buscar por PRE ou assunto"
+                placeholder="Buscar por PRE, numero SEI ou assunto"
                 value={processSearch}
               />
               <div className="grid gap-2">
