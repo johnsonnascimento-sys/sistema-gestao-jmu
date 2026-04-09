@@ -561,7 +561,7 @@ export async function getResolvedPreDemanda(
         pd.prazo_processo,
         pd.numero_judicial,
         coalesce(link.sei_numero, pd.pre_id) as principal_numero
-      from adminlog.pre_demanda
+      from adminlog.pre_demanda pd
       left join lateral (
         select pts.sei_numero
         from adminlog.pre_to_sei_link pts
