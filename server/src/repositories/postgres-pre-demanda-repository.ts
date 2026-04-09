@@ -979,15 +979,26 @@ async function getPreDemandaRowByPreId(queryable: Queryable, preId: string) {
   return result.rows[0] ?? null;
 }
 
-async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
+async function getResolvedPreDemanda(
+  queryable: Queryable,
+  preId: string,
+): Promise<{ id: number; preId: string; principalNumero: string; prazoProcesso: string }> {
   const result = await queryable.query(
     `
       select
-        id,
-        pre_id,
-        prazo_processo
-      from adminlog.pre_demanda
-      where pre_id = $1
+        pd.id,
+        pd.pre_id,
+        pd.prazo_processo,
+        coalesce(link.sei_numero, pd.pre_id) as principal_numero
+      from adminlog.pre_demanda pd
+      left join lateral (
+        select pts.sei_numero
+        from adminlog.pre_to_sei_link pts
+        where pts.pre_id = pd.pre_id
+        order by pts.updated_at desc, pts.id desc
+        limit 1
+      ) link on true
+      where pd.pre_id = $1
       limit 1
     `,
     [preId],
@@ -999,6 +1010,7 @@ async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
   return {
     id: Number(result.rows[0].id),
     preId: String(result.rows[0].pre_id),
+    principalNumero: String(result.rows[0].principal_numero ?? result.rows[0].pre_id),
     prazoProcesso: new Date(result.rows[0].prazo_processo).toISOString().slice(0, 10),
   };
 }
@@ -2360,6 +2372,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return inTransaction(this.pool, async (client) => {
       const origem = await getResolvedPreDemanda(client, input.preId);
       const destino = await getResolvedPreDemanda(client, input.destinoPreId);
+      const origemRelacionado = destino.principalNumero || destino.preId;
+      const destinoRelacionado = origem.principalNumero || origem.preId;
       if (origem.id === destino.id) {
         throw new AppError(409, "PRE_DEMANDA_SELF_LINK", "Nao e permitido vincular o processo a ele mesmo.");
       }
@@ -2383,14 +2397,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       await this.insertAndamento(client, {
         preDemandaId: origem.id,
         preId: origem.preId,
-        descricao: `Processo vinculado a ${destino.preId}.`,
+        descricao: `Processo ${origemRelacionado} vinculado a ${origem.preId}.`,
         tipo: "vinculo_added",
         createdByUserId: input.changedByUserId,
       });
       await this.insertAndamento(client, {
         preDemandaId: destino.id,
         preId: destino.preId,
-        descricao: `Processo vinculado a ${origem.preId}.`,
+        descricao: `Processo ${destinoRelacionado} vinculado a ${destino.preId}.`,
         tipo: "vinculo_added",
         createdByUserId: input.changedByUserId,
       });
@@ -2404,6 +2418,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return inTransaction(this.pool, async (client) => {
       const origem = await getResolvedPreDemanda(client, input.preId);
       const destino = await getResolvedPreDemanda(client, input.destinoPreId);
+      const origemRelacionado = destino.principalNumero || destino.preId;
+      const destinoRelacionado = origem.principalNumero || origem.preId;
       const removed = await client.query(
         `
           delete from adminlog.demanda_vinculos
@@ -2421,14 +2437,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       await this.insertAndamento(client, {
         preDemandaId: origem.id,
         preId: origem.preId,
-        descricao: `Vinculo com ${destino.preId} removido.`,
+        descricao: `Processo ${origemRelacionado} desvinculado de ${origem.preId}.`,
         tipo: "vinculo_removed",
         createdByUserId: input.changedByUserId,
       });
       await this.insertAndamento(client, {
         preDemandaId: destino.id,
         preId: destino.preId,
-        descricao: `Vinculo com ${origem.preId} removido.`,
+        descricao: `Processo ${destinoRelacionado} desvinculado de ${destino.preId}.`,
         tipo: "vinculo_removed",
         createdByUserId: input.changedByUserId,
       });

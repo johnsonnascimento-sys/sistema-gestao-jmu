@@ -549,12 +549,27 @@ export async function getPreDemandaRowByPreId(queryable: Queryable, preId: strin
   return result.rows[0] ?? null;
 }
 
-export async function getResolvedPreDemanda(queryable: Queryable, preId: string) {
+export async function getResolvedPreDemanda(
+  queryable: Queryable,
+  preId: string,
+): Promise<{ id: number; preId: string; principalNumero: string; prazoProcesso: string; numeroJudicial: string | null }> {
   const result = await queryable.query(
     `
-      select id, pre_id, prazo_processo, numero_judicial
+      select
+        pd.id,
+        pd.pre_id,
+        pd.prazo_processo,
+        pd.numero_judicial,
+        coalesce(link.sei_numero, pd.pre_id) as principal_numero
       from adminlog.pre_demanda
-      where pre_id = $1
+      left join lateral (
+        select pts.sei_numero
+        from adminlog.pre_to_sei_link pts
+        where pts.pre_id = pd.pre_id
+        order by pts.updated_at desc, pts.id desc
+        limit 1
+      ) link on true
+      where pd.pre_id = $1
       limit 1
     `,
     [preId],
@@ -565,6 +580,7 @@ export async function getResolvedPreDemanda(queryable: Queryable, preId: string)
   return {
     id: Number(result.rows[0].id),
     preId: String(result.rows[0].pre_id),
+    principalNumero: String(result.rows[0].principal_numero ?? result.rows[0].pre_id),
     prazoProcesso: new Date(result.rows[0].prazo_processo).toISOString().slice(0, 10),
     numeroJudicial: result.rows[0].numero_judicial ? formatNumeroJudicialValue(String(result.rows[0].numero_judicial)) : null,
   };

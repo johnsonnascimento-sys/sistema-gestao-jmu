@@ -1004,7 +1004,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       };
 
       origem.vinculos.unshift(vinculo);
-      this.addAndamentoRecord(origem, `Processo vinculado a ${destino.preId}.`, "vinculo_added");
+      this.addAndamentoRecord(
+        origem,
+        `Processo ${destino.principalNumero} vinculado a ${origem.preId}.`,
+        "vinculo_added",
+      );
       this.touch(origem);
     }
 
@@ -1013,12 +1017,17 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
   async removeVinculo(input: RemoveDemandaVinculoInput) {
     const origem = this.records.find((item) => item.preId === input.preId);
+    const destino = this.records.find((item) => item.preId === input.destinoPreId);
     if (!origem) {
       throw new Error("not found");
     }
 
     origem.vinculos = origem.vinculos.filter((item) => item.processo.preId !== input.destinoPreId);
-    this.addAndamentoRecord(origem, `Vinculo com ${input.destinoPreId} removido.`, "vinculo_removed");
+    this.addAndamentoRecord(
+      origem,
+      `Processo ${destino?.principalNumero ?? input.destinoPreId} desvinculado de ${origem.preId}.`,
+      "vinculo_removed",
+    );
     this.touch(origem);
     return origem.vinculos;
   }
