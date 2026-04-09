@@ -179,9 +179,80 @@ export function appendRequestReference(
   return `${message} Referencia: ${requestId}.`;
 }
 
+function extractValidationMessage(details: unknown) {
+  if (!details || typeof details !== "object") {
+    return null;
+  }
+
+  const fieldErrors = (details as { fieldErrors?: Record<string, string[]> })
+    .fieldErrors;
+  if (!fieldErrors || typeof fieldErrors !== "object") {
+    return null;
+  }
+
+  for (const messages of Object.values(fieldErrors)) {
+    if (Array.isArray(messages)) {
+      const firstMessage = messages.find(
+        (message) => typeof message === "string" && message.trim().length,
+      );
+      if (firstMessage) {
+        return firstMessage;
+      }
+    }
+  }
+
+  return null;
+}
+
+function getFriendlyApiErrorMessage(error: ApiError, fallback: string) {
+  switch (error.code) {
+    case "PRE_DEMANDA_NOT_FOUND":
+      return "O processo informado nao foi encontrado.";
+    case "PRE_DEMANDA_STATUS_UNCHANGED":
+      return "O processo ja se encontra nesse status. Atualize a tela se necessario.";
+    case "PRE_DEMANDA_STATUS_INVALID":
+      return (
+        error.message ||
+        "A transicao de status nao e permitida para a situacao atual do processo."
+      );
+    case "PRE_DEMANDA_STATUS_REASON_REQUIRED":
+      return "Informe o motivo para encerrar ou reabrir o processo.";
+    case "TRAMITACAO_ALREADY_ACTIVE":
+      return "O processo ja esta em tramitacao para o setor selecionado.";
+    case "TRAMITACAO_NOT_FOUND":
+      return "Nao existe tramitacao ativa para o setor informado.";
+    case "SETOR_NOT_FOUND":
+      return "O setor informado nao foi encontrado.";
+    case "SETOR_DESTINO_REQUIRED":
+      return "Selecione ao menos um setor de destino.";
+    case "FORBIDDEN":
+      return "Voce nao possui permissao para executar esta operacao.";
+    case "UNAUTHENTICATED":
+      return "Sua sessao expirou. Entre novamente.";
+    case "INVALID_CREDENTIALS":
+      return "E-mail ou senha invalidos.";
+    case "VALIDATION_ERROR":
+      return (
+        extractValidationMessage(error.details) ||
+        "Revise os campos informados e tente novamente."
+      );
+    case "REQUEST_FAILED":
+      return fallback;
+    default:
+      if (error.status >= 500) {
+        return "O servidor nao conseguiu concluir a operacao. Tente novamente em instantes.";
+      }
+
+      return error.message || fallback;
+  }
+}
+
 export function formatAppError(error: unknown, fallback: string) {
   if (error instanceof ApiError) {
-    return appendRequestReference(error.message || fallback, error.requestId);
+    return appendRequestReference(
+      getFriendlyApiErrorMessage(error, fallback),
+      error.requestId,
+    );
   }
 
   if (error instanceof Error && error.message) {
