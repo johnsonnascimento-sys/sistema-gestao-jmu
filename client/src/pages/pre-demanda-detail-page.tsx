@@ -2596,12 +2596,12 @@ export function PreDemandaDetailPage() {
           <DetailSectionCard
             defaultOpen
             summary={sectionSummaries?.historico}
-            title="Historico (Andamentos)"
+            title="Histórico (Andamentos)"
           >
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Historico (Andamentos)</CardTitle>
+                  <CardTitle>Histórico (Andamentos)</CardTitle>
                   <CardDescription>
                     Timeline unificada com criacao, status, SEI, tramitacoes,
                     tarefas e lancamentos manuais.
@@ -2970,7 +2970,7 @@ export function PreDemandaDetailPage() {
         onOpenChange={(open) => !open && setToolbarDialog(null)}
         open={toolbarDialog === "subjects"}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Assuntos do processo</DialogTitle>
             <DialogDescription>
@@ -3434,25 +3434,26 @@ export function PreDemandaDetailPage() {
               <div className="grid gap-2">
                 {linkedProcessResults.map((item) => (
                   <button
-                    className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300"
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left hover:border-slate-300"
                     key={item.preId}
                     onClick={() =>
                       void runMutation(async () => {
                         await addPreDemandaVinculo(preId, item.preId);
                         await loadVinculosData(true);
+                        await loadTimelineData();
                         setToolbarDialog("relatedList");
                       }, "Vinculo criado.")
                     }
                     type="button"
                   >
-                    <span>
-                      <span className="block font-semibold text-slate-950">
+                    <span className="min-w-0">
+                      <span className="block break-words font-semibold text-slate-950">
                         {item.principalNumero}
                       </span>
-                      <span className="text-xs text-slate-400">
+                      <span className="block break-words text-xs text-slate-400">
                         {item.preId}
                       </span>
-                      <span className="text-sm text-slate-500">
+                      <span className="block break-words text-sm text-slate-500">
                         {item.assunto}
                       </span>
                     </span>
@@ -3490,21 +3491,21 @@ export function PreDemandaDetailPage() {
               ) : (
                 vinculos.map((item) => (
                   <div
-                    className="flex items-center justify-between rounded-[22px] border border-slate-200 bg-white px-4 py-3"
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-3"
                     key={item.processo.preId}
                   >
-                    <div>
-                      <p className="font-semibold text-slate-950">
+                    <div className="min-w-0">
+                      <p className="break-words font-semibold text-slate-950">
                         {item.processo.principalNumero}
                       </p>
-                      <p className="text-xs text-slate-400">
+                      <p className="break-words text-xs text-slate-400">
                         {item.processo.preId}
                       </p>
-                      <p className="text-sm text-slate-500">
+                      <p className="break-words text-sm text-slate-500">
                         {item.processo.assunto}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 gap-2">
                       <Button
                         onClick={() =>
                           navigate(buildPreDemandaPath(item.processo.preId))
@@ -3523,6 +3524,7 @@ export function PreDemandaDetailPage() {
                               item.processo.preId,
                             );
                             await loadVinculosData(true);
+                            await loadTimelineData();
                           }, "Vinculo removido.")
                         }
                         size="sm"
