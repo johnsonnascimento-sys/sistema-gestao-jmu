@@ -2970,7 +2970,7 @@ export function PreDemandaDetailPage() {
         onOpenChange={(open) => !open && setToolbarDialog(null)}
         open={toolbarDialog === "subjects"}
       >
-        <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Assuntos do processo</DialogTitle>
             <DialogDescription>
@@ -3407,7 +3407,7 @@ export function PreDemandaDetailPage() {
         onOpenChange={(open) => !open && setToolbarDialog(null)}
         open={toolbarDialog === "relatedList"}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-x-hidden overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Relacionamentos de processo</DialogTitle>
             <DialogDescription>
