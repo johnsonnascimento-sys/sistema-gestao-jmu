@@ -177,6 +177,12 @@ const andamentoSchema = z.object({
   data_hora: z.string().datetime().optional().nullable(),
 });
 
+const andamentoLoteSchema = z.object({
+  pre_ids: z.array(z.string().trim().min(1)).min(1).max(200),
+  descricao: z.string().trim().min(3).max(4000),
+  data_hora: z.string().datetime().optional().nullable(),
+});
+
 const andamentoDeleteSchema = z.object({
   confirmacao: z.literal("EXCLUIR"),
 });
@@ -645,6 +651,28 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.send({
       ok: true,
       data: setoresAtivos,
+      error: null,
+    });
+  });
+
+  app.post("/api/pre-demandas/andamentos/lote", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const payload = andamentoLoteSchema.parse(request.body);
+    const result = await preDemandaAndamentoRepository.addAndamentosLote({
+      preIds: payload.pre_ids,
+      descricao: payload.descricao,
+      dataHora: payload.data_hora ?? null,
+      changedByUserId: request.user!.id,
+    });
+
+    for (const item of result.results) {
+      if (item.ok) {
+        emitPreDemandaUpdate({ preId: item.preId, type: "andamento", action: "create" });
+      }
+    }
+
+    return reply.status(201).send({
+      ok: true,
+      data: result,
       error: null,
     });
   });

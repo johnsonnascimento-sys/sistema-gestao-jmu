@@ -19,6 +19,7 @@ import type {
   Audiencia,
   Assunto,
   AppUser,
+  BulkAndamentoResult,
   DemandaComentario,
   DemandaDocumento,
   DemandaInteressado,
@@ -41,6 +42,7 @@ import type {
 } from "./domain/types";
 import type {
   AddAndamentoInput,
+  AddAndamentosLoteInput,
   AddDemandaAssuntoInput,
   AddDemandaInteressadoInput,
   AddDemandaVinculoInput,
@@ -1091,6 +1093,40 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     return this.addAndamentoRecord(record, input.descricao, "manual", input.dataHora ?? new Date().toISOString());
+  }
+
+  async addAndamentosLote(input: AddAndamentosLoteInput): Promise<BulkAndamentoResult> {
+    const uniquePreIds = [...new Set(input.preIds.map((item) => item.trim()).filter(Boolean))];
+    const results = uniquePreIds.map((preId) => {
+      const record = this.records.find((item) => item.preId === preId);
+      if (!record) {
+        return {
+          preId,
+          ok: false,
+          message: "Pre-demanda nao encontrada.",
+        };
+      }
+
+      return {
+        preId,
+        ok: true,
+        message: "Andamento registrado.",
+        andamento: this.addAndamentoRecord(
+          record,
+          input.descricao,
+          "manual",
+          input.dataHora ?? new Date().toISOString(),
+        ),
+      };
+    });
+
+    const successCount = results.filter((item) => item.ok).length;
+    return {
+      total: uniquePreIds.length,
+      successCount,
+      failureCount: uniquePreIds.length - successCount,
+      results,
+    };
   }
 
   async listAndamentos(preId: string) {
@@ -3003,6 +3039,80 @@ describe("Gestor JMU API", () => {
       tarefasPendentes.some(
         (item: { descricao: string; prazoConclusao: string; recorrenciaTipo: string }) =>
           item.descricao === "Revisao trimestral" && item.prazoConclusao === "2026-06-12" && item.recorrenciaTipo === "trimestral",
+      ),
+    ).toBe(true);
+  });
+
+  it("registers andamentos em lote with deduplication and partial success", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Carlos Pereira",
+        assunto: "Atualizacao cadastral",
+        data_referencia: "2026-03-15",
+        prazo_processo: "2026-03-29",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const secondPreId = created.json().data.preId as string;
+
+    const bulk = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/andamentos/lote",
+      headers: { cookie },
+      payload: {
+        pre_ids: ["PRE-2026-001", secondPreId, secondPreId, "PRE-NAO-EXISTE"],
+        descricao: "Andamento compartilhado",
+        data_hora: "2026-03-16T14:30:00.000Z",
+      },
+    });
+
+    expect(bulk.statusCode).toBe(201);
+    expect(bulk.json().data.total).toBe(3);
+    expect(bulk.json().data.successCount).toBe(2);
+    expect(bulk.json().data.failureCount).toBe(1);
+    expect(
+      bulk.json().data.results.filter((item: { preId: string }) => item.preId === secondPreId),
+    ).toHaveLength(1);
+    expect(
+      bulk.json().data.results.find((item: { preId: string }) => item.preId === "PRE-NAO-EXISTE")?.ok,
+    ).toBe(false);
+
+    const firstDetail = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/PRE-2026-001",
+      headers: { cookie },
+    });
+    expect(
+      firstDetail.json().data.recentAndamentos.some(
+        (item: { descricao: string; tipo: string }) =>
+          item.descricao === "Andamento compartilhado" && item.tipo === "manual",
+      ),
+    ).toBe(true);
+
+    const secondDetail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${secondPreId}`,
+      headers: { cookie },
+    });
+    expect(
+      secondDetail.json().data.recentAndamentos.some(
+        (item: { descricao: string; tipo: string }) =>
+          item.descricao === "Andamento compartilhado" && item.tipo === "manual",
       ),
     ).toBe(true);
   });

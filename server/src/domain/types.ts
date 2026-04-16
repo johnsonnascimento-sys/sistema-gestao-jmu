@@ -257,6 +257,20 @@ export interface Andamento {
   createdBy: AuditActor | null;
 }
 
+export interface BulkAndamentoResultItem {
+  preId: string;
+  ok: boolean;
+  message?: string;
+  andamento?: Andamento;
+}
+
+export interface BulkAndamentoResult {
+  total: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkAndamentoResultItem[];
+}
+
 export interface DemandaDocumento {
   id: string;
   preId: string;

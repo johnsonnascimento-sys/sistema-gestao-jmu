@@ -1,4 +1,4 @@
-import { Activity, BookText, Building2, CalendarClock, History, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
+import { Activity, BookText, Building2, CalendarClock, FileText, History, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth-context";
@@ -102,6 +102,12 @@ export function AppShell() {
                 <ListTodo className="h-4 w-4" />
                 Processos
               </NavLink>
+              {hasPermission("pre_demanda.update") ? (
+                <NavLink className={navLinkClassName} to="/andamentos-lote">
+                  <FileText className="h-4 w-4" />
+                  Andamentos em Lote
+                </NavLink>
+              ) : null}
               <NavLink className={navLinkClassName} to="/pre-demandas/nova">
                 <SquarePen className="h-4 w-4" />
                 Novo processo

@@ -26,6 +26,7 @@ import type {
   PreDemandaMetadata,
   QueueHealthLevel,
   QueueHealthConfig,
+  BulkAndamentoResult,
   PreDemandaSortBy,
   PreDemandaStatusAuditRecord,
   PreDemandaStatus,
@@ -198,6 +199,13 @@ export interface ConcluirTramitacaoSetorInput {
 
 export interface AddAndamentoInput {
   preId: string;
+  descricao: string;
+  dataHora?: string | null;
+  changedByUserId: number;
+}
+
+export interface AddAndamentosLoteInput {
+  preIds: string[];
   descricao: string;
   dataHora?: string | null;
   changedByUserId: number;
@@ -497,6 +505,7 @@ export interface AssuntoRepository {
 export interface PreDemandaAndamentoRepository {
   listAndamentos(preId: string): Promise<Andamento[]>;
   addAndamento(input: AddAndamentoInput): Promise<Andamento>;
+  addAndamentosLote(input: AddAndamentosLoteInput): Promise<BulkAndamentoResult>;
   updateAndamento(input: UpdateAndamentoInput): Promise<Andamento>;
   removeAndamento(input: RemoveAndamentoInput): Promise<{ removedId: string }>;
 }

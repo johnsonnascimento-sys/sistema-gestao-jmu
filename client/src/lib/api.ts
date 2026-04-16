@@ -6,6 +6,7 @@ import type {
   Audiencia,
   Assunto,
   AuthUser,
+  BulkAndamentoResult,
   DashboardTaskListResult,
   DashboardTaskSortMode,
   DashboardTaskStatusFilter,
@@ -712,6 +713,17 @@ export function addPreDemandaAndamento(
   payload: { descricao: string; data_hora?: string | null },
 ) {
   return request<Andamento>(buildPreDemandaApiPath(preId, "/andamentos"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function addPreDemandaAndamentosLote(payload: {
+  pre_ids: string[];
+  descricao: string;
+  data_hora?: string | null;
+}) {
+  return request<BulkAndamentoResult>("/api/pre-demandas/andamentos/lote", {
     method: "POST",
     body: JSON.stringify(payload),
   });

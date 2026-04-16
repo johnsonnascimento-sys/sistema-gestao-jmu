@@ -10,6 +10,7 @@ import {
 } from "./postgres-pre-demanda-utils";
 import type {
   AddAndamentoInput,
+  AddAndamentosLoteInput,
   PreDemandaAndamentoRepository,
   RemoveAndamentoInput,
   UpdateAndamentoInput,
@@ -35,6 +36,46 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
         dataHora: input.dataHora,
       });
     });
+  }
+
+  async addAndamentosLote(input: AddAndamentosLoteInput) {
+    const uniquePreIds = [...new Set(input.preIds.map((item) => item.trim()).filter(Boolean))];
+    const results = await Promise.all(
+      uniquePreIds.map(async (preId) => {
+        try {
+          const andamento = await this.addAndamento({
+            preId,
+            descricao: input.descricao,
+            dataHora: input.dataHora,
+            changedByUserId: input.changedByUserId,
+          });
+
+          return {
+            preId,
+            ok: true,
+            message: "Andamento registrado.",
+            andamento,
+          };
+        } catch (error) {
+          return {
+            preId,
+            ok: false,
+            message:
+              error instanceof AppError
+                ? error.message
+                : "Falha ao registrar andamento neste processo.",
+          };
+        }
+      }),
+    );
+
+    const successCount = results.filter((item) => item.ok).length;
+    return {
+      total: uniquePreIds.length,
+      successCount,
+      failureCount: uniquePreIds.length - successCount,
+      results,
+    };
   }
 
   async updateAndamento(input: UpdateAndamentoInput) {

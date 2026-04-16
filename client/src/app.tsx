@@ -9,6 +9,7 @@ import { LoadingState } from "./components/states";
 const AdminOperationsPage = lazy(() => import("./pages/admin-operations-page").then((module) => ({ default: module.AdminOperationsPage })));
 const AdminAuditPage = lazy(() => import("./pages/admin-audit-page").then((module) => ({ default: module.AdminAuditPage })));
 const AdminUsersPage = lazy(() => import("./pages/admin-users-page").then((module) => ({ default: module.AdminUsersPage })));
+const AndamentosLotePage = lazy(() => import("./pages/andamentos-lote-page").then((module) => ({ default: module.AndamentosLotePage })));
 const DashboardPage = lazy(() => import("./pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
 const TarefasPage = lazy(() => import("./pages/tarefas-page").then((module) => ({ default: module.TarefasPage })));
 const AudienciasPautaPage = lazy(() => import("./pages/audiencias-pauta-page").then((module) => ({ default: module.AudienciasPautaPage })));
@@ -39,6 +40,14 @@ export function App() {
                 <Route element={<PreDemandasPage />} path="/pre-demandas" />
                 <Route element={<NewPreDemandaPage />} path="/pre-demandas/nova" />
                 <Route element={<PreDemandaDetailPage />} path="/pre-demandas/:preId" />
+                <Route
+                  element={
+                    <RequirePermission permission="pre_demanda.update">
+                      <AndamentosLotePage />
+                    </RequirePermission>
+                  }
+                  path="/andamentos-lote"
+                />
                 <Route
                   element={
                     <RequirePermission permission="cadastro.assunto.read">
