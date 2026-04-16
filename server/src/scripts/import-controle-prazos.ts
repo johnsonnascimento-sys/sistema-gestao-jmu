@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Pool, PoolClient } from "pg";
-import xlsx from "xlsx";
 import { loadConfig } from "../config";
 import { createPool } from "../db";
+import { readControlePrazosSheet } from "./exceljs-sheet";
 import {
   buildImportAnnotation,
   parseControlePrazosRow,
@@ -379,19 +379,13 @@ async function run() {
     throw new Error("Modo invalido. Use --mode=preview ou --mode=apply.");
   }
 
-  const workbook = xlsx.readFile(filePath, { cellDates: true });
-  const worksheet = workbook.Sheets[sheetName];
-  if (!worksheet) {
-    throw new Error(`Aba nao encontrada: ${sheetName}`);
-  }
-
   const config = loadConfig();
   const pool = createPool(config.DATABASE_URL);
 
   try {
     const userId = await resolveImportUserId(pool, userRef);
     const setor = await resolveSetor(pool, setorSigla);
-    const rows = xlsx.utils.sheet_to_json<ControlePrazosRawRow>(worksheet, { defval: null, raw: true });
+    const rows = await readControlePrazosSheet(filePath, sheetName);
     const report: ImportReportItem[] = [];
 
     for (const [index, raw] of rows.entries()) {

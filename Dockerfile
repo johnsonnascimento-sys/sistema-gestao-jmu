@@ -2,6 +2,8 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
+RUN npm install -g npm@11.12.1
+
 COPY package.json package-lock.json ./
 RUN npm ci
 
@@ -11,6 +13,8 @@ RUN npm run build
 FROM node:24-alpine AS runner
 
 WORKDIR /app
+
+RUN npm install -g npm@11.12.1
 
 ARG APP_COMMIT_SHA=""
 

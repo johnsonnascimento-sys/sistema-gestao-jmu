@@ -1,9 +1,9 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { Pool, PoolClient } from "pg";
-import xlsx from "xlsx";
 import { loadConfig } from "../config";
 import { createPool } from "../db";
+import { readControlePrazosSheet } from "./exceljs-sheet";
 import {
   buildImportAnnotation,
   parseControlePrazosRow,
@@ -301,14 +301,8 @@ async function run() {
     throw new Error("Uso: node reconcile-controle-prazos-conflicts.js --mode=preview|apply --file=<xlsx> --report=<json> --user=<id-ou-email>");
   }
 
-  const workbook = xlsx.readFile(filePath, { cellDates: true });
-  const worksheet = workbook.Sheets[sheetName];
-  if (!worksheet) {
-    throw new Error(`Aba nao encontrada: ${sheetName}`);
-  }
-
   const report = JSON.parse(await import("node:fs/promises").then((fs) => fs.readFile(reportPath, "utf8"))) as { items: ImportReportItem[] };
-  const rows = xlsx.utils.sheet_to_json<ControlePrazosRawRow>(worksheet, { defval: null, raw: true });
+  const rows = await readControlePrazosSheet(filePath, sheetName);
 
   const config = loadConfig();
   const pool = createPool(config.DATABASE_URL);
