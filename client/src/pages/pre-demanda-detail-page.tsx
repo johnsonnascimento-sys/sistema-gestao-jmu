@@ -4708,6 +4708,27 @@ export function PreDemandaDetailPage() {
                 <option value="fixa">Fixa</option>
               </select>
             </FormField>
+            <label className="col-span-2 flex items-center justify-between rounded-[20px] border border-rose-200 bg-rose-50/70 px-4 py-3 text-sm text-slate-700">
+              <div className="pr-4">
+                <span className="block font-semibold text-slate-950">
+                  Marcar tarefa como urgente
+                </span>
+                <span className="text-xs text-slate-600">
+                  Com a tarefa urgente, o processo tambem fica urgente.
+                </span>
+              </div>
+              <input
+                checked={editTaskForm.urgente}
+                className="h-5 w-5 accent-rose-600"
+                onChange={(event) =>
+                  setEditTaskForm((current) => ({
+                    ...current,
+                    urgente: event.target.checked,
+                  }))
+                }
+                type="checkbox"
+              />
+            </label>
             <FormField
               hint="Sem recorrência, esta é a data final da tarefa. Com recorrência, ela vira a base para as próximas ocorrências."
               label="Prazo da tarefa"
