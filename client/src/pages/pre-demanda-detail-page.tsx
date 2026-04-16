@@ -18,7 +18,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Reorder } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth-context";
@@ -355,6 +355,8 @@ export function PreDemandaDetailPage() {
   const [seiLoading, setSeiLoading] = useState(false);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [activeSetoresLoading, setActiveSetoresLoading] = useState(false);
+  const assuntosRequestIdRef = useRef(0);
+  const assuntosCatalogoRequestIdRef = useRef(0);
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
   function syncRecordDependentState(nextRecord: PreDemanda) {
@@ -379,6 +381,14 @@ export function PreDemandaDetailPage() {
     setDeadlineForm({
       prazo_processo: nextRecord.prazoProcesso ?? "",
     });
+  }
+
+  function syncAssuntosState(nextAssuntos: PreDemanda["assuntos"]) {
+    setAssuntosLinked(nextAssuntos);
+    setAssuntosLoaded(true);
+    setRecord((current) =>
+      current ? { ...current, assuntos: nextAssuntos } : current,
+    );
   }
 
   async function loadRecordData(showLoading = false) {
@@ -437,16 +447,18 @@ export function PreDemandaDetailPage() {
       return;
     }
 
+    const requestId = ++assuntosRequestIdRef.current;
     setAssuntosLoading(true);
     try {
       const nextAssuntos = await listPreDemandaAssuntos(preId);
-      setAssuntosLinked(nextAssuntos);
-      setRecord((current) =>
-        current ? { ...current, assuntos: nextAssuntos } : current,
-      );
-      setAssuntosLoaded(true);
+      if (requestId !== assuntosRequestIdRef.current) {
+        return;
+      }
+      syncAssuntosState(nextAssuntos);
     } finally {
-      setAssuntosLoading(false);
+      if (requestId === assuntosRequestIdRef.current) {
+        setAssuntosLoading(false);
+      }
     }
   }
 
@@ -455,32 +467,44 @@ export function PreDemandaDetailPage() {
       return;
     }
 
+    const requestId = ++assuntosCatalogoRequestIdRef.current;
     setAssuntosCatalogoLoading(true);
     try {
       const nextAssuntosCatalogo = await listPreDemandaAssuntosCatalogo(preId);
+      if (requestId !== assuntosCatalogoRequestIdRef.current) {
+        return;
+      }
       setAssuntosCatalogo(nextAssuntosCatalogo);
       setAssuntosCatalogoLoaded(true);
     } catch {
-      setAssuntosCatalogo([]);
-      setAssuntosCatalogoLoaded(false);
+      if (requestId === assuntosCatalogoRequestIdRef.current) {
+        setAssuntosCatalogo([]);
+        setAssuntosCatalogoLoaded(false);
+      }
     } finally {
-      setAssuntosCatalogoLoading(false);
+      if (requestId === assuntosCatalogoRequestIdRef.current) {
+        setAssuntosCatalogoLoading(false);
+      }
     }
   }
 
   async function refreshAssuntosViewData() {
+    const assuntosRequestId = ++assuntosRequestIdRef.current;
+    const catalogoRequestId = ++assuntosCatalogoRequestIdRef.current;
     const [nextAssuntos, nextAssuntosCatalogo] = await Promise.all([
       listPreDemandaAssuntos(preId),
       listPreDemandaAssuntosCatalogo(preId),
     ]);
 
-    setAssuntosLinked(nextAssuntos);
-    setAssuntosLoaded(true);
-    setAssuntosCatalogo(nextAssuntosCatalogo);
-    setAssuntosCatalogoLoaded(true);
-    setRecord((current) =>
-      current ? { ...current, assuntos: nextAssuntos } : current,
-    );
+    if (assuntosRequestId === assuntosRequestIdRef.current) {
+      syncAssuntosState(nextAssuntos);
+      setAssuntosLoading(false);
+    }
+    if (catalogoRequestId === assuntosCatalogoRequestIdRef.current) {
+      setAssuntosCatalogo(nextAssuntosCatalogo);
+      setAssuntosCatalogoLoaded(true);
+      setAssuntosCatalogoLoading(false);
+    }
   }
 
   async function loadTarefasData(force = false) {
@@ -3040,7 +3064,11 @@ export function PreDemandaDetailPage() {
                             );
                             setRecord(next);
                             syncRecordDependentState(next);
-                            await refreshAssuntosViewData();
+                            syncAssuntosState(next.assuntos);
+                            await Promise.all([
+                              refreshAssuntosViewData(),
+                              loadTarefasData(true),
+                            ]);
                           }, "Assunto removido e tarefas automaticas pendentes foram revistas.")
                         }
                         size="sm"
@@ -3093,7 +3121,11 @@ export function PreDemandaDetailPage() {
                         );
                         setRecord(next);
                         syncRecordDependentState(next);
-                        await refreshAssuntosViewData();
+                        syncAssuntosState(next.assuntos);
+                        await Promise.all([
+                          refreshAssuntosViewData(),
+                          loadTarefasData(true),
+                        ]);
                       }, `Assunto ${assunto.nome} vinculado e checklist gerado.`)
                     }
                     type="button"
