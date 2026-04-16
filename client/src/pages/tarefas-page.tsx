@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import { motion } from "framer-motion";
-import { Clock3, Gavel } from "lucide-react";
+import { AlertTriangle, Clock3, Gavel } from "lucide-react";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import {
@@ -242,19 +242,29 @@ function TaskTabPanel({
   emptyTitle,
   emptyDescription,
   unifyByProcess,
+  onlyUrgent,
 }: {
   items: DashboardTaskItem[];
   emptyTitle: string;
   emptyDescription: string;
   unifyByProcess: boolean;
+  onlyUrgent: boolean;
 }) {
+  const filteredItems = useMemo(
+    () => (onlyUrgent ? items.filter((item) => item.urgente) : items),
+    [items, onlyUrgent],
+  );
+  const urgentItems = useMemo(
+    () => filteredItems.filter((item) => item.urgente),
+    [filteredItems],
+  );
   const audienciaItems = useMemo(
-    () => items.filter((item) => item.hasAudiencia),
-    [items],
+    () => filteredItems.filter((item) => !item.urgente && item.hasAudiencia),
+    [filteredItems],
   );
   const regularItems = useMemo(
-    () => items.filter((item) => !item.hasAudiencia),
-    [items],
+    () => filteredItems.filter((item) => !item.urgente && !item.hasAudiencia),
+    [filteredItems],
   );
   const groupByProcess = (groupItems: DashboardTaskItem[]) => {
     const grouped = groupItems.reduce((map, item) => {
@@ -272,6 +282,10 @@ function TaskTabPanel({
 
     return Array.from(grouped.values());
   };
+  const urgentProcessos = useMemo(
+    () => groupByProcess(urgentItems),
+    [urgentItems],
+  );
   const audienciaProcessos = useMemo(
     () => groupByProcess(audienciaItems),
     [audienciaItems],
@@ -281,93 +295,130 @@ function TaskTabPanel({
     [regularItems],
   );
 
-  if (items.length === 0) {
+  if (filteredItems.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
 
   return (
     <div className="grid gap-6">
-      <div className="grid gap-3">
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
-            Processos com audiencia{" "}
-            <span className="normal-case tracking-normal text-slate-400">
-              (
-              {unifyByProcess
-                ? audienciaProcessos.length
-                : audienciaItems.length}
-              )
-            </span>
-          </h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Tarefas ligadas a processos que possuem audiencia cadastrada.
-          </p>
+      {/* ── URGENTES ─────────────────────────────────────────────── */}
+      {urgentItems.length > 0 && (
+        <div className="grid gap-3 rounded-[20px] border border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.95),rgba(255,228,230,0.85))] p-4 shadow-sm">
+          <div>
+            <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-rose-700">
+              <AlertTriangle className="h-4 w-4" />
+              Tarefas urgentes{" "}
+              <span className="normal-case tracking-normal text-rose-400">
+                ({unifyByProcess ? urgentProcessos.length : urgentItems.length})
+              </span>
+            </h3>
+            <p className="mt-1 text-sm text-rose-500/80">
+              Tarefas marcadas como urgentes que requerem atencao imediata.
+            </p>
+          </div>
+          {unifyByProcess ? (
+            <div className="grid gap-3">
+              {urgentProcessos.map((processo) => (
+                <ProcessTaskGroupCard key={processo.preId} {...processo} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {urgentItems.map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </div>
+          )}
         </div>
-        {unifyByProcess ? (
-          audienciaProcessos.length === 0 ? (
+      )}
+
+      {/* ── AUDIÊNCIAS ───────────────────────────────────────────── */}
+      {!onlyUrgent && (
+        <div className="grid gap-3">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
+              Processos com audiencia{" "}
+              <span className="normal-case tracking-normal text-slate-400">
+                (
+                {unifyByProcess
+                  ? audienciaProcessos.length
+                  : audienciaItems.length}
+                )
+              </span>
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Tarefas ligadas a processos que possuem audiencia cadastrada.
+            </p>
+          </div>
+          {unifyByProcess ? (
+            audienciaProcessos.length === 0 ? (
+              <EmptyState
+                title="Sem tarefas de audiencias"
+                description="Nenhuma tarefa de processo com audiencia neste grupo."
+              />
+            ) : (
+              <div className="grid gap-3">
+                {audienciaProcessos.map((processo) => (
+                  <ProcessTaskGroupCard key={processo.preId} {...processo} />
+                ))}
+              </div>
+            )
+          ) : audienciaItems.length === 0 ? (
             <EmptyState
               title="Sem tarefas de audiencias"
               description="Nenhuma tarefa de processo com audiencia neste grupo."
             />
           ) : (
             <div className="grid gap-3">
-              {audienciaProcessos.map((processo) => (
-                <ProcessTaskGroupCard key={processo.preId} {...processo} />
+              {audienciaItems.map((task) => (
+                <TaskCard key={task.id} task={task} />
               ))}
             </div>
-          )
-        ) : audienciaItems.length === 0 ? (
-          <EmptyState
-            title="Sem tarefas de audiencias"
-            description="Nenhuma tarefa de processo com audiencia neste grupo."
-          />
-        ) : (
-          <div className="grid gap-3">
-            {audienciaItems.map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="grid gap-3">
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
-            Demais processos{" "}
-            <span className="normal-case tracking-normal text-slate-400">
-              ({unifyByProcess ? regularProcessos.length : regularItems.length})
-            </span>
-          </h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Demais tarefas operacionais da fila geral.
-          </p>
+          )}
         </div>
-        {unifyByProcess ? (
-          regularProcessos.length === 0 ? (
+      )}
+
+      {/* ── DEMAIS ───────────────────────────────────────────────── */}
+      {!onlyUrgent && (
+        <div className="grid gap-3">
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
+              Demais processos{" "}
+              <span className="normal-case tracking-normal text-slate-400">
+                ({unifyByProcess ? regularProcessos.length : regularItems.length})
+              </span>
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Demais tarefas operacionais da fila geral.
+            </p>
+          </div>
+          {unifyByProcess ? (
+            regularProcessos.length === 0 ? (
+              <EmptyState
+                title="Sem outras tarefas"
+                description="Nenhuma tarefa fora de processos com audiencia neste grupo."
+              />
+            ) : (
+              <div className="grid gap-3">
+                {regularProcessos.map((processo) => (
+                  <ProcessTaskGroupCard key={processo.preId} {...processo} />
+                ))}
+              </div>
+            )
+          ) : regularItems.length === 0 ? (
             <EmptyState
               title="Sem outras tarefas"
               description="Nenhuma tarefa fora de processos com audiencia neste grupo."
             />
           ) : (
             <div className="grid gap-3">
-              {regularProcessos.map((processo) => (
-                <ProcessTaskGroupCard key={processo.preId} {...processo} />
+              {regularItems.map((task) => (
+                <TaskCard key={task.id} task={task} />
               ))}
             </div>
-          )
-        ) : regularItems.length === 0 ? (
-          <EmptyState
-            title="Sem outras tarefas"
-            description="Nenhuma tarefa fora de processos com audiencia neste grupo."
-          />
-        ) : (
-          <div className="grid gap-3">
-            {regularItems.map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -435,6 +486,7 @@ export function TarefasPage() {
   >("");
   const [openWithoutTasksQ, setOpenWithoutTasksQ] = useState("");
   const [unifyByProcess, setUnifyByProcess] = useState(false);
+  const [onlyUrgent, setOnlyUrgent] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState({ pendentes: 0, concluidas: 0 });
@@ -568,6 +620,16 @@ export function TarefasPage() {
                 />
                 Unificar tarefas por processo
               </label>
+              <label className="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 shadow-sm transition hover:bg-rose-100/60">
+                <input
+                  checked={onlyUrgent}
+                  className="h-4 w-4 rounded border-rose-300 accent-rose-600"
+                  onChange={(event) => setOnlyUrgent(event.target.checked)}
+                  type="checkbox"
+                />
+                <AlertTriangle className="h-4 w-4" />
+                Somente urgentes
+              </label>
             </div>
             <div className="grid gap-2 sm:max-w-xs">
               <label
@@ -642,18 +704,20 @@ export function TarefasPage() {
               </TabsList>
               <TabsContent value="pendentes">
                 <TaskTabPanel
-                  emptyDescription="Nenhuma tarefa pendente encontrada."
-                  emptyTitle="Sem pendencias"
+                  emptyDescription={onlyUrgent ? "Nenhuma tarefa urgente pendente encontrada." : "Nenhuma tarefa pendente encontrada."}
+                  emptyTitle={onlyUrgent ? "Sem urgentes" : "Sem pendencias"}
                   items={currentTab === "pendentes" ? items : []}
                   unifyByProcess={unifyByProcess}
+                  onlyUrgent={onlyUrgent}
                 />
               </TabsContent>
               <TabsContent value="concluidas">
                 <TaskTabPanel
-                  emptyDescription="Nenhuma tarefa concluida encontrada."
-                  emptyTitle="Sem concluidas"
+                  emptyDescription={onlyUrgent ? "Nenhuma tarefa urgente concluida encontrada." : "Nenhuma tarefa concluida encontrada."}
+                  emptyTitle={onlyUrgent ? "Sem urgentes" : "Sem concluidas"}
                   items={currentTab === "concluidas" ? items : []}
                   unifyByProcess={unifyByProcess}
+                  onlyUrgent={onlyUrgent}
                 />
               </TabsContent>
             </Tabs>
