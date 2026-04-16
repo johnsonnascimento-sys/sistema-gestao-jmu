@@ -56,7 +56,6 @@ import {
   AndamentoDeleteDialog,
   AndamentoEditDialog,
   TarefaDeleteDialog,
-  TarefaEditDialog,
   TarefaPrazoChangeDialog,
   TarefasDialog,
 } from "./pre-demanda-detail-dialogs";
@@ -4414,7 +4413,10 @@ export function PreDemandaDetailPage() {
         <TarefasDialog
           completedTasks={completedTasks}
           isSubmitting={isSubmitting}
-          onClose={() => setToolbarDialog(null)}
+          onClose={() => {
+            setEditingTask(null);
+            setToolbarDialog(null);
+          }}
           onApplyTaskSuggestion={(suggestion) =>
             setTaskForm((current) => ({
               ...current,
@@ -4435,9 +4437,12 @@ export function PreDemandaDetailPage() {
             )
           }
           onCreateTask={() => void handleCreateTask()}
+          onCancelEdit={() => setEditingTask(null)}
           onDeleteTask={(task) => setDeleteTask(task)}
           onEditTask={(task) => setEditingTask(task)}
+          onEditTaskFormChange={setEditTaskForm}
           onReorderTasks={handleReorderPendingTasksMotion}
+          onSaveTask={() => void handleUpdateTask()}
           onSignatureExpandedChange={(expanded) => {
             setSignatureExpanded(expanded);
             if (!expanded) {
@@ -4447,6 +4452,8 @@ export function PreDemandaDetailPage() {
           }}
           onSignatureSearchChange={setSignatureSearch}
           onTaskFormChange={setTaskForm}
+          editTaskForm={editTaskForm}
+          editingTask={editingTask}
           open={toolbarDialog === "tasks"}
           pendingTasks={pendingTasks}
           interessados={interessados}
@@ -4671,7 +4678,7 @@ export function PreDemandaDetailPage() {
 
       <Dialog
         onOpenChange={(open) => !open && setEditingTask(null)}
-        open={Boolean(editingTask)}
+        open={false}
       >
         <DialogContent>
           <DialogHeader>
@@ -4896,7 +4903,7 @@ export function PreDemandaDetailPage() {
 
       <Dialog
         onOpenChange={(open) => !open && setTaskPrazoChange(null)}
-        open={Boolean(taskPrazoChange)}
+        open={false}
       >
         <DialogContent>
           <DialogHeader>
@@ -4944,7 +4951,7 @@ export function PreDemandaDetailPage() {
 
       <Dialog
         onOpenChange={(open) => !open && setDeleteTask(null)}
-        open={Boolean(deleteTask)}
+        open={false}
       >
         <DialogContent>
           <DialogHeader>
@@ -4995,6 +5002,37 @@ export function PreDemandaDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TarefaPrazoChangeDialog
+        isSubmitting={isSubmitting}
+        onClose={() => setTaskPrazoChange(null)}
+        onConfirm={() => {
+          if (!taskPrazoChange) {
+            return;
+          }
+          void (taskPrazoChange.mode === "create"
+            ? handleCreateTask(true)
+            : handleUpdateTask(true));
+        }}
+        taskPrazoChange={taskPrazoChange}
+      />
+
+      <TarefaDeleteDialog
+        confirm={deleteTaskConfirm}
+        deleteTask={deleteTask}
+        isSubmitting={isSubmitting}
+        onClose={() => setDeleteTask(null)}
+        onConfirmChange={setDeleteTaskConfirm}
+        onSubmit={() =>
+          deleteTask
+            ? void runMutation(async () => {
+                await removePreDemandaTarefa(preId, deleteTask.id);
+                await loadTarefasData(true);
+                setDeleteTask(null);
+              }, "Tarefa excluida.")
+            : undefined
+        }
+      />
 
       <ConfirmDialog
         confirmLabel={statusAction?.title ?? "Confirmar alteracao"}
