@@ -2086,6 +2086,22 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       }));
 
     const start = (params.page - 1) * params.pageSize;
+    const urgentProcessItems = this.records
+      .filter((item) => item.status !== "encerrada" && item.metadata.urgente === true)
+      .sort((left, right) => {
+        if (left.prazoProcesso && right.prazoProcesso) {
+          return left.prazoProcesso.localeCompare(right.prazoProcesso);
+        }
+        return left.updatedAt.localeCompare(right.updatedAt);
+      })
+      .slice(0, 20)
+      .map((item) => ({
+        preId: item.preId,
+        preNumero: item.principalNumero,
+        assunto: item.assunto,
+        prazoProcesso: item.prazoProcesso ?? null,
+        updatedAt: item.updatedAt,
+      }));
     return {
       items: allItems.slice(start, start + params.pageSize),
       total: allItems.length,
@@ -2105,6 +2121,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           );
         }).length,
         items: openProcessesWithoutTasks,
+      },
+      urgentProcesses: {
+        total: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).length,
+        items: urgentProcessItems,
       },
     };
   }

@@ -90,6 +90,7 @@ const listDashboardTasksSchema = z.object({
   date: z.string().date().optional(),
   recurrence: z.enum(["diaria", "semanal", "mensal", "trimestral", "quadrimestral", "semestral", "anual", "sem_recorrencia"]).optional(),
   openWithoutTasksQ: z.string().trim().max(120).optional(),
+  urgentProcessesQ: z.string().trim().max(120).optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -442,6 +443,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       date: query.date,
       recurrence: query.recurrence,
       openWithoutTasksQ: query.openWithoutTasksQ,
+      urgentProcessesQ: query.urgentProcessesQ,
       page: query.page,
       pageSize: query.pageSize,
     });

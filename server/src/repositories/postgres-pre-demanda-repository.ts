@@ -4557,6 +4557,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     date?: string;
     recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
     openWithoutTasksQ?: string;
+    urgentProcessesQ?: string;
     page: number;
     pageSize: number;
   }): Promise<DashboardTaskListResult> {
@@ -4627,9 +4628,42 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     }
 
     const openWithoutTasksWhereClause = openWithoutTasksConditions.length ? `where ${openWithoutTasksConditions.join(" and ")}` : "";
+
+    const urgentConditions: string[] = [
+      `pd.status <> 'encerrada'`,
+      `coalesce((pd.metadata->>'urgente')::boolean, false) = true`,
+    ];
+    const urgentValues: Array<string> = [];
+
+    if (params.urgentProcessesQ) {
+      const normalizedUrgentSearch = normalizeSearchTerm(params.urgentProcessesQ);
+      const tokens = normalizedUrgentSearch.split(/\s+/).filter(Boolean);
+      const tokenClauses: string[] = [];
+      for (const token of tokens) {
+        urgentValues.push(`%${token}%`);
+        const idx = urgentValues.length;
+        tokenClauses.push(`(
+          ${buildNormalizedLikeExpression("pd.assunto", idx)}
+          or ${buildNormalizedLikeExpression("pd.pre_id", idx)}
+          or ${buildNormalizedLikeExpression("pd.solicitante", idx)}
+          or ${buildNormalizedLikeExpression("pd.numero_judicial", idx)}
+          or exists (
+            select 1
+            from adminlog.pre_to_sei_link link_urgent
+            where link_urgent.pre_id = pd.pre_id
+              and ${buildNormalizedLikeExpression("link_urgent.sei_numero", idx)}
+          )
+        )`);
+      }
+      if (tokenClauses.length) {
+        urgentConditions.push(`(${tokenClauses.join(" and ")})`);
+      }
+    }
+
+    const urgentWhereClause = `where ${urgentConditions.join(" and ")}`;
     const countValues = values.slice(0, values.length - 2);
 
-    const [itemsResult, countResult, openProcessesWithoutTasksResult] = await Promise.all([
+    const [itemsResult, countResult, openProcessesWithoutTasksResult, urgentProcessesResult] = await Promise.all([
       this.pool.query(
         `
           select
@@ -4710,6 +4744,29 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `,
         openWithoutTasksValues,
       ),
+      this.pool.query(
+        `
+          select
+            count(*) over()::int as total_urgent,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
+            pd.assunto,
+            pd.prazo_processo,
+            pd.updated_at
+          from adminlog.pre_demanda pd
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          ${urgentWhereClause}
+          order by pd.prazo_processo asc nulls last, pd.updated_at asc, pd.id asc
+          limit 20
+        `,
+        urgentValues,
+      ),
     ]);
 
     return {
@@ -4746,6 +4803,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           preNumero: String(row.pre_numero),
           assunto: String(row.assunto),
           status: row.status as DashboardTaskListResult["openProcessesWithoutTasks"]["items"][number]["status"],
+          updatedAt: new Date(row.updated_at).toISOString(),
+        })),
+      },
+      urgentProcesses: {
+        total: Number(urgentProcessesResult.rows[0]?.total_urgent ?? 0),
+        items: urgentProcessesResult.rows.map((row) => ({
+          preId: String(row.pre_id),
+          preNumero: String(row.pre_numero),
+          assunto: String(row.assunto),
+          prazoProcesso: row.prazo_processo ? new Date(row.prazo_processo).toISOString().slice(0, 10) : null,
           updatedAt: new Date(row.updated_at).toISOString(),
         })),
       },

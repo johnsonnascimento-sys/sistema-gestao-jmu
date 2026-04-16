@@ -586,6 +586,7 @@ export interface PreDemandaRepository {
     date?: string;
     recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
     openWithoutTasksQ?: string;
+    urgentProcessesQ?: string;
     page: number;
     pageSize: number;
   }): Promise<DashboardTaskListResult>;

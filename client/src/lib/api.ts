@@ -1019,6 +1019,7 @@ export function listDashboardTasks(params: {
   date?: string;
   recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
   openWithoutTasksQ?: string;
+  urgentProcessesQ?: string;
   page?: number;
   pageSize?: number;
 }) {
@@ -1029,6 +1030,8 @@ export function listDashboardTasks(params: {
   if (params.recurrence) search.set("recurrence", params.recurrence);
   if (params.openWithoutTasksQ)
     search.set("openWithoutTasksQ", params.openWithoutTasksQ);
+  if (params.urgentProcessesQ)
+    search.set("urgentProcessesQ", params.urgentProcessesQ);
   search.set("page", String(params.page ?? 1));
   search.set("pageSize", String(params.pageSize ?? 20));
   return request<DashboardTaskListResult>(

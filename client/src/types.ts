@@ -532,6 +532,14 @@ export interface OpenProcessWithoutTaskItem {
   updatedAt: string;
 }
 
+export interface UrgentProcessItem {
+  preId: string;
+  preNumero: string;
+  assunto: string;
+  prazoProcesso: string | null;
+  updatedAt: string;
+}
+
 export type DashboardTaskStatusFilter = "pendentes" | "concluidas";
 export type DashboardTaskSortMode = "prazo_asc" | "created_desc" | "created_asc";
 
@@ -547,6 +555,10 @@ export interface DashboardTaskListResult {
   openProcessesWithoutTasks: {
     total: number;
     items: OpenProcessWithoutTaskItem[];
+  };
+  urgentProcesses: {
+    total: number;
+    items: UrgentProcessItem[];
   };
 }
 

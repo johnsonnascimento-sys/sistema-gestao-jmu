@@ -26,6 +26,7 @@ import type {
   DashboardTaskSortMode,
   DashboardTaskStatusFilter,
   OpenProcessWithoutTaskItem,
+  UrgentProcessItem,
   TarefaRecorrenciaTipo,
 } from "../types";
 
@@ -423,6 +424,62 @@ function TaskTabPanel({
   );
 }
 
+function UrgentProcessesCard({
+  items,
+  total,
+}: {
+  items: UrgentProcessItem[];
+  total: number;
+}) {
+  return (
+    <Card className="rounded-[28px] border border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.95),rgba(255,228,230,0.88))] shadow-[0_12px_24px_rgba(159,18,57,0.07)]">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-rose-800">
+          <AlertTriangle className="h-5 w-5" />
+          Processos urgentes
+        </CardTitle>
+        <CardDescription className="text-rose-600/80">
+          {total} processo(s) marcado(s) como urgente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <EmptyState
+            title="Sem processos urgentes visíveis"
+            description="Nenhum processo urgente encontrado com os filtros aplicados."
+          />
+        ) : (
+          <div className="grid gap-3">
+            {items.map((item) => (
+              <Link
+                key={item.preId}
+                className="rounded-[20px] border border-rose-200/70 bg-white/90 px-4 py-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                to={buildPreDemandaPath(item.preId)}
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-700">
+                  {item.preNumero}
+                </p>
+                <h3 className="mt-2 text-sm font-semibold text-slate-950">
+                  {item.assunto}
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                  {item.prazoProcesso ? (
+                    <span>Prazo: {formatDateOnlyPtBr(item.prazoProcesso)}</span>
+                  ) : null}
+                  <span>
+                    Atualizado em{" "}
+                    {new Date(item.updatedAt).toLocaleString("pt-BR")}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function OpenProcessesWithoutTasksCard({
   items,
   total,
@@ -473,6 +530,10 @@ function OpenProcessesWithoutTasksCard({
 
 export function TarefasPage() {
   const [items, setItems] = useState<DashboardTaskItem[]>([]);
+  const [urgentProcesses, setUrgentProcesses] = useState<{
+    total: number;
+    items: UrgentProcessItem[];
+  }>({ total: 0, items: [] });
   const [openProcessesWithoutTasks, setOpenProcessesWithoutTasks] = useState<{
     total: number;
     items: OpenProcessWithoutTaskItem[];
@@ -485,6 +546,7 @@ export function TarefasPage() {
     TarefaRecorrenciaTipo | "sem_recorrencia" | ""
   >("");
   const [openWithoutTasksQ, setOpenWithoutTasksQ] = useState("");
+  const [urgentProcessesQ, setUrgentProcessesQ] = useState("");
   const [unifyByProcess, setUnifyByProcess] = useState(false);
   const [onlyUrgent, setOnlyUrgent] = useState(false);
   const [page, setPage] = useState(1);
@@ -505,6 +567,7 @@ export function TarefasPage() {
           date: selectedDate || undefined,
           recurrence: selectedRecurrence || undefined,
           openWithoutTasksQ: openWithoutTasksQ || undefined,
+          urgentProcessesQ: urgentProcessesQ || undefined,
           page,
           pageSize: PAGE_SIZE,
         });
@@ -513,6 +576,7 @@ export function TarefasPage() {
           setTotal(next.total);
           setCounts(next.counts);
           setOpenProcessesWithoutTasks(next.openProcessesWithoutTasks);
+          setUrgentProcesses(next.urgentProcesses);
           setError("");
         }
       } catch (nextError) {
@@ -532,6 +596,7 @@ export function TarefasPage() {
   }, [
     currentTab,
     openWithoutTasksQ,
+    urgentProcessesQ,
     page,
     selectedDate,
     selectedRecurrence,
@@ -754,6 +819,31 @@ export function TarefasPage() {
         animate={{ opacity: 1, y: 0 }}
         initial={{ opacity: 0, y: 16 }}
         transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
+      >
+        <div className="mb-3 grid gap-2 sm:max-w-md">
+            <label
+              className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600"
+              htmlFor="urgent-processes-filter"
+            >
+              Filtrar processos urgentes
+            </label>
+            <Input
+              id="urgent-processes-filter"
+              onChange={(event) => setUrgentProcessesQ(event.target.value)}
+              placeholder="Buscar por numero, SEI, numero judicial ou assunto"
+              value={urgentProcessesQ}
+            />
+          </div>
+          <UrgentProcessesCard
+            items={urgentProcesses.items}
+            total={urgentProcesses.total}
+          />
+        </motion.div>
+
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 18 }}
+        transition={{ duration: 0.5, delay: 0.14, ease: "easeOut" }}
       >
         <div className="mb-3 grid gap-2 sm:max-w-md">
           <label
