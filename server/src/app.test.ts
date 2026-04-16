@@ -20,6 +20,7 @@ import type {
   Assunto,
   AppUser,
   BulkAndamentoResult,
+  BulkTarefaResult,
   DemandaComentario,
   DemandaDocumento,
   DemandaInteressado,
@@ -61,6 +62,7 @@ import type {
   CreateNormaInput,
   CreateSetorInput,
   CreateTarefaInput,
+  CreateTarefasLoteInput,
   CreateUserInput,
   InteressadoRepository,
   AssuntoRepository,
@@ -104,6 +106,8 @@ function addDays(value: string, amount: number) {
   date.setDate(date.getDate() + amount);
   return date.toISOString().slice(0, 10);
 }
+
+const inMemoryInteressadoCatalog = new Map<string, Interessado>();
 
 function getNextRecurringDate(input: {
   prazoConclusao: string;
@@ -933,16 +937,18 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       throw new Error("duplicate");
     }
 
-    const interessado: Interessado = {
-      id: input.interessadoId,
-      nome: `Interessado ${input.interessadoId.slice(0, 4)}`,
-      cargo: null,
-      matricula: null,
-      cpf: null,
-      dataNascimento: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    const interessado =
+      inMemoryInteressadoCatalog.get(input.interessadoId) ??
+      ({
+        id: input.interessadoId,
+        nome: `Interessado ${input.interessadoId.slice(0, 4)}`,
+        cargo: null,
+        matricula: null,
+        cpf: null,
+        dataNascimento: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      } satisfies Interessado);
 
     record.interessados.unshift({
       interessado,
@@ -1197,6 +1203,13 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }));
   }
 
+  private syncTaskUrgency(record: PreDemandaDetail) {
+    record.metadata = {
+      ...record.metadata,
+      urgente: record.tarefasPendentes.some((item) => !item.concluida && item.urgente === true),
+    };
+  }
+
   async createTarefa(input: CreateTarefaInput) {
     const record = this.records.find((item) => item.preId === input.preId);
     if (!record) {
@@ -1212,6 +1225,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       ordem: record.tarefasPendentes.length + 1,
       descricao: input.descricao,
       tipo: input.tipo,
+      urgente: input.urgente ?? false,
       assuntoId: input.assuntoId ?? null,
       procedimentoId: input.procedimentoId ?? null,
       prazoConclusao: input.prazoConclusao,
@@ -1240,6 +1254,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
 
     record.tarefasPendentes.push(tarefa);
+    this.syncTaskUrgency(record);
     const nextPrazo = record.tarefasPendentes
       .filter((item) => !item.concluida)
       .map((item) => item.prazoConclusao)
@@ -1249,11 +1264,71 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     return tarefa;
   }
 
+  async createTarefasLote(input: CreateTarefasLoteInput): Promise<BulkTarefaResult> {
+    const uniquePreIds = [...new Set(input.preIds.map((item) => item.trim()).filter(Boolean))];
+    const assinaturaMap = new Map(
+      (input.assinaturas ?? []).map((item) => [item.preId.trim(), item.interessadoId]),
+    );
+    const usesSignatureMode = assinaturaMap.size > 0;
+
+    const results = await Promise.all(uniquePreIds.map(async (preId) => {
+      try {
+        const record = this.records.find((item) => item.preId === preId);
+        if (!record) {
+          throw new Error("not found");
+        }
+
+        let descricao = input.descricao.trim();
+        if (usesSignatureMode) {
+          const interessadoId = assinaturaMap.get(preId);
+          const interessado = record.interessados.find((item) => item.interessado.id === interessadoId)?.interessado;
+          if (!interessado) {
+            throw new Error("signature invalid");
+          }
+          descricao = `Assinatura de ${interessado.nome}`;
+        } else if (descricao === "Envio para" || descricao === "Retorno do setor") {
+          descricao = `${descricao} DIPES`;
+        }
+
+        const tarefa = await this.createTarefa({
+          ...input,
+          preId,
+          descricao,
+        });
+
+        return {
+          preId,
+          ok: true,
+          message: "Tarefa registrada.",
+          tarefa,
+        };
+      } catch (error) {
+        return {
+          preId,
+          ok: false,
+          message:
+            error instanceof Error && error.message === "signature invalid"
+              ? "A pessoa selecionada nao esta vinculada a este processo."
+              : "Falha ao registrar tarefa neste processo.",
+        };
+      }
+    }));
+
+    const successCount = results.filter((item) => item.ok).length;
+    return {
+      total: uniquePreIds.length,
+      successCount,
+      failureCount: uniquePreIds.length - successCount,
+      results,
+    };
+  }
+
   async updateTarefa(input: {
     preId: string;
     tarefaId: string;
     descricao: string;
     tipo: "fixa" | "livre";
+    urgente?: boolean | null;
     prazoConclusao: string;
     horarioInicio?: string | null;
     horarioFim?: string | null;
@@ -1277,6 +1352,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     tarefa.descricao = input.descricao;
     tarefa.tipo = input.tipo;
+    tarefa.urgente = input.urgente ?? tarefa.urgente ?? false;
     if (new Date(`${input.prazoConclusao}T00:00:00`).getTime() > new Date(`${record.prazoProcesso}T00:00:00`).getTime()) {
       throw new Error("prazo invalid");
     }
@@ -1288,6 +1364,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     tarefa.recorrenciaDiaMes = input.recorrenciaDiaMes ?? null;
     tarefa.prazoReferencia = null;
     tarefa.prazoData = input.prazoConclusao;
+    this.syncTaskUrgency(record);
     this.addAndamentoRecord(record, `Tarefa atualizada: ${tarefa.descricao}.`, "sistema");
     return tarefa;
   }
@@ -1330,6 +1407,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     record.tarefasPendentes = record.tarefasPendentes.filter((item) => item.id !== input.tarefaId);
+    this.syncTaskUrgency(record);
     this.addAndamentoRecord(record, `Tarefa removida: ${tarefa.descricao}.`, "sistema");
     return { removedId: input.tarefaId };
   }
@@ -1389,6 +1467,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       record.proximoPrazoTarefa = record.tarefasPendentes.filter((item) => !item.concluida).map((item) => item.prazoConclusao).filter((value): value is string => Boolean(value)).sort()[0] ?? null;
       this.addAndamentoRecord(record, `Nova ocorrencia gerada para a tarefa recorrente ${tarefa.descricao}.`, "sistema");
     }
+    this.syncTaskUrgency(record);
     this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
     return tarefa;
   }
@@ -2067,6 +2146,7 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
     };
 
     this.items.set(id, record);
+    inMemoryInteressadoCatalog.set(id, record);
     return record;
   }
 
@@ -2087,6 +2167,7 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
     };
 
     this.items.set(record.id, record);
+    inMemoryInteressadoCatalog.set(record.id, record);
     return record;
   }
 }
@@ -3113,6 +3194,212 @@ describe("Gestor JMU API", () => {
       secondDetail.json().data.recentAndamentos.some(
         (item: { descricao: string; tipo: string }) =>
           item.descricao === "Andamento compartilhado" && item.tipo === "manual",
+      ),
+    ).toBe(true);
+  });
+
+  it("registers tarefas em lote with deduplication, urgency and partial success", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Paula Andrade",
+        assunto: "Fluxo em lote",
+        data_referencia: "2026-03-18",
+        prazo_processo: "2026-03-29",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const secondPreId = created.json().data.preId as string;
+
+    const bulk = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/tarefas/lote",
+      headers: { cookie },
+      payload: {
+        pre_ids: ["PRE-2026-001", secondPreId, secondPreId, "PRE-NAO-EXISTE"],
+        descricao: "Revisar documento",
+        tipo: "livre",
+        urgente: true,
+        prazo_conclusao: "2026-03-20",
+      },
+    });
+
+    expect(bulk.statusCode).toBe(201);
+    expect(bulk.json().data.total).toBe(3);
+    expect(bulk.json().data.successCount).toBe(2);
+    expect(bulk.json().data.failureCount).toBe(1);
+    expect(
+      bulk.json().data.results.filter((item: { preId: string }) => item.preId === secondPreId),
+    ).toHaveLength(1);
+    expect(
+      bulk.json().data.results.find((item: { preId: string }) => item.preId === "PRE-NAO-EXISTE")?.ok,
+    ).toBe(false);
+
+    const firstDetail = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/PRE-2026-001",
+      headers: { cookie },
+    });
+
+    expect(
+      firstDetail.json().data.tarefasPendentes.some(
+        (item: { descricao: string; urgente: boolean; concluida: boolean }) =>
+          item.descricao === "Revisar documento" && item.urgente === true && item.concluida === false,
+      ),
+    ).toBe(true);
+    expect(firstDetail.json().data.metadata.urgente).toBe(true);
+
+    const secondDetail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${secondPreId}`,
+      headers: { cookie },
+    });
+
+    expect(
+      secondDetail.json().data.tarefasPendentes.some(
+        (item: { descricao: string; urgente: boolean }) =>
+          item.descricao === "Revisar documento" && item.urgente === true,
+      ),
+    ).toBe(true);
+  });
+
+  it("registers signature tarefas em lote with one signer per process", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+
+    const createdOne = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Livia Souza",
+        assunto: "Assinatura lote A",
+        data_referencia: "2026-03-18",
+        prazo_processo: "2026-03-30",
+      },
+    });
+    const createdTwo = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Mario Souza",
+        assunto: "Assinatura lote B",
+        data_referencia: "2026-03-18",
+        prazo_processo: "2026-03-30",
+      },
+    });
+
+    expect(createdOne.statusCode).toBe(201);
+    expect(createdTwo.statusCode).toBe(201);
+    const firstPreId = createdOne.json().data.preId as string;
+    const secondPreId = createdTwo.json().data.preId as string;
+
+    const pessoaUm = await app.inject({
+      method: "POST",
+      url: "/api/interessados",
+      headers: { cookie },
+      payload: {
+        nome: "Maria Assinante",
+      },
+    });
+    const pessoaDois = await app.inject({
+      method: "POST",
+      url: "/api/interessados",
+      headers: { cookie },
+      payload: {
+        nome: "Joao Assinante",
+      },
+    });
+
+    expect(pessoaUm.statusCode).toBe(201);
+    expect(pessoaDois.statusCode).toBe(201);
+    const pessoaUmId = pessoaUm.json().data.id as string;
+    const pessoaDoisId = pessoaDois.json().data.id as string;
+
+    const vinculoUm = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${firstPreId}/interessados`,
+      headers: { cookie },
+      payload: {
+        interessado_id: pessoaUmId,
+        papel: "interessado",
+      },
+    });
+    const vinculoDois = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${secondPreId}/interessados`,
+      headers: { cookie },
+      payload: {
+        interessado_id: pessoaDoisId,
+        papel: "interessado",
+      },
+    });
+
+    expect(vinculoUm.statusCode).toBe(201);
+    expect(vinculoDois.statusCode).toBe(201);
+
+    const bulk = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/tarefas/lote",
+      headers: { cookie },
+      payload: {
+        pre_ids: [firstPreId, secondPreId],
+        descricao: "Assinatura de pessoa",
+        tipo: "fixa",
+        prazo_conclusao: "2026-03-21",
+        assinaturas: [
+          { preId: firstPreId, interessadoId: pessoaUmId },
+          { preId: secondPreId, interessadoId: pessoaDoisId },
+        ],
+      },
+    });
+
+    expect(bulk.statusCode).toBe(201);
+    expect(bulk.json().data.successCount).toBe(2);
+    expect(bulk.json().data.failureCount).toBe(0);
+
+    const firstDetail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${firstPreId}`,
+      headers: { cookie },
+    });
+    const secondDetail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${secondPreId}`,
+      headers: { cookie },
+    });
+
+    expect(
+      firstDetail.json().data.tarefasPendentes.some(
+        (item: { descricao: string }) => item.descricao === "Assinatura de Maria Assinante",
+      ),
+    ).toBe(true);
+    expect(
+      secondDetail.json().data.tarefasPendentes.some(
+        (item: { descricao: string }) => item.descricao === "Assinatura de Joao Assinante",
       ),
     ).toBe(true);
   });

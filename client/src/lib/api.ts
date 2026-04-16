@@ -7,6 +7,7 @@ import type {
   Assunto,
   AuthUser,
   BulkAndamentoResult,
+  BulkTarefaResult,
   DashboardTaskListResult,
   DashboardTaskSortMode,
   DashboardTaskStatusFilter,
@@ -795,6 +796,26 @@ export function createPreDemandaTarefa(
   },
 ) {
   return request<TarefaPendente>(buildPreDemandaApiPath(preId, "/tarefas"), {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createPreDemandaTarefasLote(payload: {
+  pre_ids: string[];
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  urgente?: boolean | null;
+  prazo_conclusao: string;
+  horario_inicio?: string | null;
+  horario_fim?: string | null;
+  recorrencia_tipo?: TarefaRecorrenciaTipo | null;
+  recorrencia_dias_semana?: string[] | null;
+  recorrencia_dia_mes?: number | null;
+  setor_destino_id?: string | null;
+  assinaturas?: Array<{ preId: string; interessadoId: string }> | null;
+}) {
+  return request<BulkTarefaResult>("/api/pre-demandas/tarefas/lote", {
     method: "POST",
     body: JSON.stringify(payload),
   });

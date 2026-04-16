@@ -27,6 +27,7 @@ import type {
   QueueHealthLevel,
   QueueHealthConfig,
   BulkAndamentoResult,
+  BulkTarefaResult,
   PreDemandaSortBy,
   PreDemandaStatusAuditRecord,
   PreDemandaStatus,
@@ -292,6 +293,25 @@ export interface RemoveTarefaInput {
   changedByUserId: number;
 }
 
+export interface CreateTarefasLoteInput {
+  preIds: string[];
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  urgente?: boolean | null;
+  prazoConclusao: string;
+  horarioInicio?: string | null;
+  horarioFim?: string | null;
+  recorrenciaTipo?: TarefaRecorrenciaTipo | null;
+  recorrenciaDiasSemana?: string[] | null;
+  recorrenciaDiaMes?: number | null;
+  setorDestinoId?: string | null;
+  assinaturas?: Array<{
+    preId: string;
+    interessadoId: string;
+  }> | null;
+  changedByUserId: number;
+}
+
 export interface CreateAudienciaInput {
   preId: string;
   dataHoraInicio: string;
@@ -514,6 +534,7 @@ export interface PreDemandaTarefaRepository {
   listTarefas(preId: string): Promise<TarefaPendente[]>;
   listSchedulingSuggestions(params: { preId: string; prazoConclusao?: string | null; limit?: number }): Promise<TaskScheduleSuggestion[]>;
   createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
+  createTarefasLote(input: CreateTarefasLoteInput): Promise<BulkTarefaResult>;
   updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
   reorderTarefas(input: ReorderTarefasInput): Promise<TarefaPendente[]>;
   removeTarefa(input: RemoveTarefaInput): Promise<{ removedId: string }>;

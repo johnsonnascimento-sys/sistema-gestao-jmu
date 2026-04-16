@@ -11,6 +11,7 @@ const AdminAuditPage = lazy(() => import("./pages/admin-audit-page").then((modul
 const AdminUsersPage = lazy(() => import("./pages/admin-users-page").then((module) => ({ default: module.AdminUsersPage })));
 const AndamentosLotePage = lazy(() => import("./pages/andamentos-lote-page").then((module) => ({ default: module.AndamentosLotePage })));
 const DashboardPage = lazy(() => import("./pages/dashboard-page").then((module) => ({ default: module.DashboardPage })));
+const TarefasLotePage = lazy(() => import("./pages/tarefas-lote-page").then((module) => ({ default: module.TarefasLotePage })));
 const TarefasPage = lazy(() => import("./pages/tarefas-page").then((module) => ({ default: module.TarefasPage })));
 const AudienciasPautaPage = lazy(() => import("./pages/audiencias-pauta-page").then((module) => ({ default: module.AudienciasPautaPage })));
 const AssuntosPage = lazy(() => import("./pages/assuntos-page").then((module) => ({ default: module.AssuntosPage })));
@@ -47,6 +48,14 @@ export function App() {
                     </RequirePermission>
                   }
                   path="/andamentos-lote"
+                />
+                <Route
+                  element={
+                    <RequirePermission permission="pre_demanda.update">
+                      <TarefasLotePage />
+                    </RequirePermission>
+                  }
+                  path="/tarefas-lote"
                 />
                 <Route
                   element={

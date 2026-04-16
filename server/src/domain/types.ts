@@ -271,6 +271,20 @@ export interface BulkAndamentoResult {
   results: BulkAndamentoResultItem[];
 }
 
+export interface BulkTarefaResultItem {
+  preId: string;
+  ok: boolean;
+  message?: string;
+  tarefa?: TarefaPendente;
+}
+
+export interface BulkTarefaResult {
+  total: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkTarefaResultItem[];
+}
+
 export interface DemandaDocumento {
   id: string;
   preId: string;

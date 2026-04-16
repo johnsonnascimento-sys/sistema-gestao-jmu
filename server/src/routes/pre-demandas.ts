@@ -208,6 +208,34 @@ const tarefaSchema = z.object({
   }
 });
 
+const tarefaLoteSchema = z.object({
+  pre_ids: z.array(z.string().trim().min(1)).min(1).max(200),
+  descricao: z.string().trim().min(3).max(4000),
+  tipo: z.enum(["fixa", "livre"]),
+  urgente: z.boolean().optional().nullable(),
+  prazo_conclusao: z.string().date(),
+  horario_inicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
+  horario_fim: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional().nullable(),
+  recorrencia_tipo: z.enum(["diaria", "semanal", "mensal", "trimestral", "quadrimestral", "semestral", "anual"]).optional().nullable(),
+  recorrencia_dias_semana: z.array(z.string().trim().min(3).max(16)).max(7).optional().nullable(),
+  recorrencia_dia_mes: z.number().int().min(1).max(31).optional().nullable(),
+  setor_destino_id: z.string().uuid().optional().nullable(),
+  assinaturas: z.array(
+    z.object({
+      preId: z.string().trim().min(1),
+      interessadoId: z.string().uuid(),
+    }),
+  ).max(200).optional().nullable(),
+}).superRefine((value, ctx) => {
+  if (value.horario_inicio && value.horario_fim && value.horario_fim < value.horario_inicio) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["horario_fim"],
+      message: "O horario de termino nao pode ser anterior ao horario de inicio.",
+    });
+  }
+});
+
 const tarefaOrderSchema = z.object({
   tarefa_ids: z.array(z.string().uuid()).min(1),
 });
@@ -784,6 +812,39 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.status(201).send({
       ok: true,
       data: tarefa,
+      error: null,
+    });
+  });
+
+  app.post("/api/pre-demandas/tarefas/lote", { preHandler: [app.authenticate, app.authorize("pre_demanda.update")] }, async (request, reply) => {
+    const payload = tarefaLoteSchema.parse(request.body);
+    const result = await preDemandaTarefaRepository.createTarefasLote({
+      preIds: payload.pre_ids,
+      descricao: payload.descricao,
+      tipo: payload.tipo,
+      urgente: payload.urgente ?? false,
+      prazoConclusao: payload.prazo_conclusao,
+      horarioInicio: payload.horario_inicio ?? null,
+      horarioFim: payload.horario_fim ?? null,
+      recorrenciaTipo: payload.recorrencia_tipo ?? null,
+      recorrenciaDiasSemana: payload.recorrencia_dias_semana ?? null,
+      recorrenciaDiaMes: payload.recorrencia_dia_mes ?? null,
+      setorDestinoId: payload.setor_destino_id ?? null,
+      assinaturas: payload.assinaturas ?? null,
+      changedByUserId: request.user!.id,
+    });
+
+    preDemandaRepository.invalidateDashboardCaches();
+
+    for (const item of result.results) {
+      if (item.ok) {
+        emitPreDemandaUpdate({ preId: item.preId, type: "task", action: "create" });
+      }
+    }
+
+    return reply.status(201).send({
+      ok: true,
+      data: result,
       error: null,
     });
   });

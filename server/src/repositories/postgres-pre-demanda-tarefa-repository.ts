@@ -11,6 +11,7 @@ import {
 import type {
   ConcluirTarefaInput,
   CreateTarefaInput,
+  CreateTarefasLoteInput,
   PreDemandaTarefaRepository,
   RemoveTarefaInput,
   ReorderTarefasInput,
@@ -376,6 +377,123 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
 
       return tarefa;
     });
+  }
+
+  async createTarefasLote(input: CreateTarefasLoteInput) {
+    const uniquePreIds = [...new Set(input.preIds.map((item) => item.trim()).filter(Boolean))];
+    const assinaturaMap = new Map(
+      (input.assinaturas ?? []).map((item) => [item.preId.trim(), item.interessadoId]),
+    );
+    const usesSignatureMode = assinaturaMap.size > 0;
+    const needsSetorSigla =
+      input.descricao.trim() === "Envio para" ||
+      input.descricao.trim() === "Retorno do setor";
+
+    let setorSigla: string | null = null;
+    if (needsSetorSigla) {
+      if (!input.setorDestinoId) {
+        throw new AppError(400, "SETOR_DESTINO_REQUIRED", "Informe o setor destino para esta tarefa.");
+      }
+
+      const setorResult = await this.pool.query(
+        `
+          select sigla
+          from adminlog.setores
+          where id = $1::uuid
+          limit 1
+        `,
+        [input.setorDestinoId],
+      );
+
+      if (!setorResult.rows[0]?.sigla) {
+        throw new AppError(404, "SETOR_NOT_FOUND", "O setor informado nao foi encontrado.");
+      }
+
+      setorSigla = String(setorResult.rows[0].sigla);
+    }
+
+    const results = await Promise.all(
+      uniquePreIds.map(async (preId) => {
+        try {
+          let descricao = input.descricao.trim();
+
+          if (usesSignatureMode) {
+            const interessadoId = assinaturaMap.get(preId);
+            if (!interessadoId) {
+              throw new AppError(
+                400,
+                "TAREFA_ASSINATURA_REQUIRED",
+                "Selecione a pessoa de assinatura para este processo.",
+              );
+            }
+
+            const interessadoResult = await this.pool.query(
+              `
+                select interessado.nome
+                from adminlog.pre_demanda pd
+                inner join adminlog.demanda_interessados di on di.pre_demanda_id = pd.id
+                inner join adminlog.interessados interessado on interessado.id = di.interessado_id
+                where pd.pre_id = $1
+                  and di.interessado_id = $2::uuid
+                limit 1
+              `,
+              [preId, interessadoId],
+            );
+
+            if (!interessadoResult.rows[0]?.nome) {
+              throw new AppError(
+                409,
+                "TAREFA_ASSINATURA_INVALID",
+                "A pessoa selecionada nao esta vinculada a este processo.",
+              );
+            }
+
+            descricao = `Assinatura de ${String(interessadoResult.rows[0].nome)}`;
+          } else if (needsSetorSigla) {
+            descricao = `${descricao} ${setorSigla ?? ""}`.trim();
+          }
+
+          const tarefa = await this.createTarefa({
+            preId,
+            descricao,
+            tipo: input.tipo,
+            urgente: input.urgente ?? false,
+            prazoConclusao: input.prazoConclusao,
+            horarioInicio: input.horarioInicio ?? null,
+            horarioFim: input.horarioFim ?? null,
+            recorrenciaTipo: input.recorrenciaTipo ?? null,
+            recorrenciaDiasSemana: input.recorrenciaDiasSemana ?? null,
+            recorrenciaDiaMes: input.recorrenciaDiaMes ?? null,
+            setorDestinoId: input.setorDestinoId ?? null,
+            changedByUserId: input.changedByUserId,
+          });
+
+          return {
+            preId,
+            ok: true,
+            message: "Tarefa registrada.",
+            tarefa,
+          };
+        } catch (error) {
+          return {
+            preId,
+            ok: false,
+            message:
+              error instanceof AppError
+                ? error.message
+                : "Falha ao registrar tarefa neste processo.",
+          };
+        }
+      }),
+    );
+
+    const successCount = results.filter((item) => item.ok).length;
+    return {
+      total: uniquePreIds.length,
+      successCount,
+      failureCount: uniquePreIds.length - successCount,
+      results,
+    };
   }
 
   async updateTarefa(input: UpdateTarefaInput) {

@@ -108,6 +108,12 @@ export function AppShell() {
                   Andamentos em Lote
                 </NavLink>
               ) : null}
+              {hasPermission("pre_demanda.update") ? (
+                <NavLink className={navLinkClassName} to="/tarefas-lote">
+                  <ListTodo className="h-4 w-4" />
+                  Tarefas em Lote
+                </NavLink>
+              ) : null}
               <NavLink className={navLinkClassName} to="/pre-demandas/nova">
                 <SquarePen className="h-4 w-4" />
                 Novo processo
