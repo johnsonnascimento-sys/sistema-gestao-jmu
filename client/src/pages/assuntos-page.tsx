@@ -224,17 +224,17 @@ export function AssuntosPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-h-[90vh] w-[min(96vw,72rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar assunto" : "Novo assunto"}</DialogTitle>
             <DialogDescription>Defina as normas relacionadas e a sequência do procedimento que será transformada em checklist no processo.</DialogDescription>
           </DialogHeader>
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormField label="Nome do assunto">
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+              <FormField className="min-w-0" label="Nome do assunto">
                 <Input value={form.nome} onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))} />
               </FormField>
-              <FormField label="Descricao">
+              <FormField className="min-w-0" label="Descricao">
                 <Textarea rows={3} value={form.descricao} onChange={(event) => setForm((current) => ({ ...current, descricao: event.target.value }))} />
               </FormField>
             </div>
@@ -279,20 +279,23 @@ export function AssuntosPage() {
               </div>
               <div className="grid gap-3">
                 {form.procedimentos.map((item, index) => (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-[90px_1fr_140px_140px_220px_80px]" key={`proc-${index}`}>
-                    <FormField label="Ordem">
+                  <div
+                    className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 md:grid-cols-2 xl:grid-cols-[80px_minmax(240px,2.2fr)_120px_120px_minmax(190px,1.3fr)_auto]"
+                    key={`proc-${index}`}
+                  >
+                    <FormField className="min-w-0" label="Ordem">
                       <Input type="number" min="1" value={item.ordem} onChange={(event) => updateProcedimento(index, { ordem: event.target.value })} />
                     </FormField>
-                    <FormField label="Descricao">
+                    <FormField className="min-w-0 md:col-span-2 xl:col-span-1" label="Descricao">
                       <Input value={item.descricao} onChange={(event) => updateProcedimento(index, { descricao: event.target.value })} />
                     </FormField>
-                    <FormField label="Inicio">
+                    <FormField className="min-w-0" label="Inicio">
                       <Input type="time" value={item.horario_inicio} onChange={(event) => updateProcedimento(index, { horario_inicio: event.target.value })} />
                     </FormField>
-                    <FormField label="Termino">
+                    <FormField className="min-w-0" label="Termino">
                       <Input type="time" value={item.horario_fim} onChange={(event) => updateProcedimento(index, { horario_fim: event.target.value })} />
                     </FormField>
-                    <FormField label="Atualiza setor">
+                    <FormField className="min-w-0 md:col-span-2 xl:col-span-1" label="Atualiza setor">
                       <select className={selectClassName} value={item.setor_destino_id} onChange={(event) => updateProcedimento(index, { setor_destino_id: event.target.value })}>
                         <option value="">Nao</option>
                         {setores.map((setor) => (
@@ -300,7 +303,7 @@ export function AssuntosPage() {
                         ))}
                       </select>
                     </FormField>
-                    <div className="flex items-end">
+                    <div className="flex items-end md:col-span-2 xl:col-span-1 xl:justify-end">
                       <Button
                         disabled={form.procedimentos.length === 1}
                         onClick={() =>
