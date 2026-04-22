@@ -358,6 +358,11 @@ export function PreDemandaDetailPage() {
   const assuntosCatalogoRequestIdRef = useRef(0);
   const isSeiValid = isValidSei(associationForm.sei_numero);
 
+  function openTaskEditor(task: TarefaPendente) {
+    setToolbarDialog("tasks");
+    setEditingTask(task);
+  }
+
   function syncRecordDependentState(nextRecord: PreDemanda) {
     setAssociationForm((current) => ({
       ...current,
@@ -2312,7 +2317,7 @@ export function PreDemandaDetailPage() {
                                   </div>
                                   <div className="flex shrink-0 gap-2">
                                     <Button
-                                      onClick={() => setEditingTask(task)}
+                                      onClick={() => openTaskEditor(task)}
                                       size="sm"
                                       type="button"
                                       variant="secondary"
@@ -2576,7 +2581,7 @@ export function PreDemandaDetailPage() {
                             </div>
                             <div className="flex shrink-0 items-start gap-2">
                               <Button
-                                onClick={() => setEditingTask(task)}
+                                onClick={() => openTaskEditor(task)}
                                 size="sm"
                                 type="button"
                                 variant="secondary"
