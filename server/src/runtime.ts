@@ -40,6 +40,7 @@ export function createRuntimeStatus(
     environment: config.NODE_ENV,
     version: config.APP_VERSION ?? getPackageVersion(),
     commitSha: config.APP_COMMIT_SHA ?? null,
+    commitAt: config.APP_COMMIT_AT ?? null,
     startedAt: processStartedAt.toISOString(),
     checkedAt: checkedAt.toISOString(),
     uptimeSeconds: Math.max(0, Math.floor((checkedAt.getTime() - processStartedAt.getTime()) / 1000)),

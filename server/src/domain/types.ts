@@ -566,6 +566,7 @@ export interface RuntimeStatus {
   environment: "development" | "test" | "production";
   version: string;
   commitSha: string | null;
+  commitAt: string | null;
   startedAt: string;
   checkedAt: string;
   uptimeSeconds: number;

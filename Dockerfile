@@ -17,9 +17,11 @@ WORKDIR /app
 RUN npm install -g npm@11.12.1
 
 ARG APP_COMMIT_SHA=""
+ARG APP_COMMIT_AT=""
 
 ENV NODE_ENV=production
 ENV APP_COMMIT_SHA=$APP_COMMIT_SHA
+ENV APP_COMMIT_AT=$APP_COMMIT_AT
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev

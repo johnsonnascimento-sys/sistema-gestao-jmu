@@ -73,6 +73,23 @@ export function AppShell() {
     return `${days}d`;
   }
 
+  function formatCommitTimestamp(value: string | null | undefined) {
+    if (!value) {
+      return null;
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
+    return date.toLocaleString("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  }
+
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[320px_1fr]">
       <aside className="relative overflow-hidden border-b border-white/5 bg-[linear-gradient(160deg,#1e1b4b_0%,#312e81_48%,#0f172a_100%)] px-5 py-5 text-white lg:min-h-screen lg:border-b-0 lg:border-r lg:border-white/5 lg:px-6 lg:py-6">
@@ -167,7 +184,13 @@ export function AppShell() {
             <div className="mb-3">
               <p className="font-semibold text-white">{user?.name}</p>
               <p className="text-sm text-slate-300">{user?.role}</p>
-              {runtime ? <p className="mt-1 text-xs text-indigo-100/75">v{runtime.version}{runtime.commitSha ? ` · ${runtime.commitSha.slice(0, 7)}` : ""}</p> : null}
+              {runtime ? (
+                <p className="mt-1 text-xs text-indigo-100/75">
+                  v{runtime.version}
+                  {runtime.commitSha ? ` · ${runtime.commitSha.slice(0, 7)}` : ""}
+                  {formatCommitTimestamp(runtime.commitAt) ? ` · ${formatCommitTimestamp(runtime.commitAt)}` : ""}
+                </p>
+              ) : null}
             </div>
             <Button className="w-full bg-white text-slate-950 hover:bg-slate-50" onClick={handleLogout} type="button" variant="secondary">
               <LogOut className="h-4 w-4" />
