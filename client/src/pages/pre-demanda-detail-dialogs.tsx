@@ -1094,7 +1094,7 @@ export function TarefasDialog({
 
   return (
     <Dialog onOpenChange={(nextOpen) => !nextOpen && onClose()} open={open}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-hidden p-0">
+      <DialogContent className="flex max-h-[92vh] max-w-6xl flex-col overflow-hidden p-0">
         <DialogHeader>
           <div className="border-b border-slate-200 px-6 pb-5 pt-6">
             <DialogTitle>Tarefas do processo</DialogTitle>
@@ -1104,7 +1104,7 @@ export function TarefasDialog({
           </div>
         </DialogHeader>
 
-        <div className="max-h-[calc(92vh-160px)] overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="grid gap-6">
             <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1287,7 +1287,7 @@ export function TarefasDialog({
             </Tabs>
           </div>
         </div>
-        <DialogFooter className="border-t border-slate-200 px-6 py-4">
+        <DialogFooter className="shrink-0 border-t border-slate-200 px-6 py-4">
           <Button onClick={editingTask ? onCancelEdit : onClose} type="button" variant="ghost">
             {editingTask ? "Cancelar edicao" : "Fechar"}
           </Button>
