@@ -982,13 +982,14 @@ async function getPreDemandaRowByPreId(queryable: Queryable, preId: string) {
 async function getResolvedPreDemanda(
   queryable: Queryable,
   preId: string,
-): Promise<{ id: number; preId: string; principalNumero: string; prazoProcesso: string }> {
+): Promise<{ id: number; preId: string; principalNumero: string; prazoProcesso: string; status: PreDemandaStatus }> {
   const result = await queryable.query(
     `
       select
         pd.id,
         pd.pre_id,
         pd.prazo_processo,
+        pd.status,
         coalesce(link.sei_numero, pd.pre_id) as principal_numero
       from adminlog.pre_demanda pd
       left join lateral (
@@ -1012,6 +1013,7 @@ async function getResolvedPreDemanda(
     preId: String(result.rows[0].pre_id),
     principalNumero: String(result.rows[0].principal_numero ?? result.rows[0].pre_id),
     prazoProcesso: new Date(result.rows[0].prazo_processo).toISOString().slice(0, 10),
+    status: result.rows[0].status as PreDemandaStatus,
   };
 }
 
@@ -1538,6 +1540,59 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     );
 
     return mapAndamento(result.rows[0]);
+  }
+
+  private async reopenProcessForRelevantMutation(
+    queryable: Queryable,
+    input: {
+      preDemandaId: number;
+      preId: string;
+      currentStatus: PreDemandaStatus;
+      changedByUserId: number;
+      reason: string;
+    },
+  ) {
+    if (input.currentStatus !== "encerrada") {
+      return null;
+    }
+
+    await queryable.query(
+      `
+        update adminlog.pre_demanda
+        set status = 'em_andamento'
+        where id = $1
+      `,
+      [input.preDemandaId],
+    );
+
+    await queryable.query(
+      `
+        insert into adminlog.pre_demanda_status_audit (
+          pre_id,
+          status_anterior,
+          status_novo,
+          motivo,
+          observacoes,
+          changed_by_user_id
+        )
+        values ($1, 'encerrada', 'em_andamento', $2, null, $3)
+      `,
+      [input.preId, input.reason, input.changedByUserId],
+    );
+
+    await this.insertAndamento(queryable, {
+      preDemandaId: input.preDemandaId,
+      preId: input.preId,
+      descricao: `Processo reaberto automaticamente. Motivo: ${input.reason}.`,
+      tipo: "status",
+      createdByUserId: input.changedByUserId,
+    });
+
+    return {
+      previousStatus: "encerrada" as PreDemandaStatus,
+      currentStatus: "em_andamento" as PreDemandaStatus,
+      reason: input.reason,
+    };
   }
 
   private async syncAssuntoProcedimentoTarefas(
@@ -2092,6 +2147,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const autoReopen = await this.reopenProcessForRelevantMutation(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        currentStatus: demanda.status,
+        changedByUserId: input.changedByUserId,
+        reason: "Inclusao de assunto em processo encerrado.",
+      });
       try {
         await client.query(
           `
@@ -2134,7 +2196,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(500, "PRE_DEMANDA_UPDATE_FAILED", "Falha ao carregar a demanda atualizada.");
       }
       record.assuntos = await this.loadAssuntos(client, demanda.id);
-      return record;
+      return {
+        item: record,
+        autoReopen,
+      };
     });
   }
 

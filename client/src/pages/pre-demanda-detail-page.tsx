@@ -122,6 +122,7 @@ import {
   updatePreDemandaCase,
   updatePreDemandaTarefa,
   updatePreDemandaStatus,
+  type AutoReopenInfo,
 } from "../lib/api";
 import { formatPreDemandaMutationError } from "../lib/pre-demanda-feedback";
 import { formatDateOnlyPtBr } from "../lib/date";
@@ -201,6 +202,17 @@ function formatDateTimePtBrSafe(value: unknown, fallback = "-") {
   }
 
   return date.toLocaleString("pt-BR");
+}
+
+function composeAutoReopenSuccessMessage(
+  baseMessage: string,
+  autoReopen: AutoReopenInfo | null,
+) {
+  if (!autoReopen) {
+    return baseMessage;
+  }
+
+  return `${baseMessage} O processo foi reaberto automaticamente.`;
 }
 
 export function PreDemandaDetailPage() {
@@ -1123,17 +1135,17 @@ export function PreDemandaDetailPage() {
   );
 
   async function runMutation(
-    action: () => Promise<void>,
+    action: () => Promise<string | void>,
     successMessage: string,
   ) {
     setIsSubmitting(true);
     setError("");
     setMessage("");
     try {
-      await action();
+      const nextMessage = await action();
       await loadRecordData();
       void loadTimelineData();
-      setMessage(successMessage);
+      setMessage(nextMessage || successMessage);
     } catch (nextError) {
       setError(
         formatPreDemandaMutationError(
@@ -1186,7 +1198,7 @@ export function PreDemandaDetailPage() {
     setMessage("");
 
     try {
-      await createPreDemandaTarefa(preId, {
+      const result = await createPreDemandaTarefa(preId, {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
@@ -1207,7 +1219,7 @@ export function PreDemandaDetailPage() {
         setor_destino_id: "",
         assinatura_interessado_id: "",
       });
-      setMessage("Tarefa criada.");
+      setMessage(composeAutoReopenSuccessMessage("Tarefa criada.", result.autoReopen));
     } catch (nextError) {
       const prazoChange = getTaskPrazoChangeState(nextError, payload, "create");
       if (prazoChange) {
@@ -1359,10 +1371,13 @@ export function PreDemandaDetailPage() {
 
         if (editingAudienciaId) {
           await updatePreDemandaAudiencia(preId, editingAudienciaId, payload);
+          return;
         } else {
-          await createPreDemandaAudiencia(preId, payload);
+          const result = await createPreDemandaAudiencia(preId, payload);
+          await loadAudienciasData(true);
+          resetAudienciaForm();
+          return composeAutoReopenSuccessMessage("Audiencia cadastrada.", result.autoReopen);
         }
-
         await loadAudienciasData(true);
         resetAudienciaForm();
       },
@@ -1751,13 +1766,18 @@ export function PreDemandaDetailPage() {
                             key={assunto.id}
                             onClick={() =>
                               void runMutation(async () => {
-                                const next = await addPreDemandaAssunto(
+                                const result = await addPreDemandaAssunto(
                                   preId,
                                   assunto.id,
                                 );
+                                const next = result.item;
                                 setRecord(next);
                                 syncRecordDependentState(next);
                                 await refreshAssuntosViewData();
+                                return composeAutoReopenSuccessMessage(
+                                  `Assunto ${assunto.nome} vinculado e checklist gerado.`,
+                                  result.autoReopen,
+                                );
                               }, `Assunto ${assunto.nome} vinculado e checklist gerado.`)
                             }
                             type="button"
@@ -2958,13 +2978,18 @@ export function PreDemandaDetailPage() {
                       key={assunto.id}
                       onClick={() =>
                         void runMutation(async () => {
-                          const next = await addPreDemandaAssunto(
+                          const result = await addPreDemandaAssunto(
                             preId,
                             assunto.id,
                           );
+                          const next = result.item;
                           setRecord(next);
                           syncRecordDependentState(next);
                           await refreshAssuntosViewData();
+                          return composeAutoReopenSuccessMessage(
+                            `Assunto ${assunto.nome} vinculado e checklist gerado.`,
+                            result.autoReopen,
+                          );
                         }, `Assunto ${assunto.nome} vinculado e checklist gerado.`)
                       }
                       type="button"
@@ -3119,10 +3144,11 @@ export function PreDemandaDetailPage() {
                     key={assunto.id}
                     onClick={() =>
                       void runMutation(async () => {
-                        const next = await addPreDemandaAssunto(
+                        const result = await addPreDemandaAssunto(
                           preId,
                           assunto.id,
                         );
+                        const next = result.item;
                         setRecord(next);
                         syncRecordDependentState(next);
                         syncAssuntosState(next.assuntos);
@@ -3130,6 +3156,10 @@ export function PreDemandaDetailPage() {
                           refreshAssuntosViewData(),
                           loadTarefasData(true),
                         ]);
+                        return composeAutoReopenSuccessMessage(
+                          `Assunto ${assunto.nome} vinculado e checklist gerado.`,
+                          result.autoReopen,
+                        );
                       }, `Assunto ${assunto.nome} vinculado e checklist gerado.`)
                     }
                     type="button"
@@ -4529,12 +4559,16 @@ export function PreDemandaDetailPage() {
               }
               onClick={() =>
                 void runMutation(async () => {
-                  await addPreDemandaAndamento(preId, {
+                  const result = await addPreDemandaAndamento(preId, {
                     descricao: andamentoForm.descricao,
                     data_hora: toIsoFromDateTimeLocal(andamentoForm.data_hora),
                   });
                   setAndamentoForm({ descricao: "", data_hora: "" });
                   setToolbarDialog(null);
+                  return composeAutoReopenSuccessMessage(
+                    "Andamento registrado.",
+                    result.autoReopen,
+                  );
                 }, "Andamento registrado.")
               }
               type="button"

@@ -525,6 +525,11 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    if (data.autoReopen) {
+      preDemandaRepository.invalidateDashboardCaches();
+      emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+    }
+
     return reply.status(201).send({ ok: true, data, error: null });
   });
 
@@ -717,6 +722,11 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    if (andamento.autoReopen) {
+      preDemandaRepository.invalidateDashboardCaches();
+      emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+    }
+
     emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
 
     return reply.status(201).send({
@@ -808,6 +818,10 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
 
     preDemandaRepository.invalidateDashboardCaches();
+
+    if (tarefa.autoReopen) {
+      emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+    }
 
     emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "create" });
 

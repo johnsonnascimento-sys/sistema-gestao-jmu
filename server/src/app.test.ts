@@ -863,8 +863,22 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       createdAt: new Date().toISOString(),
       createdBy: null,
     });
+    const autoReopen =
+      record.status === "encerrada"
+        ? {
+            previousStatus: "encerrada" as const,
+            currentStatus: "em_andamento" as const,
+            reason: "Inclusao de assunto em processo encerrado.",
+          }
+        : null;
+    if (autoReopen) {
+      record.status = "em_andamento";
+    }
     this.addAndamentoRecord(record, `Assunto vinculado ao processo: ${assunto.nome}.`, "sistema");
-    return this.touch(record);
+    return {
+      item: this.touch(record),
+      autoReopen,
+    };
   }
 
   async listAssuntos(preId: string) {

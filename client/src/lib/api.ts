@@ -52,6 +52,17 @@ interface ApiEnvelope<T> {
   } | null;
 }
 
+export type AutoReopenInfo = {
+  previousStatus: PreDemandaStatus;
+  currentStatus: PreDemandaStatus;
+  reason: string;
+};
+
+export type MutationWithAutoReopen<T> = {
+  item: T;
+  autoReopen: AutoReopenInfo | null;
+};
+
 type CatalogCacheEntry<T> = {
   value: T | null;
   expiresAt: number;
@@ -466,7 +477,7 @@ export function createPreDemanda(payload: CreatePreDemandaPayload) {
 }
 
 export function addPreDemandaAssunto(preId: string, assuntoId: string) {
-  return request<PreDemanda>(buildPreDemandaApiPath(preId, "/assuntos"), {
+  return request<MutationWithAutoReopen<PreDemanda>>(buildPreDemandaApiPath(preId, "/assuntos"), {
     method: "POST",
     body: JSON.stringify({ assunto_id: assuntoId }),
   });
@@ -628,7 +639,7 @@ export function createPreDemandaAudiencia(
     observacoes?: string | null;
   },
 ) {
-  return request<Audiencia>(buildPreDemandaApiPath(preId, "/audiencias"), {
+  return request<MutationWithAutoReopen<Audiencia>>(buildPreDemandaApiPath(preId, "/audiencias"), {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -713,7 +724,7 @@ export function addPreDemandaAndamento(
   preId: string,
   payload: { descricao: string; data_hora?: string | null },
 ) {
-  return request<Andamento>(buildPreDemandaApiPath(preId, "/andamentos"), {
+  return request<MutationWithAutoReopen<Andamento>>(buildPreDemandaApiPath(preId, "/andamentos"), {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -795,7 +806,7 @@ export function createPreDemandaTarefa(
     confirmar_alteracao_prazo?: boolean;
   },
 ) {
-  return request<TarefaPendente>(buildPreDemandaApiPath(preId, "/tarefas"), {
+  return request<MutationWithAutoReopen<TarefaPendente>>(buildPreDemandaApiPath(preId, "/tarefas"), {
     method: "POST",
     body: JSON.stringify(payload),
   });

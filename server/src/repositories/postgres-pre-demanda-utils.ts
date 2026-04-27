@@ -30,6 +30,7 @@ import type { DatabasePool } from "../db";
 import { getAllowedNextStatuses } from "../domain/pre-demanda-status";
 import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-health";
 import { AppError } from "../errors";
+import type { AutoReopenInfo } from "./types";
 
 export type Queryable = DatabasePool | PoolClient;
 
@@ -552,13 +553,14 @@ export async function getPreDemandaRowByPreId(queryable: Queryable, preId: strin
 export async function getResolvedPreDemanda(
   queryable: Queryable,
   preId: string,
-): Promise<{ id: number; preId: string; principalNumero: string; prazoProcesso: string; numeroJudicial: string | null }> {
+): Promise<{ id: number; preId: string; principalNumero: string; prazoProcesso: string; numeroJudicial: string | null; status: PreDemandaStatus }> {
   const result = await queryable.query(
     `
       select
         pd.id,
         pd.pre_id,
         pd.prazo_processo,
+        pd.status,
         pd.numero_judicial,
         coalesce(link.sei_numero, pd.pre_id) as principal_numero
       from adminlog.pre_demanda pd
@@ -582,7 +584,61 @@ export async function getResolvedPreDemanda(
     preId: String(result.rows[0].pre_id),
     principalNumero: String(result.rows[0].principal_numero ?? result.rows[0].pre_id),
     prazoProcesso: new Date(result.rows[0].prazo_processo).toISOString().slice(0, 10),
+    status: result.rows[0].status as PreDemandaStatus,
     numeroJudicial: result.rows[0].numero_judicial ? formatNumeroJudicialValue(String(result.rows[0].numero_judicial)) : null,
+  };
+}
+
+export async function reopenProcessForRelevantMutation(
+  queryable: Queryable,
+  input: {
+    preDemandaId: number;
+    preId: string;
+    currentStatus: PreDemandaStatus;
+    changedByUserId: number;
+    reason: string;
+  },
+): Promise<AutoReopenInfo | null> {
+  if (input.currentStatus !== "encerrada") {
+    return null;
+  }
+
+  await queryable.query(
+    `
+      update adminlog.pre_demanda
+      set status = 'em_andamento'
+      where id = $1
+    `,
+    [input.preDemandaId],
+  );
+
+  await queryable.query(
+    `
+      insert into adminlog.pre_demanda_status_audit (
+        pre_id,
+        status_anterior,
+        status_novo,
+        motivo,
+        observacoes,
+        changed_by_user_id
+      )
+      values ($1, 'encerrada', 'em_andamento', $2, null, $3)
+    `,
+    [input.preId, input.reason, input.changedByUserId],
+  );
+
+  await insertAndamento(queryable, {
+    preDemandaId: input.preDemandaId,
+    preId: input.preId,
+    descricao: `Processo reaberto automaticamente. Motivo: ${input.reason}.`,
+    tipo: "status",
+    createdByUserId: input.changedByUserId,
+  });
+
+  return {
+    previousStatus: "encerrada",
+    currentStatus: "em_andamento",
+    reason: input.reason,
   };
 }
 

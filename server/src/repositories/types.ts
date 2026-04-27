@@ -123,6 +123,17 @@ export interface UpdatePreDemandaStatusResult {
   allowedNextStatuses: PreDemandaStatus[];
 }
 
+export interface AutoReopenInfo {
+  previousStatus: PreDemandaStatus;
+  currentStatus: PreDemandaStatus;
+  reason: string;
+}
+
+export interface MutationWithAutoReopen<T> {
+  item: T;
+  autoReopen: AutoReopenInfo | null;
+}
+
 export interface PreDemandaMutationAck {
   preId: string;
 }
@@ -343,7 +354,7 @@ export interface RemoveAudienciaInput {
 
 export interface PreDemandaAudienciaRepository {
   listAudiencias(preId: string): Promise<Audiencia[]>;
-  createAudiencia(input: CreateAudienciaInput): Promise<Audiencia>;
+  createAudiencia(input: CreateAudienciaInput): Promise<MutationWithAutoReopen<Audiencia>>;
   updateAudiencia(input: UpdateAudienciaInput): Promise<Audiencia>;
   removeAudiencia(input: RemoveAudienciaInput): Promise<{ removedId: string }>;
 }
@@ -524,7 +535,7 @@ export interface AssuntoRepository {
 
 export interface PreDemandaAndamentoRepository {
   listAndamentos(preId: string): Promise<Andamento[]>;
-  addAndamento(input: AddAndamentoInput): Promise<Andamento>;
+  addAndamento(input: AddAndamentoInput): Promise<MutationWithAutoReopen<Andamento>>;
   addAndamentosLote(input: AddAndamentosLoteInput): Promise<BulkAndamentoResult>;
   updateAndamento(input: UpdateAndamentoInput): Promise<Andamento>;
   removeAndamento(input: RemoveAndamentoInput): Promise<{ removedId: string }>;
@@ -533,7 +544,7 @@ export interface PreDemandaAndamentoRepository {
 export interface PreDemandaTarefaRepository {
   listTarefas(preId: string): Promise<TarefaPendente[]>;
   listSchedulingSuggestions(params: { preId: string; prazoConclusao?: string | null; limit?: number }): Promise<TaskScheduleSuggestion[]>;
-  createTarefa(input: CreateTarefaInput): Promise<TarefaPendente>;
+  createTarefa(input: CreateTarefaInput): Promise<MutationWithAutoReopen<TarefaPendente>>;
   createTarefasLote(input: CreateTarefasLoteInput): Promise<BulkTarefaResult>;
   updateTarefa(input: UpdateTarefaInput): Promise<TarefaPendente>;
   reorderTarefas(input: ReorderTarefasInput): Promise<TarefaPendente[]>;
@@ -549,7 +560,7 @@ export interface PreDemandaRepository {
   updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaMutationAck>;
   updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaMutationAck>;
   listAssuntos(preId: string): Promise<DemandaAssunto[]>;
-  addAssunto(input: AddDemandaAssuntoInput): Promise<PreDemandaDetail>;
+  addAssunto(input: AddDemandaAssuntoInput): Promise<MutationWithAutoReopen<PreDemandaDetail>>;
   removeAssunto(input: RemoveDemandaAssuntoInput): Promise<PreDemandaDetail>;
   addInteressado(input: AddDemandaInteressadoInput): Promise<DemandaInteressado[]>;
   removeInteressado(input: RemoveDemandaInteressadoInput): Promise<DemandaInteressado[]>;

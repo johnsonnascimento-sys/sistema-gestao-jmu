@@ -68,6 +68,10 @@ export async function registerPreDemandaAudienciaRoutes(
     });
     preDemandaRepository.invalidateDashboardCaches();
 
+    if (audiencia.autoReopen) {
+      emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+    }
+
     emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
 
     return reply.status(201).send({

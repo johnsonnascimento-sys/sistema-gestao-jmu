@@ -7,6 +7,7 @@ import {
   insertAndamento,
   loadTarefas,
   activateSetorFromTarefa,
+  reopenProcessForRelevantMutation,
 } from "./postgres-pre-demanda-utils";
 import type {
   ConcluirTarefaInput,
@@ -314,6 +315,13 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
   async createTarefa(input: CreateTarefaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
+      const autoReopen = await reopenProcessForRelevantMutation(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        currentStatus: demanda.status,
+        changedByUserId: input.changedByUserId,
+        reason: "Inclusao de tarefa pendente em processo encerrado.",
+      });
       this.validatePrazoConclusaoTarefa(demanda, input.prazoConclusao);
       const orderResult = await client.query(
         `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
@@ -375,7 +383,10 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         throw new AppError(500, "TAREFA_CREATE_FAILED", "Falha ao carregar a tarefa criada.");
       }
 
-      return tarefa;
+      return {
+        item: tarefa,
+        autoReopen,
+      };
     });
   }
 
@@ -472,7 +483,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             preId,
             ok: true,
             message: "Tarefa registrada.",
-            tarefa,
+            tarefa: tarefa.item,
           };
         } catch (error) {
           return {

@@ -6,6 +6,7 @@ import {
   inTransaction,
   insertAndamento,
   loadAudiencias,
+  reopenProcessForRelevantMutation,
   type Queryable,
 } from "./postgres-pre-demanda-utils";
 import type {
@@ -140,6 +141,13 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
   async createAudiencia(input: CreateAudienciaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await this.ensureJudicialProcess(client, input.preId);
+      const autoReopen = await reopenProcessForRelevantMutation(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        currentStatus: demanda.status,
+        changedByUserId: input.changedByUserId,
+        reason: "Inclusao de audiencia em processo encerrado.",
+      });
       const dataHoraInicio = normalizeDateTime(input.dataHoraInicio);
       const dataHoraFim = input.dataHoraFim ? normalizeDateTime(input.dataHoraFim) : null;
 
@@ -191,7 +199,10 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
         throw new AppError(500, "AUDIENCIA_CREATE_FAILED", "Falha ao carregar a audiencia criada.");
       }
 
-      return audiencia;
+      return {
+        item: audiencia,
+        autoReopen,
+      };
     });
   }
 

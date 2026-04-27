@@ -7,6 +7,7 @@ import {
   insertAndamento,
   loadAndamentos,
   mapAndamento,
+  reopenProcessForRelevantMutation,
 } from "./postgres-pre-demanda-utils";
 import type {
   AddAndamentoInput,
@@ -27,7 +28,14 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
   async addAndamento(input: AddAndamentoInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await getResolvedPreDemanda(client, input.preId);
-      return insertAndamento(client, {
+      const autoReopen = await reopenProcessForRelevantMutation(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        currentStatus: demanda.status,
+        changedByUserId: input.changedByUserId,
+        reason: "Inclusao de andamento em processo encerrado.",
+      });
+      const item = await insertAndamento(client, {
         preDemandaId: demanda.id,
         preId: demanda.preId,
         descricao: input.descricao,
@@ -35,6 +43,10 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
         createdByUserId: input.changedByUserId,
         dataHora: input.dataHora,
       });
+      return {
+        item,
+        autoReopen,
+      };
     });
   }
 
@@ -54,7 +66,7 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
             preId,
             ok: true,
             message: "Andamento registrado.",
-            andamento,
+            andamento: andamento.item,
           };
         } catch (error) {
           return {
