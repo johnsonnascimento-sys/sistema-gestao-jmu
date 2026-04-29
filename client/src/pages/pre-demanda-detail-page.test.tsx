@@ -1,6 +1,6 @@
 import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../auth-context";
 import type {
@@ -26,6 +26,7 @@ const apiMocks = vi.hoisted(() => ({
   createPreDemandaDocumento: vi.fn(),
   createPreDemanda: vi.fn(),
   createPreDemandaTarefa: vi.fn(),
+  duplicatePreDemanda: vi.fn(),
   downloadPreDemandaDocumento: vi.fn(),
   formatAppError: vi.fn((_error: unknown, fallback: string) => fallback),
   getPreDemanda: vi.fn(),
@@ -61,7 +62,20 @@ const apiMocks = vi.hoisted(() => ({
   updatePreDemandaTarefa: vi.fn(),
 }));
 
+const navigateMock = vi.hoisted(() => vi.fn());
+
 vi.mock("../lib/api", () => apiMocks);
+
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual<typeof import("react-router-dom")>(
+    "react-router-dom",
+  );
+
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 vi.mock("./pre-demanda-detail-dialogs", () => ({
   AndamentoCreateDialog: () => null,
@@ -72,10 +86,10 @@ vi.mock("./pre-demanda-detail-dialogs", () => ({
   TarefasDialog: () => null,
 }));
 
-function buildAudiencia(situacao: Audiencia["situacao"]): Audiencia {
+function buildAudiencia(preId: string, situacao: Audiencia["situacao"]): Audiencia {
   return {
     id: "aud-1",
-    preId: "PRE-2026-001",
+    preId,
     dataHoraInicio: "2026-04-29T10:00:00.000Z",
     dataHoraFim: "2026-04-29T11:00:00.000Z",
     descricao: "Audiencia principal",
@@ -89,7 +103,7 @@ function buildAudiencia(situacao: Audiencia["situacao"]): Audiencia {
   };
 }
 
-function buildRecord(audienciaStatus: PreDemandaStatus): PreDemanda {
+function buildRecord(preId: string, audienciaStatus: PreDemandaStatus): PreDemanda {
   const queueHealth = {
     level: "fresh",
     staleDays: 0,
@@ -108,7 +122,7 @@ function buildRecord(audienciaStatus: PreDemandaStatus): PreDemanda {
 
   return {
     id: 1,
-    preId: "PRE-2026-001",
+    preId,
     solicitante: "Joao da Silva",
     pessoaPrincipal: null,
     principalNumero: "12345-67.2026.1.01.0001",
@@ -165,8 +179,13 @@ function buildRecord(audienciaStatus: PreDemandaStatus): PreDemanda {
     comentarios: [],
     tarefasPendentes: [],
     recentAndamentos: [],
-    audiencias: [buildAudiencia(audienciaStatus)],
+    audiencias: [buildAudiencia(preId, audienciaStatus)],
   };
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="pathname">{location.pathname}</div>;
 }
 
 function renderPage() {
@@ -181,6 +200,7 @@ function renderPage() {
           permissions: [
             "dashboard.read",
             "pre_demanda.read",
+            "pre_demanda.create",
             "pre_demanda.update",
             "pre_demanda.update_status",
             "pre_demanda.manage_audiencias",
@@ -194,6 +214,7 @@ function renderPage() {
       }}
     >
       <MemoryRouter initialEntries={["/pre-demandas/PRE-2026-001"]}>
+        <LocationProbe />
         <Routes>
           <Route element={<PreDemandaDetailPage />} path="/pre-demandas/:preId" />
         </Routes>
@@ -205,17 +226,23 @@ function renderPage() {
 describe("PreDemandaDetailPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    const audienciaStatusByPreId = new Map<string, Audiencia["situacao"]>([
+      ["PRE-2026-001", "designada"],
+      ["PRE-2026-002", "realizada"],
+    ]);
 
-    apiMocks.getPreDemanda
-      .mockResolvedValueOnce(buildRecord("designada"))
-      .mockResolvedValueOnce(buildRecord("realizada"))
-      .mockResolvedValue(buildRecord("realizada"));
+    apiMocks.getPreDemanda.mockImplementation(async (preId: string) => {
+      return buildRecord(
+        preId,
+        audienciaStatusByPreId.get(preId) ?? "realizada",
+      );
+    });
     apiMocks.getTimeline.mockResolvedValue([]);
     apiMocks.listSetores.mockResolvedValue([]);
     apiMocks.listPreDemandaTarefas.mockResolvedValue([]);
-    apiMocks.listPreDemandaAudiencias
-      .mockResolvedValueOnce([buildAudiencia("designada")])
-      .mockResolvedValue([buildAudiencia("realizada")]);
+    apiMocks.listPreDemandaAudiencias.mockImplementation(async (preId: string) => [
+      buildAudiencia(preId, audienciaStatusByPreId.get(preId) ?? "realizada"),
+    ]);
     apiMocks.listPreDemandaAssuntos.mockResolvedValue([]);
     apiMocks.listPreDemandaAssuntosCatalogo.mockResolvedValue([]);
     apiMocks.listPreDemandaComentarios.mockResolvedValue([]);
@@ -227,7 +254,14 @@ describe("PreDemandaDetailPage", () => {
     apiMocks.listPreDemandaVinculos.mockResolvedValue([]);
     apiMocks.listPessoas.mockResolvedValue({ items: [], total: 0 });
     apiMocks.listPreDemandas.mockResolvedValue({ items: [], total: 0 });
-    apiMocks.updatePreDemandaAudiencia.mockResolvedValue(buildAudiencia("realizada"));
+    apiMocks.updatePreDemandaAudiencia.mockImplementation(async (preId: string, audienciaId: string, payload: Partial<Audiencia>) => {
+      audienciaStatusByPreId.set(preId, (payload.situacao ?? "designada") as Audiencia["situacao"]);
+      return buildAudiencia(preId, audienciaStatusByPreId.get(preId) ?? "realizada");
+    });
+    apiMocks.duplicatePreDemanda.mockResolvedValue(
+      buildRecord("PRE-2026-002", "realizada"),
+    );
+    navigateMock.mockReset();
   });
 
   it("habilita concluir sem recarregar a pagina ao salvar audiencia como realizada", async () => {
@@ -260,5 +294,43 @@ describe("PreDemandaDetailPage", () => {
         situacao: "realizada",
       }),
     );
+  });
+
+  it("duplica o processo e navega para a nova demanda sem copiar andamentos", async () => {
+    const user = userEvent.setup();
+
+    renderPage();
+
+    expect(screen.getAllByTestId("pathname")[0]).toHaveTextContent("/pre-demandas/PRE-2026-001");
+
+    const openDialog = screen.queryByRole("dialog", {
+      name: /audiencias judiciais/i,
+    });
+    if (openDialog) {
+      await user.keyboard("{Escape}");
+      await waitFor(() => {
+        expect(
+          screen.queryByRole("dialog", {
+            name: /audiencias judiciais/i,
+          }),
+        ).not.toBeInTheDocument();
+      });
+    }
+
+    await user.click(screen.getByRole("button", { name: "Duplicar" }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /duplicar processo/i,
+    });
+
+    await user.click(within(dialog).getByRole("button", { name: "Duplicar processo" }));
+
+    await waitFor(() => {
+      expect(apiMocks.duplicatePreDemanda).toHaveBeenCalledWith("PRE-2026-001");
+    });
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/pre-demandas/PRE-2026-002");
+    });
   });
 });

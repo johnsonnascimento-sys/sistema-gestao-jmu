@@ -374,6 +374,22 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     });
   });
 
+  app.post("/api/pre-demandas/:preId/duplicar", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const record = await preDemandaRepository.duplicate({
+      preId: params.preId,
+      changedByUserId: request.user!.id,
+    });
+
+    emitPreDemandaUpdate({ preId: record.preId, type: "status", action: "create" });
+
+    return reply.status(201).send({
+      ok: true,
+      data: record,
+      error: null,
+    });
+  });
+
   app.get("/api/pre-demandas", { preHandler: [app.authenticate, app.authorize("pre_demanda.read")] }, async (request, reply) => {
     const query = listSchema.parse(request.query);
     const statuses = parseStatuses(query.status);

@@ -476,6 +476,12 @@ export function createPreDemanda(payload: CreatePreDemandaPayload) {
   });
 }
 
+export function duplicatePreDemanda(preId: string) {
+  return request<PreDemandaDetail>(buildPreDemandaApiPath(preId, "/duplicar"), {
+    method: "POST",
+  });
+}
+
 export function addPreDemandaAssunto(preId: string, assuntoId: string) {
   return request<MutationWithAutoReopen<PreDemanda>>(buildPreDemandaApiPath(preId, "/assuntos"), {
     method: "POST",

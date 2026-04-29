@@ -2,6 +2,7 @@
   Building2,
   CalendarClock,
   CheckCircle,
+  Copy,
   Edit,
   FilePlus2,
   Files,
@@ -89,6 +90,7 @@ import {
   createPreDemandaDocumento,
   createPreDemanda,
   createPreDemandaTarefa,
+  duplicatePreDemanda,
   downloadPreDemandaDocumento,
   formatAppError,
   getPreDemanda,
@@ -251,6 +253,7 @@ export function PreDemandaDetailPage() {
   const [message, setMessage] = useState("");
   const [toolbarDialog, setToolbarDialog] = useState<ToolbarDialog>(null);
   const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
+  const [duplicateAction, setDuplicateAction] = useState(false);
   const [editingAndamento, setEditingAndamento] = useState<Andamento | null>(
     null,
   );
@@ -1159,6 +1162,27 @@ export function PreDemandaDetailPage() {
     }
   }
 
+  async function handleDuplicateProcess() {
+    setIsSubmitting(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const duplicated = await duplicatePreDemanda(preId);
+      setDuplicateAction(false);
+      navigate(buildPreDemandaPath(duplicated.preId));
+    } catch (nextError) {
+      setError(
+        formatPreDemandaMutationError(
+          nextError,
+          "Falha ao duplicar o processo.",
+        ),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleCreateTask(confirmarAlteracaoPrazo = false) {
     const resolvedDescricao = requiresTaskSignaturePerson
       ? selectedSignaturePerson
@@ -1489,6 +1513,15 @@ export function PreDemandaDetailPage() {
             onClick={() => setToolbarDialog("edit")}
             title="Consultar ou alterar processo"
           />
+          {hasPermission("pre_demanda.create") ? (
+            <ToolbarActionButton
+              disabled={isSubmitting}
+              icon={Copy}
+              label="Duplicar"
+              onClick={() => setDuplicateAction(true)}
+              title="Criar uma nova demanda a partir dos dados principais deste processo"
+            />
+          ) : null}
           <ToolbarActionButton
             icon={Send}
             label="Tramitar"
@@ -5114,6 +5147,50 @@ export function PreDemandaDetailPage() {
             : undefined
         }
       />
+
+      <Dialog
+        onOpenChange={(open) => !open && setDuplicateAction(false)}
+        open={duplicateAction}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicar processo</DialogTitle>
+            <DialogDescription>
+              Será criada uma nova demanda com os dados principais e os vínculos
+              deste processo. Andamentos, comentários, documentos, tarefas,
+              audiências e auditorias não serão copiados.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 rounded-[20px] border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-slate-700">
+            <div>
+              <span className="font-semibold text-slate-950">Será copiado:</span>{" "}
+              dados principais, assuntos, interessados, vínculos e números
+              judiciais.
+            </div>
+            <div>
+              <span className="font-semibold text-slate-950">Não será copiado:</span>{" "}
+              histórico de andamentos, documentos, comentários, tarefas,
+              audiências e auditorias.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => setDuplicateAction(false)}
+              type="button"
+              variant="ghost"
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={isSubmitting}
+              onClick={() => void handleDuplicateProcess()}
+              type="button"
+            >
+              Duplicar processo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         confirmLabel={statusAction?.title ?? "Confirmar alteracao"}

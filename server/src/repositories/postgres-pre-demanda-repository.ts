@@ -47,6 +47,7 @@ import type {
   CreateDocumentoInput,
   CreatePreDemandaInput,
   CreatePreDemandaResult,
+  DuplicatePreDemandaInput,
   CreateTarefaInput,
   DocumentoDownloadResult,
   ListPreDemandasParams,
@@ -1922,6 +1923,205 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         existingPreId: record.preId,
       };
     }
+  }
+
+  async duplicate(input: DuplicatePreDemandaInput): Promise<PreDemandaDetail> {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+
+    return inTransaction(this.pool, async (client) => {
+      const sourceRow = await getPreDemandaRowByPreId(client, input.preId);
+      if (!sourceRow) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
+
+      const sourceId = Number(sourceRow.id);
+      const sourceAssuntos = await this.loadAssuntos(client, sourceId);
+      const sourceInteressados = await this.loadInteressados(client, sourceId);
+      const sourceVinculosResult = await client.query(
+        `
+          select
+            origem_pre_demanda_id,
+            destino_pre_demanda_id
+          from adminlog.demanda_vinculos
+          where origem_pre_demanda_id = $1
+             or destino_pre_demanda_id = $1
+          order by created_at desc, id desc
+        `,
+        [sourceId],
+      );
+      const sourceNumeros = await this.loadNumerosJudiciais(client, sourceId);
+      const sourceDataReferencia = sourceRow.data_referencia ? new Date(sourceRow.data_referencia).toISOString().slice(0, 10) : null;
+      const sourcePrazoProcesso = sourceRow.prazo_processo ? new Date(sourceRow.prazo_processo).toISOString().slice(0, 10) : null;
+      if (!sourceDataReferencia || !sourcePrazoProcesso) {
+        throw new AppError(500, "PRE_DEMANDA_DUPLICATE_FAILED", "Falha ao carregar os dados base da demanda de origem.");
+      }
+
+      const sourceMetadata = mapMetadata(sourceRow.metadata);
+      const duplicateMetadata = normalizeMetadataForDb({
+        ...sourceMetadata,
+        audienciaData: null,
+        audienciaStatus: null,
+        audienciaHorarioInicio: null,
+        audienciaHorarioFim: null,
+        audienciaSala: null,
+        audienciaDescricao: null,
+      });
+
+      const sourceSetorId = sourceRow.setor_id ? String(sourceRow.setor_id) : null;
+      const defaultSetor = sourceSetorId ? null : await this.resolveDefaultInitialSetor(client);
+      const setorAtualId = sourceSetorId ?? defaultSetor?.id ?? null;
+      if (!setorAtualId) {
+        throw new AppError(500, "DEFAULT_SETOR_NOT_FOUND", "Nao foi possivel determinar o setor inicial da nova demanda.");
+      }
+
+      const principalNumeroJudicial = sourceNumeros.find((item) => item.principal)?.numero ?? sourceNumeros[0]?.numero ?? null;
+      const resolvedSolicitante = String(sourceRow.solicitante);
+
+      const inserted = await client.query(
+        `
+          insert into adminlog.pre_demanda (
+            pre_id,
+            solicitante,
+            assunto,
+            data_referencia,
+            status,
+            descricao,
+            fonte,
+            observacoes,
+            prazo_processo,
+            numero_judicial,
+            setor_atual_id,
+            metadata,
+            created_by_user_id
+          )
+          values (
+            adminlog.fn_generate_pre_id($1::date),
+            $2,
+            $3,
+            $1::date,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8::date,
+            $9,
+            $10::uuid,
+            coalesce($11::jsonb, '{}'::jsonb),
+            $12
+          )
+          returning id, pre_id
+        `,
+        [
+          sourceDataReferencia,
+          resolvedSolicitante,
+          String(sourceRow.assunto),
+          "em_andamento",
+          sourceRow.descricao ?? null,
+          sourceRow.fonte ?? null,
+          sourceRow.observacoes ?? null,
+          sourcePrazoProcesso,
+          principalNumeroJudicial,
+          setorAtualId,
+          duplicateMetadata ? JSON.stringify(duplicateMetadata) : null,
+          input.changedByUserId,
+        ],
+      );
+
+      const duplicateId = Number(inserted.rows[0].id);
+      const duplicatePreId = String(inserted.rows[0].pre_id);
+
+      await client.query(
+        `
+          insert into adminlog.demanda_setores_fluxo (
+            pre_demanda_id,
+            setor_id,
+            status,
+            origem_setor_id,
+            observacoes,
+            created_by_user_id
+          )
+          values ($1, $2::uuid, 'ativo', null, $3, $4)
+        `,
+        [duplicateId, setorAtualId, `Processo duplicado a partir de ${sourceRow.pre_id}.`, input.changedByUserId],
+      );
+
+      for (const item of [...sourceAssuntos].reverse()) {
+        await client.query(
+          `
+            insert into adminlog.demanda_assuntos (pre_demanda_id, assunto_id, created_by_user_id)
+            values ($1, $2::uuid, $3)
+            on conflict do nothing
+          `,
+          [duplicateId, item.assunto.id, input.changedByUserId],
+        );
+      }
+
+      for (const item of [...sourceInteressados].reverse()) {
+        await client.query(
+          `
+            insert into adminlog.demanda_interessados (pre_demanda_id, interessado_id, papel, created_by_user_id)
+            values ($1, $2::uuid, $3, $4)
+            on conflict do nothing
+          `,
+          [duplicateId, item.interessado.id, item.papel, input.changedByUserId],
+        );
+      }
+
+      for (const item of [...sourceNumeros].reverse()) {
+        await client.query(
+          `
+            insert into adminlog.demanda_numeros_judiciais (pre_demanda_id, numero_judicial, principal, created_by_user_id)
+            values ($1, $2, $3, $4)
+            on conflict (pre_demanda_id, numero_judicial) do update
+            set principal = excluded.principal
+          `,
+          [duplicateId, item.numero, item.principal, input.changedByUserId],
+        );
+      }
+
+      for (const row of [...sourceVinculosResult.rows].reverse()) {
+        const origemPreDemandaId = Number(row.origem_pre_demanda_id) === sourceId ? duplicateId : Number(row.origem_pre_demanda_id);
+        const destinoPreDemandaId = Number(row.destino_pre_demanda_id) === sourceId ? duplicateId : Number(row.destino_pre_demanda_id);
+
+        if (origemPreDemandaId === destinoPreDemandaId) {
+          continue;
+        }
+
+        await client.query(
+          `
+            insert into adminlog.demanda_vinculos (origem_pre_demanda_id, destino_pre_demanda_id, created_by_user_id)
+            values ($1, $2, $3)
+            on conflict do nothing
+          `,
+          [origemPreDemandaId, destinoPreDemandaId, input.changedByUserId],
+        );
+      }
+
+      const duplicatedRow = await getPreDemandaRowByPreId(client, duplicatePreId);
+      if (!duplicatedRow) {
+        throw new AppError(500, "PRE_DEMANDA_DUPLICATE_FAILED", "Falha ao carregar a demanda duplicada.");
+      }
+
+      const record = mapPreDemandaBase(duplicatedRow, queueHealthThresholds);
+      record.assuntos = await this.loadAssuntos(client, duplicateId);
+      record.interessados = await this.loadInteressados(client, duplicateId);
+      record.vinculos = await this.loadVinculos(client, duplicateId);
+      record.setoresAtivos = await this.loadSetoresAtivos(client, duplicateId);
+      record.documentos = [];
+      record.comentarios = [];
+      record.tarefasPendentes = [];
+      record.audiencias = [];
+      record.recentAndamentos = [];
+      record.seiAssociations = [];
+      record.numerosJudiciais = await this.loadNumerosJudiciais(client, duplicateId);
+      record.currentAssociation = null;
+      record.principalTipo = "demanda";
+      record.principalNumero = record.numeroJudicial ?? record.preId;
+      record.solicitante = record.pessoaPrincipal?.nome ?? record.solicitante;
+
+      this.invalidateDashboardCaches();
+      return record;
+    });
   }
 
   async list(params: ListPreDemandasParams): Promise<ListPreDemandasResult> {

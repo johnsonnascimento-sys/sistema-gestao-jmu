@@ -88,6 +88,11 @@ export interface CreatePreDemandaResult {
   existingPreId: string | null;
 }
 
+export interface DuplicatePreDemandaInput {
+  preId: string;
+  changedByUserId: number;
+}
+
 export interface AssociateSeiInput {
   preId: string;
   seiNumero: string;
@@ -554,6 +559,7 @@ export interface PreDemandaTarefaRepository {
 
 export interface PreDemandaRepository {
   create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult>;
+  duplicate(input: DuplicatePreDemandaInput): Promise<PreDemandaDetail>;
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
   getStatusCounts(): Promise<Array<{ status: PreDemandaStatus; total: number }>>;
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
