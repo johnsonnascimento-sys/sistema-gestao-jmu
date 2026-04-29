@@ -69,7 +69,8 @@ Referencia rapida:
 - `gpt-5.3-codex` deve ser reservado para tarefas predominantemente de codificacao e refatoracao.
 - `gpt-5.4` deve ser usado para tarefas profissionais medianas, integracao e revisao tecnica mais forte.
 - `gpt-5.5` deve ser usado para orquestracao complexa, alto risco, revisao final sensivel e tarefas transversais.
-- Sempre que houver uso de agente especializado, informar ao usuario o nome do agente, a funcao e o modelo utilizado.
+- Sempre que houver uso de agente especializado, informar ao usuario antes da execucao o nome do agente, a funcao e o modelo utilizado.
+- Ao finalizar a tarefa, repetir a informacao com o resultado entregue e quais agentes ou subagentes foram de fato usados.
 
 ### Regras Gerais
 - Idempotencia de demanda: `solicitante + assunto + data_referencia (YYYY-MM-DD)`.

@@ -5,11 +5,13 @@
 - Sincronizados `AGENT_RULES`, `agents.toml`, `AI_BOOTLOADER.md`, `START_HERE_AGENTS.md` e `conta-vinculada/AGENTS.md` com a nova politica operacional.
 - Mantido o uso de `gpt-5.4-mini` para tarefas pequenas e delimitadas, `gpt-5.2` para trabalho generalista bem delimitado e sensivel a custo, `gpt-5.3-codex` para codificacao/refatoracao, `gpt-5.4` para trabalho profissional medio e `gpt-5.5` para orquestracao e risco elevado.
 - Concluida a entrega operacional com commit `a8cfb97`, push para `origin/main`, backup manual pre-deploy e deploy remoto validado na VPS Hostinger com `health`, `ready` e `smoke` aprovados.
+- Refinada a regra de transparencia para exigir anuncio antes da execucao e recapitulacao apos a entrega, incluindo nome, papel, modelo e resultado de cada agente ou subagente usado.
+- Adicionado `AGENTS.md` raiz para concentrar a politica de leitura e a convencao de transparencia operacional.
 
 ## Identificadores
 - Data do registro: `2026-04-29`
 - Escopo: politica de agentes e configuracao portavel
-- Arquivos principais: `AGENT_RULES`, `agents.toml`, `AI_BOOTLOADER.md`, `START_HERE_AGENTS.md`, `conta-vinculada/AGENTS.md`
+- Arquivos principais: `AGENT_RULES`, `agents.toml`, `AI_BOOTLOADER.md`, `START_HERE_AGENTS.md`, `AGENTS.md`
 - Escopo complementar: commit, push, backup pre-deploy e deploy remoto em producao
 
 ## Validacao

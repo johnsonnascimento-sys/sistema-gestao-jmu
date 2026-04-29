@@ -86,6 +86,10 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
   - funcao/papel
   - modelo em uso
 - Quando relevante, tambem deve informar o `reasoning_effort`.
+- A transparencia deve ocorrer em dois momentos:
+  - antes de iniciar a tarefa, indicando quais agentes ou subagentes serao usados
+  - depois de concluir a tarefa, indicando quais agentes ou subagentes foram de fato usados e o resultado entregue
+- Se houver delegacao para mais de um subagente, o usuario deve ver a divisao por responsavel e o resumo do retorno de cada um.
 
 ## 9. Politica de Modelos por Complexidade
 - **Atlas:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`

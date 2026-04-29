@@ -65,6 +65,7 @@ Convencao operacional de agentes:
 - `Atlas` coordena e integra
 - `Ada`, `Turing`, `Laplace` e `SRE-1` devem ser usados por padrao quando a tarefa tiver dominio tecnico claro
 - `git add`, `git commit`, `git push` e `deploy` ficam sob o agente principal por padrao
+- Toda tarefa com agente ou subagente deve ser anunciada antes da execucao com nome, papel e modelo, e deve ser recapitulada ao final com o resultado entregue.
 
 ### Windows
 ```powershell
