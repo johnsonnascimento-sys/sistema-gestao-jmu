@@ -1363,6 +1363,8 @@ export function PreDemandaDetailPage() {
       return;
     }
 
+    const isEditing = Boolean(editingAudienciaId);
+
     await runMutation(
       async () => {
         const payload = {
@@ -1374,19 +1376,21 @@ export function PreDemandaDetailPage() {
           observacoes: audienciaForm.observacoes.trim() || null,
         };
 
-        if (editingAudienciaId) {
+        if (isEditing && editingAudienciaId) {
           await updatePreDemandaAudiencia(preId, editingAudienciaId, payload);
-          return;
         } else {
           const result = await createPreDemandaAudiencia(preId, payload);
           await loadAudienciasData(true);
+          await loadRecordData();
           resetAudienciaForm();
           return composeAutoReopenSuccessMessage("Audiencia cadastrada.", result.autoReopen);
         }
+
         await loadAudienciasData(true);
+        await loadRecordData();
         resetAudienciaForm();
       },
-      editingAudienciaId ? "Audiencia atualizada." : "Audiencia cadastrada.",
+      isEditing ? "Audiencia atualizada." : "Audiencia cadastrada.",
     );
   }
 
