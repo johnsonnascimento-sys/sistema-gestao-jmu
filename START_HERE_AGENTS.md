@@ -33,7 +33,10 @@ Este arquivo existe para padronizar o comportamento do Codex e de agentes especi
 
 ## Politica de Modelo
 - Use `gpt-5.4-mini` como padrao para tarefas especializadas, delimitadas e de menor risco.
-- Use `gpt-5.4` para tarefas de maior impacto, ambiguidade, risco tecnico ou coordenacao entre dominios.
+- Use `gpt-5.2` para trabalho generalista bem delimitado quando o custo importar mais que a ultima margem de qualidade.
+- Use `gpt-5.3-codex` quando a tarefa for predominantemente de codificacao, patch ou refatoracao.
+- Use `gpt-5.4` para tarefas de maior impacto, ambiguidade moderada, risco tecnico ou coordenacao entre dominios.
+- Use `gpt-5.5` para tarefas complexas, transversais, de alto risco ou com necessidade clara de orquestracao avancada.
 
 ## Politica de Reasoning
 - Use `medium` como padrao.

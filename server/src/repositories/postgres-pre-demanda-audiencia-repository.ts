@@ -1,7 +1,8 @@
-import { AppError } from "../errors";
+﻿import { AppError } from "../errors";
 import type { DatabasePool } from "../db";
 import type { AudienciaSituacao } from "../domain/types";
 import {
+  autoReopenIfClosed,
   getResolvedPreDemanda,
   inTransaction,
   insertAndamento,
@@ -209,6 +210,13 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
   async updateAudiencia(input: UpdateAudienciaInput) {
     return inTransaction(this.pool, async (client) => {
       const demanda = await this.ensureJudicialProcess(client, input.preId);
+      const autoReopen = await reopenProcessForRelevantMutation(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        currentStatus: demanda.status,
+        reason: "AtualizaÃ§Ã£o de audiÃªncia em processo encerrado.",
+        changedByUserId: input.changedByUserId,
+      });
       const current = await client.query(
         `
           select id, data_hora_inicio, data_hora_fim, descricao, sala, situacao, observacoes
@@ -283,7 +291,10 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
         throw new AppError(500, "AUDIENCIA_UPDATE_FAILED", "Falha ao carregar a audiencia atualizada.");
       }
 
-      return audiencia;
+      return {
+        item: audiencia,
+        autoReopen,
+      };
     });
   }
 

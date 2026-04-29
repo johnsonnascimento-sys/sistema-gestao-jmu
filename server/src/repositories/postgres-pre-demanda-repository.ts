@@ -1,4 +1,4 @@
-import type { PoolClient, QueryResultRow } from "pg";
+﻿import type { PoolClient, QueryResultRow } from "pg";
 import type {
   Assunto,
   Andamento,
@@ -32,6 +32,7 @@ import type { DatabasePool } from "../db";
 import { getAllowedNextStatuses } from "../domain/pre-demanda-status";
 import { buildQueueHealth, type QueueHealthThresholds } from "../domain/queue-health";
 import { AppError } from "../errors";
+import { autoReopenIfClosed, getResolvedPreDemanda as resolvePreDemanda } from "./postgres-pre-demanda-utils";
 import type {
   AddAndamentoInput,
   AddDemandaAssuntoInput,
@@ -669,7 +670,7 @@ function buildScheduledReopenMetadata(
 }
 
 function buildNormalizedLikeExpression(column: string, index: number) {
-  return `translate(lower(coalesce(${column}, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
+  return `translate(lower(coalesce(${column}, '')), 'Ã¡Ã Ã£Ã¢Ã¤Ã©Ã¨ÃªÃ«Ã­Ã¬Ã®Ã¯Ã³Ã²ÃµÃ´Ã¶ÃºÃ¹Ã»Ã¼Ã§', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
 }
 
 function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: QueueHealthThresholds) {
@@ -1987,6 +1988,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
       }
 
+      const changedByUserId = input.changedByUserId ?? 0;
+
+      const reopen = await this.reopenProcessForRelevantMutation(client, {
+        preDemandaId: demanda.id,
+        preId: demanda.preId,
+        currentStatus: demanda.status,
+        changedByUserId,
+        reason: "AlteraÃ§Ã£o de dados do processo encerrado.",
+      });
+
       const effectivePrazoProcesso = input.prazoProcesso !== undefined ? input.prazoProcesso : demanda.prazoProcesso;
       if (!effectivePrazoProcesso) {
         throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
@@ -2120,7 +2131,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       }
 
       this.invalidateDashboardCaches();
-      return { preId: input.preId };
+      return {
+        ...record,
+        reopen,
+      };
     });
   }
 
@@ -4120,10 +4134,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
             where di.pre_demanda_id = pd.id
               and pessoa.cargo in (
-                'JuÃ­za Federal da JustiÃ§a Militar',
-                'Juiz Federal da JustiÃ§a Militar',
-                'Juiz Federal Substituto da JustiÃ§a Militar',
-                'JuÃ­za Federal Substituta da JustiÃ§a Militar'
+                'JuÃƒÂ­za Federal da JustiÃƒÂ§a Militar',
+                'Juiz Federal da JustiÃƒÂ§a Militar',
+                'Juiz Federal Substituto da JustiÃƒÂ§a Militar',
+                'JuÃƒÂ­za Federal Substituta da JustiÃƒÂ§a Militar'
               )
             order by di.created_at desc, pessoa.nome asc
             limit 1
@@ -4167,10 +4181,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
             where di.pre_demanda_id = pd.id
               and pessoa.cargo in (
-                'JuÃƒÂ­za Federal da JustiÃƒÂ§a Militar',
-                'Juiz Federal da JustiÃƒÂ§a Militar',
-                'Juiz Federal Substituto da JustiÃƒÂ§a Militar',
-                'JuÃƒÂ­za Federal Substituta da JustiÃƒÂ§a Militar'
+                'JuÃƒÆ’Ã‚Â­za Federal da JustiÃƒÆ’Ã‚Â§a Militar',
+                'Juiz Federal da JustiÃƒÆ’Ã‚Â§a Militar',
+                'Juiz Federal Substituto da JustiÃƒÆ’Ã‚Â§a Militar',
+                'JuÃƒÆ’Ã‚Â­za Federal Substituta da JustiÃƒÆ’Ã‚Â§a Militar'
               )
             order by di.created_at desc, pessoa.nome asc
             limit 1
@@ -4468,10 +4482,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
             where di.pre_demanda_id = pd.id
               and pessoa.cargo in (
-                'Juíza Federal da Justiça Militar',
-                'Juiz Federal da Justiça Militar',
-                'Juiz Federal Substituto da Justiça Militar',
-                'Juíza Federal Substituta da Justiça Militar'
+                'JuÃ­za Federal da JustiÃ§a Militar',
+                'Juiz Federal da JustiÃ§a Militar',
+                'Juiz Federal Substituto da JustiÃ§a Militar',
+                'JuÃ­za Federal Substituta da JustiÃ§a Militar'
               )
             order by di.created_at desc, pessoa.nome asc
             limit 1
@@ -4516,10 +4530,10 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
             where di.pre_demanda_id = pd.id
               and pessoa.cargo in (
-                'JuÃ­za Federal da JustiÃ§a Militar',
-                'Juiz Federal da JustiÃ§a Militar',
-                'Juiz Federal Substituto da JustiÃ§a Militar',
-                'JuÃ­za Federal Substituta da JustiÃ§a Militar'
+                'JuÃƒÂ­za Federal da JustiÃƒÂ§a Militar',
+                'Juiz Federal da JustiÃƒÂ§a Militar',
+                'Juiz Federal Substituto da JustiÃƒÂ§a Militar',
+                'JuÃƒÂ­za Federal Substituta da JustiÃƒÂ§a Militar'
               )
             order by di.created_at desc, pessoa.nome asc
             limit 1

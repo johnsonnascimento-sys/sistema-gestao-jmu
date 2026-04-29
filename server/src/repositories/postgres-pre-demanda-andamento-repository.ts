@@ -1,4 +1,4 @@
-import type { DatabasePool } from "../db";
+﻿import type { DatabasePool } from "../db";
 import { AppError } from "../errors";
 import {
   type Queryable,
@@ -55,7 +55,7 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
     const results = await Promise.all(
       uniquePreIds.map(async (preId) => {
         try {
-          const andamento = await this.addAndamento({
+          const result = await this.addAndamento({
             preId,
             descricao: input.descricao,
             dataHora: input.dataHora,
@@ -66,7 +66,8 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
             preId,
             ok: true,
             message: "Andamento registrado.",
-            andamento: andamento.item,
+            andamento: result.item,
+            autoReopen: result.autoReopen,
           };
         } catch (error) {
           return {
@@ -76,6 +77,7 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
               error instanceof AppError
                 ? error.message
                 : "Falha ao registrar andamento neste processo.",
+            autoReopen: null,
           };
         }
       }),
@@ -106,7 +108,7 @@ export class PostgresPreDemandaAndamentoRepository implements PreDemandaAndament
       );
 
       if (!current.rows[0]) {
-        throw new AppError(404, "ANDAMENTO_NOT_FOUND", "Andamento não encontrado.");
+        throw new AppError(404, "ANDAMENTO_NOT_FOUND", "Andamento nÃ£o encontrado.");
       }
 
       const updates: string[] = [];

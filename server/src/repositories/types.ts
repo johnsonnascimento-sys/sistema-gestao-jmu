@@ -355,7 +355,7 @@ export interface RemoveAudienciaInput {
 export interface PreDemandaAudienciaRepository {
   listAudiencias(preId: string): Promise<Audiencia[]>;
   createAudiencia(input: CreateAudienciaInput): Promise<MutationWithAutoReopen<Audiencia>>;
-  updateAudiencia(input: UpdateAudienciaInput): Promise<Audiencia>;
+  updateAudiencia(input: UpdateAudienciaInput): Promise<MutationWithAutoReopen<Audiencia>>;
   removeAudiencia(input: RemoveAudienciaInput): Promise<{ removedId: string }>;
 }
 
@@ -557,7 +557,7 @@ export interface PreDemandaRepository {
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
   getStatusCounts(): Promise<Array<{ status: PreDemandaStatus; total: number }>>;
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
-  updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaMutationAck>;
+  updateCaseData(input: UpdatePreDemandaCaseDataInput): Promise<PreDemandaDetail & { reopen: AutoReopenInfo | null }>;
   updateAnotacoes(input: UpdatePreDemandaAnotacoesInput): Promise<PreDemandaMutationAck>;
   listAssuntos(preId: string): Promise<DemandaAssunto[]>;
   addAssunto(input: AddDemandaAssuntoInput): Promise<MutationWithAutoReopen<PreDemandaDetail>>;

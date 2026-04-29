@@ -21,5 +21,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./client/src/test/setup.ts",
+    include: ["server/src/**/*.{test,spec}.{ts,tsx}", "client/src/**/*.{test,spec}.{ts,tsx}"],
+    exclude: ["conta-vinculada/**", "dist/**", "node_modules/**"],
   },
 });

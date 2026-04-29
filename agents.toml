@@ -1,7 +1,7 @@
 version = 1
 default_coordinator = "Atlas"
 default_model_simple = "gpt-5.4-mini"
-default_model_complex = "gpt-5.4"
+default_model_complex = "gpt-5.5"
 default_reasoning_simple = "medium"
 default_reasoning_medium = "high"
 default_reasoning_complex = "xhigh"
@@ -60,7 +60,7 @@ domains = [
 ]
 model_simple = "gpt-5.4-mini"
 model_medium = "gpt-5.4"
-model_complex = "gpt-5.4"
+model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -76,8 +76,8 @@ domains = [
   "server/src/repositories/*"
 ]
 model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4-mini"
-model_complex = "gpt-5.4"
+model_medium = "gpt-5.2"
+model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -92,8 +92,8 @@ domains = [
   "server/src/scripts/*"
 ]
 model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4-mini"
-model_complex = "gpt-5.4"
+model_medium = "gpt-5.3-codex"
+model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -106,8 +106,8 @@ domains = [
   "client/src/*"
 ]
 model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4-mini"
-model_complex = "gpt-5.4"
+model_medium = "gpt-5.4"
+model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -123,8 +123,8 @@ domains = [
   "server/src/scripts/smoke-test.ts"
 ]
 model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4-mini"
-model_complex = "gpt-5.4"
+model_medium = "gpt-5.2"
+model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"

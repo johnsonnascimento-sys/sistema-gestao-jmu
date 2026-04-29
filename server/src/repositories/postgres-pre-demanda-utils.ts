@@ -789,6 +789,67 @@ export async function insertAndamento(
   return mapAndamento(result.rows[0]);
 }
 
+export interface AutoReopenResult {
+  wasReopened: boolean;
+  previousStatus: PreDemandaStatus;
+  reason: string;
+}
+
+/**
+ * Verifica se o processo está encerrado e, se estiver, reabre automaticamente.
+ * Registra auditoria de status e andamento automático descrevendo o motivo.
+ * Deve ser chamado dentro de uma transação ativa.
+ */
+export async function autoReopenIfClosed(
+  client: Queryable,
+  params: {
+    preDemandaId: number;
+    preId: string;
+    reason: string;
+    changedByUserId: number;
+  },
+): Promise<AutoReopenResult> {
+  const statusResult = await client.query(
+    `
+      select status
+      from adminlog.pre_demanda
+      where id = $1
+      limit 1
+      for update
+    `,
+    [params.preDemandaId],
+  );
+
+  const currentStatus = (statusResult.rows[0]?.status ?? "em_andamento") as PreDemandaStatus;
+
+  if (currentStatus !== "encerrada") {
+    return { wasReopened: false, previousStatus: currentStatus, reason: params.reason };
+  }
+
+  await client.query(
+    `update adminlog.pre_demanda set status = 'em_andamento', updated_at = now() where id = $1`,
+    [params.preDemandaId],
+  );
+
+  await client.query(
+    `
+      insert into adminlog.pre_demanda_status_audit (pre_id, status_anterior, status_novo, motivo, observacoes, changed_by_user_id)
+      values ($1, $2, 'em_andamento', $3, null, $4)
+    `,
+    [params.preId, currentStatus, `Reabertura automatica: ${params.reason}`, params.changedByUserId],
+  );
+
+  await insertAndamento(client, {
+    preDemandaId: params.preDemandaId,
+    preId: params.preId,
+    descricao: `Processo reaberto automaticamente. Motivo: ${params.reason}`,
+    tipo: "status",
+    createdByUserId: params.changedByUserId,
+  });
+
+  return { wasReopened: true, previousStatus: currentStatus, reason: params.reason };
+}
+
 export async function activateSetorFromTarefa(
   queryable: Queryable,
   input: { preDemandaId: number; preId: string; setorDestinoId: string; changedByUserId: number },

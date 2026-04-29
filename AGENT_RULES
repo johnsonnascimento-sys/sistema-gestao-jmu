@@ -88,15 +88,18 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
 - Quando relevante, tambem deve informar o `reasoning_effort`.
 
 ## 9. Politica de Modelos por Complexidade
-- **Atlas:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.4`
-- **Laplace:** simples e medio `gpt-5.4-mini`, complexo `gpt-5.4`
-- **Turing:** simples e medio `gpt-5.4-mini`, complexo `gpt-5.4`
-- **Ada:** simples e medio `gpt-5.4-mini`, complexo `gpt-5.4`
-- **SRE-1:** simples e medio `gpt-5.4-mini`, complexo `gpt-5.4`
+- **Atlas:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
+- **Laplace:** simples `gpt-5.4-mini`, medio `gpt-5.2`, complexo `gpt-5.5`
+- **Turing:** simples `gpt-5.4-mini`, medio `gpt-5.3-codex`, complexo `gpt-5.5`
+- **Ada:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
+- **SRE-1:** simples `gpt-5.4-mini`, medio `gpt-5.2`, complexo `gpt-5.5`
 
 ## 10. Regra Geral de Escalonamento de Modelo
 - Usar `gpt-5.4-mini` como padrao para execucao especializada, rapida e delimitada.
-- Escalar para `gpt-5.4` quando houver alto risco tecnico, impacto em producao, necessidade de raciocinio mais profundo, coordenacao entre dominios ou revisao arquitetural.
+- Usar `gpt-5.2` quando a tarefa for generalista, bem delimitada e o custo importar mais que a ultima margem de qualidade.
+- Usar `gpt-5.3-codex` quando a tarefa for majoritariamente de codificacao, patch/refatoracao ou ajuste de comando e o foco for precisao de implementacao.
+- Escalar para `gpt-5.4` quando houver maior impacto, necessidade de tool use mais robusto, integracao entre modulos ou analise comparativa mais forte.
+- Escalar para `gpt-5.5` quando houver alto risco tecnico, impacto em producao, coordenacao entre dominios, revisao arquitetural ou necessidade de orquestracao complexa.
 
 ## 11. Politica de Reasoning Effort
 - **Atlas:** simples `medium`, medio `high`, complexo `xhigh`

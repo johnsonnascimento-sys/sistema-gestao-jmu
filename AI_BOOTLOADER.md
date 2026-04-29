@@ -64,6 +64,11 @@ Referencia rapida:
 - Em qualquer computador novo, a ordem minima de leitura e: `START_HERE_AGENTS.md` -> `AI_BOOTLOADER.md` -> `AGENT_RULES` -> `agents.toml`.
 - O uso de especialistas deve ser o padrao de execucao quando houver dominio claro de frontend, backend, banco ou operacoes.
 - `Atlas` coordena, integra, revisa e executa a etapa final sensivel de versionamento e deploy, salvo decisao operacional explicita em contrario.
+- `gpt-5.4-mini` e o padrao para tarefas pequenas e delimitadas.
+- `gpt-5.2` e o fallback generalista para trabalhos bem definidos em que custo pese mais que a margem final de qualidade.
+- `gpt-5.3-codex` deve ser reservado para tarefas predominantemente de codificacao e refatoracao.
+- `gpt-5.4` deve ser usado para tarefas profissionais medianas, integracao e revisao tecnica mais forte.
+- `gpt-5.5` deve ser usado para orquestracao complexa, alto risco, revisao final sensivel e tarefas transversais.
 - Sempre que houver uso de agente especializado, informar ao usuario o nome do agente, a funcao e o modelo utilizado.
 
 ### Regras Gerais

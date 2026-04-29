@@ -1,4 +1,4 @@
-import type { DatabasePool } from "../db";
+﻿import type { DatabasePool } from "../db";
 import { AppError } from "../errors";
 import {
   type Queryable,
@@ -464,7 +464,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             descricao = `${descricao} ${setorSigla ?? ""}`.trim();
           }
 
-          const tarefa = await this.createTarefa({
+          const result = await this.createTarefa({
             preId,
             descricao,
             tipo: input.tipo,
@@ -483,7 +483,8 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             preId,
             ok: true,
             message: "Tarefa registrada.",
-            tarefa: tarefa.item,
+            tarefa: result.item,
+            autoReopen: result.autoReopen,
           };
         } catch (error) {
           return {
@@ -493,6 +494,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
               error instanceof AppError
                 ? error.message
                 : "Falha ao registrar tarefa neste processo.",
+            autoReopen: null,
           };
         }
       }),

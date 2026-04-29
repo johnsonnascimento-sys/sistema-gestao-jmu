@@ -1,3 +1,5 @@
+import type { AutoReopenInfo } from "../repositories/types";
+
 export type UserRole = "admin" | "operador";
 export type AppPermission =
   | "dashboard.read"
@@ -262,6 +264,7 @@ export interface BulkAndamentoResultItem {
   ok: boolean;
   message?: string;
   andamento?: Andamento;
+  autoReopen?: AutoReopenInfo | null;
 }
 
 export interface BulkAndamentoResult {
@@ -276,6 +279,7 @@ export interface BulkTarefaResultItem {
   ok: boolean;
   message?: string;
   tarefa?: TarefaPendente;
+  autoReopen?: AutoReopenInfo | null;
 }
 
 export interface BulkTarefaResult {

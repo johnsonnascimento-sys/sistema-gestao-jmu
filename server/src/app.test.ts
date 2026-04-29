@@ -813,7 +813,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       };
     }
 
-    return this.touch(record);
+    return { ...this.touch(record), reopen: null };
   }
 
   async updateAnotacoes(input: UpdatePreDemandaAnotacoesInput) {

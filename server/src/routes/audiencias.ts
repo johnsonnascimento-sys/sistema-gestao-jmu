@@ -56,7 +56,7 @@ export async function registerPreDemandaAudienciaRoutes(
   app.post("/api/pre-demandas/:preId/audiencias", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_audiencias")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = audienciaCreateSchema.parse(request.body);
-    const audiencia = await preDemandaAudienciaRepository.createAudiencia({
+    const result = await preDemandaAudienciaRepository.createAudiencia({
       preId: params.preId,
       dataHoraInicio: payload.data_hora_inicio,
       dataHoraFim: payload.data_hora_fim ?? null,
@@ -68,15 +68,14 @@ export async function registerPreDemandaAudienciaRoutes(
     });
     preDemandaRepository.invalidateDashboardCaches();
 
-    if (audiencia.autoReopen) {
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
+    if (result.autoReopen) {
       emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
     }
 
-    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
-
     return reply.status(201).send({
       ok: true,
-      data: audiencia,
+      data: result,
       error: null,
     });
   });
@@ -84,7 +83,7 @@ export async function registerPreDemandaAudienciaRoutes(
   app.patch("/api/pre-demandas/:preId/audiencias/:audienciaId", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_audiencias")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), audienciaId: z.string().uuid() }).parse(request.params);
     const payload = audienciaUpdateSchema.parse(request.body);
-    const audiencia = await preDemandaAudienciaRepository.updateAudiencia({
+    const result = await preDemandaAudienciaRepository.updateAudiencia({
       preId: params.preId,
       audienciaId: params.audienciaId,
       dataHoraInicio: payload.data_hora_inicio,
@@ -98,10 +97,13 @@ export async function registerPreDemandaAudienciaRoutes(
     preDemandaRepository.invalidateDashboardCaches();
 
     emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "update" });
+    if (result.autoReopen) {
+      emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+    }
 
     return reply.send({
       ok: true,
-      data: audiencia,
+      data: result,
       error: null,
     });
   });

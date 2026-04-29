@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+﻿import type { FastifyInstance } from "fastify";
 import { emitPreDemandaUpdate } from "../lib/events";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
@@ -34,7 +34,7 @@ const numeroJudicialSchema = z.preprocess(
 
     return normalizeNumeroJudicialValue(value);
   },
-  z.string().regex(NUMERO_JUDICIAL_REGEX, "Número judicial inválido.").nullable().optional(),
+  z.string().regex(NUMERO_JUDICIAL_REGEX, "NÃºmero judicial invÃ¡lido.").nullable().optional(),
 );
 
 const createSchema = z.object({
@@ -45,7 +45,7 @@ const createSchema = z.object({
   fonte: z.string().trim().max(120).optional().nullable(),
   observacoes: z.string().trim().max(4000).optional().nullable(),
   prazo_processo: z.string().date(),
-  sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido.").optional().nullable(),
+  sei_numero: z.string().trim().regex(SEI_REGEX, "NÃºmero SEI invÃ¡lido.").optional().nullable(),
   numero_judicial: numeroJudicialSchema,
   assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
@@ -53,7 +53,7 @@ const createSchema = z.object({
   .refine((value) => {
     return Boolean(value.prazo_processo);
   }, {
-    message: "Prazo final é obrigatório quando a demanda não possui frequência contínua.",
+    message: "Prazo final Ã© obrigatÃ³rio quando a demanda nÃ£o possui frequÃªncia contÃ­nua.",
     path: ["prazo_processo"],
   });
 
@@ -96,7 +96,7 @@ const listDashboardTasksSchema = z.object({
 });
 
 const associateSchema = z.object({
-  sei_numero: z.string().trim().regex(SEI_REGEX, "Número SEI inválido."),
+  sei_numero: z.string().trim().regex(SEI_REGEX, "NÃºmero SEI invÃ¡lido."),
   motivo: z.string().trim().max(2000).optional().nullable(),
   observacoes: z.string().trim().max(2000).optional().nullable(),
 });
@@ -302,7 +302,7 @@ function parseStatuses(input: string | string[] | undefined) {
 
   for (const value of normalized) {
     if (!STATUSES.includes(value as PreDemandaStatus)) {
-      throw new AppError(400, "INVALID_STATUS_FILTER", `Status inválido: ${value}`);
+      throw new AppError(400, "INVALID_STATUS_FILTER", `Status invÃ¡lido: ${value}`);
     }
   }
 
@@ -319,7 +319,7 @@ function parseQueueHealthLevels(input: string | string[] | undefined) {
 
   for (const value of normalized) {
     if (!QUEUE_HEALTH_LEVELS.includes(value as QueueHealthLevel)) {
-      throw new AppError(400, "INVALID_QUEUE_HEALTH_FILTER", `Filtro de fila inválido: ${value}`);
+      throw new AppError(400, "INVALID_QUEUE_HEALTH_FILTER", `Filtro de fila invÃ¡lido: ${value}`);
     }
   }
 
@@ -469,7 +469,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     const record = await preDemandaRepository.getByPreId(params.preId);
 
     if (!record) {
-      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Demanda não encontrada.");
+      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Demanda nÃ£o encontrada.");
     }
 
     return reply.send({
@@ -493,6 +493,10 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       metadata: normalizeMetadata(payload.metadata),
       changedByUserId: request.user!.id,
     });
+
+    if (record.reopen) {
+      emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
+    }
 
     return reply.send({
       ok: true,
@@ -702,6 +706,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     for (const item of result.results) {
       if (item.ok) {
         emitPreDemandaUpdate({ preId: item.preId, type: "andamento", action: "create" });
+        if (item.autoReopen) {
+          emitPreDemandaUpdate({ preId: item.preId, type: "status", action: "update" });
+        }
       }
     }
 
@@ -715,23 +722,22 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
   app.post("/api/pre-demandas/:preId/andamentos", { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = andamentoSchema.parse(request.body);
-    const andamento = await preDemandaAndamentoRepository.addAndamento({
+    const result = await preDemandaAndamentoRepository.addAndamento({
       preId: params.preId,
       descricao: payload.descricao,
       dataHora: payload.data_hora ?? null,
       changedByUserId: request.user!.id,
     });
 
-    if (andamento.autoReopen) {
-      preDemandaRepository.invalidateDashboardCaches();
+    preDemandaRepository.invalidateDashboardCaches();
+    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
+    if (result.autoReopen) {
       emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
     }
 
-    emitPreDemandaUpdate({ preId: params.preId, type: "andamento", action: "create" });
-
     return reply.status(201).send({
       ok: true,
-      data: andamento,
+      data: result,
       error: null,
     });
   });
@@ -802,7 +808,7 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
   app.post("/api/pre-demandas/:preId/tarefas", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
     const payload = tarefaSchema.parse(request.body);
-    const tarefa = await preDemandaTarefaRepository.createTarefa({
+    const result = await preDemandaTarefaRepository.createTarefa({
       preId: params.preId,
       descricao: payload.descricao,
       tipo: payload.tipo,
@@ -819,15 +825,14 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
 
     preDemandaRepository.invalidateDashboardCaches();
 
-    if (tarefa.autoReopen) {
+    emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "create" });
+    if (result.autoReopen) {
       emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "update" });
     }
 
-    emitPreDemandaUpdate({ preId: params.preId, type: "task", action: "create" });
-
     return reply.status(201).send({
       ok: true,
-      data: tarefa,
+      data: result,
       error: null,
     });
   });
@@ -855,6 +860,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     for (const item of result.results) {
       if (item.ok) {
         emitPreDemandaUpdate({ preId: item.preId, type: "task", action: "create" });
+        if (item.autoReopen) {
+          emitPreDemandaUpdate({ preId: item.preId, type: "status", action: "update" });
+        }
       }
     }
 
