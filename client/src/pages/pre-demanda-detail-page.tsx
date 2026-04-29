@@ -1070,13 +1070,13 @@ export function PreDemandaDetailPage() {
     () =>
       record
         ? {
-            resumo: `${getPreDemandaStatusLabel(record.status)} â€¢ ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` â€¢ prazo do processo ${formatDateOnlyPtBr(record.prazoProcesso)}` : ""}`,
+            resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${formatDateOnlyPtBr(record.prazoProcesso)}` : ""}`,
             audiencias:
               orderedAudiencias.length > 0
-                ? `PrÃ³xima audiÃªncia ${formatDateTimePtBrSafe(orderedAudiencias[0]?.dataHoraInicio)}`
+                ? `Próxima audiência ${formatDateTimePtBrSafe(orderedAudiencias[0]?.dataHoraInicio)}`
                 : record.metadata.audienciaHorarioInicio
-                  ? `PrÃ³xima audiÃªncia ${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` â€¢ ${record.metadata.audienciaStatus}` : ""}`
-                  : "Sem audiÃªncia cadastrada",
+                  ? `Próxima audiência ${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                  : "Sem audiência cadastrada",
             pessoas: interessados.length
               ? `${interessados.length} pessoa(s) vinculada(s)`
               : interessadosLoaded
@@ -1088,9 +1088,9 @@ export function PreDemandaDetailPage() {
                 ? "Sem setores ativos"
                 : "Abrir setores",
             checklist: tarefasLoaded
-              ? `${pendingTasks.length} pendente(s) â€¢ ${completedTasks.length} concluida(s)`
+              ? `${pendingTasks.length} pendente(s) • ${completedTasks.length} concluída(s)`
               : "Carregando tarefas",
-            visao: `${nextAction.title} â€¢ fila ${queueHealth?.summary ?? "-"}`,
+            visao: `${nextAction.title} • fila ${queueHealth?.summary ?? "-"}`,
             relacionados: vinculos.length
               ? `${vinculos.length} vinculo(s) ativo(s)`
               : relatedLoaded
@@ -1463,7 +1463,7 @@ export function PreDemandaDetailPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description={`Painel operacional inspirado no SEI para controle de envolvidos, tarefas, tramitacoes e historico. Referencia interna: ${record.preId}.`}
+        description={`Painel operacional inspirado no SEI para controle de envolvidos, tarefas, tramitações e histórico. Referência interna: ${record.preId}.`}
         eyebrow={record.principalNumero}
         title={record.assunto}
       />
@@ -1659,15 +1659,15 @@ export function PreDemandaDetailPage() {
               </p>
               <p className="mt-2 text-lg font-semibold text-slate-950">
                 {nextAudiencia
-                  ? `${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}${nextAudiencia.sala ? ` â€¢ ${nextAudiencia.sala}` : ""}`
+                  ? `${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
                   : record.metadata.audienciaHorarioInicio
-                    ? `${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` â€¢ ${record.metadata.audienciaStatus}` : ""}`
-                    : "Nenhuma audiÃªncia estruturada cadastrada."}
+                    ? `${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                    : "Nenhuma audiência estruturada cadastrada."}
               </p>
               <p className="mt-1 text-sm text-slate-600">
                 {nextAudiencia
-                  ? `${nextAudiencia.descricao || "AudiÃªncia registrada."}${nextAudiencia.observacoes ? ` â€¢ ${nextAudiencia.observacoes}` : ""}`
-                  : "Use o botÃ£o AudiÃªncias para registar data, hora, sala, descriÃ§Ã£o e situaÃ§Ã£o do ato judicial."}
+                  ? `${nextAudiencia.descricao || "Audiência registrada."}${nextAudiencia.observacoes ? ` • ${nextAudiencia.observacoes}` : ""}`
+                  : "Use o botão Audiências para registrar data, hora, sala, descrição e situação do ato judicial."}
               </p>
             </div>
             <Button
@@ -1675,7 +1675,7 @@ export function PreDemandaDetailPage() {
               type="button"
               variant="secondary"
             >
-              Abrir audiÃªncias
+              Abrir audiências
             </Button>
           </CardContent>
         </Card>
@@ -1705,7 +1705,7 @@ export function PreDemandaDetailPage() {
                           Assuntos vinculados
                         </p>
                         <p className="text-xs text-slate-500">
-                          Assuntos com procedimentos criam tarefas automÃ¡ticas e
+                          Assuntos com procedimentos criam tarefas automáticas e
                           seguem o prazo do processo.
                         </p>
                       </div>
@@ -1715,7 +1715,7 @@ export function PreDemandaDetailPage() {
                     ) ? (
                       <div className="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                         <p className="font-semibold">
-                          Checklist automÃ¡tico ativo
+                          Checklist automático ativo
                         </p>
                         <p className="mt-1 text-sky-800">
                           {
@@ -1735,7 +1735,7 @@ export function PreDemandaDetailPage() {
                           ).length === 1
                             ? ""
                             : "s"}{" "}
-                          com procedimentos automÃ¡ticos.
+                          com procedimentos automáticos.
                         </p>
                       </div>
                     ) : null}
@@ -1752,7 +1752,7 @@ export function PreDemandaDetailPage() {
                                   {item.assunto.nome}
                                 </p>
                                 <p className="text-sm text-slate-500">
-                                  {item.assunto.procedimentos.length} passos â€¢{" "}
+                                  {item.assunto.procedimentos.length} passos •{" "}
                                   {item.assunto.normas.length} normas
                                 </p>
                                 {item.assunto.normas.length ? (
@@ -1774,7 +1774,7 @@ export function PreDemandaDetailPage() {
                                     setRecord(next);
                                     syncRecordDependentState(next);
                                     await refreshAssuntosViewData();
-                                  }, "Assunto removido e tarefas automÃ¡ticas pendentes foram revistas.")
+                                  }, "Assunto removido e tarefas automáticas pendentes foram revistas.")
                                 }
                                 size="sm"
                                 type="button"
@@ -1845,16 +1845,16 @@ export function PreDemandaDetailPage() {
                               {assunto.nome}
                             </span>
                             <span className="block text-slate-500">
-                              {assunto.procedimentos.length} passos â€¢{" "}
+                              {assunto.procedimentos.length} passos •{" "}
                               {assunto.normas.length} normas
                             </span>
                             {assunto.procedimentos.length ? (
                               <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-sky-700">
-                                Vai criar checklist automÃ¡tico
+                                Vai criar checklist automático
                               </span>
                             ) : (
                               <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                                Sem checklist automÃ¡tico
+                                Sem checklist automático
                               </span>
                             )}
                           </button>
@@ -1892,7 +1892,7 @@ export function PreDemandaDetailPage() {
                         </select>
                       </FormField>
                       <FormField
-                        hint="Sem recorrÃªncia, esta Ã© a data final da tarefa. Com recorrÃªncia, ela vira a base para as prÃ³ximas ocorrÃªncias."
+                        hint="Sem recorrência, esta é a data final da tarefa. Com recorrência, ela vira a base para as próximas ocorrências."
                         label="Prazo da tarefa"
                       >
                         <Input
@@ -1913,8 +1913,8 @@ export function PreDemandaDetailPage() {
 
                   <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
                     <FormField
-                      hint="Escolha apenas se a tarefa precisar voltar a ser criada depois da conclusÃ£o."
-                      label="RecorrÃªncia"
+                    hint="Escolha apenas se a tarefa precisar voltar a ser criada depois da conclusão."
+                    label="Recorrência"
                     >
                       <select
                         className={selectClassName}
@@ -1941,8 +1941,8 @@ export function PreDemandaDetailPage() {
                         }
                         value={taskForm.recorrencia_tipo}
                       >
-                        <option value="">Sem repetiÃ§Ã£o</option>
-                        <option value="diaria">DiÃ¡ria</option>
+                        <option value="">Sem repetição</option>
+                        <option value="diaria">Diária</option>
                         <option value="semanal">Semanal</option>
                         <option value="mensal">Mensal</option>
                         <option value="trimestral">Trimestral</option>
@@ -1954,7 +1954,7 @@ export function PreDemandaDetailPage() {
 
                     {taskForm.recorrencia_tipo ? (
                       <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-                        Essa recorrÃªncia continua atÃ©{" "}
+                        Essa recorrência continua até{" "}
                         {formatDateOnlyPtBr(
                           record?.prazoProcesso,
                           "o prazo do processo",
@@ -1970,7 +1970,7 @@ export function PreDemandaDetailPage() {
                             Dias da semana
                           </p>
                           <p className="text-xs text-slate-500">
-                            Escolha em quais dias a prÃ³xima tarefa deve
+                            Escolha em quais dias a próxima tarefa deve
                             reaparecer.
                           </p>
                         </div>
@@ -2017,8 +2017,8 @@ export function PreDemandaDetailPage() {
                       "anual",
                     ].includes(taskForm.recorrencia_tipo) ? (
                       <FormField
-                        hint="A tarefa serÃ¡ repetida nesse mesmo dia conforme a periodicidade escolhida."
-                        label="Dia do mÃªs"
+                        hint="A tarefa será repetida nesse mesmo dia conforme a periodicidade escolhida."
+                        label="Dia do mês"
                       >
                         <Input
                           max="31"
@@ -2035,12 +2035,12 @@ export function PreDemandaDetailPage() {
                       </FormField>
                     ) : taskForm.recorrencia_tipo === "diaria" ? (
                       <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
-                        A recorrÃªncia diÃ¡ria nÃ£o precisa de dia da semana nem
-                        dia do mÃªs.
+                        A recorrência diária não precisa de dia da semana nem
+                        dia do mês.
                       </div>
                     ) : (
                       <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-3 text-xs text-slate-500">
-                        Sem repetiÃ§Ã£o. A tarefa termina no prazo escolhido.
+                        Sem repetição. A tarefa termina no prazo escolhido.
                       </div>
                     )}
                   </div>
@@ -2075,7 +2075,7 @@ export function PreDemandaDetailPage() {
                         ))}
                       </select>
                       <p className="text-xs text-slate-500 md:self-center">
-                        Ao concluir, o processo serÃ¡ tramitado automaticamente
+                        Ao concluir, o processo será tramitado automaticamente
                         para o setor escolhido.
                       </p>
                     </div>
@@ -2202,7 +2202,7 @@ export function PreDemandaDetailPage() {
                         ) : null}
                       </div>
                       <p className="text-xs text-slate-500">
-                        A tarefa serÃ¡ nomeada automaticamente com o nome da
+                        A tarefa será nomeada automaticamente com o nome da
                         pessoa selecionada.
                       </p>
                     </div>
@@ -2373,7 +2373,7 @@ export function PreDemandaDetailPage() {
                                     ) : null}
                                     {formatRecorrenciaLabel(task) ? (
                                       <span className="mt-1 block text-xs text-sky-700">
-                                        RecorrÃªncia ativa atÃ©{" "}
+                                        Recorrência ativa até{" "}
                                         {formatDateOnlyPtBr(
                                           record?.prazoProcesso,
                                           "o prazo do processo",
@@ -2452,7 +2452,7 @@ export function PreDemandaDetailPage() {
                             <p className="mt-1 text-xs text-emerald-900/80">
                               {task.tipo}
                               {task.concluidaPor
-                                ? ` â€¢ ${task.concluidaPor.name}`
+                                ? ` • ${task.concluidaPor.name}`
                                 : ""}
                             </p>
                             {formatRecorrenciaLabel(task) ? (
@@ -2469,7 +2469,7 @@ export function PreDemandaDetailPage() {
                   <div className="grid gap-3">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold text-slate-950">
-                        Tabela analÃ­tica das prÃ³ximas tarefas
+                        Tabela analítica das próximas tarefas
                       </p>
                       <span className="text-xs text-slate-500">
                         {pendingTasks.length} pendente(s)
@@ -2477,7 +2477,7 @@ export function PreDemandaDetailPage() {
                     </div>
                     {pendingTasks.length === 0 ? (
                       <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
-                        Nenhuma prÃ³xima tarefa pendente.
+                        Nenhuma próxima tarefa pendente.
                       </p>
                     ) : (
                       <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white">
@@ -2520,7 +2520,7 @@ export function PreDemandaDetailPage() {
                                   <td className="px-4 py-3 text-slate-600">
                                     {task.tipo}
                                     {formatRecorrenciaLabel(task)
-                                      ? ` â€¢ ${formatRecorrenciaLabel(task)}`
+                                      ? ` • ${formatRecorrenciaLabel(task)}`
                                       : ""}
                                   </td>
                                   <td className="px-4 py-3 text-slate-600">
@@ -2567,7 +2567,7 @@ export function PreDemandaDetailPage() {
                                   <td className="px-4 py-3 text-slate-600">
                                     {task.geradaAutomaticamente
                                       ? "Fluxo do assunto"
-                                      : "LanÃ§amento manual"}
+                                      : "Lançamento manual"}
                                   </td>
                                 </tr>
                               ))}
@@ -2703,15 +2703,15 @@ export function PreDemandaDetailPage() {
           <DetailSectionCard
             defaultOpen
             summary={sectionSummaries?.historico}
-            title="HistÃ³rico (Andamentos)"
+            title="Histórico (Andamentos)"
           >
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>HistÃ³rico (Andamentos)</CardTitle>
+                  <CardTitle>Histórico (Andamentos)</CardTitle>
                   <CardDescription>
-                    Timeline unificada com criacao, status, SEI, tramitacoes,
-                    tarefas e lancamentos manuais.
+                    Timeline unificada com criação, status, SEI, tramitações,
+                    tarefas e lançamentos manuais.
                   </CardDescription>
                 </div>
                 <Button
@@ -2935,7 +2935,7 @@ export function PreDemandaDetailPage() {
                     Assuntos vinculados
                   </p>
                   <p className="text-xs text-slate-500">
-                    Assuntos com procedimentos criam tarefas automÃ¡ticas e usam
+                    Assuntos com procedimentos criam tarefas automáticas e usam
                     o prazo do processo.
                   </p>
                 </div>
@@ -2943,7 +2943,7 @@ export function PreDemandaDetailPage() {
                   (item) => item.assunto.procedimentos.length > 0,
                 ) ? (
                   <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-sky-700 ring-1 ring-sky-200">
-                    Checklist automÃ¡tico ativo
+                    Checklist automático ativo
                   </span>
                 ) : assuntosCatalogoLoaded ? (
                   <p className="rounded-[20px] border border-dashed border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
@@ -2973,7 +2973,7 @@ export function PreDemandaDetailPage() {
                             {item.assunto.nome}
                           </p>
                           <p className="text-sm text-slate-500">
-                            {item.assunto.procedimentos.length} passos â€¢{" "}
+                                  {item.assunto.procedimentos.length} passos •{" "}
                             {item.assunto.normas.length} normas
                           </p>
                           {item.assunto.normas.length ? (
@@ -2995,7 +2995,7 @@ export function PreDemandaDetailPage() {
                               setRecord(next);
                               syncRecordDependentState(next);
                               await refreshAssuntosViewData();
-                            }, "Assunto removido e tarefas automÃ¡ticas pendentes foram revistas.")
+                                    }, "Assunto removido e tarefas automáticas pendentes foram revistas.")
                           }
                           size="sm"
                           type="button"
@@ -3057,16 +3057,16 @@ export function PreDemandaDetailPage() {
                         {assunto.nome}
                       </span>
                       <span className="block text-slate-500">
-                        {assunto.procedimentos.length} passos â€¢{" "}
+                        {assunto.procedimentos.length} passos •{" "}
                         {assunto.normas.length} normas
                       </span>
                       {assunto.procedimentos.length ? (
                         <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-sky-700">
-                          Vai criar checklist automÃ¡tico
+                                Vai criar checklist automático
                         </span>
                       ) : (
                         <span className="mt-1 block text-xs font-medium uppercase tracking-[0.14em] text-slate-400">
-                          Sem checklist automÃ¡tico
+                                Sem checklist automático
                         </span>
                       )}
                     </button>
@@ -3131,7 +3131,7 @@ export function PreDemandaDetailPage() {
                           {item.assunto.nome}
                         </p>
                         <p className="text-sm text-slate-500">
-                          {item.assunto.procedimentos.length} passos â€¢{" "}
+                            {item.assunto.procedimentos.length} passos •{" "}
                           {item.assunto.normas.length} normas
                         </p>
                         {item.assunto.normas.length ? (
@@ -3227,7 +3227,7 @@ export function PreDemandaDetailPage() {
                       {assunto.nome}
                     </span>
                     <span className="block text-slate-500">
-                      {assunto.procedimentos.length} passos â€¢{" "}
+                      {assunto.procedimentos.length} passos •{" "}
                       {assunto.normas.length} normas
                     </span>
                     {assunto.procedimentos.length ? (
@@ -4036,7 +4036,7 @@ export function PreDemandaDetailPage() {
                   Marcar como urgente
                 </span>
                 <span className="text-slate-500">
-                  Destaque operativo para tratamento prioritÃ¡rio.
+                      Destaque operativo para tratamento prioritário.
                 </span>
               </span>
               <input
@@ -4314,26 +4314,24 @@ export function PreDemandaDetailPage() {
           <DialogHeader>
             <DialogTitle>Audiencias judiciais</DialogTitle>
             <DialogDescription>
-              Cadastro estruturado da audiÃªncia com data, hora, sala, descricao
-              e situacao.
+              Cadastro estruturado da audiência com data, hora, sala, descrição
+              e situação.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4">
             <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-4">
-              <p className="text-sm font-semibold text-amber-900">
-                PrÃ³xima audiÃªncia
-              </p>
+              <p className="text-sm font-semibold text-amber-900">Próxima audiência</p>
               <p className="mt-2 text-sm text-amber-800">
                 {nextAudiencia
-                  ? `${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}${nextAudiencia.sala ? ` â€¢ ${nextAudiencia.sala}` : ""}`
+                  ? `${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}${nextAudiencia.sala ? ` • ${nextAudiencia.sala}` : ""}`
                   : record.metadata.audienciaHorarioInicio
-                    ? `${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` â€¢ ${record.metadata.audienciaStatus}` : ""}`
-                    : "Nenhuma audiÃªncia estruturada cadastrada."}
+                    ? `${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
+                    : "Nenhuma audiência estruturada cadastrada."}
               </p>
               <p className="mt-2 text-xs text-amber-700">
-                O resumo do processo passa a refletir automaticamente a prÃ³xima
-                audiÃªncia relevante.
+                O resumo do processo passa a refletir automaticamente a próxima
+                audiência relevante.
               </p>
             </div>
 
@@ -4386,9 +4384,9 @@ export function PreDemandaDetailPage() {
                 >
                   <option value="designada">Designada</option>
                   <option value="convertida_diligencia">
-                    Convertida em DiligÃªncia
+                    Convertida em Diligência
                   </option>
-                  <option value="nao_realizada">NÃ£o Realizada</option>
+                  <option value="nao_realizada">Não Realizada</option>
                   <option value="realizada">Realizada</option>
                   <option value="cancelada">Cancelada</option>
                 </select>
@@ -4443,7 +4441,7 @@ export function PreDemandaDetailPage() {
             <div className="grid gap-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold text-slate-950">
-                  AudiÃªncias cadastradas
+                  Audiências cadastradas
                 </p>
                 <span className="text-xs text-slate-500">
                   {orderedAudiencias.length} cadastrada(s)
@@ -4798,11 +4796,11 @@ export function PreDemandaDetailPage() {
           <DialogHeader>
             <DialogTitle>Editar tarefa</DialogTitle>
             <DialogDescription>
-              Ajuste a descriÃ§ao e o tipo da prÃ³xima tarefa.
+              Ajuste a descrição e o tipo da próxima tarefa.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
-            <FormField label="DescriÃ§ao">
+            <FormField label="Descrição">
               <Textarea
                 onChange={(event) =>
                   setEditTaskForm((current) => ({
@@ -4851,7 +4849,7 @@ export function PreDemandaDetailPage() {
               />
             </label>
             <FormField
-              hint="Sem recorrÃªncia, esta Ã© a data final da tarefa. Com recorrÃªncia, ela vira a base para as prÃ³ximas ocorrÃªncias."
+              hint="Sem recorrência, esta é a data final da tarefa. Com recorrência, ela vira a base para as próximas ocorrências."
               label="Prazo da tarefa"
             >
               <Input
@@ -4867,8 +4865,8 @@ export function PreDemandaDetailPage() {
               />
             </FormField>
             <FormField
-              hint="Escolha apenas se a tarefa precisar voltar a ser criada depois da conclusÃ£o."
-              label="RecorrÃªncia"
+              hint="Escolha apenas se a tarefa precisar voltar a ser criada depois da conclusão."
+              label="Recorrência"
             >
               <select
                 className={selectClassName}
@@ -4895,8 +4893,8 @@ export function PreDemandaDetailPage() {
                 }
                 value={editTaskForm.recorrencia_tipo}
               >
-                <option value="">Sem repetiÃ§Ã£o</option>
-                <option value="diaria">DiÃ¡ria</option>
+                <option value="">Sem repetição</option>
+                <option value="diaria">Diária</option>
                 <option value="semanal">Semanal</option>
                 <option value="mensal">Mensal</option>
                 <option value="trimestral">Trimestral</option>
@@ -4907,7 +4905,7 @@ export function PreDemandaDetailPage() {
             </FormField>
             {editTaskForm.recorrencia_tipo ? (
               <div className="col-span-2 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900">
-                Essa recorrÃªncia continua atÃ©{" "}
+                Essa recorrência continua até{" "}
                 {formatDateOnlyPtBr(
                   record?.prazoProcesso,
                   "o prazo do processo",
@@ -4922,7 +4920,7 @@ export function PreDemandaDetailPage() {
                     Dias da semana
                   </p>
                   <p className="text-xs text-slate-500">
-                    Escolha em quais dias a prÃ³xima tarefa deve reaparecer.
+                    Escolha em quais dias a próxima tarefa deve reaparecer.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -4962,8 +4960,8 @@ export function PreDemandaDetailPage() {
               "anual",
             ].includes(editTaskForm.recorrencia_tipo) ? (
               <FormField
-                hint="A tarefa serÃ¡ repetida nesse mesmo dia conforme a periodicidade escolhida."
-                label="Dia do mÃªs"
+                hint="A tarefa será repetida nesse mesmo dia conforme a periodicidade escolhida."
+                label="Dia do mês"
               >
                 <Input
                   max="31"
@@ -4980,12 +4978,12 @@ export function PreDemandaDetailPage() {
               </FormField>
             ) : editTaskForm.recorrencia_tipo === "diaria" ? (
               <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                A recorrÃªncia diÃ¡ria nÃ£o precisa de dia da semana nem dia do
-                mÃªs.
+                A recorrência diária não precisa de dia da semana nem dia do
+                mês.
               </div>
             ) : (
               <div className="col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                Sem repetiÃ§Ã£o. A tarefa termina no prazo escolhido.
+                Sem repetição. A tarefa termina no prazo escolhido.
               </div>
             )}
           </div>
@@ -5009,7 +5007,7 @@ export function PreDemandaDetailPage() {
               }
               type="button"
             >
-              Salvar alteraÃ§oes
+              Salvar alterações
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -5071,15 +5069,15 @@ export function PreDemandaDetailPage() {
           <DialogHeader>
             <DialogTitle>Excluir tarefa</DialogTitle>
             <DialogDescription>
-              Esta aÃ§Ã£o remove a tarefa pendente e registra a remoÃ§Ã£o no
-              histÃ³rico. Digite EXCLUIR para confirmar.
+              Esta ação remove a tarefa pendente e registra a remoção no
+              histórico. Digite EXCLUIR para confirmar.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <div className="rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
               {deleteTask?.descricao}
             </div>
-            <FormField label="ConfirmaÃ§Ã£o">
+            <FormField label="Confirmação">
               <Input
                 onChange={(event) => setDeleteTaskConfirm(event.target.value)}
                 placeholder="EXCLUIR"
@@ -5105,7 +5103,7 @@ export function PreDemandaDetailPage() {
                       await removePreDemandaTarefa(preId, deleteTask.id);
                       await loadTarefasData(true);
                       setDeleteTask(null);
-                    }, "Tarefa excluÃ­da.")
+                    }, "Tarefa excluída.")
                   : undefined
               }
               type="button"
