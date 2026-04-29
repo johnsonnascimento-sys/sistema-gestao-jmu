@@ -1882,7 +1882,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
         }
 
-        return this.hydrateDetail(client, detailRow, queueHealthThresholds);
+        const record = await this.hydrateDetail(client, detailRow, queueHealthThresholds);
+        return record;
       });
 
       return {
@@ -2130,9 +2131,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         }
       }
 
+      const updated = await this.getDetailByPreId(client, input.preId, queueHealthThresholds);
+      if (!updated) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
+
       this.invalidateDashboardCaches();
       return {
-        ...record,
+        ...updated,
         reopen,
       };
     });
