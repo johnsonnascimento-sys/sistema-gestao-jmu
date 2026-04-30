@@ -1,4 +1,4 @@
-﻿import {
+import {
   Building2,
   CalendarClock,
   CheckCircle,
@@ -1149,7 +1149,7 @@ export function PreDemandaDetailPage() {
       const nextMessage = await action();
       await loadRecordData();
       void loadTimelineData();
-      setMessage(nextMessage || successMessage);
+      setMessage(typeof nextMessage === "string" ? nextMessage : successMessage);
     } catch (nextError) {
       setError(
         formatPreDemandaMutationError(

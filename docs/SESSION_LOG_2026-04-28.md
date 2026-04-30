@@ -1,0 +1,5 @@
+- 2026-04-28 17:38:52 -03:00
+- Deploy produtivo executado na VPS Hostinger via `npm run deploy:vps`.
+- Commit publicado: `87c35f50f7eee71f1ac5f77e300426bd75ca585f`.
+- Validacoes remotas concluidas com sucesso: `GET /api/health`, `GET /api/ready`, smoke autenticado e smoke administrativo.
+- Container ativo apos deploy: `gestor-jmu-web`, imagem `gestor-jmu-web:latest`, porta `127.0.0.1:3000->3000/tcp`.
