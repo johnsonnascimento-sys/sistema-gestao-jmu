@@ -24,7 +24,9 @@ import type {
   PreDemandaAuditRecord,
   GlobalAuditRecord,
   PreDemandaDashboardSummary,
+  PreDemandaLoteResult,
   PreDemandaMetadata,
+  PreDemandaPacote,
   QueueHealthConfig,
   QueueHealthLevel,
   PreDemandaSortBy,
@@ -77,6 +79,11 @@ const setoresCache: CatalogCacheEntry<Setor[]> = {
   pending: null,
 };
 const assuntosCache: CatalogCacheEntry<Assunto[]> = {
+  value: null,
+  expiresAt: 0,
+  pending: null,
+};
+const pacotesCache: CatalogCacheEntry<PreDemandaPacote[]> = {
   value: null,
   expiresAt: 0,
   pending: null,
@@ -320,6 +327,26 @@ export interface CreatePreDemandaPayload {
   } | null;
 }
 
+export interface CreatePreDemandasLotePayload {
+  pacote_id?: string | null;
+  assunto_ids: string[];
+  pessoas: Array<{
+    pessoa_id?: string | null;
+    pessoa?: {
+      nome: string;
+      cargo?: string | null;
+      matricula?: string | null;
+      cpf?: string | null;
+      data_nascimento?: string | null;
+    };
+  }>;
+  data_referencia: string;
+  prazo_processo: string;
+  descricao?: string | null;
+  fonte?: string | null;
+  observacoes?: string | null;
+}
+
 export interface UpdatePreDemandaCasePayload {
   assunto?: string;
   descricao?: string | null;
@@ -471,6 +498,13 @@ export function createPreDemanda(payload: CreatePreDemandaPayload) {
   return request<
     PreDemanda & { idempotent: boolean; existingPreId: string | null }
   >("/api/pre-demandas", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createPreDemandasLote(payload: CreatePreDemandasLotePayload) {
+  return request<PreDemandaLoteResult>("/api/pre-demandas/lote", {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -1175,6 +1209,47 @@ export function listAssuntos() {
   return loadCachedCatalog(assuntosCache, () =>
     request<Assunto[]>("/api/assuntos"),
   );
+}
+
+export function listPreDemandaPacotes() {
+  return loadCachedCatalog(pacotesCache, () =>
+    request<PreDemandaPacote[]>("/api/pre-demandas/pacotes"),
+  );
+}
+
+export function createPreDemandaPacote(payload: {
+  nome: string;
+  descricao?: string | null;
+  assunto_ids: string[];
+}) {
+  return request<PreDemandaPacote>("/api/pre-demandas/pacotes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }).then((result) => {
+    invalidateCatalogCache(pacotesCache);
+    return result;
+  });
+}
+
+export function updatePreDemandaPacote(payload: {
+  id: string;
+  nome?: string;
+  descricao?: string | null;
+  ativo?: boolean;
+  assunto_ids?: string[];
+}) {
+  return request<PreDemandaPacote>(`/api/pre-demandas/pacotes/${payload.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      nome: payload.nome,
+      descricao: payload.descricao,
+      ativo: payload.ativo,
+      assunto_ids: payload.assunto_ids,
+    }),
+  }).then((result) => {
+    invalidateCatalogCache(pacotesCache);
+    return result;
+  });
 }
 
 export function createAssunto(payload: {

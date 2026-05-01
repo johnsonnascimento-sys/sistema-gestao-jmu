@@ -11,6 +11,7 @@ Sistema de gestao processual e operacional da JMU, com foco em:
 - processos pre-SEI e processos vinculados
 - tarefas, andamentos e fila de trabalho
 - audiencias, pauta, pessoas, setores e assuntos
+- processos em lote por pacotes reutilizaveis de assuntos
 - auditoria e historico operacional
 
 Regra de ouro:
@@ -43,7 +44,7 @@ Regra de ouro:
 
 ## 3. Status Atual
 - O Gestor Web e a unica interface ativa deste repositorio.
-- O sistema ja cobre dashboard, processos, tarefas, audiencias, pauta, assuntos, pessoas, setores, comentarios, documentos e auditoria.
+- O sistema ja cobre dashboard, processos, processos em lote por pacotes, tarefas, audiencias, pauta, assuntos, pessoas, setores, comentarios, documentos e auditoria.
 - O deploy produtivo e feito pelos scripts `deploy:vps`, `rollback:vps`, `status:vps`, `backup:vps` e `restore:vps`.
 - O banco primario ja foi migrado para a VPS.
 - O Supabase permanece apenas como contingencia temporaria, fora do runtime ativo.
@@ -81,6 +82,7 @@ cd C:\Users\johnsontn\Documents\Playground\sistema-gestao-jmu
 - `docs/GESTOR_WEB_V1.md`: visao funcional da aplicacao
 - `docs/GESTOR_WEB_RUNBOOK.md`: operacao de VPS, backup, restore, deploy e rollback
 - `docs/SESSION_LOG_2026-03-26.md`: registro da limpeza estrutural de Appsmith, n8n e RAG
+- `docs/SESSION_LOG_2026-05-01.md`: registro da feature de processos em lote por pacotes
 
 ---
 

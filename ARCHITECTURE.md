@@ -44,6 +44,7 @@
 - criacao e edicao de processo
 - status, fila operacional e reassociacao PRE x SEI
 - processos judiciais com numero judicial e audiencias
+- criacao de processos em lote por pacotes reutilizaveis de assuntos, mantendo um processo por assunto e vinculando os processos do mesmo lote
 
 ### Tarefas
 - tarefas manuais e tarefas derivadas de assunto
@@ -58,6 +59,7 @@
 ### Apoio operacional
 - pessoas, setores, assuntos, relacionamentos, comentarios e documentos
 - historico de andamentos e auditoria administrativa
+- pacotes de processos (`pre_demanda_pacotes`) agrupam assuntos do catalogo para cenarios recorrentes como chegada de novo colega
 
 ---
 
@@ -79,6 +81,7 @@
 O sistema usa API HTTP propria do backend Fastify, incluindo:
 - autenticacao de usuario
 - CRUD e operacoes de processo
+- pacotes de processos e criacao de pre-demandas em lote
 - timeline e auditoria
 - tarefas, audiencias, pessoas, setores e assuntos
 - dashboard, pauta e fila global de tarefas

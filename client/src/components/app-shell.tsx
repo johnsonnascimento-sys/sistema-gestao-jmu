@@ -1,4 +1,4 @@
-import { Activity, BookText, Building2, CalendarClock, FileText, History, LayoutDashboard, ListTodo, LogOut, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
+import { Activity, BookText, Boxes, Building2, CalendarClock, FileText, History, LayoutDashboard, ListTodo, LogOut, PackagePlus, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth-context";
@@ -125,6 +125,12 @@ export function AppShell() {
                   Andamentos em Lote
                 </NavLink>
               ) : null}
+              {hasPermission("pre_demanda.create") ? (
+                <NavLink className={navLinkClassName} to="/processos-lote">
+                  <Boxes className="h-4 w-4" />
+                  Processos em Lote
+                </NavLink>
+              ) : null}
               {hasPermission("pre_demanda.update") ? (
                 <NavLink className={navLinkClassName} to="/tarefas-lote">
                   <ListTodo className="h-4 w-4" />
@@ -157,6 +163,12 @@ export function AppShell() {
                 <NavLink className={navLinkClassName} to="/assuntos">
                   <Tag className="h-4 w-4" />
                   Assuntos
+                </NavLink>
+              ) : null}
+              {hasPermission("cadastro.assunto.write") ? (
+                <NavLink className={navLinkClassName} to="/pacotes-processos">
+                  <PackagePlus className="h-4 w-4" />
+                  Pacotes de Processos
                 </NavLink>
               ) : null}
               {hasPermission("admin.user.read") ? (

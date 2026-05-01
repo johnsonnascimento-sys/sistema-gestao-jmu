@@ -135,6 +135,24 @@ export interface Assunto {
   updatedAt: string;
 }
 
+export interface PreDemandaPacoteAssunto {
+  assunto: Assunto;
+  ordem: number;
+  createdAt?: string;
+}
+
+export interface PreDemandaPacote {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+  assuntos: PreDemandaPacoteAssunto[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: AuditActor | null;
+  updatedBy?: AuditActor | null;
+}
+
 export interface DemandaInteressado {
   interessado: Interessado;
   papel: DemandaInteressadoPapel;
@@ -300,6 +318,24 @@ export interface BulkTarefaResult {
   successCount: number;
   failureCount: number;
   results: BulkTarefaResultItem[];
+}
+
+export interface PreDemandaLoteResultItem {
+  preId: string;
+  assuntoId: string;
+  assuntoNome: string;
+  pessoa: Pessoa;
+  record: PreDemandaDetail;
+  idempotent: boolean;
+  existingPreId: string | null;
+}
+
+export interface PreDemandaLoteResult {
+  total: number;
+  createdCount: number;
+  idempotentCount: number;
+  pacote: PreDemandaPacote | null;
+  items: PreDemandaLoteResultItem[];
 }
 
 export interface TaskScheduleSuggestion {

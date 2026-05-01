@@ -157,6 +157,64 @@ const assuntoLinkSchema = z.object({
   assunto_id: z.string().uuid(),
 });
 
+const pacoteSchema = z.object({
+  nome: z.string().trim().min(3).max(255),
+  descricao: z.string().trim().max(4000).optional().nullable(),
+  ativo: z.boolean().optional(),
+  assunto_ids: z.array(z.string().uuid()).min(1).max(80),
+});
+
+const pacotePatchBaseSchema = z.object({
+  nome: z.string().trim().min(3).max(255).optional(),
+  descricao: z.string().trim().max(4000).optional().nullable(),
+  ativo: z.boolean().optional(),
+  assunto_ids: z.array(z.string().uuid()).min(1).max(80).optional(),
+});
+
+const pacotePatchSchema = pacotePatchBaseSchema.refine(
+  (value) => Object.keys(value).length > 0,
+  "Informe ao menos um campo para atualizar.",
+);
+
+const pacotePatchBodySchema = pacotePatchBaseSchema.extend({
+  id: z.string().uuid(),
+}).refine((value) => Object.keys(value).some((key) => key !== "id"), "Informe ao menos um campo para atualizar.");
+
+const lotePessoaSchema = z
+  .object({
+    pessoa_id: z.string().uuid().optional(),
+    pessoa: z
+      .object({
+        nome: z.string().trim().min(3).max(255),
+        cargo: z.string().trim().max(255).optional().nullable(),
+        matricula: z.string().trim().max(50).optional().nullable(),
+        cpf: z.string().trim().max(14).optional().nullable(),
+        data_nascimento: z.string().date().optional().nullable(),
+      })
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (Boolean(value.pessoa_id) === Boolean(value.pessoa)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pessoa_id"],
+        message: "Informe pessoa_id ou pessoa inline, mas nao ambos.",
+      });
+    }
+  });
+
+const loteSchema = z.object({
+  pacote_id: z.string().uuid().optional().nullable(),
+  assunto_ids: z.array(z.string().uuid()).min(1).max(80),
+  pessoas: z.array(lotePessoaSchema).min(1).max(200),
+  data_referencia: z.string().date(),
+  prazo_processo: z.string().date(),
+  descricao: z.string().trim().max(4000).optional().nullable(),
+  fonte: z.string().trim().max(120).optional().nullable(),
+  observacoes: z.string().trim().max(4000).optional().nullable(),
+  metadata: metadataSchema,
+});
+
 const vinculoSchema = z.object({
   destino_pre_id: z.string().trim().min(1),
 });
@@ -476,6 +534,106 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.send({
       ok: true,
       data: items,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/pacotes", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (_request, reply) => {
+    const items = await preDemandaRepository.listPacotes();
+    return reply.send({
+      ok: true,
+      data: items,
+      error: null,
+    });
+  });
+
+  app.post("/api/pre-demandas/pacotes", { preHandler: [app.authenticate, app.authorize("cadastro.assunto.write")] }, async (request, reply) => {
+    const payload = pacoteSchema.parse(request.body);
+    const pacote = await preDemandaRepository.createPacote({
+      nome: payload.nome,
+      descricao: emptyToNull(payload.descricao),
+      ativo: payload.ativo ?? true,
+      assuntoIds: payload.assunto_ids,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.status(201).send({
+      ok: true,
+      data: pacote,
+      error: null,
+    });
+  });
+
+  app.patch("/api/pre-demandas/pacotes/:id", { preHandler: [app.authenticate, app.authorize("cadastro.assunto.write")] }, async (request, reply) => {
+    const params = z.object({ id: z.string().uuid() }).parse(request.params);
+    const payload = pacotePatchSchema.parse(request.body);
+    const pacote = await preDemandaRepository.updatePacote({
+      id: params.id,
+      nome: payload.nome,
+      descricao: payload.descricao === undefined ? undefined : emptyToNull(payload.descricao),
+      ativo: payload.ativo,
+      assuntoIds: payload.assunto_ids,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: pacote,
+      error: null,
+    });
+  });
+
+  app.patch("/api/pre-demandas/pacotes", { preHandler: [app.authenticate, app.authorize("cadastro.assunto.write")] }, async (request, reply) => {
+    const payload = pacotePatchBodySchema.parse(request.body);
+    const pacote = await preDemandaRepository.updatePacote({
+      id: payload.id,
+      nome: payload.nome,
+      descricao: payload.descricao === undefined ? undefined : emptyToNull(payload.descricao),
+      ativo: payload.ativo,
+      assuntoIds: payload.assunto_ids,
+      changedByUserId: request.user!.id,
+    });
+
+    return reply.send({
+      ok: true,
+      data: pacote,
+      error: null,
+    });
+  });
+
+  app.post("/api/pre-demandas/lote", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (request, reply) => {
+    const payload = loteSchema.parse(request.body);
+    const result = await preDemandaRepository.createLote({
+      pacoteId: payload.pacote_id ?? null,
+      assuntoIds: payload.assunto_ids,
+      pessoas: payload.pessoas.map((item) => ({
+        pessoaId: item.pessoa_id,
+        pessoa: item.pessoa
+          ? {
+              nome: item.pessoa.nome,
+              cargo: emptyToNull(item.pessoa.cargo),
+              matricula: emptyToNull(item.pessoa.matricula),
+              cpf: emptyToNull(item.pessoa.cpf),
+              dataNascimento: item.pessoa.data_nascimento ?? null,
+            }
+          : undefined,
+      })),
+      dataReferencia: payload.data_referencia,
+      prazoProcesso: payload.prazo_processo,
+      descricao: emptyToNull(payload.descricao),
+      fonte: emptyToNull(payload.fonte),
+      observacoes: emptyToNull(payload.observacoes),
+      metadata: normalizeMetadata(payload.metadata) ?? null,
+      createdByUserId: request.user!.id,
+    });
+
+    for (const item of result.items) {
+      emitPreDemandaUpdate({ preId: item.preId, type: "status", action: "create" });
+    }
+
+    return reply.status(result.createdCount > 0 ? 201 : 200).send({
+      ok: true,
+      data: result,
       error: null,
     });
   });

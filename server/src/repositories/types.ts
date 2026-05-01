@@ -23,7 +23,9 @@ import type {
   PreDemandaDashboardSummary,
   PreDemandaAuditRecord,
   PreDemandaDetail,
+  PreDemandaLoteResult,
   PreDemandaMetadata,
+  PreDemandaPacote,
   QueueHealthLevel,
   QueueHealthConfig,
   BulkAndamentoResult,
@@ -364,6 +366,47 @@ export interface PreDemandaAudienciaRepository {
   removeAudiencia(input: RemoveAudienciaInput): Promise<{ removedId: string }>;
 }
 
+export interface CreatePreDemandaPacoteInput {
+  nome: string;
+  descricao?: string | null;
+  ativo?: boolean;
+  assuntoIds: string[];
+  changedByUserId: number;
+}
+
+export interface UpdatePreDemandaPacoteInput {
+  id: string;
+  nome?: string;
+  descricao?: string | null;
+  ativo?: boolean;
+  assuntoIds?: string[];
+  changedByUserId: number;
+}
+
+export interface CreatePreDemandasLotePessoaInput {
+  pessoaId?: string;
+  pessoa?: {
+    nome: string;
+    cargo?: string | null;
+    matricula?: string | null;
+    cpf?: string | null;
+    dataNascimento?: string | null;
+  };
+}
+
+export interface CreatePreDemandasLoteInput {
+  pacoteId?: string | null;
+  assuntoIds: string[];
+  pessoas: CreatePreDemandasLotePessoaInput[];
+  dataReferencia: string;
+  prazoProcesso: string;
+  descricao?: string | null;
+  fonte?: string | null;
+  observacoes?: string | null;
+  metadata?: Partial<PreDemandaMetadata> | null;
+  createdByUserId: number;
+}
+
 export interface CreateComentarioInput {
   preId: string;
   conteudo: string;
@@ -559,6 +602,10 @@ export interface PreDemandaTarefaRepository {
 
 export interface PreDemandaRepository {
   create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult>;
+  listPacotes(): Promise<PreDemandaPacote[]>;
+  createPacote(input: CreatePreDemandaPacoteInput): Promise<PreDemandaPacote>;
+  updatePacote(input: UpdatePreDemandaPacoteInput): Promise<PreDemandaPacote>;
+  createLote(input: CreatePreDemandasLoteInput): Promise<PreDemandaLoteResult>;
   duplicate(input: DuplicatePreDemandaInput): Promise<PreDemandaDetail>;
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
   getStatusCounts(): Promise<Array<{ status: PreDemandaStatus; total: number }>>;

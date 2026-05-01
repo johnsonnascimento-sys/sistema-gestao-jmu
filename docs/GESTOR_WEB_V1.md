@@ -64,6 +64,10 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - `POST /api/pre-demandas`
 - `GET /api/pre-demandas`
 - `GET /api/pre-demandas?queueHealth=attention,critical`
+- `GET /api/pre-demandas/pacotes`
+- `POST /api/pre-demandas/pacotes`
+- `PATCH /api/pre-demandas/pacotes/:id`
+- `POST /api/pre-demandas/lote`
 - `GET /api/pre-demandas/timeline/recentes`
 - `GET /api/pre-demandas/:preId`
 - `PATCH /api/pre-demandas/:preId/status`
@@ -80,6 +84,8 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - Login proprio
 - Dashboard do Gestor
 - Cadastro de pre-demanda
+- Cadastro de processos em lote por pacotes de assuntos, com uma pre-demanda por assunto confirmado
+- Cadastro simples de pacotes de processos usando assuntos existentes
 - Lista com filtros e paginacao
 - Dashboard com atalhos e ultimas movimentacoes
 - Situacao operacional de fila parada no backend e front:

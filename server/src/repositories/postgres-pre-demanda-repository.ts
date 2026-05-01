@@ -13,10 +13,14 @@ import type {
   DemandaInteressado,
   DemandaSetorFluxo,
   DemandaVinculo,
+  Interessado,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaDetail,
+  PreDemandaLoteResult,
   PreDemandaMetadata,
+  PreDemandaPacote,
+  PreDemandaPacoteAssunto,
   QueueHealthLevel,
   PreDemandaSortBy,
   PreDemandaStatus,
@@ -45,8 +49,10 @@ import type {
   ConcluirTarefaInput,
   CreateComentarioInput,
   CreateDocumentoInput,
+  CreatePreDemandaPacoteInput,
   CreatePreDemandaInput,
   CreatePreDemandaResult,
+  CreatePreDemandasLoteInput,
   DuplicatePreDemandaInput,
   CreateTarefaInput,
   DocumentoDownloadResult,
@@ -66,6 +72,7 @@ import type {
   UpdateTarefaInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
+  UpdatePreDemandaPacoteInput,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
   RemoveTarefaInput,
@@ -433,6 +440,19 @@ function mapDemandaInteressado(row: QueryResultRow): DemandaInteressado {
   };
 }
 
+function mapInteressadoRow(row: QueryResultRow): Interessado {
+  return {
+    id: String(row.id),
+    nome: String(row.nome),
+    cargo: row.cargo ? String(row.cargo) : null,
+    matricula: row.matricula ? String(row.matricula) : null,
+    cpf: row.cpf ? String(row.cpf) : null,
+    dataNascimento: row.data_nascimento ? new Date(row.data_nascimento).toISOString().slice(0, 10) : null,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+  };
+}
+
 function mapDemandaVinculo(row: QueryResultRow): DemandaVinculo {
   const fallbackNumeroJudicial = row.numero_judicial ? formatNumeroJudicialValue(String(row.numero_judicial)) ?? String(row.numero_judicial) : null;
   return {
@@ -535,6 +555,20 @@ function mapAssunto(row: QueryResultRow): Assunto {
     updatedAt: new Date(row.assunto_updated_at).toISOString(),
     normas: [],
     procedimentos: [],
+  };
+}
+
+function mapPreDemandaPacote(row: QueryResultRow, assuntos: PreDemandaPacoteAssunto[]): PreDemandaPacote {
+  return {
+    id: String(row.id),
+    nome: String(row.nome),
+    descricao: row.descricao ? String(row.descricao) : null,
+    ativo: Boolean(row.ativo),
+    assuntos,
+    createdAt: new Date(row.created_at).toISOString(),
+    updatedAt: new Date(row.updated_at).toISOString(),
+    createdBy: mapActor(row, "created_by"),
+    updatedBy: mapActor(row, "updated_by"),
   };
 }
 
@@ -1185,6 +1219,182 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         linkedBy: mapActor(row, "linked_by"),
       };
     });
+  }
+
+  private async loadPacoteAssuntos(queryable: Queryable, pacoteId: string): Promise<PreDemandaPacoteAssunto[]> {
+    const links = await queryable.query(
+      `
+        select
+          ppa.ordem,
+          ppa.created_at,
+          assunto.id as assunto_id,
+          assunto.nome as assunto_nome,
+          assunto.descricao as assunto_descricao,
+          assunto.created_at as assunto_created_at,
+          assunto.updated_at as assunto_updated_at
+        from adminlog.pre_demanda_pacote_assuntos ppa
+        inner join adminlog.assuntos assunto on assunto.id = ppa.assunto_id
+        where ppa.pacote_id = $1::uuid
+        order by ppa.ordem asc, ppa.created_at asc
+      `,
+      [pacoteId],
+    );
+
+    if (!links.rows.length) {
+      return [];
+    }
+
+    const assuntoIds = links.rows.map((row) => String(row.assunto_id));
+    const normasResult = await this.loadAssuntoNormas(queryable, assuntoIds);
+    const procedimentosResult = await queryable.query(
+      `
+        select
+          procedimento.*,
+          setor.id as setor_id,
+          setor.sigla as setor_sigla,
+          setor.nome_completo as setor_nome_completo,
+          setor.created_at as setor_created_at,
+          setor.updated_at as setor_updated_at
+        from adminlog.assunto_procedimentos procedimento
+        left join adminlog.setores setor on setor.id = procedimento.setor_destino_id
+        where procedimento.assunto_id = any($1::uuid[])
+        order by procedimento.ordem asc, procedimento.created_at asc
+      `,
+      [assuntoIds],
+    );
+
+    const normasByAssunto = new Map<string, Assunto["normas"]>();
+    for (const row of normasResult.rows) {
+      const list = normasByAssunto.get(String(row.assunto_id)) ?? [];
+      list.push({
+        id: String(row.id),
+        numero: String(row.numero),
+        dataNorma: new Date(row.data_norma).toISOString().slice(0, 10),
+        origem: String(row.origem),
+        createdAt: new Date(row.created_at).toISOString(),
+        updatedAt: new Date(row.updated_at).toISOString(),
+      });
+      normasByAssunto.set(String(row.assunto_id), list);
+    }
+
+    const procedimentosByAssunto = new Map<string, Assunto["procedimentos"]>();
+    for (const row of procedimentosResult.rows) {
+      const list = procedimentosByAssunto.get(String(row.assunto_id)) ?? [];
+      list.push({
+        id: String(row.id),
+        ordem: Number(row.ordem),
+        descricao: String(row.descricao),
+        horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
+        horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
+        setorDestino: mapSetor(row, "setor"),
+        createdAt: new Date(row.created_at).toISOString(),
+        updatedAt: new Date(row.updated_at).toISOString(),
+      });
+      procedimentosByAssunto.set(String(row.assunto_id), list);
+    }
+
+    return links.rows.map((row) => {
+      const assunto = mapAssunto(row);
+      assunto.normas = normasByAssunto.get(assunto.id) ?? [];
+      assunto.procedimentos = procedimentosByAssunto.get(assunto.id) ?? [];
+      return {
+        assunto,
+        ordem: Number(row.ordem),
+        linkedAt: new Date(row.created_at).toISOString(),
+      };
+    });
+  }
+
+  private async loadPacote(queryable: Queryable, pacoteId: string): Promise<PreDemandaPacote | null> {
+    const result = await queryable.query(
+      `
+        select
+          pacote.*,
+          created_by.id as created_by_id,
+          created_by.email as created_by_email,
+          created_by.name as created_by_name,
+          created_by.role as created_by_role,
+          updated_by.id as updated_by_id,
+          updated_by.email as updated_by_email,
+          updated_by.name as updated_by_name,
+          updated_by.role as updated_by_role
+        from adminlog.pre_demanda_pacotes pacote
+        left join adminlog.app_user created_by on created_by.id = pacote.created_by_user_id
+        left join adminlog.app_user updated_by on updated_by.id = pacote.updated_by_user_id
+        where pacote.id = $1::uuid
+        limit 1
+      `,
+      [pacoteId],
+    );
+
+    if (!result.rows[0]) {
+      return null;
+    }
+
+    return mapPreDemandaPacote(result.rows[0], await this.loadPacoteAssuntos(queryable, pacoteId));
+  }
+
+  private async validateAssuntosExist(queryable: Queryable, assuntoIds: string[]) {
+    const uniqueAssuntoIds = Array.from(new Set(assuntoIds));
+    if (!uniqueAssuntoIds.length) {
+      throw new AppError(400, "ASSUNTOS_REQUIRED", "Informe ao menos um assunto.");
+    }
+
+    const result = await queryable.query("select id from adminlog.assuntos where id = any($1::uuid[])", [uniqueAssuntoIds]);
+    if (result.rows.length !== uniqueAssuntoIds.length) {
+      throw new AppError(404, "ASSUNTO_NOT_FOUND", "Um ou mais assuntos nao foram encontrados.");
+    }
+
+    return uniqueAssuntoIds;
+  }
+
+  private async replacePacoteAssuntos(queryable: Queryable, pacoteId: string, assuntoIds: string[]) {
+    const uniqueAssuntoIds = await this.validateAssuntosExist(queryable, assuntoIds);
+    await queryable.query("delete from adminlog.pre_demanda_pacote_assuntos where pacote_id = $1::uuid", [pacoteId]);
+
+    for (const [index, assuntoId] of uniqueAssuntoIds.entries()) {
+      await queryable.query(
+        `
+          insert into adminlog.pre_demanda_pacote_assuntos (pacote_id, assunto_id, ordem)
+          values ($1::uuid, $2::uuid, $3)
+        `,
+        [pacoteId, assuntoId, index + 1],
+      );
+    }
+  }
+
+  private async getInteressadoById(queryable: Queryable, pessoaId: string): Promise<Interessado> {
+    const result = await queryable.query(
+      `
+        select id, nome, cargo, matricula, cpf, data_nascimento, created_at, updated_at
+        from adminlog.interessados
+        where id = $1::uuid
+        limit 1
+      `,
+      [pessoaId],
+    );
+
+    if (!result.rows[0]) {
+      throw new AppError(404, "INTERESSADO_NOT_FOUND", "Pessoa nao encontrada.");
+    }
+
+    return mapInteressadoRow(result.rows[0]);
+  }
+
+  private async createInteressadoInline(
+    queryable: Queryable,
+    input: { nome: string; cargo?: string | null; matricula?: string | null; cpf?: string | null; dataNascimento?: string | null },
+  ): Promise<Interessado> {
+    const result = await queryable.query(
+      `
+        insert into adminlog.interessados (nome, cargo, matricula, cpf, data_nascimento)
+        values ($1, $2, $3, $4, $5::date)
+        returning id, nome, cargo, matricula, cpf, data_nascimento, created_at, updated_at
+      `,
+      [input.nome, input.cargo ?? null, input.matricula ?? null, input.cpf ?? null, input.dataNascimento ?? null],
+    );
+
+    return mapInteressadoRow(result.rows[0]);
   }
 
   private async loadAssuntoNormas(queryable: Queryable, assuntoIds: string[]): Promise<{ rows: QueryResultRow[] }> {
@@ -1860,6 +2070,19 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           );
         }
 
+        if (input.pessoaSolicitanteId) {
+          await client.query(
+            `
+              insert into adminlog.demanda_interessados (pre_demanda_id, interessado_id, papel, created_by_user_id)
+              values ($1, $2::uuid, 'solicitante', $3)
+              on conflict (pre_demanda_id, interessado_id) do update
+              set papel = excluded.papel,
+                  created_by_user_id = excluded.created_by_user_id
+            `,
+            [preDemandaId, input.pessoaSolicitanteId, input.createdByUserId],
+          );
+        }
+
         for (const assuntoId of Array.from(new Set(input.assuntoIds ?? []))) {
           await client.query(
             `
@@ -1923,6 +2146,324 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         existingPreId: record.preId,
       };
     }
+  }
+
+  async listPacotes(): Promise<PreDemandaPacote[]> {
+    const result = await this.pool.query(
+      `
+        select
+          pacote.*,
+          created_by.id as created_by_id,
+          created_by.email as created_by_email,
+          created_by.name as created_by_name,
+          created_by.role as created_by_role,
+          updated_by.id as updated_by_id,
+          updated_by.email as updated_by_email,
+          updated_by.name as updated_by_name,
+          updated_by.role as updated_by_role
+        from adminlog.pre_demanda_pacotes pacote
+        left join adminlog.app_user created_by on created_by.id = pacote.created_by_user_id
+        left join adminlog.app_user updated_by on updated_by.id = pacote.updated_by_user_id
+        order by pacote.ativo desc, pacote.nome asc, pacote.created_at asc
+      `,
+    );
+
+    const pacotes: PreDemandaPacote[] = [];
+    for (const row of result.rows) {
+      pacotes.push(mapPreDemandaPacote(row, await this.loadPacoteAssuntos(this.pool, String(row.id))));
+    }
+    return pacotes;
+  }
+
+  async createPacote(input: CreatePreDemandaPacoteInput): Promise<PreDemandaPacote> {
+    return inTransaction(this.pool, async (client) => {
+      const result = await client.query(
+        `
+          insert into adminlog.pre_demanda_pacotes (nome, descricao, ativo, created_by_user_id, updated_by_user_id)
+          values ($1, $2, $3, $4, $4)
+          returning id
+        `,
+        [input.nome, input.descricao ?? null, input.ativo ?? true, input.changedByUserId],
+      );
+
+      const pacoteId = String(result.rows[0].id);
+      await this.replacePacoteAssuntos(client, pacoteId, input.assuntoIds);
+
+      const pacote = await this.loadPacote(client, pacoteId);
+      if (!pacote) {
+        throw new AppError(500, "PACOTE_CREATE_FAILED", "Falha ao carregar o pacote criado.");
+      }
+      return pacote;
+    });
+  }
+
+  async updatePacote(input: UpdatePreDemandaPacoteInput): Promise<PreDemandaPacote> {
+    return inTransaction(this.pool, async (client) => {
+      const current = await this.loadPacote(client, input.id);
+      if (!current) {
+        throw new AppError(404, "PACOTE_NOT_FOUND", "Pacote nao encontrado.");
+      }
+
+      await client.query(
+        `
+          update adminlog.pre_demanda_pacotes
+          set nome = coalesce($2, nome),
+              descricao = case when $3::boolean then $4 else descricao end,
+              ativo = coalesce($5, ativo),
+              updated_by_user_id = $6
+          where id = $1::uuid
+        `,
+        [
+          input.id,
+          input.nome ?? null,
+          input.descricao !== undefined,
+          input.descricao ?? null,
+          input.ativo ?? null,
+          input.changedByUserId,
+        ],
+      );
+
+      if (input.assuntoIds !== undefined) {
+        await this.replacePacoteAssuntos(client, input.id, input.assuntoIds);
+      }
+
+      const pacote = await this.loadPacote(client, input.id);
+      if (!pacote) {
+        throw new AppError(500, "PACOTE_UPDATE_FAILED", "Falha ao carregar o pacote atualizado.");
+      }
+      return pacote;
+    });
+  }
+
+  async createLote(input: CreatePreDemandasLoteInput): Promise<PreDemandaLoteResult> {
+    const queueHealthThresholds = await this.loadQueueHealthThresholds();
+    const dbMetadata = normalizeMetadataForDb(input.metadata ?? null);
+
+    return inTransaction(this.pool, async (client) => {
+      if (!input.prazoProcesso) {
+        throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
+      }
+
+      const pacote = input.pacoteId ? await this.loadPacote(client, input.pacoteId) : null;
+      if (input.pacoteId && !pacote) {
+        throw new AppError(404, "PACOTE_NOT_FOUND", "Pacote nao encontrado.");
+      }
+      if (pacote && !pacote.ativo) {
+        throw new AppError(409, "PACOTE_INATIVO", "Pacote inativo nao pode ser usado para criar lote.");
+      }
+
+      const assuntoIds = await this.validateAssuntosExist(client, input.assuntoIds);
+      if (pacote) {
+        const pacoteAssuntoIds = new Set(pacote.assuntos.map((item) => item.assunto.id));
+        const outsidePackage = assuntoIds.find((assuntoId) => !pacoteAssuntoIds.has(assuntoId));
+        if (outsidePackage) {
+          throw new AppError(400, "ASSUNTO_FORA_DO_PACOTE", "Todos os assuntos confirmados devem pertencer ao pacote informado.");
+        }
+      }
+
+      const assuntosResult = await client.query(
+        `
+          select
+            id as assunto_id,
+            nome as assunto_nome,
+            descricao as assunto_descricao,
+            created_at as assunto_created_at,
+            updated_at as assunto_updated_at
+          from adminlog.assuntos
+          where id = any($1::uuid[])
+        `,
+        [assuntoIds],
+      );
+      const assuntosById = new Map(assuntosResult.rows.map((row) => [String(row.assunto_id), mapAssunto(row)]));
+
+      const pessoas: Interessado[] = [];
+      for (const item of input.pessoas) {
+        if (item.pessoaId) {
+          pessoas.push(await this.getInteressadoById(client, item.pessoaId));
+          continue;
+        }
+        if (!item.pessoa) {
+          throw new AppError(400, "PESSOA_REQUIRED", "Informe pessoa existente ou dados para cadastro inline.");
+        }
+        pessoas.push(await this.createInteressadoInline(client, item.pessoa));
+      }
+
+      const defaultSetor = await this.resolveDefaultInitialSetor(client);
+      if (!defaultSetor) {
+        throw new AppError(500, "DEFAULT_SETOR_NOT_FOUND", `Setor inicial ${DEFAULT_INITIAL_SETOR_SIGLA} nao encontrado.`);
+      }
+
+      const items: PreDemandaLoteResult["items"] = [];
+      for (const assuntoId of assuntoIds) {
+        const assunto = assuntosById.get(assuntoId);
+        if (!assunto) {
+          throw new AppError(404, "ASSUNTO_NOT_FOUND", "Assunto nao encontrado.");
+        }
+
+        for (const pessoa of pessoas) {
+          const assuntoProcesso = `${assunto.nome} - ${pessoa.nome}`;
+          const duplicate = await client.query(
+            `
+              ${DASHBOARD_BASE_SELECT}
+              where pd.solicitante_norm = lower(regexp_replace(trim($1), '\\s+', ' ', 'g'))
+                and pd.assunto_norm = lower(regexp_replace(trim($2), '\\s+', ' ', 'g'))
+                and pd.data_referencia = $3::date
+              limit 1
+            `,
+            [pessoa.nome, assuntoProcesso, input.dataReferencia],
+          );
+
+          let preDemandaId: number;
+          let preId: string;
+          let idempotent = false;
+          let row = duplicate.rows[0] ?? null;
+
+          if (row) {
+            preDemandaId = Number(row.id);
+            preId = String(row.pre_id);
+            idempotent = true;
+          } else {
+            const created = await client.query(
+              `
+                insert into adminlog.pre_demanda (
+                  pre_id,
+                  solicitante,
+                  assunto,
+                  data_referencia,
+                  status,
+                  descricao,
+                  fonte,
+                  observacoes,
+                  prazo_processo,
+                  numero_judicial,
+                  setor_atual_id,
+                  metadata,
+                  created_by_user_id
+                )
+                values (
+                  adminlog.fn_generate_pre_id($1::date),
+                  $2,
+                  $3,
+                  $1::date,
+                  'em_andamento',
+                  $4,
+                  $5,
+                  $6,
+                  $7::date,
+                  null,
+                  $8::uuid,
+                  coalesce($9::jsonb, '{}'::jsonb),
+                  $10
+                )
+                returning id, pre_id
+              `,
+              [
+                input.dataReferencia,
+                pessoa.nome,
+                assuntoProcesso,
+                input.descricao ?? null,
+                input.fonte ?? null,
+                input.observacoes ?? null,
+                input.prazoProcesso,
+                defaultSetor.id,
+                dbMetadata ? JSON.stringify(dbMetadata) : null,
+                input.createdByUserId,
+              ],
+            );
+
+            preDemandaId = Number(created.rows[0].id);
+            preId = String(created.rows[0].pre_id);
+
+            await client.query(
+              `
+                insert into adminlog.demanda_setores_fluxo (
+                  pre_demanda_id,
+                  setor_id,
+                  origem_setor_id,
+                  status,
+                  observacoes,
+                  created_by_user_id
+                )
+                values ($1, $2::uuid, null, 'ativo', 'Setor inicial da demanda.', $3)
+                on conflict do nothing
+              `,
+              [preDemandaId, defaultSetor.id, input.createdByUserId],
+            );
+          }
+
+          await client.query(
+            `
+              insert into adminlog.demanda_interessados (pre_demanda_id, interessado_id, papel, created_by_user_id)
+              values ($1, $2::uuid, 'solicitante', $3)
+              on conflict (pre_demanda_id, interessado_id) do update
+              set papel = excluded.papel,
+                  created_by_user_id = excluded.created_by_user_id
+            `,
+            [preDemandaId, pessoa.id, input.createdByUserId],
+          );
+
+          await client.query(
+            `
+              insert into adminlog.demanda_assuntos (pre_demanda_id, assunto_id, created_by_user_id)
+              values ($1, $2::uuid, $3)
+              on conflict do nothing
+            `,
+            [preDemandaId, assunto.id, input.createdByUserId],
+          );
+
+          await this.syncAssuntoProcedimentoTarefas(client, {
+            preDemandaId,
+            preId,
+            assuntoId: assunto.id,
+            prazoProcesso: input.prazoProcesso,
+            changedByUserId: input.createdByUserId,
+          });
+
+          row = await getPreDemandaRowByPreId(client, preId);
+          if (!row) {
+            throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda do lote.");
+          }
+
+          const record = await this.hydrateDetail(client, row, queueHealthThresholds);
+          record.assuntos = await this.loadAssuntos(client, preDemandaId);
+          record.interessados = await this.loadInteressados(client, preDemandaId);
+          record.tarefasPendentes = await this.loadTarefas(client, preDemandaId, preId);
+
+          items.push({
+            preId,
+            assuntoId: assunto.id,
+            assuntoNome: assunto.nome,
+            pessoa,
+            record,
+            idempotent,
+            existingPreId: idempotent ? preId : null,
+          });
+        }
+      }
+
+      const uniqueRecords = Array.from(new Map(items.map((item) => [item.record.id, item.record])).values());
+      for (let index = 0; index < uniqueRecords.length; index += 1) {
+        for (let nextIndex = index + 1; nextIndex < uniqueRecords.length; nextIndex += 1) {
+          await client.query(
+            `
+              insert into adminlog.demanda_vinculos (origem_pre_demanda_id, destino_pre_demanda_id, created_by_user_id)
+              values ($1, $2, $3)
+              on conflict do nothing
+            `,
+            [uniqueRecords[index]!.id, uniqueRecords[nextIndex]!.id, input.createdByUserId],
+          );
+        }
+      }
+
+      this.invalidateDashboardCaches();
+      return {
+        total: items.length,
+        createdCount: items.filter((item) => !item.idempotent).length,
+        idempotentCount: items.filter((item) => item.idempotent).length,
+        pacote,
+        items,
+      };
+    });
   }
 
   async duplicate(input: DuplicatePreDemandaInput): Promise<PreDemandaDetail> {

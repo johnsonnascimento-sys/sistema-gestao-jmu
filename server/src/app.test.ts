@@ -31,7 +31,9 @@ import type {
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaDetail,
+  PreDemandaLoteResult,
   PreDemandaMetadata,
+  PreDemandaPacote,
   PreDemandaStatus,
   PreDemandaStatusAuditRecord,
   QueueHealthConfig,
@@ -57,6 +59,8 @@ import type {
   CreateDocumentoInput,
   CreatePreDemandaInput,
   CreatePreDemandaResult,
+  CreatePreDemandaPacoteInput,
+  CreatePreDemandasLoteInput,
   CreateInteressadoInput,
   CreateAssuntoInput,
   CreateNormaInput,
@@ -92,6 +96,7 @@ import type {
   UpdateAudienciaInput,
   UpdatePreDemandaAnotacoesInput,
   UpdatePreDemandaCaseDataInput,
+  UpdatePreDemandaPacoteInput,
   UpdatePreDemandaStatusInput,
   UpdatePreDemandaStatusResult,
   UpdateAndamentoInput,
@@ -108,6 +113,7 @@ function addDays(value: string, amount: number) {
 }
 
 const inMemoryInteressadoCatalog = new Map<string, Interessado>();
+const inMemoryAssuntoCatalog = new Map<string, Assunto>();
 
 function getNextRecurringDate(input: {
   prazoConclusao: string;
@@ -395,10 +401,12 @@ function buildAssuntoStub(id: string, withSetor = false): Assunto {
 
 class InMemoryPreDemandaRepository implements PreDemandaRepository {
   private records: PreDemandaDetail[] = [];
+  private pacotes: PreDemandaPacote[] = [];
   private audit: PreDemandaAuditRecord[] = [];
   private statusAudit: PreDemandaStatusAuditRecord[] = [];
   private andamentos: Andamento[] = [];
   private nextId = 1;
+  private nextPacoteId = 1;
   private nextAuditId = 1;
   private readonly queueHealthThresholds: QueueHealthThresholds = {
     attentionDays: 2,
@@ -465,6 +473,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
+  private toPacoteAssuntos(assuntoIds: string[]) {
+    const now = new Date().toISOString();
+    return Array.from(new Set(assuntoIds)).map((assuntoId, index) => ({
+      assunto: inMemoryAssuntoCatalog.get(assuntoId) ?? buildAssuntoStub(assuntoId),
+      ordem: index + 1,
+      linkedAt: now,
+    }));
+  }
+
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const resolvedSolicitante = input.solicitante ?? (input.pessoaSolicitanteId ? `Pessoa ${input.pessoaSolicitanteId.slice(0, 4)}` : "");
     const existing = this.records.find(
@@ -484,7 +501,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const initialStatus: PreDemandaStatus = "em_andamento";
     const now = new Date().toISOString();
     const preId = `PRE-2026-${String(this.nextId).padStart(3, "0")}`;
-    const pessoaPrincipal = input.pessoaSolicitanteId ? this.buildDefaultPessoa(input.pessoaSolicitanteId, resolvedSolicitante) : null;
+    const pessoaPrincipal = input.pessoaSolicitanteId
+      ? (inMemoryInteressadoCatalog.get(input.pessoaSolicitanteId) ?? this.buildDefaultPessoa(input.pessoaSolicitanteId, resolvedSolicitante))
+      : null;
     const record: PreDemandaDetail = {
       id: this.nextId,
       preId,
@@ -536,7 +555,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           ]
         : [],
       assuntos: (input.assuntoIds ?? []).map((assuntoId) => ({
-        assunto: buildAssuntoStub(assuntoId),
+        assunto: inMemoryAssuntoCatalog.get(assuntoId) ?? buildAssuntoStub(assuntoId),
         linkedAt: now,
         linkedBy: null,
       })),
@@ -586,7 +605,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         id: `123e4567-e89b-42d3-a456-${String(index + 1).padStart(12, "0")}`,
         preId,
         ordem: index + 1,
-        descricao: `[${buildAssuntoStub(assuntoId).nome}] 1. Passo padrao`,
+        descricao: `[${(inMemoryAssuntoCatalog.get(assuntoId) ?? buildAssuntoStub(assuntoId)).nome}] 1. Passo padrao`,
         tipo: "fixa",
         assuntoId,
         procedimentoId: `proc-${assuntoId}-1`,
@@ -612,6 +631,163 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     this.records.unshift(record);
 
     return { record, idempotent: false, existingPreId: null };
+  }
+
+  async listPacotes() {
+    return [...this.pacotes].sort((left, right) => Number(right.ativo) - Number(left.ativo) || left.nome.localeCompare(right.nome));
+  }
+
+  async createPacote(input: CreatePreDemandaPacoteInput) {
+    const now = new Date().toISOString();
+    const pacote: PreDemandaPacote = {
+      id: `223e4567-e89b-42d3-a456-${String(this.nextPacoteId++).padStart(12, "0")}`,
+      nome: input.nome,
+      descricao: input.descricao ?? null,
+      ativo: input.ativo ?? true,
+      assuntos: this.toPacoteAssuntos(input.assuntoIds),
+      createdAt: now,
+      updatedAt: now,
+      createdBy: null,
+      updatedBy: null,
+    };
+    this.pacotes.unshift(pacote);
+    return pacote;
+  }
+
+  async updatePacote(input: UpdatePreDemandaPacoteInput) {
+    const pacote = this.pacotes.find((item) => item.id === input.id);
+    if (!pacote) {
+      throw new Error("not found");
+    }
+
+    if (input.nome !== undefined) pacote.nome = input.nome;
+    if (input.descricao !== undefined) pacote.descricao = input.descricao;
+    if (input.ativo !== undefined) pacote.ativo = input.ativo;
+    if (input.assuntoIds !== undefined) pacote.assuntos = this.toPacoteAssuntos(input.assuntoIds);
+    pacote.updatedAt = new Date().toISOString();
+    return pacote;
+  }
+
+  async createLote(input: CreatePreDemandasLoteInput): Promise<PreDemandaLoteResult> {
+    const pacote = input.pacoteId ? this.pacotes.find((item) => item.id === input.pacoteId) ?? null : null;
+    if (input.pacoteId && !pacote) {
+      throw new Error("not found");
+    }
+    if (pacote && !pacote.ativo) {
+      throw new Error("inactive");
+    }
+
+    const pacoteAssuntoIds = new Set(pacote?.assuntos.map((item) => item.assunto.id) ?? []);
+    const assuntoIds = Array.from(new Set(input.assuntoIds));
+    if (pacote && assuntoIds.some((assuntoId) => !pacoteAssuntoIds.has(assuntoId))) {
+      throw new Error("outside package");
+    }
+
+    const pessoas = input.pessoas.map((item) => {
+      if (item.pessoaId) {
+        const pessoa = inMemoryInteressadoCatalog.get(item.pessoaId);
+        if (!pessoa) {
+          throw new Error("pessoa not found");
+        }
+        return pessoa;
+      }
+
+      if (!item.pessoa) {
+        throw new Error("pessoa required");
+      }
+
+      const now = new Date().toISOString();
+      const pessoa: Interessado = {
+        id: `123e4567-e89b-42d3-a456-${String(inMemoryInteressadoCatalog.size + 1).padStart(12, "0")}`,
+        nome: item.pessoa.nome,
+        cargo: item.pessoa.cargo ?? null,
+        matricula: item.pessoa.matricula ?? null,
+        cpf: item.pessoa.cpf ?? null,
+        dataNascimento: item.pessoa.dataNascimento ?? null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      inMemoryInteressadoCatalog.set(pessoa.id, pessoa);
+      return pessoa;
+    });
+
+    const items: PreDemandaLoteResult["items"] = [];
+    for (const assuntoId of assuntoIds) {
+      const assunto = inMemoryAssuntoCatalog.get(assuntoId) ?? buildAssuntoStub(assuntoId);
+      for (const pessoa of pessoas) {
+        const result = await this.create({
+          solicitante: pessoa.nome,
+          pessoaSolicitanteId: pessoa.id,
+          assunto: `${assunto.nome} - ${pessoa.nome}`,
+          dataReferencia: input.dataReferencia,
+          descricao: input.descricao ?? null,
+          fonte: input.fonte ?? null,
+          observacoes: input.observacoes ?? null,
+          prazoProcesso: input.prazoProcesso,
+          assuntoIds: [assunto.id],
+          metadata: input.metadata ?? null,
+          createdByUserId: input.createdByUserId,
+        });
+
+        items.push({
+          preId: result.record.preId,
+          assuntoId: assunto.id,
+          assuntoNome: assunto.nome,
+          pessoa,
+          record: result.record,
+          idempotent: result.idempotent,
+          existingPreId: result.existingPreId,
+        });
+      }
+    }
+
+    const uniqueRecords = Array.from(new Map(items.map((item) => [item.record.preId, item.record])).values());
+    for (let index = 0; index < uniqueRecords.length; index += 1) {
+      for (let nextIndex = index + 1; nextIndex < uniqueRecords.length; nextIndex += 1) {
+        const origem = uniqueRecords[index]!;
+        const destino = uniqueRecords[nextIndex]!;
+        if (!origem.vinculos.some((item) => item.processo.preId === destino.preId)) {
+          origem.vinculos.unshift({
+            processo: {
+              id: destino.id,
+              preId: destino.preId,
+              principalNumero: destino.principalNumero,
+              assunto: destino.assunto,
+              status: destino.status,
+              dataReferencia: destino.dataReferencia,
+              createdAt: destino.createdAt,
+              updatedAt: destino.updatedAt,
+            },
+            linkedAt: new Date().toISOString(),
+            linkedBy: null,
+          });
+        }
+        if (!destino.vinculos.some((item) => item.processo.preId === origem.preId)) {
+          destino.vinculos.unshift({
+            processo: {
+              id: origem.id,
+              preId: origem.preId,
+              principalNumero: origem.principalNumero,
+              assunto: origem.assunto,
+              status: origem.status,
+              dataReferencia: origem.dataReferencia,
+              createdAt: origem.createdAt,
+              updatedAt: origem.updatedAt,
+            },
+            linkedAt: new Date().toISOString(),
+            linkedBy: null,
+          });
+        }
+      }
+    }
+
+    return {
+      total: items.length,
+      createdCount: items.filter((item) => !item.idempotent).length,
+      idempotentCount: items.filter((item) => item.idempotent).length,
+      pacote,
+      items,
+    };
   }
 
   async duplicate(input: { preId: string; changedByUserId: number }): Promise<PreDemandaDetail> {
@@ -2341,6 +2517,7 @@ class InMemoryAssuntoRepository implements AssuntoRepository {
       })),
     };
     this.items.set(id, record);
+    inMemoryAssuntoCatalog.set(id, record);
     return record;
   }
 
@@ -2383,6 +2560,7 @@ class InMemoryAssuntoRepository implements AssuntoRepository {
       })),
     };
     this.items.set(input.id, next);
+    inMemoryAssuntoCatalog.set(input.id, next);
     return next;
   }
 }
@@ -3558,6 +3736,158 @@ describe("Gestor JMU API", () => {
         (item: { descricao: string }) => item.descricao === "Assinatura de Joao Assinante",
       ),
     ).toBe(true);
+  });
+
+  it("manages pre-demanda pacotes and creates package lote with existing and inline pessoas", async () => {
+    const adminLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@jmu.local",
+        password: "Senha1234",
+      },
+    });
+    const adminCookie = `${adminLogin.cookies[0]?.name}=${adminLogin.cookies[0]?.value}`;
+
+    const operatorLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+    const operatorCookie = `${operatorLogin.cookies[0]?.name}=${operatorLogin.cookies[0]?.value}`;
+
+    const assuntoUm = await app.inject({
+      method: "POST",
+      url: "/api/assuntos",
+      headers: { cookie: adminCookie },
+      payload: {
+        nome: "Auxilio lote",
+        procedimentos: [{ ordem: 1, descricao: "Analisar requerimento" }],
+      },
+    });
+    const assuntoDois = await app.inject({
+      method: "POST",
+      url: "/api/assuntos",
+      headers: { cookie: adminCookie },
+      payload: {
+        nome: "Ferias lote",
+        procedimentos: [{ ordem: 1, descricao: "Conferir saldo" }],
+      },
+    });
+
+    expect(assuntoUm.statusCode).toBe(201);
+    expect(assuntoDois.statusCode).toBe(201);
+    const assuntoUmId = assuntoUm.json().data.id as string;
+    const assuntoDoisId = assuntoDois.json().data.id as string;
+
+    const forbiddenPackage = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/pacotes",
+      headers: { cookie: operatorCookie },
+      payload: {
+        nome: "Pacote operador",
+        assunto_ids: [assuntoUmId],
+      },
+    });
+    expect(forbiddenPackage.statusCode).toBe(403);
+
+    const pacote = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/pacotes",
+      headers: { cookie: adminCookie },
+      payload: {
+        nome: "Pacote de RH",
+        descricao: "Processos recorrentes de RH",
+        assunto_ids: [assuntoUmId, assuntoDoisId],
+      },
+    });
+
+    expect(pacote.statusCode).toBe(201);
+    expect(pacote.json().data.assuntos).toHaveLength(2);
+    const pacoteId = pacote.json().data.id as string;
+
+    const patched = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/pacotes/${pacoteId}`,
+      headers: { cookie: adminCookie },
+      payload: {
+        nome: "Pacote de RH atualizado",
+        ativo: true,
+        assunto_ids: [assuntoDoisId, assuntoUmId],
+      },
+    });
+
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json().data.nome).toBe("Pacote de RH atualizado");
+    expect(patched.json().data.assuntos[0].assunto.id).toBe(assuntoDoisId);
+
+    const listedForUse = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/pacotes",
+      headers: { cookie: operatorCookie },
+    });
+    expect(listedForUse.statusCode).toBe(200);
+    expect(listedForUse.json().data.some((item: { id: string }) => item.id === pacoteId)).toBe(true);
+
+    const pessoaExistente = await app.inject({
+      method: "POST",
+      url: "/api/interessados",
+      headers: { cookie: operatorCookie },
+      payload: {
+        nome: "Pessoa Existente Lote",
+        cargo: "Servidor",
+      },
+    });
+    expect(pessoaExistente.statusCode).toBe(201);
+    const pessoaExistenteId = pessoaExistente.json().data.id as string;
+
+    const lote = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/lote",
+      headers: { cookie: operatorCookie },
+      payload: {
+        pacote_id: pacoteId,
+        assunto_ids: [assuntoUmId, assuntoDoisId],
+        pessoas: [
+          { pessoa_id: pessoaExistenteId },
+          { pessoa: { nome: "Pessoa Inline Lote", matricula: "M-LOTE" } },
+        ],
+        data_referencia: "2026-04-10",
+        prazo_processo: "2026-04-30",
+        observacoes: "Criado por teste de lote",
+      },
+    });
+
+    expect(lote.statusCode).toBe(201);
+    expect(lote.json().data.total).toBe(4);
+    expect(lote.json().data.createdCount).toBe(4);
+
+    const createdItems = lote.json().data.items as Array<{
+      preId: string;
+      assuntoId: string;
+      assuntoNome: string;
+      pessoa: Interessado;
+    }>;
+    const first = createdItems.find((item) => item.assuntoId === assuntoUmId && item.pessoa.nome === "Pessoa Existente Lote");
+    expect(first).toBeTruthy();
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${first!.preId}`,
+      headers: { cookie: operatorCookie },
+    });
+
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json().data.assunto).toBe("Auxilio lote - Pessoa Existente Lote");
+    expect(detail.json().data.currentAssociation).toBeNull();
+    expect(detail.json().data.numeroJudicial).toBeNull();
+    expect(detail.json().data.assuntos).toHaveLength(1);
+    expect(detail.json().data.assuntos[0].assunto.id).toBe(assuntoUmId);
+    expect(detail.json().data.tarefasPendentes.some((item: { assuntoId: string; geradaAutomaticamente: boolean }) => item.assuntoId === assuntoUmId && item.geradaAutomaticamente)).toBe(true);
+    expect(detail.json().data.vinculos).toHaveLength(3);
   });
 
   it("supports normas base repository CRUD", async () => {

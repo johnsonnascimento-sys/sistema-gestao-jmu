@@ -193,6 +193,24 @@ export interface Assunto {
   updatedAt: string;
 }
 
+export interface PreDemandaPacoteAssunto {
+  assunto: Assunto;
+  ordem: number;
+  linkedAt: string;
+}
+
+export interface PreDemandaPacote {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  ativo: boolean;
+  assuntos: PreDemandaPacoteAssunto[];
+  createdAt: string;
+  updatedAt: string;
+  createdBy: AuditActor | null;
+  updatedBy: AuditActor | null;
+}
+
 export interface PreDemandaMetadata {
   frequencia: string | null;
   frequenciaDiasSemana: string[] | null;
@@ -421,6 +439,24 @@ export interface PreDemandaDetail extends PreDemanda {
   tarefasPendentes: TarefaPendente[];
   recentAndamentos: Andamento[];
   audiencias?: Audiencia[];
+}
+
+export interface PreDemandaLoteResultItem {
+  preId: string;
+  assuntoId: string;
+  assuntoNome: string;
+  pessoa: Pessoa;
+  record: PreDemandaDetail;
+  idempotent: boolean;
+  existingPreId: string | null;
+}
+
+export interface PreDemandaLoteResult {
+  total: number;
+  createdCount: number;
+  idempotentCount: number;
+  pacote: PreDemandaPacote | null;
+  items: PreDemandaLoteResultItem[];
 }
 
 export interface PreDemandaAuditRecord {
