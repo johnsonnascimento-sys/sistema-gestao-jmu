@@ -395,7 +395,10 @@ export function PreDemandaDetailPage() {
         normalizeNumeroJudicialValue(nextRecord.numeroJudicial) ?? "",
       prazo_processo: nextRecord.prazoProcesso ?? "",
       pagamento_envolvido: nextRecord.metadata.pagamentoEnvolvido ?? false,
-      urgente: nextRecord.metadata.urgente ?? false,
+      urgente:
+        nextRecord.metadata.urgenteManual ??
+        nextRecord.metadata.urgente ??
+        false,
     });
     setNotesForm(nextRecord.anotacoes ?? "");
     setDeadlineForm({

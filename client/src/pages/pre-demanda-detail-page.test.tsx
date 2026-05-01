@@ -103,7 +103,11 @@ function buildAudiencia(preId: string, situacao: Audiencia["situacao"]): Audienc
   };
 }
 
-function buildRecord(preId: string, audienciaStatus: PreDemandaStatus): PreDemanda {
+function buildRecord(
+  preId: string,
+  audienciaStatus: PreDemandaStatus,
+  metadataOverrides: Partial<PreDemanda["metadata"]> = {},
+): PreDemanda {
   const queueHealth = {
     level: "fresh",
     staleDays: 0,
@@ -162,6 +166,7 @@ function buildRecord(preId: string, audienciaStatus: PreDemandaStatus): PreDeman
       reaberturaProgramadaModo: null,
       reaberturaProgramadaDias: null,
       reaberturaProgramadaStatus: null,
+      ...metadataOverrides,
     } as PreDemanda["metadata"],
     createdAt: "2026-04-29T09:00:00.000Z",
     updatedAt: "2026-04-29T09:00:00.000Z",
@@ -188,7 +193,7 @@ function LocationProbe() {
   return <div data-testid="pathname">{location.pathname}</div>;
 }
 
-function renderPage() {
+function renderPage(preId = "PRE-2026-001") {
   render(
     <AuthContext.Provider
       value={{
@@ -213,7 +218,7 @@ function renderPage() {
         hasPermission: vi.fn().mockReturnValue(true),
       }}
     >
-      <MemoryRouter initialEntries={["/pre-demandas/PRE-2026-001"]}>
+      <MemoryRouter initialEntries={[`/pre-demandas/${preId}`]}>
         <LocationProbe />
         <Routes>
           <Route element={<PreDemandaDetailPage />} path="/pre-demandas/:preId" />
@@ -332,5 +337,28 @@ describe("PreDemandaDetailPage", () => {
     await waitFor(() => {
       expect(navigateMock).toHaveBeenCalledWith("/pre-demandas/PRE-2026-002");
     });
+  });
+
+  it("mostra o checkbox de urgencia manual desligado quando a urgencia vem de outro fator", async () => {
+    const user = userEvent.setup();
+
+    apiMocks.getPreDemanda.mockResolvedValueOnce(
+      buildRecord("PRE-2026-003", "realizada", {
+        urgente: true,
+        urgenteManual: false,
+      }),
+    );
+
+    renderPage("PRE-2026-003");
+
+    await user.click(screen.getAllByTitle("Consultar ou alterar processo")[0]);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /consultar \/ alterar processo/i,
+    });
+
+    const checkboxes = within(dialog).getAllByRole("checkbox");
+    expect(checkboxes[0]).not.toBeChecked();
+    expect(checkboxes[1]).not.toBeChecked();
   });
 });
