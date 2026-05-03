@@ -810,7 +810,9 @@ export function removePreDemandaAndamento(
 }
 
 export function listPreDemandaTarefas(preId: string) {
-  return request<TarefaPendente[]>(buildPreDemandaApiPath(preId, "/tarefas"));
+  return request<TarefaPendente[]>(buildPreDemandaApiPath(preId, "/tarefas"), {
+    cache: "no-store",
+  });
 }
 
 export function listPreDemandaTaskScheduleSuggestions(

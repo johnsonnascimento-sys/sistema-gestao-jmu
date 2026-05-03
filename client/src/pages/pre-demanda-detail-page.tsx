@@ -575,9 +575,27 @@ export function PreDemandaDetailPage() {
     }
   }
 
+  function sortTarefasForDisplay(items: TarefaPendente[]) {
+    return [...items].sort(
+      (left, right) =>
+        Number(left.concluida) - Number(right.concluida) ||
+        left.ordem - right.ordem,
+    );
+  }
+
+  function mergeTarefaIntoState(tarefa: TarefaPendente) {
+    setTarefas((current) =>
+      sortTarefasForDisplay([
+        ...current.filter((item) => item.id !== tarefa.id),
+        tarefa,
+      ]),
+    );
+    setTarefasLoaded(true);
+  }
+
   async function loadTarefasData(force = false) {
     if (!force && (tarefasLoaded || tarefasLoading)) {
-      return;
+      return null;
     }
 
     setTarefasLoading(true);
@@ -585,6 +603,7 @@ export function PreDemandaDetailPage() {
       const nextTarefas = await listPreDemandaTarefas(preId);
       setTarefas(nextTarefas);
       setTarefasLoaded(true);
+      return nextTarefas;
     } finally {
       setTarefasLoading(false);
     }
@@ -683,10 +702,13 @@ export function PreDemandaDetailPage() {
   useEffect(() => {
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
-      const data = customEvent.detail as { preId?: string } | undefined;
+      const data = customEvent.detail as { preId?: string; type?: string } | undefined;
       // Se mudou ESTE processo, recarrega
       if (data?.preId === preId) {
         void loadRecordData();
+        if (data.type === "task") {
+          void loadTarefasData(true);
+        }
       }
     };
 
@@ -1278,20 +1300,15 @@ export function PreDemandaDetailPage() {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
-      setTarefas((current) => {
-        const withoutCreated = current.filter((item) => item.id !== result.item.id);
-        return [...withoutCreated, result.item].sort(
-          (left, right) =>
-            Number(left.concluida) - Number(right.concluida) ||
-            left.ordem - right.ordem,
-        );
-      });
-      setTarefasLoaded(true);
+      mergeTarefaIntoState(result.item);
       if (result.autoReopen) {
         setReopenAlert(`Motivo: ${result.autoReopen.reason}`);
         await loadRecordData();
       }
-      await loadTarefasData(true);
+      const refreshedTasks = await loadTarefasData(true);
+      if (!refreshedTasks?.some((item) => item.id === result.item.id)) {
+        mergeTarefaIntoState(result.item);
+      }
       if (!result.autoReopen) await loadRecordData();
       void loadTimelineData();
       setTaskPrazoChange(null);
