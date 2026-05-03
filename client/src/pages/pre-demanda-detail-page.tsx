@@ -1278,12 +1278,21 @@ export function PreDemandaDetailPage() {
         ...payload,
         confirmar_alteracao_prazo: confirmarAlteracaoPrazo,
       });
-      if (tarefaResult?.data?.reopen?.wasReopened) {
-        setReopenAlert(`Motivo: ${tarefaResult.data.reopen.reason}`);
+      setTarefas((current) => {
+        const withoutCreated = current.filter((item) => item.id !== result.item.id);
+        return [...withoutCreated, result.item].sort(
+          (left, right) =>
+            Number(left.concluida) - Number(right.concluida) ||
+            left.ordem - right.ordem,
+        );
+      });
+      setTarefasLoaded(true);
+      if (result.autoReopen) {
+        setReopenAlert(`Motivo: ${result.autoReopen.reason}`);
         await loadRecordData();
       }
       await loadTarefasData(true);
-      if (!tarefaResult?.data?.reopen?.wasReopened) await loadRecordData();
+      if (!result.autoReopen) await loadRecordData();
       void loadTimelineData();
       setTaskPrazoChange(null);
       setTaskForm({
