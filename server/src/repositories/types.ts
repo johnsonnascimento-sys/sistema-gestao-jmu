@@ -649,6 +649,7 @@ export interface PreDemandaRepository {
     sort: DashboardTaskSortMode;
     date?: string;
     recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+    urgentOnly?: boolean;
     openWithoutTasksQ?: string;
     urgentProcessesQ?: string;
     page: number;

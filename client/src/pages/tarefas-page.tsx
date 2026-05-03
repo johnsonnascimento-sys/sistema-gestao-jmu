@@ -566,6 +566,7 @@ export function TarefasPage() {
           sort: sortMode,
           date: selectedDate || undefined,
           recurrence: selectedRecurrence || undefined,
+          urgentOnly: onlyUrgent,
           openWithoutTasksQ: openWithoutTasksQ || undefined,
           urgentProcessesQ: urgentProcessesQ || undefined,
           page,
@@ -595,6 +596,7 @@ export function TarefasPage() {
     };
   }, [
     currentTab,
+    onlyUrgent,
     openWithoutTasksQ,
     urgentProcessesQ,
     page,
@@ -607,7 +609,7 @@ export function TarefasPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [currentTab, selectedDate, selectedRecurrence, sortMode]);
+  }, [currentTab, onlyUrgent, selectedDate, selectedRecurrence, sortMode]);
 
   if (loading) {
     return (

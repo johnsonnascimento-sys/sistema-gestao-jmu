@@ -1071,6 +1071,7 @@ export function listDashboardTasks(params: {
   sort: DashboardTaskSortMode;
   date?: string;
   recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+  urgentOnly?: boolean;
   openWithoutTasksQ?: string;
   urgentProcessesQ?: string;
   page?: number;
@@ -1081,6 +1082,7 @@ export function listDashboardTasks(params: {
   search.set("sort", params.sort);
   if (params.date) search.set("date", params.date);
   if (params.recurrence) search.set("recurrence", params.recurrence);
+  if (params.urgentOnly) search.set("urgentOnly", "true");
   if (params.openWithoutTasksQ)
     search.set("openWithoutTasksQ", params.openWithoutTasksQ);
   if (params.urgentProcessesQ)

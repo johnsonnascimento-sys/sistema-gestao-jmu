@@ -4944,6 +4944,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             order by di.created_at desc, pessoa.nome asc
             limit 1
           ) magistrado on true
+          where audiencia.situacao = 'designada'
           order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
         `,
       ),
@@ -4992,6 +4993,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             limit 1
           ) magistrado on true
           where nullif(pd.metadata ->> 'audiencia_data', '') is not null
+            and coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
             and not exists (
               select 1
               from adminlog.demanda_audiencias_judiciais audiencia
@@ -5293,6 +5295,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             limit 1
           ) magistrado on true
           where pd.status <> 'encerrada'
+            and audiencia.situacao = 'designada'
           order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
         `,
       ),
@@ -5342,6 +5345,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           ) magistrado on true
           where pd.status <> 'encerrada'
             and nullif(pd.metadata ->> 'audiencia_data', '') is not null
+            and coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
             and not exists (
               select 1
               from adminlog.demanda_audiencias_judiciais audiencia
@@ -5437,6 +5441,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     sort: DashboardTaskSortMode;
     date?: string;
     recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+    urgentOnly?: boolean;
     openWithoutTasksQ?: string;
     urgentProcessesQ?: string;
     page: number;
@@ -5468,6 +5473,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         conditions.push(`tarefa.recorrencia_tipo = ${recurrencePlaceholder}`);
         countsConditions.push(`tarefa.recorrencia_tipo = ${recurrencePlaceholder}`);
       }
+    }
+
+    if (params.urgentOnly) {
+      conditions.push("coalesce(tarefa.urgente, false) = true");
+      countsConditions.push("coalesce(tarefa.urgente, false) = true");
     }
 
     const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
@@ -5565,11 +5575,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
                 select 1
                 from adminlog.demanda_audiencias_judiciais audiencia
                 where audiencia.pre_demanda_id = pd.id
+                  and audiencia.situacao = 'designada'
               )
-              or coalesce(pd.metadata ->> 'audiencia_data', '') <> ''
-              or coalesce(pd.metadata ->> 'audiencia_horario_inicio', '') <> ''
-              or coalesce(pd.metadata ->> 'audiencia_horario_fim', '') <> ''
-              or coalesce(pd.metadata ->> 'audiencia_status', '') <> ''
+              or (
+                coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
+                and (
+                  coalesce(pd.metadata ->> 'audiencia_data', '') <> ''
+                  or coalesce(pd.metadata ->> 'audiencia_horario_inicio', '') <> ''
+                  or coalesce(pd.metadata ->> 'audiencia_horario_fim', '') <> ''
+                )
+              )
             ) as has_audiencia,
             tarefa.gerada_automaticamente,
             tarefa.concluida,
@@ -5586,7 +5601,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           ) pts on true
           left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
           ${whereClause}
-          order by has_audiencia desc, ${orderByClause}
+          order by coalesce(tarefa.urgente, false) desc, has_audiencia desc, ${orderByClause}
           limit ${limitPlaceholder} offset ${offsetPlaceholder}
         `,
         values,

@@ -87,6 +87,7 @@ import type {
   NormaRepository,
   SettingsRepository,
   PreDemandaAndamentoRepository,
+  PreDemandaAudienciaRepository,
   PreDemandaTarefaRepository,
   TramitarPreDemandaInput,
   UpdateComentarioInput,
@@ -1769,7 +1770,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     );
     this.syncAudienciaSummary(record);
     this.touch(record);
-    return audiencia;
+    return { item: audiencia, autoReopen: null };
   }
 
   async updateAudiencia(input: UpdateAudienciaInput) {
@@ -1801,7 +1802,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .sort((left, right) => new Date(left.dataHoraInicio).getTime() - new Date(right.dataHoraInicio).getTime());
     this.syncAudienciaSummary(record);
     this.touch(record);
-    return updated;
+    return { item: updated, autoReopen: null };
   }
 
   async removeAudiencia(input: RemoveAudienciaInput) {
@@ -2189,6 +2190,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const upcomingAudiencias = this.records
       .flatMap((item) =>
         (item.audiencias ?? [])
+          .filter((audiencia) => audiencia.situacao === "designada")
           .map((audiencia) => ({
             id: audiencia.id,
             preId: item.preId,
@@ -2291,6 +2293,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     date?: string;
     recurrence?: "diaria" | "semanal" | "mensal" | "trimestral" | "quadrimestral" | "semestral" | "anual" | "sem_recorrencia";
     openWithoutTasksQ?: string;
+    urgentOnly?: boolean;
     page: number;
     pageSize: number;
   }) {
@@ -2303,12 +2306,13 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           assunto: item.assunto,
           descricao: task.descricao,
           tipo: task.tipo,
+          urgente: Boolean(task.urgente),
           prazoConclusao: task.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
           horarioInicio: task.horarioInicio ?? null,
           horarioFim: task.horarioFim ?? null,
           recorrenciaTipo: task.recorrenciaTipo ?? null,
           setorDestinoSigla: task.setorDestino?.sigla ?? null,
-          hasAudiencia: (item.audiencias?.length ?? 0) > 0,
+          hasAudiencia: (item.audiencias ?? []).some((audiencia) => audiencia.situacao === "designada"),
           geradaAutomaticamente: task.geradaAutomaticamente,
           concluida: task.concluida,
           concluidaEm: task.concluidaEm,
@@ -2321,9 +2325,16 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         if (!params.recurrence) return true;
         if (params.recurrence === "sem_recorrencia") return item.recorrenciaTipo === null;
         return item.recorrenciaTipo === params.recurrence;
+      })
+      .filter((item) => {
+        if (!params.urgentOnly) return true;
+        return item.urgente;
       });
 
     allItems.sort((left, right) => {
+      if (left.urgente !== right.urgente) {
+        return left.urgente ? -1 : 1;
+      }
       if (left.hasAudiencia !== right.hasAudiencia) {
         return left.hasAudiencia ? -1 : 1;
       }
@@ -2340,6 +2351,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .flatMap((item) =>
         item.tarefasPendentes.map((task) => ({
           concluida: task.concluida,
+          urgente: Boolean(task.urgente),
           prazoConclusao: task.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
           recorrenciaTipo: task.recorrenciaTipo ?? null,
         })),
@@ -2349,6 +2361,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         if (!params.recurrence) return true;
         if (params.recurrence === "sem_recorrencia") return item.recorrenciaTipo === null;
         return item.recorrenciaTipo === params.recurrence;
+      })
+      .filter((item) => {
+        if (!params.urgentOnly) return true;
+        return item.urgente;
       });
 
     const normalizedOpenWithoutTasksQ = params.openWithoutTasksQ?.trim().toLowerCase() ?? "";
@@ -2728,6 +2744,7 @@ describe("Gestor JMU API", () => {
   const preDemandaRepository = new InMemoryPreDemandaRepository();
   const preDemandaTarefaRepository = preDemandaRepository as unknown as PreDemandaTarefaRepository;
   const preDemandaAndamentoRepository = preDemandaRepository as unknown as PreDemandaAndamentoRepository;
+  const preDemandaAudienciaRepository = preDemandaRepository as unknown as PreDemandaAudienciaRepository;
   const interessadoRepository = new InMemoryInteressadoRepository();
   const setorRepository = new InMemorySetorRepository();
   const normaRepository = new InMemoryNormaRepository();
@@ -2797,6 +2814,7 @@ describe("Gestor JMU API", () => {
       preDemandaRepository,
       preDemandaTarefaRepository,
       preDemandaAndamentoRepository,
+      preDemandaAudienciaRepository,
       interessadoRepository,
       assuntoRepository,
       setorRepository,
@@ -3749,6 +3767,115 @@ describe("Gestor JMU API", () => {
           ),
         ),
     ).toBe(true);
+
+    const urgentTasks = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/dashboard/tarefas?status=pendentes&urgentOnly=true&page=1&pageSize=100",
+      headers: { cookie },
+    });
+
+    expect(urgentTasks.statusCode).toBe(200);
+    expect(urgentTasks.json().data.total).toBeGreaterThanOrEqual(2);
+    expect(
+      urgentTasks
+        .json()
+        .data.items.every((item: { urgente: boolean }) => item.urgente === true),
+    ).toBe(true);
+    expect(
+      urgentTasks
+        .json()
+        .data.items.some((item: { descricao: string }) => item.descricao === "Revisar documento"),
+    ).toBe(true);
+  });
+
+  it("shows only urgent tasks when requested and only designada audiencias on dashboards", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "admin@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Secretaria",
+        assunto: "Controle de audiencia designada",
+        data_referencia: "2026-05-03",
+        prazo_processo: "2026-05-20",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const preId = created.json().data.preId as string;
+
+    const realized = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/audiencias`,
+      headers: { cookie },
+      payload: {
+        data_hora_inicio: "2026-05-05T13:00:00.000Z",
+        descricao: "Audiencia ja realizada",
+        situacao: "realizada",
+      },
+    });
+
+    const scheduled = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/audiencias`,
+      headers: { cookie },
+      payload: {
+        data_hora_inicio: "2026-05-10T13:00:00.000Z",
+        descricao: "Audiencia designada",
+        situacao: "designada",
+      },
+    });
+
+    expect(realized.statusCode).toBe(201);
+    expect(scheduled.statusCode).toBe(201);
+
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/dashboard/resumo",
+      headers: { cookie },
+    });
+
+    expect(dashboard.statusCode).toBe(200);
+    expect(
+      dashboard
+        .json()
+        .data.upcomingAudiencias.some((item: { id: string; situacao: string }) =>
+          item.id === realized.json().data.item.id || item.situacao !== "designada",
+        ),
+    ).toBe(false);
+    expect(
+      dashboard
+        .json()
+        .data.upcomingAudiencias.some((item: { id: string; situacao: string }) =>
+          item.id === scheduled.json().data.item.id && item.situacao === "designada",
+        ),
+    ).toBe(true);
+
+    const pauta = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/pauta-audiencias",
+      headers: { cookie },
+    });
+
+    expect(pauta.statusCode).toBe(200);
+    expect(
+      pauta
+        .json()
+        .data.some((item: { id: string; situacao: string }) =>
+          item.id === realized.json().data.item.id || item.situacao !== "designada",
+        ),
+    ).toBe(false);
   });
 
   it("registers signature tarefas em lote with one signer per process", async () => {
