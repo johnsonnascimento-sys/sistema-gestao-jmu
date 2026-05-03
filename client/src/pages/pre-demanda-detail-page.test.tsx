@@ -1,7 +1,7 @@
-import { render, screen, within, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../auth-context";
 import type {
   Audiencia,
@@ -86,7 +86,11 @@ vi.mock("./pre-demanda-detail-dialogs", () => ({
   TarefasDialog: () => null,
 }));
 
-function buildAudiencia(preId: string, situacao: Audiencia["situacao"]): Audiencia {
+function buildAudiencia(
+  preId: string,
+  situacao: Audiencia["situacao"],
+  overrides: Partial<Audiencia> = {},
+): Audiencia {
   return {
     id: "aud-1",
     preId,
@@ -100,6 +104,7 @@ function buildAudiencia(preId: string, situacao: Audiencia["situacao"]): Audienc
     updatedAt: "2026-04-29T09:00:00.000Z",
     createdBy: null,
     updatedBy: null,
+    ...overrides,
   };
 }
 
@@ -229,6 +234,10 @@ function renderPage(preId = "PRE-2026-001") {
 }
 
 describe("PreDemandaDetailPage", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     const audienciaStatusByPreId = new Map<string, Audiencia["situacao"]>([
@@ -267,6 +276,35 @@ describe("PreDemandaDetailPage", () => {
       buildRecord("PRE-2026-002", "realizada"),
     );
     navigateMock.mockReset();
+  });
+
+  it("destaca a proxima audiencia futura quando ha audiencia antiga cadastrada", async () => {
+    apiMocks.getPreDemanda.mockResolvedValueOnce(
+      buildRecord("PRE-2026-004", "designada", {
+        audienciaData: "2026-03-30",
+        audienciaHorarioInicio: "2026-03-30T13:15:00.000Z",
+        audienciaDescricao: "Audiencia antiga",
+      }),
+    );
+    apiMocks.listPreDemandaAudiencias.mockResolvedValueOnce([
+      buildAudiencia("PRE-2026-004", "designada", {
+        id: "aud-antiga",
+        dataHoraInicio: "2026-03-30T13:15:00.000Z",
+        dataHoraFim: "2026-03-30T14:15:00.000Z",
+        descricao: "Audiencia antiga",
+      }),
+      buildAudiencia("PRE-2026-004", "designada", {
+        id: "aud-nova",
+        dataHoraInicio: "2099-05-05T13:15:00.000Z",
+        dataHoraFim: "2099-05-05T14:15:00.000Z",
+        descricao: "Audiencia atual",
+      }),
+    ]);
+
+    renderPage("PRE-2026-004");
+
+    expect(await screen.findByText(/05\/05\/2099/)).toBeInTheDocument();
+    expect(screen.getByText(/Audiencia atual/)).toBeInTheDocument();
   });
 
   it("habilita concluir sem recarregar a pagina ao salvar audiencia como realizada", async () => {
@@ -322,7 +360,7 @@ describe("PreDemandaDetailPage", () => {
       });
     }
 
-    await user.click(screen.getByRole("button", { name: "Duplicar" }));
+    await user.click(await screen.findByRole("button", { name: "Duplicar" }));
 
     const dialog = await screen.findByRole("dialog", {
       name: /duplicar processo/i,
@@ -351,7 +389,7 @@ describe("PreDemandaDetailPage", () => {
 
     renderPage("PRE-2026-003");
 
-    await user.click(screen.getAllByTitle("Consultar ou alterar processo")[0]);
+    await user.click((await screen.findAllByTitle("Consultar ou alterar processo"))[0]);
 
     const dialog = await screen.findByRole("dialog", {
       name: /consultar \/ alterar processo/i,

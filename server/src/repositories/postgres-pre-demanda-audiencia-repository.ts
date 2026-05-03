@@ -88,11 +88,20 @@ export class PostgresPreDemandaAudienciaRepository implements PreDemandaAudienci
         where audiencia.pre_demanda_id = $1
         order by
           case
-            when audiencia.situacao = any($2::text[])
-            then 0
-            else 1
+            when audiencia.situacao = any($2::text[]) and audiencia.data_hora_inicio >= now() then 0
+            when audiencia.situacao = any($2::text[]) then 1
+            when audiencia.situacao not in ('cancelada', 'realizada') and audiencia.data_hora_inicio >= now() then 2
+            when audiencia.situacao not in ('cancelada', 'realizada') then 3
+            else 4
           end asc,
-          audiencia.data_hora_inicio asc,
+          case
+            when audiencia.data_hora_inicio >= now() then audiencia.data_hora_inicio
+            else null
+          end asc nulls last,
+          case
+            when audiencia.data_hora_inicio < now() then audiencia.data_hora_inicio
+            else null
+          end desc nulls last,
           audiencia.updated_at desc,
           audiencia.created_at desc,
           audiencia.id desc

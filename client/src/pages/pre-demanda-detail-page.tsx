@@ -178,6 +178,51 @@ const AUDIENCIA_FORM_DEFAULT: AudienciaForm = {
   observacoes: "",
 };
 
+const AUDIENCIA_SITUACOES_ENCERRADAS = new Set<AudienciaSituacao>([
+  "cancelada",
+  "realizada",
+]);
+
+function isAudienciaAtiva(audiencia: Audiencia) {
+  return !AUDIENCIA_SITUACOES_ENCERRADAS.has(audiencia.situacao);
+}
+
+function getAudienciaResumo(audiencias: Audiencia[]) {
+  if (audiencias.length === 0) {
+    return null;
+  }
+
+  const now = Date.now();
+  const ativas = audiencias.filter(isAudienciaAtiva);
+  const futurasAtivas = ativas
+    .filter((audiencia) => new Date(audiencia.dataHoraInicio).getTime() >= now)
+    .sort(
+      (left, right) =>
+        new Date(left.dataHoraInicio).getTime() -
+        new Date(right.dataHoraInicio).getTime(),
+    );
+
+  if (futurasAtivas[0]) {
+    return futurasAtivas[0];
+  }
+
+  const passadasAtivas = ativas.sort(
+    (left, right) =>
+      new Date(right.dataHoraInicio).getTime() -
+      new Date(left.dataHoraInicio).getTime(),
+  );
+
+  if (passadasAtivas[0]) {
+    return passadasAtivas[0];
+  }
+
+  return [...audiencias].sort(
+    (left, right) =>
+      new Date(right.dataHoraInicio).getTime() -
+      new Date(left.dataHoraInicio).getTime(),
+  )[0] ?? null;
+}
+
 function formatTaskTimeLabel(
   task: Pick<TarefaPendente, "horarioInicio" | "horarioFim">,
 ) {
@@ -936,7 +981,10 @@ export function PreDemandaDetailPage() {
       ),
     [audiencias],
   );
-  const nextAudiencia = orderedAudiencias[0] ?? null;
+  const nextAudiencia = useMemo(
+    () => getAudienciaResumo(orderedAudiencias),
+    [orderedAudiencias],
+  );
   const hasDesignadaAudiencia = useMemo(
     () =>
       orderedAudiencias.some(
@@ -1075,8 +1123,8 @@ export function PreDemandaDetailPage() {
         ? {
             resumo: `${getPreDemandaStatusLabel(record.status)} • ${record.setorAtual?.sigla ?? "Sem setor"}${record.status !== "encerrada" && record.prazoProcesso ? ` • prazo do processo ${formatDateOnlyPtBr(record.prazoProcesso)}` : ""}`,
             audiencias:
-              orderedAudiencias.length > 0
-                ? `Próxima audiência ${formatDateTimePtBrSafe(orderedAudiencias[0]?.dataHoraInicio)}`
+              nextAudiencia
+                ? `Próxima audiência ${formatDateTimePtBrSafe(nextAudiencia.dataHoraInicio)}`
                 : record.metadata.audienciaHorarioInicio
                   ? `Próxima audiência ${formatDateTimePtBrSafe(record.metadata.audienciaHorarioInicio)}${record.metadata.audienciaStatus ? ` • ${record.metadata.audienciaStatus}` : ""}`
                   : "Sem audiência cadastrada",
@@ -1128,7 +1176,7 @@ export function PreDemandaDetailPage() {
       interessados.length,
       interessadosLoaded,
       nextAction.title,
-      orderedAudiencias,
+      nextAudiencia,
       pendingTasks.length,
       queueHealth?.summary,
       record,

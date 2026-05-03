@@ -444,8 +444,15 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const audiencias = [...(record.audiencias ?? [])].sort(
       (left, right) => new Date(left.dataHoraInicio).getTime() - new Date(right.dataHoraInicio).getTime(),
     );
+    const now = Date.now();
+    const audienciasAtivas = audiencias.filter((item) => item.situacao !== "cancelada" && item.situacao !== "realizada");
+    const futurasAtivas = audienciasAtivas.filter((item) => new Date(item.dataHoraInicio).getTime() >= now);
+    const passadasAtivas = audienciasAtivas.filter((item) => new Date(item.dataHoraInicio).getTime() < now);
     const resumo =
-      audiencias.find((item) => item.situacao !== "cancelada" && item.situacao !== "realizada") ??
+      futurasAtivas[0] ??
+      passadasAtivas.sort(
+        (left, right) => new Date(right.dataHoraInicio).getTime() - new Date(left.dataHoraInicio).getTime(),
+      )[0] ??
       audiencias[audiencias.length - 1] ??
       null;
 
