@@ -2112,6 +2112,30 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       .slice(0, limit);
   }
 
+  private withDashboardSignals(item: PreDemandaDetail): PreDemandaDetail {
+    const pendingTasks = item.tarefasPendentes
+      .filter((task) => !task.concluida)
+      .sort(
+        (left, right) =>
+          Number(Boolean(right.urgente)) - Number(Boolean(left.urgente)) ||
+          (left.prazoConclusao ?? "").localeCompare(right.prazoConclusao ?? "") ||
+          left.createdAt.localeCompare(right.createdAt),
+      )
+      .slice(0, 3)
+      .map((task) => ({
+        id: task.id,
+        descricao: task.descricao,
+        urgente: Boolean(task.urgente),
+        prazoConclusao: task.prazoConclusao ?? null,
+        createdAt: task.createdAt,
+      }));
+
+    return {
+      ...item,
+      dashboardSignals: { pendingTasks },
+    };
+  }
+
   async getDashboardSummary(): Promise<PreDemandaDashboardSummary> {
     const counts = await this.getStatusCounts();
     const recentTimeline = await this.listRecentTimeline(8);
@@ -2213,13 +2237,13 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       urgentTotal: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).length,
       withoutSetorTotal: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).length,
       withoutInteressadosTotal: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).length,
-      staleItems,
-      awaitingSeiItems,
-      dueSoonItems: this.records.filter((item) => item.status !== "encerrada" && (item.proximoPrazoTarefa !== null || item.prazoProcesso !== null)).slice(0, 5),
-      paymentMarkedItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.pagamentoEnvolvido === true).slice(0, 5),
-      urgentItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).slice(0, 5),
-      withoutSetorItems: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).slice(0, 5),
-      withoutInteressadosItems: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).slice(0, 5),
+      staleItems: staleItems.map((item) => this.withDashboardSignals(item)),
+      awaitingSeiItems: awaitingSeiItems.map((item) => this.withDashboardSignals(item)),
+      dueSoonItems: this.records.filter((item) => item.status !== "encerrada" && (item.proximoPrazoTarefa !== null || item.prazoProcesso !== null)).slice(0, 5).map((item) => this.withDashboardSignals(item)),
+      paymentMarkedItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.pagamentoEnvolvido === true).slice(0, 5).map((item) => this.withDashboardSignals(item)),
+      urgentItems: this.records.filter((item) => item.status !== "encerrada" && item.metadata.urgente === true).slice(0, 5).map((item) => this.withDashboardSignals(item)),
+      withoutSetorItems: this.records.filter((item) => item.status !== "encerrada" && item.setorAtual === null).slice(0, 5).map((item) => this.withDashboardSignals(item)),
+      withoutInteressadosItems: this.records.filter((item) => item.status !== "encerrada" && item.interessados.length === 0).slice(0, 5).map((item) => this.withDashboardSignals(item)),
       oldestOpenTasks,
       upcomingAudiencias,
       recentTimeline,
@@ -3615,6 +3639,23 @@ describe("Gestor JMU API", () => {
         (item: { descricao: string; urgente: boolean }) =>
           item.descricao === "Revisar documento" && item.urgente === true,
       ),
+    ).toBe(true);
+
+    const dashboard = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/dashboard/resumo",
+      headers: { cookie },
+    });
+
+    expect(dashboard.statusCode).toBe(200);
+    expect(
+      dashboard
+        .json()
+        .data.urgentItems.some((item: { dashboardSignals?: { pendingTasks?: Array<{ descricao: string; urgente: boolean }> } }) =>
+          item.dashboardSignals?.pendingTasks?.some(
+            (task) => task.descricao === "Revisar documento" && task.urgente === true,
+          ),
+        ),
     ).toBe(true);
   });
 

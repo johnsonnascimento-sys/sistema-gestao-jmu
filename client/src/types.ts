@@ -452,6 +452,15 @@ export interface PreDemanda {
   tarefasPendentes: TarefaPendente[];
   recentAndamentos: Andamento[];
   audiencias?: Audiencia[];
+  dashboardSignals?: {
+    pendingTasks: Array<{
+      id: string;
+      descricao: string;
+      urgente: boolean;
+      prazoConclusao: string | null;
+      createdAt: string | null;
+    }>;
+  };
 }
 
 export interface PreDemandaAuditRecord {

@@ -58,6 +58,37 @@ function formatStructuredDeadlines(item: PreDemanda) {
   ].join(" | ");
 }
 
+function getQueueCardPersonLabel(item: PreDemanda) {
+  return item.pessoaPrincipal?.nome ?? item.solicitante ?? "-";
+}
+
+function getQueueCardTaskSignals(
+  item: PreDemanda,
+  highlightType?: "urgent" | "payment",
+) {
+  const pendingTasks = item.dashboardSignals?.pendingTasks ?? [];
+  if (highlightType === "urgent") {
+    const urgentTasks = pendingTasks.filter((task) => task.urgente);
+    return urgentTasks.length > 0 ? urgentTasks : pendingTasks;
+  }
+
+  return pendingTasks;
+}
+
+function formatQueueCardTaskLabel(
+  task: NonNullable<PreDemanda["dashboardSignals"]>["pendingTasks"][number],
+  highlightType?: "urgent" | "payment",
+) {
+  const prefix =
+    highlightType === "urgent" && task.urgente
+      ? "Tarefa urgente"
+      : "Próxima tarefa";
+  const prazo = task.prazoConclusao
+    ? ` · prazo ${formatDateOnlyPtBr(task.prazoConclusao)}`
+    : "";
+  return `${prefix}: ${task.descricao}${prazo}`;
+}
+
 function formatTaskRecurrence(recorrenciaTipo: TarefaRecorrenciaTipo | null) {
   if (!recorrenciaTipo) {
     return "Sem recorrência";
@@ -239,6 +270,9 @@ export function DashboardPage() {
     highlightType?: "urgent" | "payment",
   ) {
     const queueHealth = getQueueHealth(item);
+    const taskSignals = getQueueCardTaskSignals(item, highlightType);
+    const primaryTask = taskSignals[0] ?? null;
+    const secondaryTasks = taskSignals.slice(1, 3);
 
     let borderStyle =
       "border-white/80 bg-gradient-to-br from-white/95 to-slate-50/80 backdrop-blur-lg shadow-md hover:shadow-xl hover:-translate-y-1";
@@ -289,7 +323,23 @@ export function DashboardPage() {
           </div>
         </div>
         <div className="grid gap-1 text-sm text-slate-500">
-          <p>{item.pessoaPrincipal?.nome ?? "-"}</p>
+          <p>{getQueueCardPersonLabel(item)}</p>
+          {item.descricao ? (
+            <p className="text-slate-600">Descrição: {item.descricao}</p>
+          ) : null}
+          {item.observacoes ? (
+            <p className="text-slate-600">Observação: {item.observacoes}</p>
+          ) : null}
+          {primaryTask ? (
+            <p className="font-semibold text-slate-800">
+              {formatQueueCardTaskLabel(primaryTask, highlightType)}
+            </p>
+          ) : null}
+          {secondaryTasks.map((task) => (
+            <p className="text-xs font-medium text-slate-600" key={task.id}>
+              {formatQueueCardTaskLabel(task, highlightType)}
+            </p>
+          ))}
           <p>
             Setor: {item.setorAtual ? item.setorAtual.sigla : "Não tramitado"}
           </p>
@@ -307,6 +357,11 @@ export function DashboardPage() {
               <p className="font-medium text-slate-700">{queueHealth.detail}</p>
             </>
           )}
+          {highlightType === "payment" ? (
+            <p className="font-medium text-amber-700">
+              Processo marcado com pagamento envolvido.
+            </p>
+          ) : null}
         </div>
       </Link>
     );

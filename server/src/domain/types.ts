@@ -416,6 +416,15 @@ export interface PreDemanda {
   allowedNextStatuses: PreDemandaStatus[];
   seiAssociations: SeiAssociation[];
   numerosJudiciais: DemandaNumeroJudicial[];
+  dashboardSignals?: {
+    pendingTasks: Array<{
+      id: string;
+      descricao: string;
+      urgente: boolean;
+      prazoConclusao: string | null;
+      createdAt: string | null;
+    }>;
+  };
 }
 
 export interface SeiAssociation {

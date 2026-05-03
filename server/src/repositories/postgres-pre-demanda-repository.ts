@@ -202,6 +202,29 @@ const DASHBOARD_BASE_FROM = `
     where tarefa.pre_demanda_id = pd.id
       and tarefa.concluida = false
   ) prox_tarefa on true
+  left join lateral (
+    select coalesce(
+      jsonb_agg(
+        jsonb_build_object(
+          'id', tarefa.id::text,
+          'descricao', tarefa.descricao,
+          'urgente', coalesce(tarefa.urgente, false),
+          'prazoConclusao', tarefa.prazo_conclusao::text,
+          'createdAt', tarefa.created_at::text
+        )
+        order by coalesce(tarefa.urgente, false) desc, tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
+      ),
+      '[]'::jsonb
+    ) as dashboard_tasks
+    from (
+      select tarefa.id, tarefa.descricao, tarefa.urgente, tarefa.prazo_conclusao, tarefa.created_at
+      from adminlog.tarefas_pendentes tarefa
+      where tarefa.pre_demanda_id = pd.id
+        and tarefa.concluida = false
+      order by coalesce(tarefa.urgente, false) desc, tarefa.prazo_conclusao asc nulls last, tarefa.created_at asc, tarefa.id asc
+      limit 3
+    ) tarefa
+  ) dashboard_tasks on true
   left join adminlog.setores setor on setor.id = pd.setor_atual_id
 `;
 
@@ -236,6 +259,7 @@ const DASHBOARD_BASE_SELECT = `
     pts.observacoes as link_observacoes,
     pts.linked_by_user_id,
     prox_tarefa.proximo_prazo_tarefa,
+    dashboard_tasks.dashboard_tasks,
     case
       when pd.prazo_processo < current_date then 'atrasado'
       else 'no_prazo'
@@ -359,6 +383,26 @@ function mapNumeroJudicialRow(row: QueryResultRow) {
   };
 }
 
+function mapDashboardTaskSignals(row: QueryResultRow): PreDemandaDetail["dashboardSignals"] {
+  const parsedTasks =
+    typeof row.dashboard_tasks === "string"
+      ? JSON.parse(row.dashboard_tasks)
+      : row.dashboard_tasks;
+  const rawTasks = Array.isArray(parsedTasks) ? parsedTasks : [];
+  return {
+    pendingTasks: rawTasks
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      .map((item) => ({
+        id: String(item.id),
+        descricao: String(item.descricao ?? ""),
+        urgente: Boolean(item.urgente),
+        prazoConclusao: item.prazoConclusao ? String(item.prazoConclusao) : null,
+        createdAt: item.createdAt ? new Date(String(item.createdAt)).toISOString() : null,
+      }))
+      .filter((item) => item.descricao.trim().length > 0),
+  };
+}
+
 function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHealthThresholds): PreDemandaDetail {
   const currentAssociation = row.sei_link_id === null || row.sei_link_id === undefined ? null : mapAssociation(row);
   const status = row.status as PreDemandaStatus;
@@ -419,6 +463,7 @@ function mapPreDemandaBase(row: QueryResultRow, queueHealthThresholds: QueueHeal
     tarefasPendentes: [],
     audiencias: [],
     recentAndamentos: [],
+    dashboardSignals: mapDashboardTaskSignals(row),
   };
 }
 
