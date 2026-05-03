@@ -750,7 +750,7 @@ function buildScheduledReopenMetadata(
 }
 
 function buildNormalizedLikeExpression(column: string, index: number) {
-  return `translate(lower(coalesce(${column}, '')), 'Ã¡Ã Ã£Ã¢Ã¤Ã©Ã¨ÃªÃ«Ã­Ã¬Ã®Ã¯Ã³Ã²ÃµÃ´Ã¶ÃºÃ¹Ã»Ã¼Ã§', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
+  return `translate(lower(coalesce(${column}, '')), 'áàãâäéèêëíìîïóòõôöúùûüç', 'aaaaaeeeeiiiiooooouuuuc') like $${index}`;
 }
 
 function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: QueueHealthThresholds) {
@@ -780,6 +780,16 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
             inner join adminlog.interessados pessoa_busca on pessoa_busca.id = di_busca.interessado_id
             where di_busca.pre_demanda_id = pd.id
               and ${buildNormalizedLikeExpression("pessoa_busca.nome", index)}
+          )
+          or exists (
+            select 1
+            from adminlog.demanda_assuntos da_busca
+            inner join adminlog.assuntos assunto_busca on assunto_busca.id = da_busca.assunto_id
+            where da_busca.pre_demanda_id = pd.id
+              and (
+                ${buildNormalizedLikeExpression("assunto_busca.nome", index)}
+                or ${buildNormalizedLikeExpression("assunto_busca.descricao", index)}
+              )
           )
           or ${buildNormalizedLikeExpression("pd.pre_id", index)}
           or exists (

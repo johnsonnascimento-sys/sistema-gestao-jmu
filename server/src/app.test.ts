@@ -367,6 +367,14 @@ function defaultMetadata(metadata?: Partial<PreDemandaMetadata> | null): PreDema
   };
 }
 
+function normalizeInMemorySearch(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 function buildAssuntoStub(id: string, withSetor = false): Assunto {
   const now = new Date().toISOString();
   return {
@@ -843,8 +851,25 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     let items = [...this.records];
 
     if (params.q) {
-      const q = params.q.toLowerCase();
-      items = items.filter((item) => [item.preId, item.principalNumero, item.solicitante, item.assunto].some((value) => value.toLowerCase().includes(q)));
+      const tokens = normalizeInMemorySearch(params.q).split(/\s+/).filter(Boolean);
+      items = items.filter((item) => {
+        const searchable = [
+          item.preId,
+          item.principalNumero,
+          item.solicitante,
+          item.assunto,
+          item.descricao ?? "",
+          item.observacoes ?? "",
+          ...item.interessados.map((interessado) => interessado.interessado.nome),
+          ...item.assuntos.flatMap((assunto) => [assunto.assunto.nome, assunto.assunto.descricao ?? ""]),
+          ...item.numerosJudiciais.map((numero) => numero.numero),
+          ...item.seiAssociations.map((association) => association.seiNumero),
+        ]
+          .map(normalizeInMemorySearch)
+          .join(" ");
+
+        return tokens.every((token) => searchable.includes(token));
+      });
     }
 
     if (params.statuses?.length) {
@@ -2886,6 +2911,73 @@ describe("Gestor JMU API", () => {
     expect(duplicate.statusCode).toBe(200);
     expect(duplicate.json().data.idempotent).toBe(true);
     expect(duplicate.json().data.existingPreId).toBe("PRE-2026-001");
+
+    const repositorySnapshot = {
+      records: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records)) as PreDemandaDetail[],
+      nextId: (preDemandaRepository as unknown as { nextId: number }).nextId,
+    };
+    const assuntoCatalogSnapshot = new Map(inMemoryAssuntoCatalog);
+
+    try {
+      const linkedAssuntoId = "123e4567-e89b-42d3-a456-999999999159";
+      inMemoryAssuntoCatalog.set(linkedAssuntoId, {
+        ...buildAssuntoStub(linkedAssuntoId),
+        nome: "Contratação do estagiário VINÍCIUS DENIS DE ALMEIDA OLIVEIRA",
+        descricao: "Assunto vinculado para contratação de estagiário.",
+      });
+
+      const accented = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Seção de estágio",
+          assunto: "Demanda de estágio",
+          data_referencia: "2026-03-10",
+          prazo_processo: "2026-03-25",
+          assunto_ids: [linkedAssuntoId],
+        },
+      });
+
+      expect(accented.statusCode).toBe(201);
+
+      const search = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas?q=vinicius%20denis",
+        headers: { cookie },
+      });
+
+      expect(search.statusCode).toBe(200);
+      expect(
+        search
+          .json()
+          .data.items.some((item: { preId: string; assunto: string }) =>
+            item.preId === accented.json().data.preId && item.assunto === "Demanda de estágio",
+          ),
+      ).toBe(true);
+
+      const fullSearch = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas?q=VIN%C3%8DCIUS%20DENIS%20DE%20ALMEIDA%20OLIVEIRA",
+        headers: { cookie },
+      });
+
+      expect(fullSearch.statusCode).toBe(200);
+      expect(
+        fullSearch
+          .json()
+          .data.items.some((item: { preId: string; assunto: string }) =>
+            item.preId === accented.json().data.preId && item.assunto === "Demanda de estágio",
+          ),
+      ).toBe(true);
+    } finally {
+      (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records = repositorySnapshot.records;
+      (preDemandaRepository as unknown as { nextId: number }).nextId = repositorySnapshot.nextId;
+      inMemoryAssuntoCatalog.clear();
+      for (const [id, assunto] of assuntoCatalogSnapshot) {
+        inMemoryAssuntoCatalog.set(id, assunto);
+      }
+    }
   });
 
   it("duplicates a pre-demanda without copying andamento history", async () => {

@@ -483,7 +483,7 @@ export function normalizeBool(value: boolean | undefined) {
 export function normalizeSearchTerm(value: string) {
   return value
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 }
