@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CheckCircle2, Loader2, PackageCheck, Send, UserPlus, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, PackageCheck, PackagePlus, Pencil, Send, UserPlus, XCircle } from "lucide-react";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import {
   createPessoa,
+  createPreDemandaPacote,
   createPreDemandasLote,
   formatAppError,
   listAssuntos,
   listPessoas,
   listPreDemandaPacotes,
+  updatePreDemandaPacote,
 } from "../lib/api";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import type {
@@ -28,6 +31,18 @@ import type {
 const selectClassName =
   "h-11 w-full rounded-2xl border border-sky-100/90 bg-white/95 px-4 text-sm text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-sky-200/55";
 
+type TemaForm = {
+  nome: string;
+  descricao: string;
+  assunto_ids: string[];
+};
+
+const EMPTY_TEMA_FORM: TemaForm = {
+  nome: "",
+  descricao: "",
+  assunto_ids: [],
+};
+
 function getPacoteAssunto(item: PreDemandaPacoteAssunto | Assunto) {
   return "assunto" in item ? item.assunto : item;
 }
@@ -38,6 +53,10 @@ function getPacoteAssuntos(pacote: PreDemandaPacote | null) {
   }
 
   return pacote.assuntos.map(getPacoteAssunto);
+}
+
+function areSameOrderedIds(left: string[], right: string[]) {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
 export function ProcessosLotePage() {
@@ -63,6 +82,11 @@ export function ProcessosLotePage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [result, setResult] = useState<PreDemandaLoteResult | null>(null);
+  const [temaDialogOpen, setTemaDialogOpen] = useState(false);
+  const [editingPacote, setEditingPacote] = useState<PreDemandaPacote | null>(null);
+  const [temaForm, setTemaForm] = useState<TemaForm>(EMPTY_TEMA_FORM);
+  const [savingTema, setSavingTema] = useState(false);
+  const [temaError, setTemaError] = useState("");
 
   const selectedPacote = useMemo(
     () => pacotes.find((item) => item.id === selectedPacoteId) ?? null,
@@ -76,9 +100,30 @@ export function ProcessosLotePage() {
       .filter((item): item is Assunto => Boolean(item));
   }, [assuntos, selectedAssuntoIds]);
 
+  const selectedPacoteAssuntoIds = useMemo(
+    () => getPacoteAssuntos(selectedPacote).map((item) => item.id),
+    [selectedPacote],
+  );
+
+  const shouldUseSelectedPacote = Boolean(
+    selectedPacoteId && areSameOrderedIds(selectedAssuntoIds, selectedPacoteAssuntoIds),
+  );
+
+  const selectedTemaFormAssuntos = useMemo(() => {
+    const byId = new Map(assuntos.map((item) => [item.id, item]));
+    return temaForm.assunto_ids
+      .map((id) => byId.get(id))
+      .filter((item): item is Assunto => Boolean(item));
+  }, [assuntos, temaForm.assunto_ids]);
+
   const availableExtraAssuntos = useMemo(
     () => assuntos.filter((item) => !selectedAssuntoIds.includes(item.id)),
     [assuntos, selectedAssuntoIds],
+  );
+
+  const availableTemaFormAssuntos = useMemo(
+    () => assuntos.filter((item) => !temaForm.assunto_ids.includes(item.id)),
+    [assuntos, temaForm.assunto_ids],
   );
 
   const submitBlockMessage = useMemo(() => {
@@ -86,7 +131,7 @@ export function ProcessosLotePage() {
       return "Selecione ou cadastre uma pessoa antes de criar os processos.";
     }
     if (!selectedAssuntoIds.length) {
-      return "Selecione um pacote ou adicione ao menos um assunto.";
+      return "Selecione um tema ou adicione ao menos um assunto.";
     }
     if (!form.data_referencia) {
       return "Informe a data de referencia.";
@@ -108,7 +153,7 @@ export function ProcessosLotePage() {
       setPacotes(nextPacotes.filter((item) => item.ativo !== false));
       setLoadError("");
     } catch (error) {
-      setLoadError(formatAppError(error, "Falha ao carregar pacotes e assuntos."));
+      setLoadError(formatAppError(error, "Falha ao carregar temas e assuntos."));
     } finally {
       setLoading(false);
     }
@@ -147,6 +192,86 @@ export function ProcessosLotePage() {
     setSelectedAssuntoIds(getPacoteAssuntos(pacote).map((item) => item.id));
     setResult(null);
     setSubmitError("");
+  }
+
+  function openNewTemaDialog() {
+    setEditingPacote(null);
+    setTemaForm(EMPTY_TEMA_FORM);
+    setTemaError("");
+    setTemaDialogOpen(true);
+  }
+
+  function openEditTemaDialog() {
+    if (!selectedPacote) {
+      return;
+    }
+
+    setEditingPacote(selectedPacote);
+    setTemaForm({
+      nome: selectedPacote.nome,
+      descricao: selectedPacote.descricao ?? "",
+      assunto_ids: getPacoteAssuntos(selectedPacote).map((item) => item.id),
+    });
+    setTemaError("");
+    setTemaDialogOpen(true);
+  }
+
+  function addTemaAssunto(assuntoId: string) {
+    if (!assuntoId) {
+      return;
+    }
+
+    setTemaForm((current) => ({
+      ...current,
+      assunto_ids: current.assunto_ids.includes(assuntoId)
+        ? current.assunto_ids
+        : [...current.assunto_ids, assuntoId],
+    }));
+  }
+
+  function removeTemaAssunto(assuntoId: string) {
+    setTemaForm((current) => ({
+      ...current,
+      assunto_ids: current.assunto_ids.filter((item) => item !== assuntoId),
+    }));
+  }
+
+  async function handleSaveTema(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (savingTema || temaForm.nome.trim().length < 3 || temaForm.assunto_ids.length === 0) {
+      return;
+    }
+
+    setSavingTema(true);
+    setTemaError("");
+    try {
+      const saved = editingPacote
+        ? await updatePreDemandaPacote({
+            id: editingPacote.id,
+            nome: temaForm.nome.trim(),
+            descricao: temaForm.descricao.trim() || null,
+            assunto_ids: temaForm.assunto_ids,
+          })
+        : await createPreDemandaPacote({
+            nome: temaForm.nome.trim(),
+            descricao: temaForm.descricao.trim() || null,
+            assunto_ids: temaForm.assunto_ids,
+          });
+
+      const nextPacotes = (await listPreDemandaPacotes()).filter((item) => item.ativo !== false);
+      setPacotes(nextPacotes);
+      setTemaDialogOpen(false);
+      setEditingPacote(null);
+      setTemaForm(EMPTY_TEMA_FORM);
+      setSelectedPacoteId(saved.id);
+      setSelectedAssuntoIds(getPacoteAssuntos(saved).map((item) => item.id));
+      setResult(null);
+      setSubmitError("");
+    } catch (error) {
+      setTemaError(formatAppError(error, "Falha ao salvar tema."));
+    } finally {
+      setSavingTema(false);
+    }
   }
 
   function addAssunto(assuntoId: string) {
@@ -198,7 +323,7 @@ export function ProcessosLotePage() {
     setResult(null);
     try {
       const nextResult = await createPreDemandasLote({
-        pacote_id: selectedPacoteId || null,
+        pacote_id: shouldUseSelectedPacote ? selectedPacoteId : null,
         assunto_ids: selectedAssuntoIds,
         pessoas: [{ pessoa_id: selectedPessoa.id }],
         data_referencia: form.data_referencia,
@@ -215,7 +340,7 @@ export function ProcessosLotePage() {
   }
 
   if (loading) {
-    return <LoadingState title="Carregando pacotes" description="Buscando pessoas, pacotes e assuntos para criacao em lote." />;
+    return <LoadingState title="Carregando temas" description="Buscando pessoas, temas e assuntos para criacao em lote." />;
   }
 
   if (loadError) {
@@ -227,13 +352,13 @@ export function ProcessosLotePage() {
       <PageHeader
         eyebrow="Cadastro em lote"
         title="Processos em lote"
-        description="Selecione uma pessoa e um pacote de assuntos para abrir varios processos pre-SEI com os mesmos metadados operacionais."
+        description="Selecione uma pessoa e um tema de assuntos para abrir varios processos pre-SEI com os mesmos metadados operacionais."
       />
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Pessoa e pacote</CardTitle>
+            <CardTitle>Pessoa e tema</CardTitle>
             <CardDescription>
               A pessoa sera vinculada como solicitante e cada assunto revisado abaixo gerara um processo.
             </CardDescription>
@@ -350,20 +475,32 @@ export function ProcessosLotePage() {
             </section>
 
             <section className="grid gap-4 rounded-[24px] border border-slate-200 bg-white/80 p-4">
-              <FormField label="Pacote">
-                <select
-                  className={selectClassName}
-                  onChange={(event) => selectPacote(event.target.value)}
-                  value={selectedPacoteId}
-                >
-                  <option value="">Selecione um pacote</option>
-                  {pacotes.map((pacote) => (
-                    <option key={pacote.id} value={pacote.id}>
-                      {pacote.nome}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <FormField className="flex-1" label="Tema">
+                  <select
+                    className={selectClassName}
+                    onChange={(event) => selectPacote(event.target.value)}
+                    value={selectedPacoteId}
+                  >
+                    <option value="">Selecione um tema</option>
+                    {pacotes.map((pacote) => (
+                      <option key={pacote.id} value={pacote.id}>
+                        {pacote.nome}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <div className="flex gap-2">
+                  <Button onClick={openNewTemaDialog} type="button" variant="outline">
+                    <PackagePlus className="h-4 w-4" />
+                    Novo tema
+                  </Button>
+                  <Button disabled={!selectedPacote} onClick={openEditTemaDialog} type="button" variant="ghost">
+                    <Pencil className="h-4 w-4" />
+                    Editar
+                  </Button>
+                </div>
+              </div>
 
               {selectedPacote ? (
                 <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
@@ -374,11 +511,16 @@ export function ProcessosLotePage() {
                   <p className="mt-1 text-sky-800">
                     {getPacoteAssuntos(selectedPacote).length} assunto(s) carregado(s) para revisao.
                   </p>
+                  {!shouldUseSelectedPacote ? (
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">
+                      Revisao alterada: o lote sera enviado como selecao avulsa.
+                    </p>
+                  ) : null}
                 </div>
               ) : pacotes.length === 0 ? (
                 <EmptyState
-                  title="Nenhum pacote cadastrado"
-                  description="Cadastre pacotes para acelerar a abertura de processos recorrentes."
+                  title="Nenhum tema cadastrado"
+                  description="Cadastre temas para acelerar a abertura de processos recorrentes."
                 />
               ) : null}
 
@@ -536,6 +678,88 @@ export function ProcessosLotePage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Dialog open={temaDialogOpen} onOpenChange={setTemaDialogOpen}>
+        <DialogContent className="max-h-[90vh] w-[min(96vw,48rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPacote ? "Editar tema" : "Novo tema"}</DialogTitle>
+            <DialogDescription>
+              Salve um grupo de assuntos ja cadastrados para reutilizar na abertura de processos em lote.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="grid gap-4" onSubmit={handleSaveTema}>
+            <FormField label="Nome do tema">
+              <Input
+                onChange={(event) => setTemaForm((current) => ({ ...current, nome: event.target.value }))}
+                placeholder="Militar novo"
+                value={temaForm.nome}
+              />
+            </FormField>
+            <FormField label="Descricao">
+              <Textarea
+                onChange={(event) => setTemaForm((current) => ({ ...current, descricao: event.target.value }))}
+                rows={3}
+                value={temaForm.descricao}
+              />
+            </FormField>
+            <FormField label="Adicionar assunto">
+              <select className={selectClassName} onChange={(event) => addTemaAssunto(event.target.value)} value="">
+                <option value="">Selecione um assunto gravado</option>
+                {availableTemaFormAssuntos.map((assunto) => (
+                  <option key={assunto.id} value={assunto.id}>
+                    {assunto.nome}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+
+            <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+              <p className="text-sm font-semibold text-slate-950">Assuntos do tema</p>
+              {selectedTemaFormAssuntos.length ? (
+                <div className="grid gap-2">
+                  {selectedTemaFormAssuntos.map((assunto, index) => (
+                    <div className="flex items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3" key={assunto.id}>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          Ordem {index + 1}
+                        </p>
+                        <p className="font-semibold text-slate-950">{assunto.nome}</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          {assunto.procedimentos.length} passo(s) de procedimento.
+                        </p>
+                      </div>
+                      <Button onClick={() => removeTemaAssunto(assunto.id)} size="sm" type="button" variant="ghost">
+                        Remover
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
+                  Nenhum assunto selecionado.
+                </p>
+              )}
+            </div>
+
+            {temaError ? (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {temaError}
+              </div>
+            ) : null}
+
+            <DialogFooter>
+              <Button disabled={savingTema} onClick={() => setTemaDialogOpen(false)} type="button" variant="ghost">
+                Cancelar
+              </Button>
+              <Button disabled={savingTema || temaForm.nome.trim().length < 3 || temaForm.assunto_ids.length === 0} type="submit">
+                {savingTema ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+                {savingTema ? "Salvando..." : "Salvar tema"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

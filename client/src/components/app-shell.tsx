@@ -168,7 +168,7 @@ export function AppShell() {
               {hasPermission("cadastro.assunto.write") ? (
                 <NavLink className={navLinkClassName} to="/pacotes-processos">
                   <PackagePlus className="h-4 w-4" />
-                  Pacotes de Processos
+                  Temas de Processos
                 </NavLink>
               ) : null}
               {hasPermission("admin.user.read") ? (

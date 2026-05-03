@@ -82,7 +82,7 @@ export function PacotesProcessosPage() {
       setAssuntos(nextAssuntos);
       setError("");
     } catch (nextError) {
-      setError(formatAppError(nextError, "Falha ao carregar pacotes."));
+      setError(formatAppError(nextError, "Falha ao carregar temas."));
     } finally {
       setLoading(false);
     }
@@ -129,32 +129,32 @@ export function PacotesProcessosPage() {
       setForm(EMPTY_FORM);
       await load();
     } catch (nextError) {
-      setSaveError(formatAppError(nextError, "Falha ao criar pacote."));
+      setSaveError(formatAppError(nextError, "Falha ao criar tema."));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <LoadingState title="Carregando pacotes" description="Preparando o cadastro de pacotes de processos." />;
+    return <LoadingState title="Carregando temas" description="Preparando o cadastro de temas de processos." />;
   }
 
   if (error) {
-    return <ErrorState title="Pacotes indisponiveis" description={error} />;
+    return <ErrorState title="Temas indisponiveis" description={error} />;
   }
 
   return (
     <section className="grid gap-6">
       <PageHeader
         eyebrow="Cadastros"
-        title="Pacotes de processos"
-        description="Agrupe assuntos em pacotes reutilizaveis para abrir processos em lote com menos repeticao manual."
+        title="Temas de processos"
+        description="Agrupe assuntos em temas reutilizaveis para abrir processos em lote com menos repeticao manual."
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Novo pacote</CardTitle>
+            <CardTitle>Novo tema</CardTitle>
             <CardDescription>
               Selecione os assuntos na ordem em que devem ser revisados na tela de criacao em lote.
             </CardDescription>
@@ -186,7 +186,7 @@ export function PacotesProcessosPage() {
               </FormField>
 
               <div className="grid gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
-                <p className="text-sm font-semibold text-slate-950">Assuntos do pacote</p>
+                <p className="text-sm font-semibold text-slate-950">Assuntos do tema</p>
                 {selectedAssuntos.length ? (
                   <div className="grid gap-2">
                     {selectedAssuntos.map((assunto, index) => (
@@ -221,7 +221,7 @@ export function PacotesProcessosPage() {
 
               <Button disabled={saving || form.nome.trim().length < 3 || form.assunto_ids.length === 0} type="submit">
                 <PackagePlus className="h-4 w-4" />
-                {saving ? "Salvando..." : "Criar pacote"}
+                {saving ? "Salvando..." : "Criar tema"}
               </Button>
             </form>
           </CardContent>
@@ -230,15 +230,15 @@ export function PacotesProcessosPage() {
         <Card>
           <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <CardTitle>Pacotes cadastrados</CardTitle>
+              <CardTitle>Temas cadastrados</CardTitle>
               <CardDescription>
-                Pacotes ativos aparecem na tela Processos em lote.
+                Temas ativos aparecem na tela Processos em lote.
               </CardDescription>
             </div>
             <Input
               className="md:w-80"
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar pacote ou assunto"
+              placeholder="Buscar tema ou assunto"
               value={query}
             />
           </CardHeader>
@@ -276,8 +276,8 @@ export function PacotesProcessosPage() {
               </div>
             ) : (
               <EmptyState
-                title="Nenhum pacote encontrado"
-                description="Crie um pacote com assuntos para reutilizar na abertura em lote."
+                title="Nenhum tema encontrado"
+                description="Crie um tema com assuntos para reutilizar na abertura em lote."
               />
             )}
           </CardContent>
