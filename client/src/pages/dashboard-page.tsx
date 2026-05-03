@@ -1073,7 +1073,7 @@ export function DashboardPage() {
                     <div
                       className={`absolute inset-y-0 left-0 w-1 ${deadlineState.markerClass}`}
                     />
-                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="grid gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold uppercase tracking-[0.24em] text-rose-600">
                           {task.preNumero}
@@ -1084,7 +1084,7 @@ export function DashboardPage() {
                           {task.descricao}
                         </h3>
                       </div>
-                      <div className="grid shrink-0 gap-2 justify-items-start md:justify-items-end">
+                      <div className="flex flex-wrap gap-2">
                         <span
                           className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${deadlineState.labelClass}`}
                         >
