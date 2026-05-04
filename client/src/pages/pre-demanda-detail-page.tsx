@@ -238,6 +238,34 @@ function formatTaskTimeLabel(
   return null;
 }
 
+function getTaskDueTimestamp(task: Pick<TarefaPendente, "prazoConclusao">) {
+  if (!task.prazoConclusao) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const timestamp = new Date(`${task.prazoConclusao}T00:00:00`).getTime();
+  return Number.isNaN(timestamp) ? Number.POSITIVE_INFINITY : timestamp;
+}
+
+function orderTasksByDueDate(tasks: TarefaPendente[]) {
+  return [...tasks].sort((left, right) => {
+    const dueDiff = getTaskDueTimestamp(left) - getTaskDueTimestamp(right);
+    if (dueDiff !== 0) return dueDiff;
+
+    const timeDiff = (left.horarioInicio ?? "").localeCompare(
+      right.horarioInicio ?? "",
+    );
+    if (timeDiff !== 0) return timeDiff;
+
+    const orderDiff = left.ordem - right.ordem;
+    if (orderDiff !== 0) return orderDiff;
+
+    return (
+      new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+    );
+  });
+}
+
 function formatDateTimePtBrSafe(value: unknown, fallback = "-") {
   if (typeof value !== "string" || !value.trim()) {
     return fallback;
@@ -983,7 +1011,7 @@ export function PreDemandaDetailPage() {
     [record],
   );
   const pendingTasks = useMemo(
-    () => tarefas.filter((item) => !item.concluida),
+    () => orderTasksByDueDate(tarefas.filter((item) => !item.concluida)),
     [tarefas],
   );
   const completedTasks = useMemo(
@@ -2583,13 +2611,13 @@ export function PreDemandaDetailPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {pendingTasks.map((task) => (
+                              {pendingTasks.map((task, index) => (
                                 <tr
                                   className="border-t border-slate-200"
                                   key={`table-${task.id}`}
                                 >
                                   <td className="px-4 py-3 font-semibold text-slate-950">
-                                    {task.ordem}
+                                    {index + 1}
                                   </td>
                                   <td className="px-4 py-3 text-slate-950">
                                     {task.descricao}

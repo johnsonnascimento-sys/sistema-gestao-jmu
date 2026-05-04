@@ -8,6 +8,7 @@ import type {
   PreDemanda,
   PreDemandaStatus,
   Setor,
+  TarefaPendente,
   TimelineEvent,
 } from "../types";
 import { PreDemandaDetailPage } from "./pre-demanda-detail-page";
@@ -193,6 +194,39 @@ function buildRecord(
   };
 }
 
+function buildTask(
+  id: string,
+  descricao: string,
+  prazoConclusao: string,
+  ordem: number,
+): TarefaPendente {
+  return {
+    id,
+    preId: "PRE-2026-001",
+    ordem,
+    descricao,
+    tipo: "livre",
+    urgente: false,
+    assuntoId: null,
+    procedimentoId: null,
+    prazoConclusao,
+    horarioInicio: null,
+    horarioFim: null,
+    recorrenciaTipo: null,
+    recorrenciaDiasSemana: null,
+    recorrenciaDiaMes: null,
+    prazoReferencia: null,
+    prazoData: null,
+    setorDestino: null,
+    geradaAutomaticamente: false,
+    concluida: false,
+    concluidaEm: null,
+    concluidaPor: null,
+    createdAt: `2026-04-${String(ordem).padStart(2, "0")}T09:00:00.000Z`,
+    createdBy: null,
+  };
+}
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="pathname">{location.pathname}</div>;
@@ -305,6 +339,27 @@ describe("PreDemandaDetailPage", () => {
 
     expect(await screen.findByText(/05\/05\/2099/)).toBeInTheDocument();
     expect(screen.getByText(/Audiencia atual/)).toBeInTheDocument();
+  });
+
+  it("exibe tarefas pendentes do prazo mais proximo para o mais distante", async () => {
+    apiMocks.listPreDemandaTarefas.mockResolvedValueOnce([
+      buildTask("task-late", "Tarefa com prazo distante", "2026-07-22", 1),
+      buildTask("task-middle", "Tarefa com prazo intermediario", "2026-07-07", 2),
+      buildTask("task-soon", "Tarefa com prazo mais proximo", "2026-05-05", 3),
+    ]);
+
+    renderPage();
+
+    const soon = await screen.findByText("Tarefa com prazo mais proximo");
+    const middle = await screen.findByText("Tarefa com prazo intermediario");
+    const late = await screen.findByText("Tarefa com prazo distante");
+
+    expect(
+      soon.compareDocumentPosition(middle) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      middle.compareDocumentPosition(late) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("habilita concluir sem recarregar a pagina ao salvar audiencia como realizada", async () => {
