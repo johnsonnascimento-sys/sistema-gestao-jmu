@@ -14,6 +14,7 @@ const ROLE_PERMISSIONS: Record<UserRole, AppPermission[]> = {
     "pre_demanda.manage_tramitacao",
     "pre_demanda.manage_tarefas",
     "pre_demanda.manage_audiencias",
+    "pre_demanda.delete",
     "cadastro.interessado.read",
     "cadastro.interessado.write",
     "cadastro.setor.read",

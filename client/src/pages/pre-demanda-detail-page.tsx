@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Send,
   StickyNote,
+  Trash2,
   UserPlus,
   Users,
   X,
@@ -89,11 +90,13 @@ import {
   createPreDemandaComentario,
   createPreDemandaDocumento,
   createPreDemanda,
+  deletePreDemanda,
   createPreDemandaTarefa,
   duplicatePreDemanda,
   downloadPreDemandaDocumento,
   formatAppError,
   getPreDemanda,
+  getPreDemandaDeletePreview,
   getTimeline,
   listPreDemandaAssuntos,
   listPreDemandaAssuntosCatalogo,
@@ -152,6 +155,7 @@ import type {
   AudienciaSituacao,
   Interessado,
   PreDemanda,
+  PreDemandaDeletePreview,
   PreDemandaStatus,
   Setor,
   TaskScheduleSuggestion,
@@ -182,6 +186,25 @@ const AUDIENCIA_SITUACOES_ENCERRADAS = new Set<AudienciaSituacao>([
   "cancelada",
   "realizada",
 ]);
+
+const DELETE_IMPACT_LABELS: Array<{
+  key: keyof PreDemandaDeletePreview["impact"];
+  label: string;
+}> = [
+  { key: "tarefas", label: "Tarefas" },
+  { key: "andamentos", label: "Andamentos" },
+  { key: "assuntos", label: "Assuntos" },
+  { key: "interessados", label: "Pessoas" },
+  { key: "vinculos", label: "Vinculos" },
+  { key: "comentarios", label: "Comentarios" },
+  { key: "documentos", label: "Documentos" },
+  { key: "tramitacoes", label: "Tramitacoes" },
+  { key: "audiencias", label: "Audiencias" },
+  { key: "statusAuditorias", label: "Auditorias de status" },
+  { key: "seiAuditorias", label: "Auditorias SEI" },
+  { key: "seiVinculos", label: "Vinculos SEI" },
+  { key: "numerosJudiciais", label: "Numeros judiciais" },
+];
 
 function isAudienciaAtiva(audiencia: Audiencia) {
   return !AUDIENCIA_SITUACOES_ENCERRADAS.has(audiencia.situacao);
@@ -327,6 +350,14 @@ export function PreDemandaDetailPage() {
   const [toolbarDialog, setToolbarDialog] = useState<ToolbarDialog>(null);
   const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
   const [duplicateAction, setDuplicateAction] = useState(false);
+  const [deleteAction, setDeleteAction] = useState(false);
+  const [deletePreview, setDeletePreview] =
+    useState<PreDemandaDeletePreview | null>(null);
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false);
+  const [deleteForm, setDeleteForm] = useState({
+    motivo: "",
+    confirmacao: "",
+  });
   const [editingAndamento, setEditingAndamento] = useState<Andamento | null>(
     null,
   );
@@ -634,6 +665,46 @@ export function PreDemandaDetailPage() {
       return nextTarefas;
     } finally {
       setTarefasLoading(false);
+    }
+  }
+
+  async function openDeleteDialog() {
+    setDeleteAction(true);
+    setDeletePreview(null);
+    setDeleteForm({ motivo: "", confirmacao: "" });
+    setDeletePreviewLoading(true);
+    try {
+      const preview = await getPreDemandaDeletePreview(preId);
+      setDeletePreview(preview);
+      setError("");
+    } catch (nextError) {
+      setError(
+        formatAppError(
+          nextError,
+          "Falha ao carregar o resumo da exclusao.",
+        ),
+      );
+      setDeleteAction(false);
+    } finally {
+      setDeletePreviewLoading(false);
+    }
+  }
+
+  async function confirmDeleteProcess() {
+    if (!deletePreview) return;
+    setIsSubmitting(true);
+    try {
+      await deletePreDemanda(preId, deleteForm);
+      setDeleteAction(false);
+      navigate("/processos", {
+        state: { message: `Processo ${deletePreview.preId} excluido.` },
+      });
+    } catch (nextError) {
+      setError(
+        formatAppError(nextError, "Falha ao excluir processo definitivamente."),
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -1625,6 +1696,16 @@ export function PreDemandaDetailPage() {
               label="Duplicar"
               onClick={() => setDuplicateAction(true)}
               title="Criar uma nova demanda a partir dos dados principais deste processo"
+            />
+          ) : null}
+          {hasPermission("pre_demanda.delete") ? (
+            <ToolbarActionButton
+              disabled={isSubmitting}
+              icon={Trash2}
+              label="Excluir"
+              onClick={openDeleteDialog}
+              title="Excluir definitivamente este processo"
+              variant="destructive"
             />
           ) : null}
           <ToolbarActionButton
@@ -5250,6 +5331,111 @@ export function PreDemandaDetailPage() {
             : undefined
         }
       />
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteAction(false);
+            setDeletePreview(null);
+            setDeleteForm({ motivo: "", confirmacao: "" });
+          }
+        }}
+        open={deleteAction}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Excluir processo definitivamente</DialogTitle>
+            <DialogDescription>
+              Esta acao apaga o processo e seus vinculos operacionais. A
+              recuperacao depende de backup.
+            </DialogDescription>
+          </DialogHeader>
+          {deletePreviewLoading ? (
+            <div className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Carregando resumo da exclusao.
+            </div>
+          ) : deletePreview ? (
+            <div className="grid gap-4">
+              <div className="grid gap-2 rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                <p className="font-semibold">{deletePreview.preId}</p>
+                <p>{deletePreview.assunto}</p>
+                <p>Solicitante: {deletePreview.solicitante}</p>
+                <p>Status: {getPreDemandaStatusLabel(deletePreview.status)}</p>
+                {deletePreview.seiNumero ? (
+                  <p>SEI: {deletePreview.seiNumero}</p>
+                ) : null}
+                {deletePreview.numeroJudicial ? (
+                  <p>Numero judicial: {deletePreview.numeroJudicial}</p>
+                ) : null}
+              </div>
+              <div className="grid gap-2 rounded-[20px] border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                  Itens que serao apagados por cascata
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {DELETE_IMPACT_LABELS.map((item) => (
+                    <div
+                      className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 text-sm"
+                      key={item.key}
+                    >
+                      <span className="text-slate-600">{item.label}</span>
+                      <span className="font-semibold text-slate-950">
+                        {deletePreview.impact[item.key]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <FormField label="Motivo da exclusao">
+                <Textarea
+                  onChange={(event) =>
+                    setDeleteForm((current) => ({
+                      ...current,
+                      motivo: event.target.value,
+                    }))
+                  }
+                  placeholder="Explique por que este processo deve ser excluido."
+                  value={deleteForm.motivo}
+                />
+              </FormField>
+              <FormField label={`Digite ${deletePreview.preId} para confirmar`}>
+                <Input
+                  onChange={(event) =>
+                    setDeleteForm((current) => ({
+                      ...current,
+                      confirmacao: event.target.value,
+                    }))
+                  }
+                  placeholder={deletePreview.preId}
+                  value={deleteForm.confirmacao}
+                />
+              </FormField>
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              onClick={() => setDeleteAction(false)}
+              type="button"
+              variant="ghost"
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={
+                !deletePreview ||
+                deleteForm.motivo.trim().length < 3 ||
+                deleteForm.confirmacao.trim() !== deletePreview.preId ||
+                isSubmitting
+              }
+              onClick={() => void confirmDeleteProcess()}
+              type="button"
+              variant="destructive"
+            >
+              Excluir definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         onOpenChange={(open) => !open && setDuplicateAction(false)}

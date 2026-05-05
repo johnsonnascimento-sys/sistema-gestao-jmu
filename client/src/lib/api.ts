@@ -22,6 +22,7 @@ import type {
   Norma,
   PreDemanda,
   PreDemandaAuditRecord,
+  PreDemandaDeletePreview,
   GlobalAuditRecord,
   PreDemandaDashboardSummary,
   PreDemandaLoteResult,
@@ -534,6 +535,26 @@ export function removePreDemandaAssunto(preId: string, assuntoId: string) {
 
 export function getPreDemanda(preId: string) {
   return request<PreDemanda>(buildPreDemandaApiPath(preId));
+}
+
+export function getPreDemandaDeletePreview(preId: string) {
+  return request<PreDemandaDeletePreview>(
+    buildPreDemandaApiPath(preId, "/exclusao-preview"),
+  );
+}
+
+export function deletePreDemanda(
+  preId: string,
+  payload: { motivo: string; confirmacao: string },
+) {
+  return request<{
+    id: number;
+    preId: string;
+    deletedAt: string;
+  }>(buildPreDemandaApiPath(preId), {
+    method: "DELETE",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function updatePreDemandaCase(

@@ -9,6 +9,7 @@ import { buildApp } from "./app";
 import { hashPassword } from "./auth/password";
 import type { AppConfig } from "./config";
 import type { DatabasePool } from "./db";
+import { AppError } from "./errors";
 import { buildQueueHealth, type QueueHealthThresholds } from "./domain/queue-health";
 import { getAllowedNextStatuses } from "./domain/pre-demanda-status";
 import type {
@@ -30,6 +31,8 @@ import type {
   Norma,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
+  PreDemandaDeleteAuditRecord,
+  PreDemandaDeletePreview,
   PreDemandaDetail,
   PreDemandaLoteResult,
   PreDemandaMetadata,
@@ -61,6 +64,7 @@ import type {
   CreatePreDemandaResult,
   CreatePreDemandaPacoteInput,
   CreatePreDemandasLoteInput,
+  DeletePreDemandaInput,
   CreateInteressadoInput,
   CreateAssuntoInput,
   CreateNormaInput,
@@ -413,6 +417,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
   private pacotes: PreDemandaPacote[] = [];
   private audit: PreDemandaAuditRecord[] = [];
   private statusAudit: PreDemandaStatusAuditRecord[] = [];
+  private deleteAudit: PreDemandaDeleteAuditRecord[] = [];
   private andamentos: Andamento[] = [];
   private nextId = 1;
   private nextPacoteId = 1;
@@ -846,6 +851,72 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     this.nextId += 1;
     this.records.unshift(clone);
     return clone;
+  }
+
+  async getDeletePreview(preId: string): Promise<PreDemandaDeletePreview | null> {
+    const record = this.records.find((item) => item.preId === preId);
+    if (!record) {
+      return null;
+    }
+
+    return {
+      preId: record.preId,
+      assunto: record.assunto,
+      solicitante: record.solicitante,
+      status: record.status,
+      seiNumero: record.currentAssociation?.seiNumero ?? record.seiAssociations[0]?.seiNumero ?? null,
+      numeroJudicial: record.numeroJudicial ?? record.numerosJudiciais[0]?.numero ?? null,
+      impact: {
+        tarefas: record.tarefasPendentes.length,
+        andamentos: this.andamentos.filter((item) => item.preId === record.preId).length,
+        assuntos: record.assuntos.length,
+        interessados: record.interessados.length,
+        vinculos: record.vinculos.length,
+        comentarios: record.comentarios.length,
+        documentos: record.documentos.length,
+        tramitacoes: record.setoresAtivos.length,
+        audiencias: record.audiencias?.length ?? 0,
+        statusAuditorias: this.statusAudit.filter((item) => item.preId === record.preId).length,
+        seiAuditorias: this.audit.filter((item) => item.preId === record.preId).length,
+        seiVinculos: record.seiAssociations.length,
+        numerosJudiciais: record.numerosJudiciais.length,
+      },
+    };
+  }
+
+  async delete(input: DeletePreDemandaInput): Promise<PreDemandaDeleteAuditRecord> {
+    const preview = await this.getDeletePreview(input.preId);
+    if (!preview) {
+      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+    }
+    if (input.motivo.trim().length < 3) {
+      throw new AppError(400, "PRE_DEMANDA_DELETE_REASON_REQUIRED", "Informe o motivo da exclusao.");
+    }
+    if (input.confirmacao.trim() !== input.preId) {
+      throw new AppError(400, "PRE_DEMANDA_DELETE_CONFIRMATION_INVALID", "Confirmacao invalida para exclusao definitiva.");
+    }
+
+    const audit: PreDemandaDeleteAuditRecord = {
+      ...preview,
+      id: this.nextAuditId++,
+      motivo: input.motivo.trim(),
+      confirmacao: input.confirmacao.trim(),
+      deletedByUserId: input.changedByUserId,
+      deletedByName: input.changedByUserId === 2 ? "Admin JMU" : "Usuario",
+      deletedByEmail: input.changedByUserId === 2 ? "admin@jmu.local" : "usuario@jmu.local",
+      deletedAt: new Date().toISOString(),
+    };
+
+    this.deleteAudit.unshift(audit);
+    this.records = this.records.filter((item) => item.preId !== input.preId);
+    this.andamentos = this.andamentos.filter((item) => item.preId !== input.preId);
+    this.audit = this.audit.filter((item) => item.preId !== input.preId);
+    this.statusAudit = this.statusAudit.filter((item) => item.preId !== input.preId);
+    return audit;
+  }
+
+  listDeleteAudit(limit = 50) {
+    return this.deleteAudit.slice(0, limit);
   }
 
   async list(params: ListPreDemandasParams): Promise<ListPreDemandasResult> {
@@ -2770,6 +2841,22 @@ describe("Gestor JMU API", () => {
         };
       }
 
+      if (sql.includes("pre_demanda_delete_audit")) {
+        return {
+          rows: preDemandaRepository.listDeleteAudit(50).map((item) => ({
+            type: "delete",
+            id: item.id,
+            preId: item.preId,
+            valorAnterior: item.status,
+            valorNovo: null,
+            motivo: item.motivo,
+            observacoes: JSON.stringify(item.impact),
+            registradoEm: item.deletedAt,
+            changedByName: item.deletedByName,
+          })),
+        };
+      }
+
       return { rows: [{ "?column?": 1 }] };
     },
     end: async () => undefined,
@@ -3076,6 +3163,98 @@ describe("Gestor JMU API", () => {
       (preDemandaRepository as unknown as { nextId: number }).nextId = repositorySnapshot.nextId;
       (preDemandaRepository as unknown as { nextAuditId: number }).nextAuditId = repositorySnapshot.nextAuditId;
     }
+  });
+
+  it("deletes a pre-demanda permanently only for admin and keeps delete audit", async () => {
+    const adminLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: "admin@jmu.local", password: "Senha1234" },
+    });
+    const adminCookie = `${adminLogin.cookies[0]?.name}=${adminLogin.cookies[0]?.value}`;
+
+    const operatorLogin = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: "operador@jmu.local", password: "Senha1234" },
+    });
+    const operatorCookie = `${operatorLogin.cookies[0]?.name}=${operatorLogin.cookies[0]?.value}`;
+
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie: adminCookie },
+      payload: {
+        solicitante: "Exclusao Segura",
+        assunto: "Processo temporario para exclusao",
+        data_referencia: "2026-04-15",
+        prazo_processo: "2026-04-30",
+      },
+    });
+    const preId = created.json().data.preId as string;
+
+    const operatorPreview = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${preId}/exclusao-preview`,
+      headers: { cookie: operatorCookie },
+    });
+    expect(operatorPreview.statusCode).toBe(403);
+
+    const operatorDelete = await app.inject({
+      method: "DELETE",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie: operatorCookie },
+      payload: { motivo: "Cadastro duplicado.", confirmacao: preId },
+    });
+    expect(operatorDelete.statusCode).toBe(403);
+
+    const preview = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${preId}/exclusao-preview`,
+      headers: { cookie: adminCookie },
+    });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.json().data.preId).toBe(preId);
+
+    const invalidConfirmation = await app.inject({
+      method: "DELETE",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie: adminCookie },
+      payload: { motivo: "Cadastro duplicado.", confirmacao: "EXCLUIR" },
+    });
+    expect(invalidConfirmation.statusCode).toBe(400);
+
+    const notFound = await app.inject({
+      method: "DELETE",
+      url: "/api/pre-demandas/PRE-NAO-EXISTE",
+      headers: { cookie: adminCookie },
+      payload: { motivo: "Cadastro duplicado.", confirmacao: "PRE-NAO-EXISTE" },
+    });
+    expect(notFound.statusCode).toBe(404);
+
+    const deleted = await app.inject({
+      method: "DELETE",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie: adminCookie },
+      payload: { motivo: "Cadastro duplicado.", confirmacao: preId },
+    });
+    expect(deleted.statusCode).toBe(200);
+    expect(deleted.json().data.preId).toBe(preId);
+
+    const detailAfterDelete = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie: adminCookie },
+    });
+    expect(detailAfterDelete.statusCode).toBe(404);
+
+    const audit = await app.inject({
+      method: "GET",
+      url: "/api/admin/auditoria?limit=10",
+      headers: { cookie: adminCookie },
+    });
+    expect(audit.statusCode).toBe(200);
+    expect(audit.json().data.some((item: { type: string; preId: string }) => item.type === "delete" && item.preId === preId)).toBe(true);
   });
 
   it("filters list by status and records audit on reassociation", async () => {

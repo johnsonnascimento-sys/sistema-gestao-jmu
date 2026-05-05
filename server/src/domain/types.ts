@@ -14,6 +14,7 @@ export type AppPermission =
   | "pre_demanda.manage_tramitacao"
   | "pre_demanda.manage_tarefas"
   | "pre_demanda.manage_audiencias"
+  | "pre_demanda.delete"
   | "cadastro.interessado.read"
   | "cadastro.interessado.write"
   | "cadastro.setor.read"
@@ -97,6 +98,41 @@ export interface AdminUserAuditRecord {
 }
 
 export type PreDemandaStatus = "em_andamento" | "aguardando_sei" | "encerrada";
+export interface PreDemandaDeleteImpact {
+  tarefas: number;
+  andamentos: number;
+  assuntos: number;
+  interessados: number;
+  vinculos: number;
+  comentarios: number;
+  documentos: number;
+  tramitacoes: number;
+  audiencias: number;
+  statusAuditorias: number;
+  seiAuditorias: number;
+  seiVinculos: number;
+  numerosJudiciais: number;
+}
+
+export interface PreDemandaDeletePreview {
+  preId: string;
+  assunto: string;
+  solicitante: string;
+  status: PreDemandaStatus;
+  seiNumero: string | null;
+  numeroJudicial: string | null;
+  impact: PreDemandaDeleteImpact;
+}
+
+export interface PreDemandaDeleteAuditRecord extends PreDemandaDeletePreview {
+  id: number;
+  motivo: string;
+  confirmacao: string;
+  deletedByUserId: number | null;
+  deletedByName: string;
+  deletedByEmail: string;
+  deletedAt: string;
+}
 export type PreDemandaSortBy =
   | "updatedAt"
   | "createdAt"

@@ -57,6 +57,20 @@ export async function registerAuditRoutes(app: FastifyInstance, options: { pool:
       FROM adminlog.admin_user_audit audit
       LEFT JOIN adminlog.app_user actor ON actor.id = audit.actor_user_id
 
+      UNION ALL
+
+      SELECT
+        'delete' as type,
+        audit.id,
+        audit.pre_id as "preId",
+        audit.status as "valorAnterior",
+        null as "valorNovo",
+        audit.motivo,
+        audit.snapshot::text as observacoes,
+        audit.deleted_at as "registradoEm",
+        audit.deleted_by_name as "changedByName"
+      FROM adminlog.pre_demanda_delete_audit audit
+
       ORDER BY "registradoEm" DESC
       LIMIT $1;
     `, [limit]);

@@ -86,7 +86,7 @@ export function ToolbarActionButton({
   title: string;
   onClick: () => void;
   disabled?: boolean;
-  variant?: "secondary" | "ghost";
+  variant?: "secondary" | "ghost" | "destructive";
 }) {
   return (
     <Button

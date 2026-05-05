@@ -10,7 +10,7 @@ import {
 } from "../components/ui/card";
 import { listAdminAudit, formatAppError } from "../lib/api";
 import type { GlobalAuditRecord } from "../types";
-import { ArrowUpDown, Link, User, HelpCircle, History } from "lucide-react";
+import { ArrowUpDown, Link, User, HelpCircle, History, Trash2 } from "lucide-react";
 import { Link as RouterLink } from "react-router-dom";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 
@@ -44,6 +44,8 @@ export function AdminAuditPage() {
         return <Link className="h-4 w-4 text-blue-500" />;
       case "user":
         return <User className="h-4 w-4 text-emerald-500" />;
+      case "delete":
+        return <Trash2 className="h-4 w-4 text-rose-500" />;
       default:
         return <HelpCircle className="h-4 w-4 text-slate-400" />;
     }
@@ -57,6 +59,8 @@ export function AdminAuditPage() {
         return `Associou SEI: ${item.valorNovo || "Nenhum"} (Anterior: ${item.valorAnterior || "Nenhum"}).`;
       case "user":
         return `Alteração de usuário: ${item.motivo || "Ação administrativa"} (${item.valorAnterior || "-"} -> ${item.valorNovo || "-"})`;
+      case "delete":
+        return `Excluiu definitivamente o processo ${item.preId}. Status anterior: ${item.valorAnterior || "-"}.`;
       default:
         return "Alteração registada.";
     }
@@ -109,6 +113,12 @@ export function AdminAuditPage() {
         >
           Usuários
         </button>
+        <button
+          onClick={() => setFilterType("delete")}
+          className={`px-4 py-2 rounded-xl text-sm font-medium ${filterType === "delete" ? "bg-rose-100 text-rose-800" : "bg-white border hover:bg-slate-50"}`}
+        >
+          Exclusoes
+        </button>
       </div>
 
       <Card>
@@ -155,7 +165,7 @@ export function AdminAuditPage() {
                   </p>
                 )}
 
-                {item.type !== "user" && item.preId && (
+                {item.type !== "user" && item.type !== "delete" && item.preId && (
                   <div className="mt-1">
                     <RouterLink
                       className="text-xs font-medium text-blue-600 hover:underline"

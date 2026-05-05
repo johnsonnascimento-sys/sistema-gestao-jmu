@@ -40,6 +40,7 @@ export function App() {
                 <Route element={<DashboardPage />} path="/dashboard" />
                 <Route element={<TarefasPage />} path="/tarefas" />
                 <Route element={<AudienciasPautaPage />} path="/pauta-audiencias" />
+                <Route element={<PreDemandasPage />} path="/processos" />
                 <Route element={<PreDemandasPage />} path="/pre-demandas" />
                 <Route element={<NewPreDemandaPage />} path="/pre-demandas/nova" />
                 <Route element={<PreDemandaDetailPage />} path="/pre-demandas/:preId" />

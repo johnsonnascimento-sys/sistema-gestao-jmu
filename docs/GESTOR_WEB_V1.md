@@ -70,6 +70,8 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - `POST /api/pre-demandas/lote`
 - `GET /api/pre-demandas/timeline/recentes`
 - `GET /api/pre-demandas/:preId`
+- `GET /api/pre-demandas/:preId/exclusao-preview`
+- `DELETE /api/pre-demandas/:preId`
 - `PATCH /api/pre-demandas/:preId/status`
 - `POST /api/pre-demandas/:preId/associacoes-sei`
 - `GET /api/pre-demandas/:preId/auditoria`
@@ -93,5 +95,6 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
   - `Em risco`: `QUEUE_CRITICAL_DAYS` dias ou mais sem movimentacao
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
+- Exclusao definitiva de processo/demanda restrita a admin, com preview de impacto, confirmacao por `pre_id` e auditoria permanente em `pre_demanda_delete_audit`
 
 Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. O banco operacional atual tambem nao depende de `pgvector` nem de artefatos de embeddings. A producao usa PostgreSQL local na VPS, com o Supabase apenas como contingencia temporaria apos o cutover.

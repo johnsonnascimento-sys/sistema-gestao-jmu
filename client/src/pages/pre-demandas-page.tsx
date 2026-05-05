@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { MetricCard } from "../components/metric-card";
 import { PageHeader } from "../components/page-header";
@@ -27,6 +27,7 @@ import {
 } from "./pre-demandas-utils";
 
 export function PreDemandasPage() {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<PreDemanda[]>([]);
   const [counts, setCounts] = useState<StatusCount[]>([]);
@@ -79,6 +80,20 @@ export function PreDemandasPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const nextMessage =
+      typeof location.state === "object" &&
+      location.state !== null &&
+      "message" in location.state &&
+      typeof location.state.message === "string"
+        ? location.state.message
+        : "";
+    if (nextMessage) {
+      setMessage(nextMessage);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const handleUpdate = () => {

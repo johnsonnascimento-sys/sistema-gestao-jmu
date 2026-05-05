@@ -102,6 +102,11 @@ const associateSchema = z.object({
   observacoes: z.string().trim().max(2000).optional().nullable(),
 });
 
+const deletePreDemandaSchema = z.object({
+  motivo: z.string().trim().min(3).max(2000),
+  confirmacao: z.string().trim().min(1).max(120),
+});
+
 const statusSchema = z.object({
   status: z.enum(STATUSES),
   motivo: z.string().trim().max(2000).optional().nullable(),
@@ -636,6 +641,49 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.status(result.createdCount > 0 ? 201 : 200).send({
       ok: true,
       data: result,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/:preId/exclusao-preview", { preHandler: [app.authenticate, app.authorize("pre_demanda.delete")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const preview = await preDemandaRepository.getDeletePreview(params.preId);
+
+    if (!preview) {
+      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Demanda nÃ£o encontrada.");
+    }
+
+    return reply.send({
+      ok: true,
+      data: preview,
+      error: null,
+    });
+  });
+
+  app.delete("/api/pre-demandas/:preId", { preHandler: [app.authenticate, app.authorize("pre_demanda.delete")] }, async (request, reply) => {
+    const params = z.object({ preId: z.string().trim().min(1) }).parse(request.params);
+    const payload = deletePreDemandaSchema.parse(request.body);
+    const audit = await preDemandaRepository.delete({
+      preId: params.preId,
+      motivo: payload.motivo,
+      confirmacao: payload.confirmacao,
+      changedByUserId: request.user!.id,
+    });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "status", action: "delete" });
+
+    request.log.warn(
+      {
+        userId: request.user?.id,
+        preId: params.preId,
+        auditId: audit.id,
+      },
+      "pre-demanda.delete",
+    );
+
+    return reply.send({
+      ok: true,
+      data: audit,
       error: null,
     });
   });

@@ -16,6 +16,8 @@ import type {
   Interessado,
   PreDemandaAuditRecord,
   PreDemandaDashboardSummary,
+  PreDemandaDeleteAuditRecord,
+  PreDemandaDeletePreview,
   PreDemandaDetail,
   PreDemandaLoteResult,
   PreDemandaMetadata,
@@ -53,6 +55,7 @@ import type {
   CreatePreDemandaInput,
   CreatePreDemandaResult,
   CreatePreDemandasLoteInput,
+  DeletePreDemandaInput,
   DuplicatePreDemandaInput,
   CreateTarefaInput,
   DocumentoDownloadResult,
@@ -1766,6 +1769,151 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return row ? this.hydrateDetail(queryable, row, queueHealthThresholds) : null;
   }
 
+  private async loadDeletePreviewByInternalId(queryable: Queryable, preDemandaId: number): Promise<PreDemandaDeletePreview | null> {
+    const result = await queryable.query(
+      `
+        select
+          pd.pre_id,
+          pd.assunto,
+          pd.solicitante,
+          pd.status,
+          coalesce(pts.sei_numero, dsv.sei_numero) as sei_numero,
+          coalesce(pd.numero_judicial, dnj.numero_judicial) as numero_judicial,
+          (
+            select count(*)::int
+            from adminlog.tarefas_pendentes tarefa
+            where tarefa.pre_demanda_id = pd.id
+          ) as tarefas,
+          (
+            select count(*)::int
+            from adminlog.andamentos andamento
+            where andamento.pre_demanda_id = pd.id
+          ) as andamentos,
+          (
+            select count(*)::int
+            from adminlog.demanda_assuntos assunto
+            where assunto.pre_demanda_id = pd.id
+          ) as assuntos,
+          (
+            select count(*)::int
+            from adminlog.demanda_interessados interessado
+            where interessado.pre_demanda_id = pd.id
+          ) as interessados,
+          (
+            select count(*)::int
+            from adminlog.demanda_vinculos vinculo
+            where vinculo.origem_pre_demanda_id = pd.id
+               or vinculo.destino_pre_demanda_id = pd.id
+          ) as vinculos,
+          (
+            select count(*)::int
+            from adminlog.demanda_comentarios comentario
+            where comentario.pre_demanda_id = pd.id
+          ) as comentarios,
+          (
+            select count(*)::int
+            from adminlog.demanda_documentos documento
+            where documento.pre_demanda_id = pd.id
+          ) as documentos,
+          (
+            select count(*)::int
+            from adminlog.demanda_setores_fluxo fluxo
+            where fluxo.pre_demanda_id = pd.id
+          ) as tramitacoes,
+          (
+            select count(*)::int
+            from adminlog.demanda_audiencias_judiciais audiencia
+            where audiencia.pre_demanda_id = pd.id
+          ) as audiencias,
+          (
+            select count(*)::int
+            from adminlog.pre_demanda_status_audit audit
+            where audit.pre_id = pd.pre_id
+          ) as status_auditorias,
+          (
+            select count(*)::int
+            from adminlog.pre_to_sei_link_audit audit
+            where audit.pre_id = pd.pre_id
+          ) as sei_auditorias,
+          (
+            (
+              select count(*)::int
+              from adminlog.pre_to_sei_link link
+              where link.pre_id = pd.pre_id
+            ) + (
+              select count(*)::int
+              from adminlog.demanda_sei_vinculos vinculo
+              where vinculo.pre_demanda_id = pd.id
+            )
+          ) as sei_vinculos,
+          (
+            select count(*)::int
+            from adminlog.demanda_numeros_judiciais numero
+            where numero.pre_demanda_id = pd.id
+          ) as numeros_judiciais
+        from adminlog.pre_demanda pd
+        left join lateral (
+          select link.sei_numero
+          from adminlog.pre_to_sei_link link
+          where link.pre_id = pd.pre_id
+          order by link.updated_at desc, link.id desc
+          limit 1
+        ) pts on true
+        left join lateral (
+          select vinculo.sei_numero
+          from adminlog.demanda_sei_vinculos vinculo
+          where vinculo.pre_demanda_id = pd.id
+          order by vinculo.principal desc, vinculo.created_at desc, vinculo.id desc
+          limit 1
+        ) dsv on true
+        left join lateral (
+          select numero.numero_judicial
+          from adminlog.demanda_numeros_judiciais numero
+          where numero.pre_demanda_id = pd.id
+          order by numero.principal desc, numero.created_at desc, numero.id desc
+          limit 1
+        ) dnj on true
+        where pd.id = $1
+        limit 1
+      `,
+      [preDemandaId],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      preId: String(row.pre_id),
+      assunto: String(row.assunto),
+      solicitante: String(row.solicitante),
+      status: row.status as PreDemandaStatus,
+      seiNumero: row.sei_numero ? String(row.sei_numero) : null,
+      numeroJudicial: row.numero_judicial ? String(row.numero_judicial) : null,
+      impact: {
+        tarefas: Number(row.tarefas ?? 0),
+        andamentos: Number(row.andamentos ?? 0),
+        assuntos: Number(row.assuntos ?? 0),
+        interessados: Number(row.interessados ?? 0),
+        vinculos: Number(row.vinculos ?? 0),
+        comentarios: Number(row.comentarios ?? 0),
+        documentos: Number(row.documentos ?? 0),
+        tramitacoes: Number(row.tramitacoes ?? 0),
+        audiencias: Number(row.audiencias ?? 0),
+        statusAuditorias: Number(row.status_auditorias ?? 0),
+        seiAuditorias: Number(row.sei_auditorias ?? 0),
+        seiVinculos: Number(row.sei_vinculos ?? 0),
+        numerosJudiciais: Number(row.numeros_judiciais ?? 0),
+      },
+    };
+  }
+
+  async getDeletePreview(preId: string): Promise<PreDemandaDeletePreview | null> {
+    const resolved = await resolvePreDemanda(this.pool, preId);
+    return this.loadDeletePreviewByInternalId(this.pool, resolved.id);
+  }
+
   private async insertAndamento(
     queryable: Queryable,
     input: {
@@ -2717,6 +2865,106 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
       this.invalidateDashboardCaches();
       return record;
+    });
+  }
+
+  async delete(input: DeletePreDemandaInput): Promise<PreDemandaDeleteAuditRecord> {
+    const motivo = input.motivo.trim();
+    const confirmacao = input.confirmacao.trim();
+
+    if (motivo.length < 3) {
+      throw new AppError(400, "PRE_DEMANDA_DELETE_REASON_REQUIRED", "Informe o motivo da exclusao.");
+    }
+
+    if (confirmacao !== input.preId) {
+      throw new AppError(400, "PRE_DEMANDA_DELETE_CONFIRMATION_INVALID", "Confirmacao invalida para exclusao definitiva.");
+    }
+
+    return inTransaction(this.pool, async (client) => {
+      const locked = await client.query(
+        `
+          select id, pre_id
+          from adminlog.pre_demanda
+          where pre_id = $1
+          for update
+        `,
+        [input.preId],
+      );
+
+      if (!locked.rows[0]) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
+
+      const preDemandaId = Number(locked.rows[0].id);
+      const preId = String(locked.rows[0].pre_id);
+      const preview = await this.loadDeletePreviewByInternalId(client, preDemandaId);
+      if (!preview) {
+        throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+      }
+
+      const actorResult = await client.query(
+        `
+          select id, email, name
+          from adminlog.app_user
+          where id = $1
+          limit 1
+        `,
+        [input.changedByUserId],
+      );
+      const actor = actorResult.rows[0];
+      if (!actor) {
+        throw new AppError(404, "USER_NOT_FOUND", "Usuario nao encontrado.");
+      }
+
+      const auditResult = await client.query(
+        `
+          insert into adminlog.pre_demanda_delete_audit (
+            pre_id,
+            assunto,
+            solicitante,
+            status,
+            sei_numero,
+            numero_judicial,
+            motivo,
+            confirmacao,
+            snapshot,
+            deleted_by_user_id,
+            deleted_by_name,
+            deleted_by_email
+          )
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12)
+          returning id, deleted_at
+        `,
+        [
+          preview.preId,
+          preview.assunto,
+          preview.solicitante,
+          preview.status,
+          preview.seiNumero,
+          preview.numeroJudicial,
+          motivo,
+          confirmacao,
+          JSON.stringify(preview.impact),
+          input.changedByUserId,
+          String(actor.name),
+          String(actor.email),
+        ],
+      );
+
+      await client.query("delete from adminlog.pre_demanda where id = $1", [preDemandaId]);
+
+      this.invalidateDashboardCaches();
+      return {
+        ...preview,
+        id: Number(auditResult.rows[0].id),
+        motivo,
+        confirmacao,
+        deletedByUserId: input.changedByUserId,
+        deletedByName: String(actor.name),
+        deletedByEmail: String(actor.email),
+        deletedAt: new Date(auditResult.rows[0].deleted_at).toISOString(),
+        preId,
+      };
     });
   }
 

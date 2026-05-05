@@ -22,6 +22,8 @@ import type {
   Norma,
   PreDemandaDashboardSummary,
   PreDemandaAuditRecord,
+  PreDemandaDeleteAuditRecord,
+  PreDemandaDeletePreview,
   PreDemandaDetail,
   PreDemandaLoteResult,
   PreDemandaMetadata,
@@ -92,6 +94,13 @@ export interface CreatePreDemandaResult {
 
 export interface DuplicatePreDemandaInput {
   preId: string;
+  changedByUserId: number;
+}
+
+export interface DeletePreDemandaInput {
+  preId: string;
+  motivo: string;
+  confirmacao: string;
   changedByUserId: number;
 }
 
@@ -607,6 +616,8 @@ export interface PreDemandaRepository {
   updatePacote(input: UpdatePreDemandaPacoteInput): Promise<PreDemandaPacote>;
   createLote(input: CreatePreDemandasLoteInput): Promise<PreDemandaLoteResult>;
   duplicate(input: DuplicatePreDemandaInput): Promise<PreDemandaDetail>;
+  getDeletePreview(preId: string): Promise<PreDemandaDeletePreview | null>;
+  delete(input: DeletePreDemandaInput): Promise<PreDemandaDeleteAuditRecord>;
   list(params: ListPreDemandasParams): Promise<ListPreDemandasResult>;
   getStatusCounts(): Promise<Array<{ status: PreDemandaStatus; total: number }>>;
   getByPreId(preId: string): Promise<PreDemandaDetail | null>;
