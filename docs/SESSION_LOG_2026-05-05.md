@@ -9,3 +9,9 @@
 **Validacao:** `npm run build:server`, `npm run build:client`, `npx vitest run server/src/app.test.ts`, `npx vitest run client/src/pages/pre-demanda-detail-page.test.tsx` e `npm test` executados com sucesso.
 
 **Seguranca:** A exclusao exige motivo e confirmacao digitada com o `pre_id`; antes do apagamento fisico, grava auditoria permanente sem FK para a demanda apagada.
+
+## Deploy VPS
+
+**O Que:** Publicado o commit `1b37778` em `main` e executado deploy produtivo via `npm run deploy:vps`.
+
+**Validacao:** Deploy concluiu com `health ok`, `ready ok`, smoke autenticado admin OK e container `gestor-jmu-web` healthy.
