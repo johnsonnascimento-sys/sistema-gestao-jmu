@@ -1705,7 +1705,6 @@ export function PreDemandaDetailPage() {
               label="Excluir"
               onClick={openDeleteDialog}
               title="Excluir definitivamente este processo"
-              variant="destructive"
             />
           ) : null}
           <ToolbarActionButton
