@@ -1,5 +1,6 @@
 version = 1
 default_coordinator = "Atlas"
+default_model_triage = "gpt-5.4-nano"
 default_model_simple = "gpt-5.4-mini"
 default_model_complex = "gpt-5.5"
 default_reasoning_simple = "medium"
@@ -9,7 +10,9 @@ default_reasoning_complex = "xhigh"
 [policy]
 entrypoint = "Atlas"
 delegate_by_default = true
+use_nano_for_triage = true
 prefer_mini_for_bounded_tasks = true
+use_mini_as_prompt_entry = true
 escalate_on_risk = true
 avoid_low_reasoning = true
 main_agent_finalizes_git_and_deploy = true
@@ -17,8 +20,13 @@ specialists_prepare_domain_work = true
 allow_main_agent_direct_execution_only_for_trivial_or_tightly_coupled_work = true
 announce_agent_name_role_model_on_use = true
 announce_reasoning_when_relevant = true
+final_response_requires_summary_and_agents = true
+final_response_requires_estimated_token_usage = true
+token_usage_must_be_reported_when_available = true
+token_usage_fallback = "estimado_indisponivel"
 
 [policy.execution]
+triage_default_model = "gpt-5.4-nano"
 frontend_default_specialist = "Ada"
 backend_default_specialist = "Turing"
 database_default_specialist = "Laplace"
@@ -34,6 +42,14 @@ use_complex_model_when = [
   "revisao_arquitetural",
   "investigacao_profunda",
   "reconciliacao_historica"
+]
+use_complex_model_only_when_unavoidable = true
+use_nano_when = [
+  "classificacao",
+  "extracao_estruturada",
+  "ranking",
+  "roteamento",
+  "pre-triagem"
 ]
 use_high_reasoning_when = [
   "ambiguidade_moderada",
@@ -76,7 +92,7 @@ domains = [
   "server/src/repositories/*"
 ]
 model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.2"
+model_medium = "gpt-5.4"
 model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"
@@ -123,7 +139,7 @@ domains = [
   "server/src/scripts/smoke-test.ts"
 ]
 model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.2"
+model_medium = "gpt-5.4"
 model_complex = "gpt-5.5"
 reasoning_simple = "medium"
 reasoning_medium = "high"

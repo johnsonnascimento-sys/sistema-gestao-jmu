@@ -74,10 +74,13 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
 
 ## 8.1 Politica de Uso Real dos Subagentes
 - O uso de subagentes deve ser o padrao operacional do projecto para tarefas de dominio claramente especializado.
+- `gpt-5.4-nano` deve ser usado para triagem, classificacao, extracao, ranking, roteamento e pre-processamento de alto volume.
+- `gpt-5.4-mini` continua sendo o ponto de partida para execucao de tarefas delimitadas.
 - Para frontend, `Atlas` deve preferir delegar implementacao, exploracao e refinamento visual para `Ada`.
 - Para backend, `Atlas` deve preferir delegar implementacao e analise para `Turing`.
 - Para banco, schema, migrations e reconciliacao historica, `Atlas` deve preferir delegar para `Laplace`.
 - Para validacao operacional, leitura de logs, smoke test, build, deploy readiness e procedimentos de infraestrutura, `Atlas` deve preferir delegar para `SRE-1`.
+- Os modelos mais fortes so devem ser acionados quando a necessidade tecnica estiver clara.
 - A excecao principal e a etapa final sensivel de `git add`, `git commit`, `git push` e `deploy`, que deve permanecer no agente principal salvo decisao explicita em contrario.
 
 ## 8.2 Regra de Transparencia de Agentes
@@ -90,20 +93,22 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
   - antes de iniciar a tarefa, indicando quais agentes ou subagentes serao usados
   - depois de concluir a tarefa, indicando quais agentes ou subagentes foram de fato usados e o resultado entregue
 - Se houver delegacao para mais de um subagente, o usuario deve ver a divisao por responsavel e o resumo do retorno de cada um.
+- Toda resposta final deve terminar com um resumo curto do que foi feito e com a lista dos agentes e subagentes utilizados, cada um acompanhado do respectivo modelo.
+- Toda resposta final deve incluir tambem o consumo estimado em tokens de cada agente e subagente utilizado; quando nao for possivel estimar com base no contexto e na saida gerada, registrar explicitamente como `estimado_indisponivel`.
 
 ## 9. Politica de Modelos por Complexidade
 - **Atlas:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
-- **Laplace:** simples `gpt-5.4-mini`, medio `gpt-5.2`, complexo `gpt-5.5`
+- **Laplace:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
 - **Turing:** simples `gpt-5.4-mini`, medio `gpt-5.3-codex`, complexo `gpt-5.5`
 - **Ada:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
-- **SRE-1:** simples `gpt-5.4-mini`, medio `gpt-5.2`, complexo `gpt-5.5`
+- **SRE-1:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
 
 ## 10. Regra Geral de Escalonamento de Modelo
-- Usar `gpt-5.4-mini` como padrao para execucao especializada, rapida e delimitada.
-- Usar `gpt-5.2` quando a tarefa for generalista, bem delimitada e o custo importar mais que a ultima margem de qualidade.
+- Usar `gpt-5.4-nano` para triagem, classificacao, extracao, ranking e roteamento de alto volume.
+- Usar `gpt-5.4-mini` como ponto de partida para toda tarefa e para a primeira rodada de resposta.
 - Usar `gpt-5.3-codex` quando a tarefa for majoritariamente de codificacao, patch/refatoracao ou ajuste de comando e o foco for precisao de implementacao.
-- Escalar para `gpt-5.4` quando houver maior impacto, necessidade de tool use mais robusto, integracao entre modulos ou analise comparativa mais forte.
-- Escalar para `gpt-5.5` quando houver alto risco tecnico, impacto em producao, coordenacao entre dominios, revisao arquitetural ou necessidade de orquestracao complexa.
+- Escalar para `gpt-5.4` apenas quando houver maior impacto, necessidade de tool use mais robusto, integracao entre modulos ou analise comparativa mais forte.
+- Escalar para `gpt-5.5` somente quando o uso de um modelo mais forte for realmente inevitavel, por alto risco tecnico, impacto em producao, coordenacao entre dominios, revisao arquitetural ou orquestracao complexa.
 
 ## 11. Politica de Reasoning Effort
 - **Atlas:** simples `medium`, medio `high`, complexo `xhigh`

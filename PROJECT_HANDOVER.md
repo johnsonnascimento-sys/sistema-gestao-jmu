@@ -65,8 +65,11 @@ Arquivos de contexto principais:
 Convencao operacional de agentes:
 - `Atlas` coordena e integra
 - `Ada`, `Turing`, `Laplace` e `SRE-1` devem ser usados por padrao quando a tarefa tiver dominio tecnico claro
+- `gpt-5.4-nano` deve ser reservado para triagem, classificacao, extracao, ranking, roteamento e tarefas de alto volume.
+- Toda tarefa deve iniciar em `gpt-5.4-mini`; a escalada para modelos mais fortes so ocorre quando houver necessidade tecnica real.
 - `git add`, `git commit`, `git push` e `deploy` ficam sob o agente principal por padrao
 - Toda tarefa com agente ou subagente deve ser anunciada antes da execucao com nome, papel e modelo, e deve ser recapitulada ao final com o resultado entregue.
+- O encerramento final de qualquer tarefa deve sempre incluir um resumo curto do que foi feito, a lista de agentes e subagentes usados com seus respectivos modelos e o consumo estimado em tokens de cada um; quando nao for possivel estimar com base no contexto e na saida gerada, registrar `estimado_indisponivel`.
 
 ### Windows
 ```powershell
