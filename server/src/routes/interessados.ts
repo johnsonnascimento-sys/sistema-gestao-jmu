@@ -69,6 +69,19 @@ function emptyToNull(value: string | null | undefined) {
   return value && value.length > 0 ? value : null;
 }
 
+function formatDateBr(value: string | null | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  const [year, month, day] = value.split("-");
+  if (!year || !month || !day) {
+    return value;
+  }
+
+  return `${day}/${month}/${year}`;
+}
+
 export async function registerInteressadoRoutes(app: FastifyInstance, options: { interessadoRepository: InteressadoRepository }) {
   const { interessadoRepository } = options;
 
@@ -189,7 +202,7 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
         pai: item.pai ?? "",
         mae: item.mae ?? "",
         endereco: item.endereco ?? "",
-        dataNascimento: item.dataNascimento ?? "",
+        dataNascimento: formatDateBr(item.dataNascimento),
         createdAt: new Date(item.createdAt).toLocaleString("pt-BR"),
         updatedAt: new Date(item.updatedAt).toLocaleString("pt-BR"),
       });

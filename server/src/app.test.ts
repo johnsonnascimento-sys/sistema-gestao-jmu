@@ -3620,6 +3620,7 @@ describe("Gestor JMU API", () => {
         nome: "Maria Oliveira",
         cargo: "Analista",
         cpf: "16899535009",
+        data_nascimento: "1994-05-06",
       },
     });
     expect(createdSecondInteressado.statusCode).toBe(201);
@@ -3636,8 +3637,13 @@ describe("Gestor JMU API", () => {
     expect(exportInteressados.statusCode).toBe(200);
     expect(exportInteressados.headers["content-type"]).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     expect(exportInteressados.headers["content-disposition"]).toContain("pessoas-selecionadas.xlsx");
-    expect(exportInteressados.body.length).toBeGreaterThan(0);
-    expect(exportInteressados.body.slice(0, 2)).toBe("PK");
+
+    const ExcelJS = require("exceljs") as any;
+    const workbook = new ExcelJS.Workbook();
+    const exportPayload = (exportInteressados as any).rawPayload ?? Buffer.from(exportInteressados.body);
+    await workbook.xlsx.load(exportPayload);
+    const sheet = workbook.getWorksheet("Pessoas");
+    expect(sheet?.getRow(3).getCell(9).value).toBe("06/05/1994");
 
     const createdPreDemanda = await app.inject({
       method: "POST",
