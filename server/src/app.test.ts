@@ -2537,6 +2537,10 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
     };
   }
 
+  async listByIds(ids: string[]) {
+    return ids.map((id) => this.items.get(id)).filter((item): item is Interessado => Boolean(item));
+  }
+
   async getById(id: string) {
     return this.items.get(id) ?? null;
   }
@@ -3607,6 +3611,33 @@ describe("Gestor JMU API", () => {
 
     expect(listedInteressados.statusCode).toBe(200);
     expect(listedInteressados.json().data.total).toBeGreaterThanOrEqual(1);
+
+    const createdSecondInteressado = await app.inject({
+      method: "POST",
+      url: "/api/pessoas",
+      headers: { cookie: adminCookie },
+      payload: {
+        nome: "Maria Oliveira",
+        cargo: "Analista",
+        cpf: "16899535009",
+      },
+    });
+    expect(createdSecondInteressado.statusCode).toBe(201);
+
+    const exportInteressados = await app.inject({
+      method: "POST",
+      url: "/api/pessoas/export.xlsx",
+      headers: { cookie: adminCookie },
+      payload: {
+        ids: [interessadoId, createdSecondInteressado.json().data.id],
+      },
+    });
+
+    expect(exportInteressados.statusCode).toBe(200);
+    expect(exportInteressados.headers["content-type"]).toContain("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    expect(exportInteressados.headers["content-disposition"]).toContain("pessoas-selecionadas.xlsx");
+    expect(exportInteressados.body.length).toBeGreaterThan(0);
+    expect(exportInteressados.body.slice(0, 2)).toBe("PK");
 
     const createdPreDemanda = await app.inject({
       method: "POST",

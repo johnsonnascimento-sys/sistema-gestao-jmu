@@ -9,3 +9,13 @@
 **Validacao:** `npm run build:server` e `npm run build:client` executados com sucesso; `npx vitest run server/src/app.test.ts -t "supports cadastros base"` executado com sucesso.
 
 **Seguranca:** Nenhuma credencial, token ou segredo foi exposto ou alterado.
+
+## Exportacao de Pessoas em Excel com selecao
+
+**O Que:** Adicionado fluxo de exportacao em `.xlsx` para Pessoas, com selecao individual por checkbox e acao de exportar apenas os registros marcados.
+
+**Identificadores:** Rota `POST /api/pessoas/export.xlsx`; API `client/src/lib/api.ts`; UI `client/src/pages/interessados-page.tsx`; repositorio `server/src/repositories/postgres-interessado-repository.ts`; contrato `server/src/repositories/types.ts`; teste `server/src/app.test.ts`.
+
+**Validacao:** `npm run build:server` e `npm run build:client` executados com sucesso.
+
+**Seguranca:** Nenhuma credencial, token ou segredo foi exposto ou alterado.

@@ -436,6 +436,44 @@ export async function downloadAdminOpsCaseReportCsv(days = 30) {
   window.URL.revokeObjectURL(url);
 }
 
+export async function downloadPessoasExcel(ids: string[]) {
+  const response = await fetch("/api/pessoas/export.xlsx", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ ids }),
+  });
+
+  const requestId = response.headers.get("x-request-id") ?? undefined;
+
+  if (!response.ok) {
+    const contentType = response.headers.get("content-type") ?? "";
+    const body = contentType.includes("application/json")
+      ? ((await response.json()) as ApiEnvelope<never>)
+      : null;
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "REQUEST_FAILED",
+      body?.error?.message ?? "Falha ao exportar pessoas.",
+      body?.error?.details,
+      requestId,
+    );
+  }
+
+  const blob = await response.blob();
+  const fileName = `pessoas-selecionadas-${ids.length}.xlsx`;
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export function updateQueueHealthConfig(payload: {
   attentionDays: number;
   criticalDays: number;

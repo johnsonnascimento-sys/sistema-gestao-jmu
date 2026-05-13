@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { FileSpreadsheet, Plus, Square, SquareCheckBig } from "lucide-react";
 import { PageHeader } from "../components/page-header";
 import { ErrorState, LoadingState } from "../components/states";
 import { FormField } from "../components/form-field";
@@ -6,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { createPessoa, formatAppError, listPessoas, updatePessoa } from "../lib/api";
+import { createPessoa, downloadPessoasExcel, formatAppError, listPessoas, updatePessoa } from "../lib/api";
 import { formatCpf, isValidCpf } from "../lib/cpf";
 import type { Interessado } from "../types";
 
@@ -57,6 +58,8 @@ export function InteressadosPage() {
   const [editing, setEditing] = useState<Interessado | null>(null);
   const [form, setForm] = useState<InteressadoFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   async function load(query = search) {
     setLoading(true);
@@ -64,6 +67,7 @@ export function InteressadosPage() {
     try {
       const result = await listPessoas({ q: query, page: 1, pageSize: 50 });
       setItems(result.items);
+      setSelectedIds([]);
       setError("");
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao carregar pessoas."));
@@ -80,6 +84,43 @@ export function InteressadosPage() {
     setEditing(null);
     setForm(EMPTY_FORM);
     setDialogOpen(true);
+  }
+
+  const selectedCount = selectedIds.length;
+  const allVisibleSelected = items.length > 0 && items.every((item) => selectedIds.includes(item.id));
+
+  function toggleSelection(id: string) {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((itemId) => itemId !== id) : [...current, id]));
+  }
+
+  function toggleVisibleSelection() {
+    if (allVisibleSelected) {
+      setSelectedIds((current) => current.filter((id) => !items.some((item) => item.id === id)));
+      return;
+    }
+
+    setSelectedIds((current) => Array.from(new Set([...current, ...items.map((item) => item.id)])));
+  }
+
+  function clearSelection() {
+    setSelectedIds([]);
+  }
+
+  async function exportSelected() {
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    setExporting(true);
+    setError("");
+
+    try {
+      await downloadPessoasExcel(selectedIds);
+    } catch (nextError) {
+      setError(formatAppError(nextError, "Falha ao exportar pessoas."));
+    } finally {
+      setExporting(false);
+    }
   }
 
   function openEditDialog(item: Interessado) {
@@ -119,6 +160,7 @@ export function InteressadosPage() {
       setDialogOpen(false);
       setForm(EMPTY_FORM);
       setEditing(null);
+      setSelectedIds([]);
       await load();
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao guardar pessoa."));
@@ -142,9 +184,16 @@ export function InteressadosPage() {
         title="Pessoas"
         description="Mantenha as pessoas reutilizaveis para vincular rapidamente aos processos."
         actions={
-          <Button onClick={openCreateDialog} type="button">
-            Adicionar pessoa
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={exportSelected} disabled={exporting || selectedIds.length === 0} type="button" variant="secondary">
+              <FileSpreadsheet className="h-4 w-4" />
+              {exporting ? "Exportando..." : "Exportar Excel"}
+            </Button>
+            <Button onClick={openCreateDialog} type="button">
+              <Plus className="h-4 w-4" />
+              Adicionar pessoa
+            </Button>
+          </div>
         }
       />
 
@@ -164,16 +213,40 @@ export function InteressadosPage() {
             }}
           >
             <Input onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, cargo, matricula ou CPF" value={search} />
-            <Button type="submit" variant="secondary">
-              Buscar
-            </Button>
-          </form>
-        </CardHeader>
+              <Button type="submit" variant="secondary">
+                Buscar
+              </Button>
+            </form>
+          </CardHeader>
         <CardContent>
+          <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm font-medium text-slate-700">
+              {selectedCount > 0 ? `${selectedCount} pessoa(s) selecionada(s) para exportacao.` : "Selecione pessoas na tabela para exportar em Excel."}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button disabled={items.length === 0} onClick={toggleVisibleSelection} type="button" variant="ghost">
+                {allVisibleSelected ? <SquareCheckBig className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                {allVisibleSelected ? "Desmarcar exibidas" : "Selecionar exibidas"}
+              </Button>
+              <Button disabled={selectedIds.length === 0} onClick={clearSelection} type="button" variant="ghost">
+                Limpar selecao
+              </Button>
+            </div>
+          </div>
           <div className="overflow-hidden rounded-[28px] border border-white/70 shadow-[0_12px_24px_rgba(20,33,61,0.05)]">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(240,246,249,0.92))] text-left text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
                 <tr>
+                  <th className="w-12 px-4 py-3">
+                    <input
+                      aria-label="Selecionar todas as pessoas exibidas"
+                      checked={allVisibleSelected}
+                      className="h-4 w-4 accent-slate-950"
+                      disabled={items.length === 0}
+                      onChange={toggleVisibleSelection}
+                      type="checkbox"
+                    />
+                  </th>
                   <th className="px-4 py-3">Nome</th>
                   <th className="px-4 py-3">Cargo</th>
                   <th className="px-4 py-3">Matricula</th>
@@ -187,13 +260,22 @@ export function InteressadosPage() {
               <tbody className="divide-y divide-slate-100 bg-white/95">
                 {items.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={8}>
+                    <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={9}>
                       Nenhuma pessoa encontrada.
                     </td>
                   </tr>
                 ) : (
                   items.map((item) => (
                     <tr className="align-top" key={item.id}>
+                      <td className="px-4 py-4">
+                        <input
+                          aria-label={`Selecionar pessoa ${item.nome}`}
+                          checked={selectedIds.includes(item.id)}
+                          className="mt-1 h-4 w-4 accent-slate-950"
+                          onChange={() => toggleSelection(item.id)}
+                          type="checkbox"
+                        />
+                      </td>
                       <td className="px-4 py-4 font-medium text-slate-950">{item.nome}</td>
                       <td className="px-4 py-4 text-slate-600">{item.cargo ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.matricula ?? "-"}</td>

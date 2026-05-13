@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import ExcelJS from "exceljs";
 import { z } from "zod";
 import type { InteressadoRepository } from "../repositories/types";
 import { AppError } from "../errors";
@@ -58,6 +59,10 @@ const listSchema = z.object({
   q: z.string().trim().optional(),
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+const exportSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(200),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -139,8 +144,82 @@ export async function registerInteressadoRoutes(app: FastifyInstance, options: {
     });
   };
 
+  const exportHandler = async (
+    request: Pick<FastifyRequest, "body" | "user" | "log">,
+    reply: FastifyReply,
+  ) => {
+    const payload = exportSchema.parse(request.body);
+    const items = await interessadoRepository.listByIds(payload.ids);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Gestor JMU";
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet("Pessoas");
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+    sheet.columns = [
+      { header: "Nome", key: "nome", width: 28 },
+      { header: "Cargo", key: "cargo", width: 22 },
+      { header: "Matricula", key: "matricula", width: 18 },
+      { header: "CPF", key: "cpf", width: 16 },
+      { header: "RG", key: "rg", width: 18 },
+      { header: "Pai", key: "pai", width: 28 },
+      { header: "Mae", key: "mae", width: 28 },
+      { header: "Endereco", key: "endereco", width: 40 },
+      { header: "Nascimento", key: "dataNascimento", width: 14 },
+      { header: "Criado em", key: "createdAt", width: 20 },
+      { header: "Atualizado em", key: "updatedAt", width: 20 },
+    ];
+
+    const headerRow = sheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.alignment = { vertical: "middle" };
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF334155" },
+    };
+
+    items.forEach((item) => {
+      sheet.addRow({
+        nome: item.nome,
+        cargo: item.cargo ?? "",
+        matricula: item.matricula ?? "",
+        cpf: item.cpf ?? "",
+        rg: item.rg ?? "",
+        pai: item.pai ?? "",
+        mae: item.mae ?? "",
+        endereco: item.endereco ?? "",
+        dataNascimento: item.dataNascimento ?? "",
+        createdAt: new Date(item.createdAt).toLocaleString("pt-BR"),
+        updatedAt: new Date(item.updatedAt).toLocaleString("pt-BR"),
+      });
+    });
+
+    sheet.eachRow((row, rowNumber) => {
+      row.alignment = { vertical: "middle", wrapText: true };
+      if (rowNumber > 1) {
+        row.height = 20;
+      }
+    });
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    request.log.info(
+      {
+        userId: request.user?.id ?? null,
+        selectedCount: payload.ids.length,
+        exportedCount: items.length,
+      },
+      "cadastro.interessado.export-xlsx",
+    );
+
+    reply.header("content-type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    reply.header("content-disposition", `attachment; filename="pessoas-selecionadas.xlsx"`);
+    return reply.send(Buffer.from(buffer));
+  };
+
   app.get("/api/interessados", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.read")] }, listHandler);
   app.get("/api/pessoas", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.read")] }, listHandler);
+  app.post("/api/pessoas/export.xlsx", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.read")] }, exportHandler);
   app.post("/api/interessados", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, createHandler);
   app.post("/api/pessoas", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, createHandler);
   app.patch("/api/interessados/:id", { preHandler: [app.authenticate, app.authorize("cadastro.interessado.write")] }, updateHandler);

@@ -91,6 +91,24 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
     };
   }
 
+  async listByIds(ids: string[]): Promise<Interessado[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const result = await this.pool.query(
+      `
+        select *
+        from adminlog.interessados
+        where id = any($1::uuid[])
+        order by array_position($1::uuid[], id)
+      `,
+      [ids],
+    );
+
+    return result.rows.map(mapInteressado);
+  }
+
   async getById(id: string) {
     const result = await this.pool.query("select * from adminlog.interessados where id = $1::uuid limit 1", [id]);
     return result.rows[0] ? mapInteressado(result.rows[0]) : null;

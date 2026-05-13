@@ -568,6 +568,7 @@ export interface SettingsRepository {
 
 export interface InteressadoRepository {
   list(params: ListInteressadosParams): Promise<ListInteressadosResult>;
+  listByIds(ids: string[]): Promise<Interessado[]>;
   getById(id: string): Promise<Interessado | null>;
   create(input: CreateInteressadoInput): Promise<Interessado>;
   update(input: UpdateInteressadoInput): Promise<Interessado>;
