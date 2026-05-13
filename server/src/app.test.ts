@@ -826,6 +826,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     clone.createdAt = now;
     clone.updatedAt = now;
     clone.status = "em_andamento";
+    clone.dataReferencia = clone.dataReferencia ?? now.slice(0, 10);
+    clone.prazoProcesso = clone.prazoProcesso ?? clone.dataReferencia;
     clone.dataConclusao = null;
     clone.currentAssociation = null;
     clone.seiAssociations = [];
@@ -3157,6 +3159,63 @@ describe("Gestor JMU API", () => {
         (item) => item.preId === sourcePreId,
       );
       expect(sourceRecordAfterDuplicate?.recentAndamentos.length).toBe(sourceAndamentosBeforeDuplicate);
+    } finally {
+      (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records = repositorySnapshot.records;
+      (preDemandaRepository as unknown as { andamentos: Andamento[] }).andamentos = repositorySnapshot.andamentos;
+      (preDemandaRepository as unknown as { nextId: number }).nextId = repositorySnapshot.nextId;
+      (preDemandaRepository as unknown as { nextAuditId: number }).nextAuditId = repositorySnapshot.nextAuditId;
+    }
+  });
+
+  it("duplicates a pre-demanda when prazo_processo is null", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const repositorySnapshot = {
+      records: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records)) as PreDemandaDetail[],
+      andamentos: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { andamentos: Andamento[] }).andamentos)) as Andamento[],
+      nextId: (preDemandaRepository as unknown as { nextId: number }).nextId,
+      nextAuditId: (preDemandaRepository as unknown as { nextAuditId: number }).nextAuditId,
+    };
+
+    try {
+      const created = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Processo origem sem prazo",
+          assunto: "Duplicacao operacional",
+          data_referencia: "2026-03-09",
+          prazo_processo: "2026-03-20",
+          descricao: "Base para clone",
+        },
+      });
+
+      expect(created.statusCode).toBe(201);
+      const sourcePreId = created.json().data.preId as string;
+
+      const sourceRecord = (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records.find((item) => item.preId === sourcePreId);
+      expect(sourceRecord).toBeTruthy();
+      (sourceRecord as PreDemandaDetail).prazoProcesso = null;
+
+      const duplicated = await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${sourcePreId}/duplicar`,
+        headers: { cookie },
+      });
+
+      expect(duplicated.statusCode).toBe(201);
+      const duplicatedData = duplicated.json().data as PreDemandaDetail;
+      expect(duplicatedData.preId).not.toBe(sourcePreId);
+      expect(duplicatedData.prazoProcesso).toBe("2026-03-09");
     } finally {
       (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records = repositorySnapshot.records;
       (preDemandaRepository as unknown as { andamentos: Andamento[] }).andamentos = repositorySnapshot.andamentos;

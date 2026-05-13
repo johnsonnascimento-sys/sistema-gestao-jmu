@@ -2696,9 +2696,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
       const sourceNumeros = await this.loadNumerosJudiciais(client, sourceId);
       const sourceDataReferencia = sourceRow.data_referencia ? new Date(sourceRow.data_referencia).toISOString().slice(0, 10) : null;
       const sourcePrazoProcesso = sourceRow.prazo_processo ? new Date(sourceRow.prazo_processo).toISOString().slice(0, 10) : null;
-      if (!sourceDataReferencia || !sourcePrazoProcesso) {
-        throw new AppError(500, "PRE_DEMANDA_DUPLICATE_FAILED", "Falha ao carregar os dados base da demanda de origem.");
-      }
+      const resolvedDataReferencia = sourceDataReferencia ?? new Date().toISOString().slice(0, 10);
+      const resolvedPrazoProcesso = sourcePrazoProcesso ?? resolvedDataReferencia;
 
       const sourceMetadata = mapMetadata(sourceRow.metadata);
       const duplicateMetadata = normalizeMetadataForDb({
@@ -2756,14 +2755,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           returning id, pre_id
         `,
         [
-          sourceDataReferencia,
+          resolvedDataReferencia,
           resolvedSolicitante,
           String(sourceRow.assunto),
           "em_andamento",
           sourceRow.descricao ?? null,
           sourceRow.fonte ?? null,
           sourceRow.observacoes ?? null,
-          sourcePrazoProcesso,
+          resolvedPrazoProcesso,
           principalNumeroJudicial,
           setorAtualId,
           duplicateMetadata ? JSON.stringify(duplicateMetadata) : null,
