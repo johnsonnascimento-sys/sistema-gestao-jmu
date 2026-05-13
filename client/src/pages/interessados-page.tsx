@@ -35,6 +35,8 @@ const EMPTY_FORM: InteressadoFormState = {
   data_nascimento: "",
 };
 
+const PAGE_SIZE = 25;
+
 function normalizePayload(form: InteressadoFormState) {
   return {
     nome: form.nome,
@@ -51,23 +53,29 @@ function normalizePayload(form: InteressadoFormState) {
 
 export function InteressadosPage() {
   const [items, setItems] = useState<Interessado[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Interessado | null>(null);
   const [form, setForm] = useState<InteressadoFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [exporting, setExporting] = useState(false);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const firstVisibleItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const lastVisibleItem = total === 0 ? 0 : Math.min(total, page * PAGE_SIZE);
 
-  async function load(query = search) {
+  async function load(query = search, nextPage = page) {
     setLoading(true);
 
     try {
-      const result = await listPessoas({ q: query, page: 1, pageSize: 50 });
+      const result = await listPessoas({ q: query, page: nextPage, pageSize: PAGE_SIZE });
       setItems(result.items);
-      setSelectedIds([]);
+      setTotal(result.total);
+      setPage(result.page);
       setError("");
     } catch (nextError) {
       setError(formatAppError(nextError, "Falha ao carregar pessoas."));
@@ -77,13 +85,22 @@ export function InteressadosPage() {
   }
 
   useEffect(() => {
-    void load("");
+    void load("", 1);
   }, []);
 
   function openCreateDialog() {
     setEditing(null);
     setForm(EMPTY_FORM);
     setDialogOpen(true);
+  }
+
+  function changePage(nextPage: number) {
+    const boundedPage = Math.min(Math.max(1, nextPage), totalPages);
+    if (boundedPage === page) {
+      return;
+    }
+
+    void load(search, boundedPage);
   }
 
   const selectedCount = selectedIds.length;
@@ -209,15 +226,17 @@ export function InteressadosPage() {
             className="flex w-full gap-3 md:max-w-xl"
             onSubmit={(event) => {
               event.preventDefault();
-              void load(search);
+              setSelectedIds([]);
+              setPage(1);
+              void load(search, 1);
             }}
           >
             <Input onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nome, cargo, matricula ou CPF" value={search} />
-              <Button type="submit" variant="secondary">
-                Buscar
-              </Button>
-            </form>
-          </CardHeader>
+            <Button type="submit" variant="secondary">
+              Buscar
+            </Button>
+          </form>
+        </CardHeader>
         <CardContent>
           <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-medium text-slate-700">
@@ -293,6 +312,19 @@ export function InteressadosPage() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,246,249,0.88))] px-4 py-3 text-sm text-slate-600 shadow-[0_12px_24px_rgba(20,33,61,0.05)] sm:flex-row">
+            <span>
+              Pagina {page} de {totalPages} - {firstVisibleItem} a {lastVisibleItem} de {total}
+            </span>
+            <div className="flex gap-2">
+              <Button disabled={page <= 1} onClick={() => changePage(page - 1)} type="button" variant="secondary">
+                Anterior
+              </Button>
+              <Button disabled={page >= totalPages} onClick={() => changePage(page + 1)} type="button" variant="secondary">
+                Proxima
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
