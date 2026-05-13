@@ -828,13 +828,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const now = new Date().toISOString();
     const preId = `PRE-2026-${String(this.nextId).padStart(3, "0")}`;
     const clone = JSON.parse(JSON.stringify(source)) as PreDemandaDetail;
+    const currentDataReferencia = now.slice(0, 10);
 
     clone.id = this.nextId;
     clone.preId = preId;
     clone.createdAt = now;
     clone.updatedAt = now;
     clone.status = "em_andamento";
-    clone.dataReferencia = clone.dataReferencia ?? now.slice(0, 10);
+    clone.dataReferencia = currentDataReferencia;
     clone.prazoProcesso = clone.prazoProcesso ?? clone.dataReferencia;
     clone.dataConclusao = null;
     clone.currentAssociation = null;
@@ -3158,11 +3159,25 @@ describe("Gestor JMU API", () => {
         changedByUserId: 1,
       });
 
+      const sourceSeiAssociation = await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${sourcePreId}/associacoes-sei`,
+        headers: { cookie },
+        payload: {
+          sei_numero: "000189/26-02.227",
+          observacoes: "Associacao SEI original",
+        },
+      });
+
+      expect(sourceSeiAssociation.statusCode).toBe(200);
+
       const sourceRecord = (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records.find(
         (item) => item.preId === sourcePreId,
       );
       expect(sourceRecord).toBeTruthy();
       const sourceAndamentosBeforeDuplicate = sourceRecord?.recentAndamentos.length ?? 0;
+      expect(sourceRecord?.currentAssociation?.seiNumero).toBe("000189/26-02.227");
+      expect(sourceRecord?.seiAssociations).toHaveLength(1);
 
       const duplicated = await app.inject({
         method: "POST",
@@ -3173,6 +3188,9 @@ describe("Gestor JMU API", () => {
       expect(duplicated.statusCode).toBe(201);
       const duplicatedData = duplicated.json().data as PreDemandaDetail;
       expect(duplicatedData.preId).not.toBe(sourcePreId);
+      expect(duplicatedData.dataReferencia).not.toBe("2026-03-09");
+      expect(duplicatedData.currentAssociation).toBeNull();
+      expect(duplicatedData.seiAssociations).toHaveLength(0);
       expect(duplicatedData.recentAndamentos).toHaveLength(0);
       expect(duplicatedData.assuntos).toHaveLength(1);
       expect(duplicatedData.vinculos).toHaveLength(1);
@@ -3239,7 +3257,8 @@ describe("Gestor JMU API", () => {
       expect(duplicated.statusCode).toBe(201);
       const duplicatedData = duplicated.json().data as PreDemandaDetail;
       expect(duplicatedData.preId).not.toBe(sourcePreId);
-      expect(duplicatedData.prazoProcesso).toBe("2026-03-09");
+      expect(duplicatedData.prazoProcesso).toBe(duplicatedData.dataReferencia);
+      expect(duplicatedData.prazoProcesso).not.toBe("2026-03-09");
     } finally {
       (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records = repositorySnapshot.records;
       (preDemandaRepository as unknown as { andamentos: Andamento[] }).andamentos = repositorySnapshot.andamentos;
