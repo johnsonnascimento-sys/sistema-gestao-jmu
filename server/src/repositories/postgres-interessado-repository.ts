@@ -17,6 +17,10 @@ function mapInteressado(row: QueryResultRow): Interessado {
     cargo: row.cargo ? String(row.cargo) : null,
     matricula: row.matricula ? String(row.matricula) : null,
     cpf: row.cpf ? String(row.cpf) : null,
+    rg: row.rg ? String(row.rg) : null,
+    pai: row.pai ? String(row.pai) : null,
+    mae: row.mae ? String(row.mae) : null,
+    endereco: row.endereco ? String(row.endereco) : null,
     dataNascimento: row.data_nascimento ? new Date(row.data_nascimento).toISOString().slice(0, 10) : null,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
@@ -95,11 +99,21 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
   async create(input: CreateInteressadoInput) {
     const result = await this.pool.query(
       `
-        insert into adminlog.interessados (nome, cargo, matricula, cpf, data_nascimento)
-        values ($1, $2, $3, $4, $5::date)
+        insert into adminlog.interessados (nome, cargo, matricula, cpf, rg, pai, mae, endereco, data_nascimento)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::date)
         returning *
       `,
-      [input.nome, emptyToNull(input.cargo), emptyToNull(input.matricula), emptyToNull(input.cpf), input.dataNascimento ?? null],
+      [
+        input.nome,
+        emptyToNull(input.cargo),
+        emptyToNull(input.matricula),
+        emptyToNull(input.cpf),
+        emptyToNull(input.rg),
+        emptyToNull(input.pai),
+        emptyToNull(input.mae),
+        emptyToNull(input.endereco),
+        input.dataNascimento ?? null,
+      ],
     );
 
     return mapInteressado(result.rows[0]);
@@ -114,11 +128,26 @@ export class PostgresInteressadoRepository implements InteressadoRepository {
           cargo = $3,
           matricula = $4,
           cpf = $5,
-          data_nascimento = $6::date
+          rg = $6,
+          pai = $7,
+          mae = $8,
+          endereco = $9,
+          data_nascimento = $10::date
         where id = $1::uuid
         returning *
       `,
-      [input.id, input.nome, emptyToNull(input.cargo), emptyToNull(input.matricula), emptyToNull(input.cpf), input.dataNascimento ?? null],
+      [
+        input.id,
+        input.nome,
+        emptyToNull(input.cargo),
+        emptyToNull(input.matricula),
+        emptyToNull(input.cpf),
+        emptyToNull(input.rg),
+        emptyToNull(input.pai),
+        emptyToNull(input.mae),
+        emptyToNull(input.endereco),
+        input.dataNascimento ?? null,
+      ],
     );
 
     if (!result.rows[0]) {

@@ -1146,11 +1146,18 @@ export function createInteressado(payload: {
   cargo?: string | null;
   matricula?: string | null;
   cpf?: string | null;
+  rg?: string | null;
+  pai?: string | null;
+  mae?: string | null;
+  endereco?: string | null;
   data_nascimento?: string | null;
 }) {
   return request<Interessado>("/api/interessados", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      cpf: payload.cpf ? payload.cpf.replace(/\D/g, "") : payload.cpf,
+    }),
   });
 }
 
@@ -1159,11 +1166,18 @@ export function createPessoa(payload: {
   cargo?: string | null;
   matricula?: string | null;
   cpf?: string | null;
+  rg?: string | null;
+  pai?: string | null;
+  mae?: string | null;
+  endereco?: string | null;
   data_nascimento?: string | null;
 }) {
   return request<Interessado>("/api/pessoas", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      cpf: payload.cpf ? payload.cpf.replace(/\D/g, "") : payload.cpf,
+    }),
   });
 }
 
@@ -1174,12 +1188,19 @@ export function updateInteressado(
     cargo?: string | null;
     matricula?: string | null;
     cpf?: string | null;
+    rg?: string | null;
+    pai?: string | null;
+    mae?: string | null;
+    endereco?: string | null;
     data_nascimento?: string | null;
   },
 ) {
   return request<Interessado>(`/api/interessados/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      cpf: payload.cpf ? payload.cpf.replace(/\D/g, "") : payload.cpf,
+    }),
   });
 }
 
@@ -1190,12 +1211,19 @@ export function updatePessoa(
     cargo?: string | null;
     matricula?: string | null;
     cpf?: string | null;
+    rg?: string | null;
+    pai?: string | null;
+    mae?: string | null;
+    endereco?: string | null;
     data_nascimento?: string | null;
   },
 ) {
   return request<Interessado>(`/api/pessoas/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      cpf: payload.cpf ? payload.cpf.replace(/\D/g, "") : payload.cpf,
+    }),
   });
 }
 

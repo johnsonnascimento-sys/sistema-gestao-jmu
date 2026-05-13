@@ -488,6 +488,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       cargo: null,
       matricula: null,
       cpf: null,
+      rg: null,
+      pai: null,
+      mae: null,
+      endereco: null,
       dataNascimento: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -724,6 +728,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         cargo: item.pessoa.cargo ?? null,
         matricula: item.pessoa.matricula ?? null,
         cpf: item.pessoa.cpf ?? null,
+        rg: null,
+        pai: null,
+        mae: null,
+        endereco: null,
         dataNascimento: item.pessoa.dataNascimento ?? null,
         createdAt: now,
         updatedAt: now,
@@ -1283,6 +1291,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         cargo: null,
         matricula: null,
         cpf: null,
+        rg: null,
+        pai: null,
+        mae: null,
+        endereco: null,
         dataNascimento: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -2537,6 +2549,10 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
       cargo: input.cargo ?? null,
       matricula: input.matricula ?? null,
       cpf: input.cpf ?? null,
+      rg: input.rg ?? null,
+      pai: input.pai ?? null,
+      mae: input.mae ?? null,
+      endereco: input.endereco ?? null,
       dataNascimento: input.dataNascimento ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -2559,6 +2575,10 @@ class InMemoryInteressadoRepository implements InteressadoRepository {
       cargo: input.cargo ?? null,
       matricula: input.matricula ?? null,
       cpf: input.cpf ?? null,
+      rg: input.rg ?? null,
+      pai: input.pai ?? null,
+      mae: input.mae ?? null,
+      endereco: input.endereco ?? null,
       dataNascimento: input.dataNascimento ?? null,
       updatedAt: new Date().toISOString(),
     };
@@ -3204,7 +3224,7 @@ describe("Gestor JMU API", () => {
 
       const sourceRecord = (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records.find((item) => item.preId === sourcePreId);
       expect(sourceRecord).toBeTruthy();
-      (sourceRecord as PreDemandaDetail).prazoProcesso = null;
+      (sourceRecord as unknown as { prazoProcesso: string | null }).prazoProcesso = null;
 
       const duplicated = await app.inject({
         method: "POST",
@@ -3572,7 +3592,7 @@ describe("Gestor JMU API", () => {
       headers: { cookie: adminCookie },
       payload: {
         nome: "Jose da Silva",
-        cpf: "12345678900",
+        cpf: "52998224725",
       },
     });
 
@@ -3588,9 +3608,23 @@ describe("Gestor JMU API", () => {
     expect(listedInteressados.statusCode).toBe(200);
     expect(listedInteressados.json().data.total).toBeGreaterThanOrEqual(1);
 
+    const createdPreDemanda = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie: adminCookie },
+      payload: {
+        solicitante: "Processo de teste",
+        assunto: "Cadastro base",
+        data_referencia: "2026-03-09",
+        prazo_processo: "2026-03-20",
+      },
+    });
+    expect(createdPreDemanda.statusCode).toBe(201);
+    const preId = createdPreDemanda.json().data.preId as string;
+
     const linkedInteressado = await app.inject({
       method: "POST",
-      url: "/api/pre-demandas/PRE-2026-001/interessados",
+      url: `/api/pre-demandas/${preId}/interessados`,
       headers: { cookie: adminCookie },
       payload: {
         interessado_id: interessadoId,
@@ -3616,7 +3650,7 @@ describe("Gestor JMU API", () => {
 
     const tramited = await app.inject({
       method: "POST",
-      url: "/api/pre-demandas/PRE-2026-001/tramitar",
+      url: `/api/pre-demandas/${preId}/tramitar`,
       headers: { cookie: adminCookie },
       payload: {
         setor_destino_id: setorId,

@@ -125,6 +125,10 @@ export interface Interessado {
   cargo: string | null;
   matricula: string | null;
   cpf: string | null;
+  rg: string | null;
+  pai: string | null;
+  mae: string | null;
+  endereco: string | null;
   dataNascimento: string | null;
   createdAt: string;
   updatedAt: string;

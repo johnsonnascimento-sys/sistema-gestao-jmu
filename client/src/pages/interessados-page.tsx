@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { createPessoa, formatAppError, listPessoas, updatePessoa } from "../lib/api";
+import { formatCpf, isValidCpf } from "../lib/cpf";
 import type { Interessado } from "../types";
 
 type InteressadoFormState = {
@@ -14,6 +15,10 @@ type InteressadoFormState = {
   cargo: string;
   matricula: string;
   cpf: string;
+  rg: string;
+  pai: string;
+  mae: string;
+  endereco: string;
   data_nascimento: string;
 };
 
@@ -22,6 +27,10 @@ const EMPTY_FORM: InteressadoFormState = {
   cargo: "",
   matricula: "",
   cpf: "",
+  rg: "",
+  pai: "",
+  mae: "",
+  endereco: "",
   data_nascimento: "",
 };
 
@@ -31,6 +40,10 @@ function normalizePayload(form: InteressadoFormState) {
     cargo: form.cargo || null,
     matricula: form.matricula || null,
     cpf: form.cpf || null,
+    rg: form.rg || null,
+    pai: form.pai || null,
+    mae: form.mae || null,
+    endereco: form.endereco || null,
     data_nascimento: form.data_nascimento || null,
   };
 }
@@ -75,7 +88,11 @@ export function InteressadosPage() {
       nome: item.nome,
       cargo: item.cargo ?? "",
       matricula: item.matricula ?? "",
-      cpf: item.cpf ?? "",
+      cpf: item.cpf ? formatCpf(item.cpf) : "",
+      rg: item.rg ?? "",
+      pai: item.pai ?? "",
+      mae: item.mae ?? "",
+      endereco: item.endereco ?? "",
       data_nascimento: item.dataNascimento ?? "",
     });
     setDialogOpen(true);
@@ -87,6 +104,12 @@ export function InteressadosPage() {
     setError("");
 
     try {
+      const cpfValue = form.cpf.trim();
+      if (cpfValue.length > 0 && !isValidCpf(cpfValue)) {
+        setError("CPF invalido.");
+        return;
+      }
+
       if (editing) {
         await updatePessoa(editing.id, normalizePayload(form));
       } else {
@@ -155,6 +178,7 @@ export function InteressadosPage() {
                   <th className="px-4 py-3">Cargo</th>
                   <th className="px-4 py-3">Matricula</th>
                   <th className="px-4 py-3">CPF</th>
+                  <th className="px-4 py-3">RG</th>
                   <th className="px-4 py-3">Nascimento</th>
                   <th className="px-4 py-3">Criado em</th>
                   <th className="px-4 py-3 text-right">Acoes</th>
@@ -163,7 +187,7 @@ export function InteressadosPage() {
               <tbody className="divide-y divide-slate-100 bg-white/95">
                 {items.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={7}>
+                    <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={8}>
                       Nenhuma pessoa encontrada.
                     </td>
                   </tr>
@@ -173,7 +197,8 @@ export function InteressadosPage() {
                       <td className="px-4 py-4 font-medium text-slate-950">{item.nome}</td>
                       <td className="px-4 py-4 text-slate-600">{item.cargo ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.matricula ?? "-"}</td>
-                      <td className="px-4 py-4 text-slate-600">{item.cpf ?? "-"}</td>
+                      <td className="px-4 py-4 text-slate-600">{item.cpf ? formatCpf(item.cpf) : "-"}</td>
+                      <td className="px-4 py-4 text-slate-600">{item.rg ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.dataNascimento ? new Date(item.dataNascimento).toLocaleDateString("pt-BR") : "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString("pt-BR")}</td>
                       <td className="px-4 py-4 text-right">
@@ -204,13 +229,27 @@ export function InteressadosPage() {
               <Input onChange={(event) => setForm((current) => ({ ...current, cargo: event.target.value }))} value={form.cargo} />
             </FormField>
             <div className="grid gap-4 md:grid-cols-2">
+              <FormField label="Pai">
+                <Input onChange={(event) => setForm((current) => ({ ...current, pai: event.target.value }))} value={form.pai} />
+              </FormField>
+              <FormField label="Mae">
+                <Input onChange={(event) => setForm((current) => ({ ...current, mae: event.target.value }))} value={form.mae} />
+              </FormField>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
               <FormField label="Matricula">
                 <Input onChange={(event) => setForm((current) => ({ ...current, matricula: event.target.value }))} value={form.matricula} />
               </FormField>
               <FormField label="CPF">
-                <Input onChange={(event) => setForm((current) => ({ ...current, cpf: event.target.value }))} value={form.cpf} />
+                <Input onChange={(event) => setForm((current) => ({ ...current, cpf: formatCpf(event.target.value) }))} value={form.cpf} />
               </FormField>
             </div>
+            <FormField label="RG">
+              <Input onChange={(event) => setForm((current) => ({ ...current, rg: event.target.value }))} value={form.rg} />
+            </FormField>
+            <FormField label="Endereco">
+              <Input onChange={(event) => setForm((current) => ({ ...current, endereco: event.target.value }))} value={form.endereco} />
+            </FormField>
             <FormField label="Data de nascimento">
               <Input onChange={(event) => setForm((current) => ({ ...current, data_nascimento: event.target.value }))} type="date" value={form.data_nascimento} />
             </FormField>
