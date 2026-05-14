@@ -2714,7 +2714,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           from adminlog.demanda_vinculos
           where origem_pre_demanda_id = $1
              or destino_pre_demanda_id = $1
-          order by created_at desc, id desc
+          order by created_at desc, origem_pre_demanda_id desc, destino_pre_demanda_id desc
           `,
           [sourceId],
         );
