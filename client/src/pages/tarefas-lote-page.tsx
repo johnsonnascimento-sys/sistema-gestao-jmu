@@ -391,8 +391,6 @@ export function TarefasLotePage() {
           : null,
       });
       setLastResult(result);
-      const failedIds = new Set(result.results.filter((item) => !item.ok).map((item) => item.preId));
-      setSelectedItems((current) => current.filter((item) => failedIds.has(item.preId)));
     } catch (error) {
       setSubmitError(formatAppError(error, "Falha ao registrar tarefas em lote."));
     } finally {
