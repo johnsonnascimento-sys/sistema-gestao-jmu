@@ -1,5 +1,6 @@
 ﻿import type { FastifyInstance } from "fastify";
 import { emitPreDemandaUpdate } from "../lib/events";
+import { SEI_REGEX } from "../lib/sei";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
 import { AppError } from "../errors";
@@ -12,7 +13,6 @@ const SORT_ORDERS: SortOrder[] = ["asc", "desc"];
 const DUE_STATES = ["overdue", "due_today", "due_soon", "none"] as const;
 const DEADLINE_FIELDS = ["prazoProcesso", "proximoPrazoTarefa"] as const;
 const PRAZO_RECORTES = ["overdue", "today", "soon"] as const;
-const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
 const NUMERO_JUDICIAL_REGEX = /^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/;
 
 const metadataSchema = z

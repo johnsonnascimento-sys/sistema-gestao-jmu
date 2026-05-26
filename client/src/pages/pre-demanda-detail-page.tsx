@@ -1504,7 +1504,7 @@ export function PreDemandaDetailPage() {
   async function handleAssociation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isSeiValid) {
-      setError("Informe um numero SEI no formato 000181/26-02.227.");
+      setError("Informe um numero SEI no formato 000181/26-02.227 ou 022372/25-00.01.");
       return;
     }
     await runMutation(async () => {
