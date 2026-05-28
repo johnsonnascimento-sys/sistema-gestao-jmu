@@ -366,6 +366,7 @@ export function PreDemandaDetailPage() {
   );
   const [editingTask, setEditingTask] = useState<TarefaPendente | null>(null);
   const [deleteTask, setDeleteTask] = useState<TarefaPendente | null>(null);
+  const [completeTask, setCompleteTask] = useState<TarefaPendente | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reopenAlert, setReopenAlert] = useState<string | null>(null);
   const [associationForm, setAssociationForm] = useState({
@@ -481,6 +482,53 @@ export function PreDemandaDetailPage() {
   function openTaskEditor(task: TarefaPendente) {
     setToolbarDialog("tasks");
     setEditingTask(task);
+  }
+
+  function requestTaskCompletion(task: TarefaPendente) {
+    if (task.recorrenciaTipo) {
+      setCompleteTask(task);
+      return;
+    }
+
+    void completeTaskNow(task, true).catch((nextError) => {
+      setError(
+        formatPreDemandaMutationError(
+          nextError,
+          "Falha ao concluir a tarefa.",
+        ),
+      );
+    });
+  }
+
+  async function completeTaskNow(task: TarefaPendente, gerarNovaOcorrencia: boolean) {
+    setIsSubmitting(true);
+    setError("");
+    setMessage("");
+
+    try {
+      await concluirPreDemandaTarefa(preId, task.id, {
+        gerar_nova_ocorrencia: gerarNovaOcorrencia,
+      });
+      await loadRecordData();
+      void loadTimelineData();
+      await loadTarefasData(true);
+      setMessage(
+        task.recorrenciaTipo && gerarNovaOcorrencia
+          ? "Tarefa concluida. Nova ocorrencia gerada."
+          : task.recorrenciaTipo
+            ? "Tarefa concluida sem gerar nova ocorrencia."
+          : "Tarefa concluida.",
+      );
+    } catch (nextError) {
+      throw new Error(
+        formatPreDemandaMutationError(
+          nextError,
+          "Falha ao concluir a tarefa.",
+        ),
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function syncRecordDependentState(nextRecord: PreDemanda) {
@@ -2492,20 +2540,7 @@ export function PreDemandaDetailPage() {
                                 <div className="flex items-start gap-3">
                                   <input
                                     className="mt-1 h-4 w-4 accent-slate-950"
-                                    onChange={() =>
-                                      void runMutation(
-                                        async () => {
-                                          await concluirPreDemandaTarefa(
-                                            preId,
-                                            task.id,
-                                          );
-                                          await loadTarefasData(true);
-                                        },
-                                        formatRecorrenciaLabel(task)
-                                          ? "Tarefa concluida. Nova ocorrencia gerada."
-                                          : "Tarefa concluida.",
-                                      )
-                                    }
+                                    onChange={() => requestTaskCompletion(task)}
                                     type="checkbox"
                                   />
                                   <div className="min-w-0 flex-1">
@@ -2795,20 +2830,7 @@ export function PreDemandaDetailPage() {
                           <div className="flex items-start gap-3">
                             <input
                               className="mt-1 h-4 w-4 shrink-0 accent-slate-950"
-                              onChange={() =>
-                                void runMutation(
-                                  async () => {
-                                    await concluirPreDemandaTarefa(
-                                      preId,
-                                      task.id,
-                                    );
-                                    await loadTarefasData(true);
-                                  },
-                                  formatRecorrenciaLabel(task)
-                                    ? "Tarefa concluida. Nova ocorrencia gerada."
-                                    : "Tarefa concluida.",
-                                )
-                              }
+                              onChange={() => requestTaskCompletion(task)}
                               type="checkbox"
                             />
                             <div className="min-w-0 flex-1">
@@ -4718,17 +4740,7 @@ export function PreDemandaDetailPage() {
               horario_fim: suggestion.horarioFim,
             }))
           }
-          onCompleteTask={(task) =>
-            void runMutation(
-              async () => {
-                await concluirPreDemandaTarefa(preId, task.id);
-                await loadTarefasData(true);
-              },
-              formatRecorrenciaLabel(task)
-                ? "Tarefa concluida. Nova ocorrencia gerada."
-                : "Tarefa concluida.",
-            )
-          }
+          onCompleteTask={(task) => requestTaskCompletion(task)}
           onCreateTask={() => void handleCreateTask()}
           onCancelEdit={() => setEditingTask(null)}
           onDeleteTask={(task) => setDeleteTask(task)}
@@ -5479,6 +5491,28 @@ export function PreDemandaDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        confirmLabel="Concluir tarefa"
+        description="Confirme a conclusao da tarefa. Para tarefas recorrentes, voce pode impedir a criacao da proxima ocorrencia."
+        extraOption={
+          completeTask?.recorrenciaTipo
+            ? {
+                label: "Nao gerar a proxima ocorrencia",
+                description:
+                  "A tarefa sera concluida sem criar automaticamente a nova recorrencia.",
+              }
+            : undefined
+        }
+        onConfirm={async ({ extraOptionChecked }) => {
+          if (!completeTask) return;
+          await completeTaskNow(completeTask, !extraOptionChecked);
+        }}
+        onOpenChange={(open) => {
+          if (!open) setCompleteTask(null);
+        }}
+        open={Boolean(completeTask)}
+      />
 
       <ConfirmDialog
         confirmLabel={statusAction?.title ?? "Confirmar alteracao"}

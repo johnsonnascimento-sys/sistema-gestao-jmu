@@ -699,75 +699,77 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         [input.tarefaId, demanda.id, input.changedByUserId],
       );
 
-      const proximaDataRecorrente = this.getProximaDataRecorrente({
-        prazoConclusao: new Date(current.rows[0].prazo_conclusao).toISOString().slice(0, 10),
-        recorrenciaTipo: current.rows[0].recorrencia_tipo ? (String(current.rows[0].recorrencia_tipo) as TarefaRecorrenciaTipo) : null,
-        recorrenciaDiasSemana: Array.isArray(current.rows[0].recorrencia_dias_semana)
-          ? current.rows[0].recorrencia_dias_semana.filter((item: unknown): item is string => typeof item === "string")
-          : null,
-        recorrenciaDiaMes: typeof current.rows[0].recorrencia_dia_mes === "number"
-          ? current.rows[0].recorrencia_dia_mes
-          : current.rows[0].recorrencia_dia_mes
-            ? Number(current.rows[0].recorrencia_dia_mes)
+      if (input.gerarNovaOcorrencia !== false) {
+        const proximaDataRecorrente = this.getProximaDataRecorrente({
+          prazoConclusao: new Date(current.rows[0].prazo_conclusao).toISOString().slice(0, 10),
+          recorrenciaTipo: current.rows[0].recorrencia_tipo ? (String(current.rows[0].recorrencia_tipo) as TarefaRecorrenciaTipo) : null,
+          recorrenciaDiasSemana: Array.isArray(current.rows[0].recorrencia_dias_semana)
+            ? current.rows[0].recorrencia_dias_semana.filter((item: unknown): item is string => typeof item === "string")
             : null,
-      });
-
-      if (proximaDataRecorrente && new Date(`${proximaDataRecorrente}T00:00:00`).getTime() <= new Date(`${demanda.prazoProcesso}T00:00:00`).getTime()) {
-        const ordemResult = await client.query(
-          `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
-          [demanda.id],
-        );
-        const nextOrdem = Number(ordemResult.rows[0]?.max_ordem ?? current.rows[0].ordem ?? 0) + 1;
-
-        await client.query(
-          `
-            insert into adminlog.tarefas_pendentes (
-              pre_demanda_id,
-              ordem,
-              descricao,
-              tipo,
-              urgente,
-              assunto_id,
-              procedimento_id,
-              prazo_conclusao,
-              horario_inicio,
-              horario_fim,
-              recorrencia_tipo,
-              recorrencia_dias_semana,
-              recorrencia_dia_mes,
-              setor_destino_id,
-              gerada_automaticamente,
-              created_by_user_id
-            )
-            values ($1, $2, $3, $4, $5, $6::uuid, $7::uuid, $8::date, $9::time, $10::time, $11, $12::jsonb, $13::int, $14::uuid, $15, $16)
-          `,
-          [
-            demanda.id,
-            nextOrdem,
-            String(current.rows[0].descricao),
-            String(current.rows[0].tipo),
-            Boolean(current.rows[0].urgente),
-            current.rows[0].assunto_id ?? null,
-            current.rows[0].procedimento_id ?? null,
-            proximaDataRecorrente,
-            current.rows[0].horario_inicio ?? null,
-            current.rows[0].horario_fim ?? null,
-            current.rows[0].recorrencia_tipo ?? null,
-            current.rows[0].recorrencia_dias_semana ? JSON.stringify(current.rows[0].recorrencia_dias_semana) : null,
-            current.rows[0].recorrencia_dia_mes ?? null,
-            current.rows[0].setor_destino_id ?? null,
-            Boolean(current.rows[0].gerada_automaticamente),
-            input.changedByUserId,
-          ],
-        );
-
-        await insertAndamento(client, {
-          preDemandaId: demanda.id,
-          preId: demanda.preId,
-          descricao: `Nova ocorrencia gerada para a tarefa recorrente ${String(current.rows[0].descricao)} com prazo em ${new Date(`${proximaDataRecorrente}T00:00:00`).toLocaleDateString("pt-BR")}.`,
-          tipo: "sistema",
-          createdByUserId: input.changedByUserId,
+          recorrenciaDiaMes: typeof current.rows[0].recorrencia_dia_mes === "number"
+            ? current.rows[0].recorrencia_dia_mes
+            : current.rows[0].recorrencia_dia_mes
+              ? Number(current.rows[0].recorrencia_dia_mes)
+              : null,
         });
+
+        if (proximaDataRecorrente && new Date(`${proximaDataRecorrente}T00:00:00`).getTime() <= new Date(`${demanda.prazoProcesso}T00:00:00`).getTime()) {
+          const ordemResult = await client.query(
+            `select coalesce(max(ordem), 0) as max_ordem from adminlog.tarefas_pendentes where pre_demanda_id = $1`,
+            [demanda.id],
+          );
+          const nextOrdem = Number(ordemResult.rows[0]?.max_ordem ?? current.rows[0].ordem ?? 0) + 1;
+
+          await client.query(
+            `
+              insert into adminlog.tarefas_pendentes (
+                pre_demanda_id,
+                ordem,
+                descricao,
+                tipo,
+                urgente,
+                assunto_id,
+                procedimento_id,
+                prazo_conclusao,
+                horario_inicio,
+                horario_fim,
+                recorrencia_tipo,
+                recorrencia_dias_semana,
+                recorrencia_dia_mes,
+                setor_destino_id,
+                gerada_automaticamente,
+                created_by_user_id
+              )
+              values ($1, $2, $3, $4, $5, $6::uuid, $7::uuid, $8::date, $9::time, $10::time, $11, $12::jsonb, $13::int, $14::uuid, $15, $16)
+            `,
+            [
+              demanda.id,
+              nextOrdem,
+              String(current.rows[0].descricao),
+              String(current.rows[0].tipo),
+              Boolean(current.rows[0].urgente),
+              current.rows[0].assunto_id ?? null,
+              current.rows[0].procedimento_id ?? null,
+              proximaDataRecorrente,
+              current.rows[0].horario_inicio ?? null,
+              current.rows[0].horario_fim ?? null,
+              current.rows[0].recorrencia_tipo ?? null,
+              current.rows[0].recorrencia_dias_semana ? JSON.stringify(current.rows[0].recorrencia_dias_semana) : null,
+              current.rows[0].recorrencia_dia_mes ?? null,
+              current.rows[0].setor_destino_id ?? null,
+              Boolean(current.rows[0].gerada_automaticamente),
+              input.changedByUserId,
+            ],
+          );
+
+          await insertAndamento(client, {
+            preDemandaId: demanda.id,
+            preId: demanda.preId,
+            descricao: `Nova ocorrencia gerada para a tarefa recorrente ${String(current.rows[0].descricao)} com prazo em ${new Date(`${proximaDataRecorrente}T00:00:00`).toLocaleDateString("pt-BR")}.`,
+            tipo: "sistema",
+            createdByUserId: input.changedByUserId,
+          });
+        }
       }
 
       await this.syncProcessUrgenciaFromTasks(client, {

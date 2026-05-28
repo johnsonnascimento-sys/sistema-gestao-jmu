@@ -305,6 +305,10 @@ const tarefaOrderSchema = z.object({
   tarefa_ids: z.array(z.string().uuid()).min(1),
 });
 
+const concluirTarefaSchema = z.object({
+  gerar_nova_ocorrencia: z.boolean().optional(),
+});
+
 const tarefaSuggestionsSchema = z.object({
   prazo_conclusao: z.string().date().optional(),
   limit: z.coerce.number().int().positive().max(8).optional().default(4),
@@ -1264,9 +1268,11 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
 
   app.patch("/api/pre-demandas/:preId/tarefas/:tarefaId/concluir", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
+    const payload = concluirTarefaSchema.parse(request.body ?? {});
     const tarefa = await preDemandaTarefaRepository.concluirTarefa({
       preId: params.preId,
       tarefaId: params.tarefaId,
+      gerarNovaOcorrencia: payload.gerar_nova_ocorrencia,
       changedByUserId: request.user!.id,
     });
 

@@ -1796,26 +1796,28 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       }
       this.addAndamentoRecord(record, `Processo remetido para ${tarefa.setorDestino.sigla}.`, "tramitacao");
     }
-    const proximaData = getNextRecurringDate({
-      prazoConclusao: tarefa.prazoConclusao ?? record.prazoProcesso!,
-      recorrenciaTipo: tarefa.recorrenciaTipo ?? null,
-      recorrenciaDiasSemana: tarefa.recorrenciaDiasSemana ?? null,
-      recorrenciaDiaMes: tarefa.recorrenciaDiaMes ?? null,
-    });
-    if (proximaData && new Date(`${proximaData}T00:00:00`).getTime() <= new Date(`${record.prazoProcesso}T00:00:00`).getTime()) {
-      record.tarefasPendentes.push({
-        ...tarefa,
-        id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
-        ordem: record.tarefasPendentes.length + 1,
-        concluida: false,
-        concluidaEm: null,
-        concluidaPor: null,
-        prazoConclusao: proximaData,
-        prazoData: proximaData,
-        createdAt: new Date().toISOString(),
+    if (input.gerarNovaOcorrencia !== false) {
+      const proximaData = getNextRecurringDate({
+        prazoConclusao: tarefa.prazoConclusao ?? record.prazoProcesso!,
+        recorrenciaTipo: tarefa.recorrenciaTipo ?? null,
+        recorrenciaDiasSemana: tarefa.recorrenciaDiasSemana ?? null,
+        recorrenciaDiaMes: tarefa.recorrenciaDiaMes ?? null,
       });
-      record.proximoPrazoTarefa = record.tarefasPendentes.filter((item) => !item.concluida).map((item) => item.prazoConclusao).filter((value): value is string => Boolean(value)).sort()[0] ?? null;
-      this.addAndamentoRecord(record, `Nova ocorrencia gerada para a tarefa recorrente ${tarefa.descricao}.`, "sistema");
+      if (proximaData && new Date(`${proximaData}T00:00:00`).getTime() <= new Date(`${record.prazoProcesso}T00:00:00`).getTime()) {
+        record.tarefasPendentes.push({
+          ...tarefa,
+          id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
+          ordem: record.tarefasPendentes.length + 1,
+          concluida: false,
+          concluidaEm: null,
+          concluidaPor: null,
+          prazoConclusao: proximaData,
+          prazoData: proximaData,
+          createdAt: new Date().toISOString(),
+        });
+        record.proximoPrazoTarefa = record.tarefasPendentes.filter((item) => !item.concluida).map((item) => item.prazoConclusao).filter((value): value is string => Boolean(value)).sort()[0] ?? null;
+        this.addAndamentoRecord(record, `Nova ocorrencia gerada para a tarefa recorrente ${tarefa.descricao}.`, "sistema");
+      }
     }
     this.syncTaskUrgency(record);
     this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
@@ -3906,6 +3908,69 @@ describe("Gestor JMU API", () => {
           item.descricao === "Revisao trimestral" && item.prazoConclusao === "2026-06-12" && item.recorrenciaTipo === "trimestral",
       ),
     ).toBe(true);
+  });
+
+  it("allows concluding a recurring task without generating a new occurrence", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Carlos Sem Nova Ocorrencia",
+        assunto: "Fluxo recorrente sem repeticao",
+        data_referencia: "2026-03-10",
+        prazo_processo: "2026-03-20",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const preId = created.json().data.preId as string;
+
+    const tarefa = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/tarefas`,
+      headers: { cookie },
+      payload: {
+        descricao: "Conferir fila manualmente",
+        tipo: "livre",
+        prazo_conclusao: "2026-03-12",
+        recorrencia_tipo: "diaria",
+      },
+    });
+
+    expect(tarefa.statusCode).toBe(201);
+    const tarefaId = tarefa.json().data.id as string;
+
+    const concluida = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
+      headers: { cookie },
+      payload: {
+        gerar_nova_ocorrencia: false,
+      },
+    });
+
+    expect(concluida.statusCode).toBe(200);
+
+    const detail = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas/${preId}`,
+      headers: { cookie },
+    });
+
+    expect(detail.statusCode).toBe(200);
+    const tarefasPendentes = detail.json().data.tarefasPendentes.filter((item: { concluida: boolean }) => !item.concluida);
+    expect(tarefasPendentes.some((item: { descricao: string }) => item.descricao === "Conferir fila manualmente")).toBe(false);
   });
 
   it("registers andamentos em lote with deduplication and partial success", async () => {
