@@ -311,6 +311,8 @@ export interface RemoveDemandaAssuntoInput {
 export interface ConcluirTarefaInput {
   preId: string;
   tarefaId: string;
+  motivo?: string | null;
+  observacoes?: string | null;
   gerarNovaOcorrencia?: boolean;
   changedByUserId: number;
 }

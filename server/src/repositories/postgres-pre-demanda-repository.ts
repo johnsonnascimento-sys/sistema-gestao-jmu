@@ -4192,10 +4192,18 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         });
       }
 
+      const andamentoParts = [`Tarefa concluida: ${String(current.rows[0].descricao)}.`];
+      if (input.motivo?.trim()) {
+        andamentoParts.push(`Motivo: ${input.motivo.trim()}.`);
+      }
+      if (input.observacoes?.trim()) {
+        andamentoParts.push(`Observacoes: ${input.observacoes.trim()}.`);
+      }
+
       await this.insertAndamento(client, {
         preDemandaId: demanda.id,
         preId: demanda.preId,
-        descricao: `Tarefa concluida: ${String(current.rows[0].descricao)}.`,
+        descricao: andamentoParts.join(" "),
         tipo: "tarefa_concluida",
         createdByUserId: input.changedByUserId,
       });

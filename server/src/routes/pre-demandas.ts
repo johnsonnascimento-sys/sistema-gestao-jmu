@@ -307,6 +307,8 @@ const tarefaOrderSchema = z.object({
 
 const concluirTarefaSchema = z.object({
   gerar_nova_ocorrencia: z.boolean().optional(),
+  motivo: z.string().trim().max(2000).optional().nullable(),
+  observacoes: z.string().trim().max(2000).optional().nullable(),
 });
 
 const tarefaSuggestionsSchema = z.object({
@@ -1272,6 +1274,8 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     const tarefa = await preDemandaTarefaRepository.concluirTarefa({
       preId: params.preId,
       tarefaId: params.tarefaId,
+      motivo: emptyToNull(payload.motivo),
+      observacoes: emptyToNull(payload.observacoes),
       gerarNovaOcorrencia: payload.gerar_nova_ocorrencia,
       changedByUserId: request.user!.id,
     });

@@ -490,7 +490,7 @@ export function PreDemandaDetailPage() {
       return;
     }
 
-    void completeTaskNow(task, true).catch((nextError) => {
+    void completeTaskNow(task, true, "", "").catch((nextError) => {
       setError(
         formatPreDemandaMutationError(
           nextError,
@@ -500,7 +500,12 @@ export function PreDemandaDetailPage() {
     });
   }
 
-  async function completeTaskNow(task: TarefaPendente, gerarNovaOcorrencia: boolean) {
+  async function completeTaskNow(
+    task: TarefaPendente,
+    gerarNovaOcorrencia: boolean,
+    motivo: string,
+    observacoes: string,
+  ) {
     setIsSubmitting(true);
     setError("");
     setMessage("");
@@ -508,6 +513,8 @@ export function PreDemandaDetailPage() {
     try {
       await concluirPreDemandaTarefa(preId, task.id, {
         gerar_nova_ocorrencia: gerarNovaOcorrencia,
+        motivo,
+        observacoes,
       });
       await loadRecordData();
       void loadTimelineData();
@@ -5504,9 +5511,9 @@ export function PreDemandaDetailPage() {
               }
             : undefined
         }
-        onConfirm={async ({ extraOptionChecked }) => {
+        onConfirm={async ({ motivo, observacoes, extraOptionChecked }) => {
           if (!completeTask) return;
-          await completeTaskNow(completeTask, !extraOptionChecked);
+          await completeTaskNow(completeTask, !extraOptionChecked, motivo, observacoes);
         }}
         onOpenChange={(open) => {
           if (!open) setCompleteTask(null);

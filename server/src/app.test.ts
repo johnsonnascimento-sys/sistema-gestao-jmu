@@ -1820,7 +1820,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       }
     }
     this.syncTaskUrgency(record);
-    this.addAndamentoRecord(record, `Tarefa concluida: ${tarefa.descricao}.`, "tarefa_concluida");
+    const andamentoParts = [`Tarefa concluida: ${tarefa.descricao}.`];
+    if (input.motivo?.trim()) {
+      andamentoParts.push(`Motivo: ${input.motivo.trim()}.`);
+    }
+    if (input.observacoes?.trim()) {
+      andamentoParts.push(`Observacoes: ${input.observacoes.trim()}.`);
+    }
+    this.addAndamentoRecord(record, andamentoParts.join(" "), "tarefa_concluida");
     return tarefa;
   }
 
