@@ -1,8 +1,7 @@
-import { Activity, BookText, Boxes, Building2, CalendarClock, ExternalLink, FileText, History, LayoutDashboard, ListTodo, LogOut, PackagePlus, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
+import { Activity, BookText, Boxes, Building2, CalendarClock, FileText, History, LayoutDashboard, ListTodo, LogOut, PackagePlus, ShieldCheck, SquarePen, Tag, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth-context";
-import { getEscalaPlantaoUrl } from "../lib/external-links";
 import { getRuntimeHealth } from "../lib/api";
 import { cn } from "../lib/utils";
 import { useEvents } from "../hooks/use-events";
@@ -23,7 +22,6 @@ export function AppShell() {
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const [runtime, setRuntime] = useState<RuntimeStatus | null>(null);
-  const escalaPlantaoUrl = getEscalaPlantaoUrl();
 
   useEvents();
 
@@ -121,18 +119,6 @@ export function AppShell() {
                 <ListTodo className="h-4 w-4" />
                 Processos
               </NavLink>
-              {escalaPlantaoUrl ? (
-                <a
-                  className={navLinkClassName({ isActive: false })}
-                  href={escalaPlantaoUrl}
-                  rel="noreferrer noopener"
-                  target="_blank"
-                >
-                  <CalendarClock className="h-4 w-4" />
-                  Escala de Plantão
-                  <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-70" />
-                </a>
-              ) : null}
               {hasPermission("pre_demanda.update") ? (
                 <NavLink className={navLinkClassName} to="/andamentos-lote">
                   <FileText className="h-4 w-4" />

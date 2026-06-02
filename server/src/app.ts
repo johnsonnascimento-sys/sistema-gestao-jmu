@@ -36,7 +36,6 @@ import { registerPreDemandaAudienciaRoutes } from "./routes/audiencias";
 import { registerSetorRoutes } from "./routes/setores";
 import { registerEventsRoutes } from "./routes/events";
 import { registerAuditRoutes } from "./routes/auditoria";
-import { registerEscalaPlantaoRoutes } from "./routes/escala-plantao";
 import { createRuntimeStatus } from "./runtime";
 
 export interface AppDependencies {
@@ -149,7 +148,6 @@ export async function buildApp(partialDependencies?: Partial<AppDependencies>) {
   await registerPreDemandaRoutes(app, { preDemandaRepository, assuntoRepository, preDemandaTarefaRepository, preDemandaAndamentoRepository });
   await registerPreDemandaAudienciaRoutes(app, { preDemandaAudienciaRepository, preDemandaRepository });
   await registerEventsRoutes(app);
-  await registerEscalaPlantaoRoutes(app, { interessadoRepository, setorRepository });
   await registerAdminOperationsRoutes(app, { config, pool, operationsStore, settingsRepository });
   await registerAdminUserRoutes(app, { userRepository });
   await registerAuditRoutes(app, { pool });

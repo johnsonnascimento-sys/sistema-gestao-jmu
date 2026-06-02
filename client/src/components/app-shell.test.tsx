@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthContext } from "../auth-context";
 import { AppShell } from "./app-shell";
 
@@ -18,20 +18,8 @@ vi.mock("../lib/api", () => ({
   }),
 }));
 
-vi.mock("../lib/external-links", () => ({
-  getEscalaPlantaoUrl: vi.fn(),
-}));
-
-import { getEscalaPlantaoUrl } from "../lib/external-links";
-
-const mockedGetEscalaPlantaoUrl = vi.mocked(getEscalaPlantaoUrl);
-
 describe("AppShell", () => {
-  beforeEach(() => {
-    mockedGetEscalaPlantaoUrl.mockReturnValue("https://escala.example.com");
-  });
-
-  it("exibe o atalho externo para a escala de plantao", async () => {
+  it("exibe o dashboard no menu lateral", async () => {
     render(
       <AuthContext.Provider
         value={{
@@ -59,8 +47,6 @@ describe("AppShell", () => {
       </AuthContext.Provider>,
     );
 
-    const link = await screen.findByRole("link", { name: /escala de plant/i });
-    expect(link).toHaveAttribute("href", "https://escala.example.com");
-    expect(link).toHaveAttribute("target", "_blank");
+    expect(await screen.findByRole("link", { name: "Dashboard" })).toBeInTheDocument();
   });
 });

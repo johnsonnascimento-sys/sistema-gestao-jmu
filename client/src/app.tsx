@@ -20,7 +20,6 @@ const AssuntosPage = lazy(() => import("./pages/assuntos-page").then((module) =>
 const InteressadosPage = lazy(() => import("./pages/interessados-page").then((module) => ({ default: module.InteressadosPage })));
 const LoginPage = lazy(() => import("./pages/login-page").then((module) => ({ default: module.LoginPage })));
 const NewPreDemandaPage = lazy(() => import("./pages/new-pre-demanda-page").then((module) => ({ default: module.NewPreDemandaPage })));
-const EscalaPlantaoPage = lazy(() => import("./pages/escala-plantao-page").then((module) => ({ default: module.EscalaPlantaoPage })));
 const NotFoundPage = lazy(() => import("./pages/not-found-page").then((module) => ({ default: module.NotFoundPage })));
 const NormasPage = lazy(() => import("./pages/normas-page").then((module) => ({ default: module.NormasPage })));
 const PreDemandaDetailPage = lazy(() => import("./pages/pre-demanda-detail-page").then((module) => ({ default: module.PreDemandaDetailPage })));
@@ -33,7 +32,6 @@ export function App() {
       <BrowserRouter>
         <Suspense fallback={<LoadingState title="Carregando" description="Abrindo a pagina solicitada." />}>
           <Routes>
-            <Route element={<EscalaPlantaoPage />} path="/escala-de-plantao" />
             <Route element={<LoginPage />} path="/login" />
 
             <Route element={<RequireAuth />}>

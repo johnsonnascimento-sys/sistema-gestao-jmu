@@ -8,8 +8,6 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-ARG VITE_ESCALA_PLANTAO_URL=""
-ENV VITE_ESCALA_PLANTAO_URL=$VITE_ESCALA_PLANTAO_URL
 RUN npm run build
 
 FROM node:24-alpine AS runner
