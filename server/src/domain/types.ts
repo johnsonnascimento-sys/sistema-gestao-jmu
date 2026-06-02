@@ -314,6 +314,8 @@ export interface Andamento {
   dataHora: string;
   descricao: string;
   tipo: AndamentoTipo;
+  motivo: string | null;
+  observacoes: string | null;
   createdBy: AuditActor | null;
 }
 

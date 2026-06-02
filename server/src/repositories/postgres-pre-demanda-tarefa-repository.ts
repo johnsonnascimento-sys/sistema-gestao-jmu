@@ -787,19 +787,13 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         });
       }
 
-      const andamentoPartes = [`Tarefa concluida: ${String(current.rows[0].descricao)}.`];
-      if (input.motivo?.trim()) {
-        andamentoPartes.push(`Motivo: ${input.motivo.trim()}.`);
-      }
-      if (input.observacoes?.trim()) {
-        andamentoPartes.push(`Observacoes: ${input.observacoes.trim()}.`);
-      }
-
       await insertAndamento(client, {
         preDemandaId: demanda.id,
         preId: demanda.preId,
-        descricao: andamentoPartes.join(" "),
+        descricao: `Tarefa concluida: ${String(current.rows[0].descricao)}.`,
         tipo: "tarefa_concluida",
+        motivo: input.motivo?.trim() || null,
+        observacoes: input.observacoes?.trim() || null,
         createdByUserId: input.changedByUserId,
       });
 

@@ -294,6 +294,8 @@ export interface Andamento {
     | "vinculo_added"
     | "vinculo_removed"
     | "sei";
+  motivo: string | null;
+  observacoes: string | null;
   createdBy: AuditActor | null;
 }
 

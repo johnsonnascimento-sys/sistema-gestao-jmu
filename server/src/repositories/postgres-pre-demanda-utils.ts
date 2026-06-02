@@ -389,6 +389,8 @@ export function mapAndamento(row: QueryResultRow): Andamento {
     dataHora: new Date(row.data_hora).toISOString(),
     descricao: String(row.descricao),
     tipo: row.tipo as Andamento["tipo"],
+    motivo: row.motivo ? String(row.motivo) : null,
+    observacoes: row.observacoes ? String(row.observacoes) : null,
     createdBy: mapActor(row, "created_by"),
   };
 }
@@ -714,6 +716,8 @@ export async function loadAndamentos(queryable: Queryable, preDemandaId: number,
         andamento.data_hora,
         andamento.descricao,
         andamento.tipo,
+        andamento.motivo,
+        andamento.observacoes,
         created_by.id as created_by_id,
         created_by.email as created_by_email,
         created_by.name as created_by_name,
@@ -770,17 +774,27 @@ export async function insertAndamento(
     preId: string;
     descricao: string;
     tipo: Andamento["tipo"];
+    motivo?: string | null;
+    observacoes?: string | null;
     createdByUserId: number;
     dataHora?: string | null;
   },
 ) {
   const inserted = await queryable.query(
     `
-      insert into adminlog.andamentos (pre_demanda_id, data_hora, descricao, tipo, created_by_user_id)
-      values ($1, coalesce($2::timestamptz, now()), $3, $4, $5)
+      insert into adminlog.andamentos (pre_demanda_id, data_hora, descricao, tipo, motivo, observacoes, created_by_user_id)
+      values ($1, coalesce($2::timestamptz, now()), $3, $4, $5, $6, $7)
       returning id
     `,
-    [input.preDemandaId, input.dataHora ?? null, input.descricao, input.tipo, input.createdByUserId],
+    [
+      input.preDemandaId,
+      input.dataHora ?? null,
+      input.descricao,
+      input.tipo,
+      input.motivo ?? null,
+      input.observacoes ?? null,
+      input.createdByUserId,
+    ],
   );
 
   const result = await queryable.query(
@@ -791,6 +805,8 @@ export async function insertAndamento(
         andamento.data_hora,
         andamento.descricao,
         andamento.tipo,
+        andamento.motivo,
+        andamento.observacoes,
         created_by.id as created_by_id,
         created_by.email as created_by_email,
         created_by.name as created_by_name,

@@ -439,6 +439,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     descricao: string,
     tipo: Andamento["tipo"],
     occurredAt = new Date().toISOString(),
+    motivo: string | null = null,
+    observacoes: string | null = null,
   ) {
     const andamento: Andamento = {
       id: `and-${record.id}-${this.nextAuditId++}`,
@@ -446,6 +448,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       dataHora: occurredAt,
       descricao,
       tipo,
+      motivo,
+      observacoes,
       createdBy: null,
     };
 
@@ -1820,14 +1824,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       }
     }
     this.syncTaskUrgency(record);
-    const andamentoParts = [`Tarefa concluida: ${tarefa.descricao}.`];
-    if (input.motivo?.trim()) {
-      andamentoParts.push(`Motivo: ${input.motivo.trim()}.`);
-    }
-    if (input.observacoes?.trim()) {
-      andamentoParts.push(`Observacoes: ${input.observacoes.trim()}.`);
-    }
-    this.addAndamentoRecord(record, andamentoParts.join(" "), "tarefa_concluida");
+    this.addAndamentoRecord(
+      record,
+      `Tarefa concluida: ${tarefa.descricao}.`,
+      "tarefa_concluida",
+      new Date().toISOString(),
+      input.motivo?.trim() || null,
+      input.observacoes?.trim() || null,
+    );
     return tarefa;
   }
 
@@ -2210,8 +2214,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
                       : "andamento",
         occurredAt: item.dataHora,
         actor: item.createdBy,
-        motivo: null,
-        observacoes: null,
+        motivo: item.motivo,
+        observacoes: item.observacoes,
         descricao: item.descricao,
         statusAnterior: null,
         statusNovo: null,
