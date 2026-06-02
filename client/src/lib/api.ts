@@ -371,6 +371,24 @@ export interface ListInteressadosParams {
 
 export type ListPessoasParams = ListInteressadosParams;
 
+export interface EscalaPlantaoPessoa {
+  id: string;
+  nome: string;
+  cargo: string | null;
+  matricula: string | null;
+}
+
+export interface EscalaPlantaoSetor {
+  id: string;
+  sigla: string;
+  nomeCompleto: string;
+}
+
+export interface EscalaPlantaoData {
+  pessoas: EscalaPlantaoPessoa[];
+  setores: EscalaPlantaoSetor[];
+}
+
 export function login(email: string, password: string) {
   return request<AuthUser>("/api/auth/login", {
     method: "POST",
@@ -386,6 +404,16 @@ export function logout() {
 
 export function getCurrentUser() {
   return request<AuthUser>("/api/auth/me");
+}
+
+export function listEscalaPlantaoDados(q?: string) {
+  const searchParams = new URLSearchParams();
+  if (q?.trim()) {
+    searchParams.set("q", q.trim());
+  }
+
+  const query = searchParams.toString();
+  return request<EscalaPlantaoData>(`/api/public/escala/dados${query ? `?${query}` : ""}`);
 }
 
 export function getRuntimeHealth() {
