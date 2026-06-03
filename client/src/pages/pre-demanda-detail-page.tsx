@@ -2488,10 +2488,23 @@ export function PreDemandaDetailPage() {
                         >
                           {pendingTasks.map((task) => (
                             <Reorder.Item key={task.id} value={task}>
-                              <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 cursor-grab active:cursor-grabbing backdrop-blur-xl hover:shadow-md transition-shadow">
+                              <div
+                                aria-label={`Editar tarefa ${task.descricao}`}
+                                className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 cursor-grab active:cursor-grabbing backdrop-blur-xl hover:shadow-md transition-shadow"
+                                onClick={() => openTaskEditor(task)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    openTaskEditor(task);
+                                  }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                              >
                                 <div className="flex items-start gap-3">
                                   <input
                                     className="mt-1 h-4 w-4 accent-slate-950"
+                                    onClick={(event) => event.stopPropagation()}
                                     onChange={() =>
                                       void runMutation(
                                         async () => {
@@ -2578,10 +2591,13 @@ export function PreDemandaDetailPage() {
                                         assunto.
                                       </span>
                                     ) : null}
-                                  </div>
-                                  <div className="flex shrink-0 gap-2">
+                                </div>
+                                <div className="flex shrink-0 gap-2">
                                     <Button
-                                      onClick={() => openTaskEditor(task)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openTaskEditor(task);
+                                      }}
                                       size="sm"
                                       type="button"
                                       variant="secondary"
@@ -2589,7 +2605,10 @@ export function PreDemandaDetailPage() {
                                       Editar
                                     </Button>
                                     <Button
-                                      onClick={() => setDeleteTask(task)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setDeleteTask(task);
+                                      }}
                                       size="sm"
                                       type="button"
                                       variant="ghost"
