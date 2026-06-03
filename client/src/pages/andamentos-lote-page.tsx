@@ -138,10 +138,6 @@ export function AndamentosLotePage() {
         data_hora: form.data_hora ? toIsoFromDateTimeLocal(form.data_hora) : null,
       });
       setLastResult(result);
-      const failedIds = new Set(
-        result.results.filter((item) => !item.ok).map((item) => item.preId),
-      );
-      setSelectedItems((current) => current.filter((item) => failedIds.has(item.preId)));
     } catch (error) {
       setSubmitError(formatAppError(error, "Falha ao registrar andamentos em lote."));
     } finally {
