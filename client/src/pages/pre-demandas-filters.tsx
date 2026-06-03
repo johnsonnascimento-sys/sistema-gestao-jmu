@@ -1,9 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { FilterBar } from "../components/filter-bar";
 import { FormField } from "../components/form-field";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { Loader2, User } from "lucide-react";
+import { listPessoas } from "../lib/api";
+import type { Pessoa } from "../types";
 import type { PreDemandaSortBy, QueueHealthLevel, Setor, SortOrder, TarefaRecorrenciaTipo } from "../types";
 import {
   ResolvedSearchState,
@@ -29,6 +32,28 @@ export function PreDemandasFilters({
   setSearchParams: (params: URLSearchParams) => void;
 }) {
   const [query, setQuery] = useState(resolvedState.q);
+  const [personQuery, setPersonQuery] = useState(resolvedState.pessoaNome);
+  const [personResults, setPersonResults] = useState<Pessoa[]>([]);
+  const [personLoading, setPersonLoading] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<Pessoa | null>(
+    resolvedState.pessoaId
+      ? {
+          id: resolvedState.pessoaId,
+          nome: resolvedState.pessoaNome || "Pessoa selecionada",
+          createdAt: "",
+          updatedAt: "",
+          cargo: null,
+          matricula: null,
+          cpf: null,
+          rg: null,
+          pai: null,
+          mae: null,
+          endereco: null,
+          dataNascimento: null,
+        }
+      : null,
+  );
+  const personDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(resolvedState.statuses);
   const [selectedQueueHealthKey, setSelectedQueueHealthKey] = useState("all");
   const [dateFrom, setDateFrom] = useState(resolvedState.dateFrom);
@@ -69,6 +94,27 @@ export function PreDemandasFilters({
 
   useEffect(() => {
     setQuery(resolvedState.q);
+    setPersonQuery(resolvedState.pessoaNome);
+    setPersonResults([]);
+    setPersonLoading(false);
+    setSelectedPerson(
+      resolvedState.pessoaId
+        ? {
+            id: resolvedState.pessoaId,
+            nome: resolvedState.pessoaNome || "Pessoa selecionada",
+            createdAt: "",
+            updatedAt: "",
+            cargo: null,
+            matricula: null,
+            cpf: null,
+            rg: null,
+            pai: null,
+            mae: null,
+            endereco: null,
+            dataNascimento: null,
+          }
+        : null,
+    );
     setSelectedStatuses(resolvedState.statuses);
     setSelectedQueueHealthKey(resolveQueueHealthKey(resolvedState.queueHealth));
     setDateFrom(resolvedState.dateFrom);
@@ -88,10 +134,45 @@ export function PreDemandasFilters({
     setSortOrder(resolvedState.sortOrder);
   }, [resolvedState]);
 
+  useEffect(() => {
+    if (personDebounceRef.current) {
+      clearTimeout(personDebounceRef.current);
+    }
+
+    const trimmed = personQuery.trim();
+    if (trimmed.length < 2 || selectedPerson) {
+      setPersonResults([]);
+      setPersonLoading(false);
+      return;
+    }
+
+    setPersonLoading(true);
+    personDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await listPessoas({ q: trimmed, page: 1, pageSize: 5 });
+        setPersonResults(response.items);
+      } catch {
+        setPersonResults([]);
+      } finally {
+        setPersonLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      if (personDebounceRef.current) {
+        clearTimeout(personDebounceRef.current);
+      }
+    };
+  }, [personQuery, selectedPerson]);
+
   function handleFilterSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const next = new URLSearchParams();
 
+    if (selectedPerson) {
+      next.set("pessoaId", selectedPerson.id);
+      next.set("pessoaNome", selectedPerson.nome);
+    }
     if (query.trim()) next.set("q", query.trim());
     if (selectedStatuses.length) next.set("status", selectedStatuses.join(","));
     const selectedQueueHealth = resolveQueueHealthValues(selectedQueueHealthKey);
@@ -129,6 +210,10 @@ export function PreDemandasFilters({
 
   function clearFilters() {
     setQuery("");
+    setPersonQuery("");
+    setPersonResults([]);
+    setPersonLoading(false);
+    setSelectedPerson(null);
     setSelectedStatuses([]);
     setSelectedQueueHealthKey("all");
     setDateFrom("");
@@ -214,6 +299,73 @@ export function PreDemandasFilters({
         <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
             <Input onChange={(event) => setQuery(event.target.value)} placeholder="PROCESSO, SEI, pessoa ou assunto" value={query} />
+          </FormField>
+
+          <FormField label="Pessoa específica">
+            <div className="grid gap-2">
+              <Input
+                aria-label="Buscar pessoa nos filtros"
+                onChange={(event) => {
+                  const nextValue = event.target.value;
+                  setPersonQuery(nextValue);
+                  if (selectedPerson && nextValue.trim() !== selectedPerson.nome.trim()) {
+                    setSelectedPerson(null);
+                  }
+                }}
+                placeholder="Nome da pessoa"
+                value={personQuery}
+              />
+
+              {selectedPerson ? (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-700">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">{selectedPerson.nome}</p>
+                    <p className="truncate text-xs text-slate-500">{selectedPerson.cargo ?? selectedPerson.matricula ?? selectedPerson.cpf ?? "Pessoa selecionada"}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      className="text-sm font-medium text-slate-500 transition hover:text-slate-950"
+                      onClick={() => {
+                        setSelectedPerson(null);
+                        setPersonQuery("");
+                        setPersonResults([]);
+                      }}
+                      type="button"
+                    >
+                      Limpar pessoa
+                    </button>
+                  </div>
+                </div>
+              ) : personLoading ? (
+                <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Buscando pessoas...
+                </div>
+              ) : personResults.length > 0 ? (
+                <div className="grid gap-2 rounded-2xl border border-sky-100 bg-white p-2">
+                  {personResults.map((person) => (
+                    <button
+                      key={person.id}
+                      className="flex items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
+                      onClick={() => {
+                        setSelectedPerson(person);
+                        setPersonQuery(person.nome);
+                        setPersonResults([]);
+                      }}
+                      type="button"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{person.nome}</p>
+                        <p className="truncate text-xs text-slate-500">{person.cargo ?? person.matricula ?? person.cpf ?? "Pessoa cadastrada"}</p>
+                      </div>
+                      <User className="h-4 w-4 shrink-0 text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              ) : personQuery.trim().length >= 2 ? (
+                <div className="rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm text-slate-500">Nenhuma pessoa encontrada.</div>
+              ) : null}
+            </div>
           </FormField>
 
           <FormField hint="Multiplos estados." label="Status">

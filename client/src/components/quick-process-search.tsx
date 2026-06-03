@@ -1,11 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
-import { Loader2, Search } from "lucide-react";
-import { listPreDemandas } from "../lib/api";
+import { Loader2, Search, User } from "lucide-react";
+import { listPessoas, listPreDemandas } from "../lib/api";
 import { cn } from "../lib/utils";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
+import type { Pessoa } from "../types";
 
 function normalizeToken(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -22,28 +23,97 @@ export function QuickProcessSearch({
   const location = useLocation();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  const [personQuery, setPersonQuery] = useState("");
+  const [personResults, setPersonResults] = useState<Pessoa[]>([]);
+  const [personLoading, setPersonLoading] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<Pessoa | null>(null);
+  const personDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (location.pathname === "/pre-demandas") {
       const params = new URLSearchParams(location.search);
       setQuery(params.get("q") ?? "");
+      const pessoaId = params.get("pessoaId");
+      const pessoaNome = params.get("pessoaNome");
+      if (pessoaId) {
+        setSelectedPerson(
+          pessoaNome
+            ? { id: pessoaId, nome: pessoaNome, createdAt: "", updatedAt: "", cargo: null, matricula: null, cpf: null, rg: null, pai: null, mae: null, endereco: null, dataNascimento: null }
+            : { id: pessoaId, nome: "Pessoa selecionada", createdAt: "", updatedAt: "", cargo: null, matricula: null, cpf: null, rg: null, pai: null, mae: null, endereco: null, dataNascimento: null },
+        );
+        setPersonQuery(pessoaNome ?? "");
+      } else {
+        setSelectedPerson(null);
+        setPersonQuery("");
+      }
       return;
     }
 
     setQuery("");
+    setPersonQuery("");
+    setPersonResults([]);
+    setSelectedPerson(null);
   }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (personDebounceRef.current) {
+      clearTimeout(personDebounceRef.current);
+    }
+
+    const trimmed = personQuery.trim();
+    if (trimmed.length < 2 || selectedPerson) {
+      setPersonResults([]);
+      setPersonLoading(false);
+      return;
+    }
+
+    setPersonLoading(true);
+    personDebounceRef.current = setTimeout(async () => {
+      try {
+        const response = await listPessoas({ q: trimmed, page: 1, pageSize: 5 });
+        setPersonResults(response.items);
+      } catch {
+        setPersonResults([]);
+      } finally {
+        setPersonLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      if (personDebounceRef.current) {
+        clearTimeout(personDebounceRef.current);
+      }
+    };
+  }, [personQuery, selectedPerson]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const nextQuery = query.trim();
-    if (!nextQuery || loading) {
+    if (!nextQuery && !selectedPerson) {
+      return;
+    }
+
+    if (loading) {
       return;
     }
 
     setLoading(true);
 
     try {
+      if (selectedPerson) {
+        const searchParams = new URLSearchParams();
+        if (nextQuery) {
+          searchParams.set("q", nextQuery);
+        }
+        searchParams.set("pessoaId", selectedPerson.id);
+        searchParams.set("pessoaNome", selectedPerson.nome);
+        searchParams.set("view", "table");
+        searchParams.set("page", "1");
+        navigate(`/pre-demandas?${searchParams.toString()}`);
+        return;
+      }
+
       const response = await listPreDemandas({ q: nextQuery, pageSize: 8 });
       const exactMatch = response.items.find((item) => {
         const candidates = [
@@ -79,6 +149,9 @@ export function QuickProcessSearch({
 
   function handleClear() {
     setQuery("");
+    setPersonQuery("");
+    setPersonResults([]);
+    setSelectedPerson(null);
 
     if (location.pathname === "/pre-demandas") {
       navigate("/pre-demandas");
@@ -121,6 +194,98 @@ export function QuickProcessSearch({
           value={query}
         />
 
+        <div className="grid gap-2">
+          <p className={cn("text-xs font-semibold uppercase tracking-[0.24em]", variant === "sidebar" ? "text-indigo-200/80" : "text-slate-500")}>Pessoa específica</p>
+          <Input
+            aria-label="Buscar pessoa especifica"
+            className={cn(
+              "h-12 rounded-[18px] px-4 text-[15px] font-medium",
+              variant === "sidebar"
+                ? "h-10 rounded-[16px] border-white/12 bg-white/9 text-white placeholder:text-indigo-200/70 focus:border-white/30 focus:ring-white/10"
+                : "border-sky-100 bg-white text-slate-950 placeholder:text-slate-400",
+            )}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setPersonQuery(nextValue);
+              if (selectedPerson && nextValue.trim() !== selectedPerson.nome.trim()) {
+                setSelectedPerson(null);
+              }
+            }}
+            placeholder="Nome da pessoa"
+            value={personQuery}
+          />
+
+          {selectedPerson ? (
+            <div
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-[18px] border px-4 py-3 text-sm",
+                variant === "sidebar"
+                  ? "border-white/10 bg-white/8 text-white"
+                  : "border-sky-100 bg-white text-slate-700",
+              )}
+            >
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{selectedPerson.nome}</p>
+                <p className={cn("truncate text-xs", variant === "sidebar" ? "text-indigo-100/70" : "text-slate-500")}>
+                  {selectedPerson.cargo ?? selectedPerson.matricula ?? selectedPerson.cpf ?? "Pessoa selecionada"}
+                </p>
+              </div>
+              <button
+                className={cn("shrink-0 text-sm font-medium transition", variant === "sidebar" ? "text-indigo-100/85 hover:text-white" : "text-slate-500 hover:text-slate-950")}
+                onClick={() => {
+                  setSelectedPerson(null);
+                  setPersonQuery("");
+                  setPersonResults([]);
+                }}
+                type="button"
+              >
+                Limpar pessoa
+              </button>
+            </div>
+          ) : personLoading ? (
+            <div className={cn("rounded-[18px] border px-4 py-3 text-sm", variant === "sidebar" ? "border-white/10 bg-white/8 text-indigo-100/80" : "border-sky-100 bg-white text-slate-500")}>
+              Buscando pessoas...
+            </div>
+          ) : personResults.length > 0 ? (
+            <div
+              className={cn(
+                "grid gap-2 rounded-[18px] border p-2",
+                variant === "sidebar" ? "border-white/10 bg-white/8" : "border-sky-100 bg-white",
+              )}
+            >
+              {personResults.map((person) => (
+                <button
+                  key={person.id}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-[14px] px-3 py-2 text-left text-sm transition",
+                    variant === "sidebar"
+                      ? "text-white hover:bg-white/10"
+                      : "text-slate-700 hover:bg-slate-50",
+                  )}
+                  onClick={() => {
+                    setSelectedPerson(person);
+                    setPersonQuery(person.nome);
+                    setPersonResults([]);
+                  }}
+                  type="button"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{person.nome}</p>
+                    <p className={cn("truncate text-xs", variant === "sidebar" ? "text-indigo-100/70" : "text-slate-500")}>
+                      {person.cargo ?? person.matricula ?? person.cpf ?? "Pessoa cadastrada"}
+                    </p>
+                  </div>
+                  <User className={cn("h-4 w-4 shrink-0", variant === "sidebar" ? "text-indigo-100/70" : "text-slate-400")} />
+                </button>
+              ))}
+            </div>
+          ) : personQuery.trim().length >= 2 ? (
+            <div className={cn("rounded-[18px] border px-4 py-3 text-sm", variant === "sidebar" ? "border-white/10 bg-white/8 text-indigo-100/80" : "border-sky-100 bg-white text-slate-500")}>
+              Nenhuma pessoa encontrada.
+            </div>
+          ) : null}
+        </div>
+
         <div
           className={cn(
             "flex items-center gap-4",
@@ -149,7 +314,7 @@ export function QuickProcessSearch({
             onClick={handleClear}
             type="button"
           >
-            Limpar
+            Limpar busca
           </button>
         </div>
       </div>

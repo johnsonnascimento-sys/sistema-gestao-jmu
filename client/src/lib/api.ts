@@ -289,6 +289,7 @@ export interface ListPreDemandasParams {
   queueHealth?: QueueHealthLevel[];
   dateFrom?: string;
   dateTo?: string;
+  pessoaId?: string;
   hasSei?: boolean;
   setorAtualId?: string;
   withoutSetor?: boolean;
@@ -494,6 +495,7 @@ export function listPreDemandas(params: ListPreDemandasParams = {}) {
     searchParams.set("queueHealth", params.queueHealth.join(","));
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.pessoaId) searchParams.set("pessoaId", params.pessoaId);
   if (params.hasSei !== undefined)
     searchParams.set("hasSei", String(params.hasSei));
   if (params.setorAtualId)
