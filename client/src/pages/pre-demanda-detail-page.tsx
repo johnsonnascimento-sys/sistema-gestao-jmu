@@ -2634,8 +2634,18 @@ export function PreDemandaDetailPage() {
                       ) : (
                         completedTasks.map((task) => (
                           <div
-                            className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3"
+                            aria-label={`Editar tarefa ${task.descricao}`}
+                            className="cursor-grab rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 transition-shadow hover:shadow-md active:cursor-grabbing"
                             key={task.id}
+                            onClick={() => openTaskEditor(task)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openTaskEditor(task);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
                           >
                             <p className="font-semibold text-emerald-950">
                               {task.descricao}

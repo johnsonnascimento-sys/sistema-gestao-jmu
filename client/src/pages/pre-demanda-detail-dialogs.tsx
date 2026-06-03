@@ -1240,7 +1240,20 @@ export function TarefasDialog({
                   {completedTasks.length === 0 ? (
                     <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nada concluido ainda.</p>
                   ) : completedTasks.map((task) => (
-                    <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3" key={task.id}>
+                    <div
+                      aria-label={`Editar tarefa ${task.descricao}`}
+                      className="cursor-grab rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 transition-shadow hover:shadow-md active:cursor-grabbing"
+                      key={task.id}
+                      onClick={() => onEditTask(task)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onEditTask(task);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-emerald-950">{task.descricao}</p>
                         {task.urgente ? <span className="inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">Urgente</span> : null}

@@ -108,7 +108,7 @@ function Harness() {
   const [editingTask, setEditingTask] = useState<TarefaPendente | null>(null);
 
   const props = {
-    completedTasks: [],
+    completedTasks: [buildTask({ concluida: true, concluidaEm: "2026-06-03T12:00:00.000Z" })],
     editTaskForm: {
       descricao: "",
       tipo: "livre",
@@ -138,7 +138,7 @@ function Harness() {
     onSignatureSearchChange: vi.fn(),
     onTaskFormChange: vi.fn(),
     open: true,
-    pendingTasks: [buildTask()],
+    pendingTasks: [],
     record: buildRecord(),
     requiresTaskSetorDestino: false,
     requiresTaskSignaturePerson: false,
@@ -174,11 +174,9 @@ describe("TarefasDialog", () => {
 
     render(<Harness />);
 
-    await user.click(
-      screen.getByRole("button", {
-        name: /editar tarefa mandei e-mail para todos/i,
-      }),
-    );
+    await user.click(screen.getByRole("tab", { name: "Concluidas" }));
+
+    await user.click(screen.getByRole("button", { name: /editar tarefa mandei e-mail para todos/i }));
 
     await screen.findByRole("tab", { name: "Editar tarefa" });
 
