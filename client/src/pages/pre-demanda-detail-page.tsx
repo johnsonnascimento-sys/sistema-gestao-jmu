@@ -2614,6 +2614,14 @@ export function PreDemandaDetailPage() {
                                   </div>
                                   <div className="flex shrink-0 gap-2">
                                     <Button
+                                      onClick={() => requestTaskCompletion(task)}
+                                      size="sm"
+                                      type="button"
+                                      variant="primary"
+                                    >
+                                      Concluir
+                                    </Button>
+                                    <Button
                                       onClick={() => openTaskEditor(task)}
                                       size="sm"
                                       type="button"
@@ -2864,6 +2872,14 @@ export function PreDemandaDetailPage() {
                               </div>
                             </div>
                             <div className="flex shrink-0 items-start gap-2">
+                              <Button
+                                onClick={() => requestTaskCompletion(task)}
+                                size="sm"
+                                type="button"
+                                variant="primary"
+                              >
+                                Concluir
+                              </Button>
                               <Button
                                 onClick={() => openTaskEditor(task)}
                                 size="sm"
