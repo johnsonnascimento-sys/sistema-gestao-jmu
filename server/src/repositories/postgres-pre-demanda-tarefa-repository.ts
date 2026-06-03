@@ -693,10 +693,10 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
       await client.query(
         `
           update adminlog.tarefas_pendentes
-          set concluida = true, concluida_em = now(), concluida_por_user_id = $3
+          set concluida = true, concluida_em = $3::timestamptz, concluida_por_user_id = $4
           where id = $1::uuid and pre_demanda_id = $2
         `,
-        [input.tarefaId, demanda.id, input.changedByUserId],
+        [input.tarefaId, demanda.id, input.dataHora, input.changedByUserId],
       );
 
       if (input.gerarNovaOcorrencia !== false) {
@@ -767,6 +767,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
             preId: demanda.preId,
             descricao: `Nova ocorrencia gerada para a tarefa recorrente ${String(current.rows[0].descricao)} com prazo em ${new Date(`${proximaDataRecorrente}T00:00:00`).toLocaleDateString("pt-BR")}.`,
             tipo: "sistema",
+            dataHora: input.dataHora,
             createdByUserId: input.changedByUserId,
           });
         }
@@ -784,6 +785,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
           preId: demanda.preId,
           setorDestinoId: String(current.rows[0].setor_destino_id),
           changedByUserId: input.changedByUserId,
+          dataHora: input.dataHora,
         });
       }
 
@@ -792,6 +794,7 @@ export class PostgresPreDemandaTarefaRepository implements PreDemandaTarefaRepos
         preId: demanda.preId,
         descricao: `Tarefa concluida: ${String(current.rows[0].descricao)}.`,
         tipo: "tarefa_concluida",
+        dataHora: input.dataHora,
         motivo: input.motivo?.trim() || null,
         observacoes: input.observacoes?.trim() || null,
         createdByUserId: input.changedByUserId,

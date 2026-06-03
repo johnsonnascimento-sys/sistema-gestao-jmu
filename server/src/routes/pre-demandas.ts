@@ -306,9 +306,12 @@ const tarefaOrderSchema = z.object({
 });
 
 const concluirTarefaSchema = z.object({
-  gerar_nova_ocorrencia: z.boolean().optional(),
-  motivo: z.string().trim().max(2000).optional().nullable(),
+  data_hora: z.string().datetime().refine((value) => new Date(value).getTime() <= Date.now(), {
+    message: "A data/hora da conclusao nao pode ser futura.",
+  }),
+  motivo: z.string().trim().min(1).max(2000),
   observacoes: z.string().trim().max(2000).optional().nullable(),
+  gerar_nova_ocorrencia: z.boolean().optional(),
 });
 
 const tarefaSuggestionsSchema = z.object({
@@ -1270,10 +1273,15 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
 
   app.patch("/api/pre-demandas/:preId/tarefas/:tarefaId/concluir", { preHandler: [app.authenticate, app.authorize("pre_demanda.manage_tarefas")] }, async (request, reply) => {
     const params = z.object({ preId: z.string().trim().min(1), tarefaId: z.string().uuid() }).parse(request.params);
-    const payload = concluirTarefaSchema.parse(request.body ?? {});
+    const parsedPayload = concluirTarefaSchema.safeParse(request.body ?? {});
+    if (!parsedPayload.success) {
+      throw new AppError(400, "VALIDATION_ERROR", "Payload inválido.", parsedPayload.error.flatten());
+    }
+    const payload = parsedPayload.data;
     const tarefa = await preDemandaTarefaRepository.concluirTarefa({
       preId: params.preId,
       tarefaId: params.tarefaId,
+      dataHora: payload.data_hora,
       motivo: emptyToNull(payload.motivo),
       observacoes: emptyToNull(payload.observacoes),
       gerarNovaOcorrencia: payload.gerar_nova_ocorrencia,

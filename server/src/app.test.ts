@@ -1782,15 +1782,14 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     }
 
     tarefa.concluida = true;
-    tarefa.concluidaEm = new Date().toISOString();
+    tarefa.concluidaEm = input.dataHora;
     if (tarefa.setorDestino) {
-      record.setorAtual = tarefa.setorDestino;
       if (!record.setoresAtivos.some((item) => item.setor.id === tarefa.setorDestino!.id)) {
         record.setoresAtivos.unshift({
           id: `fluxo-${record.id}-${Date.now()}`,
           status: "ativo",
           observacoes: "Tramitacao gerada automaticamente por conclusao de procedimento.",
-          createdAt: new Date().toISOString(),
+          createdAt: input.dataHora,
           createdBy: null,
           concluidaEm: null,
           concluidaPor: null,
@@ -1798,7 +1797,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           origemSetor: record.setorAtual,
         });
       }
-      this.addAndamentoRecord(record, `Processo remetido para ${tarefa.setorDestino.sigla}.`, "tramitacao");
+      record.setorAtual = tarefa.setorDestino;
+      this.addAndamentoRecord(record, `Processo remetido para ${tarefa.setorDestino.sigla}.`, "tramitacao", input.dataHora);
     }
     if (input.gerarNovaOcorrencia !== false) {
       const proximaData = getNextRecurringDate({
@@ -1817,10 +1817,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           concluidaPor: null,
           prazoConclusao: proximaData,
           prazoData: proximaData,
-          createdAt: new Date().toISOString(),
+          createdAt: input.dataHora,
         });
         record.proximoPrazoTarefa = record.tarefasPendentes.filter((item) => !item.concluida).map((item) => item.prazoConclusao).filter((value): value is string => Boolean(value)).sort()[0] ?? null;
-        this.addAndamentoRecord(record, `Nova ocorrencia gerada para a tarefa recorrente ${tarefa.descricao}.`, "sistema");
+        this.addAndamentoRecord(record, `Nova ocorrencia gerada para a tarefa recorrente ${tarefa.descricao}.`, "sistema", input.dataHora);
       }
     }
     this.syncTaskUrgency(record);
@@ -1828,7 +1828,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       record,
       `Tarefa concluida: ${tarefa.descricao}.`,
       "tarefa_concluida",
-      new Date().toISOString(),
+      input.dataHora,
       input.motivo?.trim() || null,
       input.observacoes?.trim() || null,
     );
@@ -3745,6 +3745,11 @@ describe("Gestor JMU API", () => {
       method: "PATCH",
       url: `/api/pre-demandas/PRE-2026-001/tarefas/${tarefaId}/concluir`,
       headers: { cookie: adminCookie },
+      payload: {
+        data_hora: "2026-03-20T10:15:00.000Z",
+        motivo: "Conclusao validada",
+        observacoes: "Concluida manualmente pelo operador.",
+      },
     });
 
     expect(concluida.statusCode).toBe(200);
@@ -3757,9 +3762,10 @@ describe("Gestor JMU API", () => {
     });
 
     expect(timeline.statusCode).toBe(200);
-    expect(timeline.json().data.some((item: TimelineEvent) => item.type === "tramitation")).toBe(true);
-    expect(timeline.json().data.some((item: TimelineEvent) => item.type === "task_completed")).toBe(true);
-    expect(timeline.json().data.some((item: TimelineEvent) => item.type === "interessado_added")).toBe(true);
+    const timelineData = timeline.json().data as TimelineEvent[];
+    expect(timelineData.some((item) => item.type === "tramitation")).toBe(true);
+    expect(timelineData.some((item) => item.type === "task_completed")).toBe(true);
+    expect(timelineData.some((item) => item.type === "interessado_added")).toBe(true);
 
     const withoutSetor = await app.inject({
       method: "GET",
@@ -3788,6 +3794,59 @@ describe("Gestor JMU API", () => {
     expect(detail.statusCode).toBe(200);
     expect(detail.json().data.interessados.length).toBeGreaterThanOrEqual(1);
     expect(detail.json().data.tarefasPendentes.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rejeita conclusao de tarefa sem data_hora", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Carlos Sem Data",
+        assunto: "Fluxo sem data",
+        data_referencia: "2026-03-10",
+        prazo_processo: "2026-03-20",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const preId = created.json().data.preId as string;
+
+    const tarefa = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/tarefas`,
+      headers: { cookie },
+      payload: {
+        descricao: "Conferir timestamp",
+        tipo: "livre",
+        prazo_conclusao: "2026-03-12",
+      },
+    });
+
+    expect(tarefa.statusCode).toBe(201);
+    const tarefaId = tarefa.json().data.id as string;
+
+    const concluida = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
+      headers: { cookie },
+      payload: {
+        motivo: "Sem data_hora",
+        observacoes: "Teste de validacao.",
+      },
+    });
+
+    expect(concluida.statusCode).toBe(400);
   });
 
   it("generates the next occurrence when concluding a recurring task", async () => {
@@ -3835,6 +3894,11 @@ describe("Gestor JMU API", () => {
       method: "PATCH",
       url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
       headers: { cookie },
+      payload: {
+        data_hora: "2026-03-12T09:00:00.000Z",
+        motivo: "Fora do escopo",
+        observacoes: "Recorrencia normal.",
+      },
     });
 
     expect(concluida.statusCode).toBe(200);
@@ -3901,6 +3965,11 @@ describe("Gestor JMU API", () => {
       method: "PATCH",
       url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
       headers: { cookie },
+      payload: {
+        data_hora: "2026-03-12T15:30:00.000Z",
+        motivo: "Conclusao trimestral",
+        observacoes: "Periodicidade mantida.",
+      },
     });
 
     expect(concluida.statusCode).toBe(200);
@@ -3967,6 +4036,9 @@ describe("Gestor JMU API", () => {
       url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
       headers: { cookie },
       payload: {
+        data_hora: "2026-03-12T15:30:00.000Z",
+        motivo: "Sem nova ocorrencia",
+        observacoes: "Encerrada sem repeticao.",
         gerar_nova_ocorrencia: false,
       },
     });

@@ -57,6 +57,7 @@ import {
   AndamentoCreateDialog,
   AndamentoDeleteDialog,
   AndamentoEditDialog,
+  TaskCompletionDialog,
   TarefaDeleteDialog,
   TarefaPrazoChangeDialog,
   TarefasDialog,
@@ -485,23 +486,12 @@ export function PreDemandaDetailPage() {
   }
 
   function requestTaskCompletion(task: TarefaPendente) {
-    if (task.recorrenciaTipo) {
-      setCompleteTask(task);
-      return;
-    }
-
-    void completeTaskNow(task, true, "", "").catch((nextError) => {
-      setError(
-        formatPreDemandaMutationError(
-          nextError,
-          "Falha ao concluir a tarefa.",
-        ),
-      );
-    });
+    setCompleteTask(task);
   }
 
   async function completeTaskNow(
     task: TarefaPendente,
+    dataHora: string,
     gerarNovaOcorrencia: boolean,
     motivo: string,
     observacoes: string,
@@ -512,6 +502,7 @@ export function PreDemandaDetailPage() {
 
     try {
       await concluirPreDemandaTarefa(preId, task.id, {
+        data_hora: dataHora,
         gerar_nova_ocorrencia: gerarNovaOcorrencia,
         motivo,
         observacoes,
@@ -5499,26 +5490,17 @@ export function PreDemandaDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
-        confirmLabel="Concluir tarefa"
-        description="Confirme a conclusao da tarefa. Para tarefas recorrentes, voce pode impedir a criacao da proxima ocorrencia."
-        extraOption={
-          completeTask?.recorrenciaTipo
-            ? {
-                label: "Nao gerar a proxima ocorrencia",
-                description:
-                  "A tarefa sera concluida sem criar automaticamente a nova recorrencia.",
-              }
-            : undefined
-        }
-        onConfirm={async ({ motivo, observacoes, extraOptionChecked }) => {
+      <TaskCompletionDialog
+        isSubmitting={isSubmitting}
+        onConfirm={async ({ dataHora, motivo, observacoes, gerarNovaOcorrencia }) => {
           if (!completeTask) return;
-          await completeTaskNow(completeTask, !extraOptionChecked, motivo, observacoes);
+          await completeTaskNow(completeTask, dataHora, gerarNovaOcorrencia, motivo, observacoes);
         }}
         onOpenChange={(open) => {
           if (!open) setCompleteTask(null);
         }}
         open={Boolean(completeTask)}
+        task={completeTask}
       />
 
       <ConfirmDialog

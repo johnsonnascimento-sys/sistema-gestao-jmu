@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import type {
   TimelineEvent,
 } from "../types";
 import { PreDemandaDetailPage } from "./pre-demanda-detail-page";
+import { toIsoFromDateTimeLocal } from "./pre-demanda-detail-types";
 
 const apiMocks = vi.hoisted(() => ({
   addPreDemandaAndamento: vi.fn(),
@@ -77,15 +78,6 @@ vi.mock("react-router-dom", async () => {
     useNavigate: () => navigateMock,
   };
 });
-
-vi.mock("./pre-demanda-detail-dialogs", () => ({
-  AndamentoCreateDialog: () => null,
-  AndamentoDeleteDialog: () => null,
-  AndamentoEditDialog: () => null,
-  TarefaDeleteDialog: () => null,
-  TarefaPrazoChangeDialog: () => null,
-  TarefasDialog: () => null,
-}));
 
 function buildAudiencia(
   preId: string,
@@ -360,6 +352,95 @@ describe("PreDemandaDetailPage", () => {
     expect(
       middle.compareDocumentPosition(late) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it("abre o modal de conclusao para tarefa sem recorrencia e envia data, motivo e detalhes", async () => {
+    const user = userEvent.setup();
+    const task = buildTask("task-non-recurring", "Tarefa simples", "2026-06-20", 1);
+
+    apiMocks.listPreDemandaTarefas.mockResolvedValueOnce([task]);
+    apiMocks.concluirPreDemandaTarefa.mockResolvedValue(task);
+
+    renderPage();
+
+    await screen.findByText("Tarefa simples");
+    await user.click(screen.getAllByRole("checkbox")[0]);
+
+    const dialog = await screen.findByRole("dialog", { name: /concluir tarefa/i });
+    const dialogScope = within(dialog);
+
+    expect(dialogScope.queryByRole("checkbox")).not.toBeInTheDocument();
+
+    fireEvent.change(dialogScope.getByLabelText(/Data e hora da conclusao/i), {
+      target: { value: "2026-06-02T10:30" },
+    });
+    fireEvent.change(dialogScope.getByPlaceholderText("Descreva por que a tarefa foi concluida."), {
+      target: { value: "Concluida fora do horario" },
+    });
+    fireEvent.change(
+      dialogScope.getByPlaceholderText("Adicione detalhes adicionais sobre a conclusao."),
+      {
+        target: { value: "Detalhe adicional" },
+      },
+    );
+
+    await user.click(dialogScope.getByRole("button", { name: "Concluir tarefa" }));
+
+    await waitFor(() => {
+      expect(apiMocks.concluirPreDemandaTarefa).toHaveBeenCalledWith(
+        "PRE-2026-001",
+        "task-non-recurring",
+        expect.objectContaining({
+          data_hora: toIsoFromDateTimeLocal("2026-06-02T10:30"),
+          gerar_nova_ocorrencia: true,
+          motivo: "Concluida fora do horario",
+          observacoes: "Detalhe adicional",
+        }),
+      );
+    });
+  });
+
+  it("permite concluir tarefa recorrente sem gerar a proxima ocorrencia", async () => {
+    const user = userEvent.setup();
+    const task = {
+      ...buildTask("task-recurring", "Tarefa recorrente", "2026-06-20", 1),
+      recorrenciaTipo: "diaria" as const,
+    };
+
+    apiMocks.listPreDemandaTarefas.mockResolvedValueOnce([task]);
+    apiMocks.concluirPreDemandaTarefa.mockResolvedValue(task);
+
+    renderPage();
+
+    await screen.findByText("Tarefa recorrente");
+    await user.click(screen.getAllByRole("checkbox")[0]);
+
+    const dialog = await screen.findByRole("dialog", { name: /concluir tarefa/i });
+    const dialogScope = within(dialog);
+
+    const skipNextCheckbox = dialogScope.getByRole("checkbox");
+    await user.click(skipNextCheckbox);
+
+    fireEvent.change(dialogScope.getByLabelText(/Data e hora da conclusao/i), {
+      target: { value: "2026-06-02T11:45" },
+    });
+    fireEvent.change(dialogScope.getByPlaceholderText("Descreva por que a tarefa foi concluida."), {
+      target: { value: "Fechada sem necessidade de repeticao" },
+    });
+
+    await user.click(dialogScope.getByRole("button", { name: "Concluir tarefa" }));
+
+    await waitFor(() => {
+      expect(apiMocks.concluirPreDemandaTarefa).toHaveBeenCalledWith(
+        "PRE-2026-001",
+        "task-recurring",
+        expect.objectContaining({
+          data_hora: toIsoFromDateTimeLocal("2026-06-02T11:45"),
+          gerar_nova_ocorrencia: false,
+          motivo: "Fechada sem necessidade de repeticao",
+        }),
+      );
+    });
   });
 
   it("habilita concluir sem recarregar a pagina ao salvar audiencia como realizada", async () => {

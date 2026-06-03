@@ -1,7 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { Reorder } from "framer-motion";
-import { ConfirmDialog } from "../components/confirm-dialog";
 import { FormField } from "../components/form-field";
 import { Button } from "../components/ui/button";
 import {
@@ -27,7 +26,12 @@ import type {
   TarefaRecorrenciaTipo,
 } from "../types";
 import { selectClassName, TaskPrazoChangeState, WEEKDAY_OPTIONS } from "./pre-demanda-detail-types";
-import { formatRecorrenciaLabel, getTaskSignal, toIsoFromDateTimeLocal } from "./pre-demanda-detail-types";
+import {
+  formatRecorrenciaLabel,
+  getTaskSignal,
+  toDateTimeLocalValue,
+  toIsoFromDateTimeLocal,
+} from "./pre-demanda-detail-types";
 import { getPreDemandaStatusLabel } from "../lib/pre-demanda-status";
 
 // ── Shared action runner type ────────────────────────────────────────────────
@@ -209,6 +213,169 @@ export function AndamentoDeleteDialog({
 }
 
 // ── TarefaDialogs ────────────────────────────────────────────────────────────
+
+export function TaskCompletionDialog({
+  open,
+  task,
+  onOpenChange,
+  isSubmitting,
+  onConfirm,
+}: {
+  open: boolean;
+  task: TarefaPendente | null;
+  onOpenChange: (open: boolean) => void;
+  isSubmitting: boolean;
+  onConfirm: (payload: {
+    dataHora: string;
+    motivo: string;
+    observacoes: string;
+    gerarNovaOcorrencia: boolean;
+  }) => Promise<void> | void;
+}) {
+  const [dataHora, setDataHora] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [observacoes, setObservacoes] = useState("");
+  const [gerarNovaOcorrencia, setGerarNovaOcorrencia] = useState(true);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setDataHora(toDateTimeLocalValue(new Date().toISOString()));
+      setMotivo("");
+      setObservacoes("");
+      setGerarNovaOcorrencia(true);
+      setError("");
+      setSubmitting(false);
+    }
+  }, [open, task?.id]);
+
+  async function handleConfirm() {
+    if (!task) return;
+
+    if (!dataHora.trim()) {
+      setError("Informe a data e hora da conclusao.");
+      return;
+    }
+
+    const parsedDataHora = new Date(dataHora);
+    if (Number.isNaN(parsedDataHora.getTime())) {
+      setError("Informe uma data e hora validas.");
+      return;
+    }
+
+    if (parsedDataHora.getTime() > Date.now()) {
+      setError("A data e hora da conclusao nao pode ser futura.");
+      return;
+    }
+
+    if (!motivo.trim()) {
+      setError("Informe o motivo da conclusao.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await onConfirm({
+        dataHora: toIsoFromDateTimeLocal(dataHora) ?? parsedDataHora.toISOString(),
+        motivo: motivo.trim(),
+        observacoes: observacoes.trim(),
+        gerarNovaOcorrencia: task.recorrenciaTipo ? gerarNovaOcorrencia : true,
+      });
+      onOpenChange(false);
+    } catch (nextError) {
+      setError(nextError instanceof Error && nextError.message ? nextError.message : "Falha ao concluir a tarefa.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog onOpenChange={onOpenChange} open={open}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Concluir tarefa</DialogTitle>
+          <DialogDescription>
+            Registre a data e hora reais da conclusao, alem do motivo e dos detalhes operacionais.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+            <p className="text-sm font-semibold text-slate-950">{task?.descricao}</p>
+            {task?.recorrenciaTipo ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Tarefa recorrente. Voce pode impedir a criacao da proxima ocorrencia.
+              </p>
+            ) : null}
+          </div>
+
+          <FormField label="Data e hora da conclusao">
+            <Input
+              max={toDateTimeLocalValue(new Date().toISOString())}
+              onChange={(event) => setDataHora(event.target.value)}
+              type="datetime-local"
+              value={dataHora}
+            />
+          </FormField>
+
+          <FormField hint="Obrigatorio." label="Motivo">
+            <Textarea
+              onChange={(event) => setMotivo(event.target.value)}
+              placeholder="Descreva por que a tarefa foi concluida."
+              rows={4}
+              value={motivo}
+            />
+          </FormField>
+
+          <FormField hint="Opcional." label="Detalhes">
+            <Textarea
+              onChange={(event) => setObservacoes(event.target.value)}
+              placeholder="Adicione detalhes adicionais sobre a conclusao."
+              rows={4}
+              value={observacoes}
+            />
+          </FormField>
+
+          {task?.recorrenciaTipo ? (
+            <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700">
+              <input
+                checked={!gerarNovaOcorrencia}
+                className="mt-1 h-4 w-4 shrink-0 accent-slate-950"
+                onChange={(event) => setGerarNovaOcorrencia(!event.target.checked)}
+                type="checkbox"
+              />
+              <span className="grid gap-1">
+                <span className="font-medium text-slate-950">Nao gerar a proxima ocorrencia</span>
+                <span className="text-slate-500">
+                  A tarefa sera concluida sem criar automaticamente a nova recorrencia.
+                </span>
+              </span>
+            </label>
+          ) : null}
+
+          {error ? <p className="text-sm font-medium text-rose-700">{error}</p> : null}
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
+            Cancelar
+          </Button>
+          <Button
+            disabled={submitting || !dataHora || !motivo.trim()}
+            onClick={() => void handleConfirm()}
+            type="button"
+            variant="primary"
+          >
+            {submitting ? "Aguarde..." : "Concluir tarefa"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 type EditTaskForm = {
   descricao: string;

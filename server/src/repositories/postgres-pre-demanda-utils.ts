@@ -884,7 +884,7 @@ export async function autoReopenIfClosed(
 
 export async function activateSetorFromTarefa(
   queryable: Queryable,
-  input: { preDemandaId: number; preId: string; setorDestinoId: string; changedByUserId: number },
+  input: { preDemandaId: number; preId: string; setorDestinoId: string; changedByUserId: number; dataHora?: string | null },
 ) {
   const row = await getPreDemandaRowByPreId(queryable, input.preId);
   if (!row) {
@@ -917,15 +917,17 @@ export async function activateSetorFromTarefa(
           status,
           origem_setor_id,
           observacoes,
+          created_at,
           created_by_user_id
         )
-        values ($1, $2::uuid, 'ativo', $3::uuid, $4, $5)
+        values ($1, $2::uuid, 'ativo', $3::uuid, $4, coalesce($5::timestamptz, now()), $6)
       `,
       [
         input.preDemandaId,
         input.setorDestinoId,
         row.setor_id ?? null,
         "Tramitacao gerada automaticamente por conclusao de procedimento.",
+        input.dataHora ?? null,
         input.changedByUserId,
       ],
     );
@@ -939,6 +941,7 @@ export async function activateSetorFromTarefa(
     preId: input.preId,
     descricao: origemSigla ? `Processo remetido de ${origemSigla} para ${destinoSigla}.` : `Processo remetido para ${destinoSigla}.`,
     tipo: "tramitacao",
+    dataHora: input.dataHora ?? null,
     createdByUserId: input.changedByUserId,
   });
 }

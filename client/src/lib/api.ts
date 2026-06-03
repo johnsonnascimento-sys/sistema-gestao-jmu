@@ -980,17 +980,18 @@ export function removePreDemandaTarefa(preId: string, tarefaId: string) {
 export function concluirPreDemandaTarefa(
   preId: string,
   tarefaId: string,
-  payload?: {
-    gerar_nova_ocorrencia?: boolean;
-    motivo?: string;
+  payload: {
+    data_hora: string;
+    motivo: string;
     observacoes?: string;
+    gerar_nova_ocorrencia?: boolean;
   },
 ) {
   return request<TarefaPendente>(
     buildPreDemandaApiPath(preId, `/tarefas/${tarefaId}/concluir`),
     {
       method: "PATCH",
-      body: JSON.stringify(payload ?? {}),
+      body: JSON.stringify(payload),
     },
   );
 }
