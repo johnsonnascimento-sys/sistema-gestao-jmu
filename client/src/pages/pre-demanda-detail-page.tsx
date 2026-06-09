@@ -4699,12 +4699,12 @@ export function PreDemandaDetailPage() {
                           </p>
                         ) : null}
                         {item.descricao ? (
-                          <p className="mt-2 text-sm text-slate-700">
+                          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
                             {item.descricao}
                           </p>
                         ) : null}
                         {item.observacoes ? (
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 whitespace-pre-wrap text-xs text-slate-500">
                             {item.observacoes}
                           </p>
                         ) : null}

@@ -67,9 +67,9 @@ export function Timeline({ events, renderActions }: { events: TimelineEvent[]; r
                 <span className="text-sm text-slate-500">{new Date(event.occurredAt).toLocaleString("pt-BR")}</span>
               </div>
               <p className="text-sm font-medium text-slate-950">{event.actor ? `${event.actor.name} (${event.actor.email})` : "Autor nao informado"}</p>
-              {event.descricao ? <p className="text-sm text-slate-700">{event.descricao}</p> : null}
+              {event.descricao ? <p className="whitespace-pre-wrap text-sm text-slate-700">{event.descricao}</p> : null}
             </div>
-            {event.motivo ? <p className="max-w-lg text-sm text-slate-500">{event.motivo}</p> : null}
+            {event.motivo ? <p className="max-w-lg whitespace-pre-wrap text-sm text-slate-500">{event.motivo}</p> : null}
           </div>
 
           {(event.statusNovo || event.seiNumeroNovo || event.observacoes) ? (
@@ -84,7 +84,7 @@ export function Timeline({ events, renderActions }: { events: TimelineEvent[]; r
                   {event.seiNumeroAnterior ? `${event.seiNumeroAnterior} -> ${event.seiNumeroNovo}` : `SEI ${event.seiNumeroNovo}`}
                 </p>
               ) : null}
-              {event.observacoes ? <p>{event.observacoes}</p> : null}
+              {event.observacoes ? <p className="whitespace-pre-wrap">{event.observacoes}</p> : null}
             </div>
           ) : null}
 
