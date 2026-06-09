@@ -227,13 +227,11 @@ export function TaskCompletionDialog({
   isSubmitting: boolean;
   onConfirm: (payload: {
     dataHora: string;
-    motivo?: string;
     observacoes: string;
     gerarNovaOcorrencia: boolean;
   }) => Promise<void> | void;
 }) {
   const [dataHora, setDataHora] = useState("");
-  const [motivo, setMotivo] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [gerarNovaOcorrencia, setGerarNovaOcorrencia] = useState(true);
   const [error, setError] = useState("");
@@ -242,7 +240,6 @@ export function TaskCompletionDialog({
   useEffect(() => {
     if (open) {
       setDataHora(toDateTimeLocalValue(new Date().toISOString()));
-      setMotivo("");
       setObservacoes("");
       setGerarNovaOcorrencia(true);
       setError("");
@@ -275,7 +272,6 @@ export function TaskCompletionDialog({
     try {
       await onConfirm({
         dataHora: toIsoFromDateTimeLocal(dataHora) ?? parsedDataHora.toISOString(),
-        motivo: motivo.trim() || undefined,
         observacoes: observacoes.trim(),
         gerarNovaOcorrencia: task.recorrenciaTipo ? gerarNovaOcorrencia : true,
       });
@@ -293,7 +289,7 @@ export function TaskCompletionDialog({
         <DialogHeader>
           <DialogTitle>Concluir tarefa</DialogTitle>
           <DialogDescription>
-            Registre a data e hora reais da conclusao, com detalhes operacionais e motivo opcional.
+            Registre a data e hora reais da conclusao e os detalhes operacionais.
           </DialogDescription>
         </DialogHeader>
 
@@ -313,15 +309,6 @@ export function TaskCompletionDialog({
               onChange={(event) => setDataHora(event.target.value)}
               type="datetime-local"
               value={dataHora}
-            />
-          </FormField>
-
-          <FormField hint="Opcional." label="Motivo">
-            <Textarea
-              onChange={(event) => setMotivo(event.target.value)}
-              placeholder="Descreva por que a tarefa foi concluida."
-              rows={4}
-              value={motivo}
             />
           </FormField>
 

@@ -354,7 +354,7 @@ describe("PreDemandaDetailPage", () => {
     ).toBeTruthy();
   });
 
-  it("abre o modal de conclusao para tarefa sem recorrencia e permite motivo opcional", async () => {
+  it("abre o modal de conclusao para tarefa sem recorrencia e envia apenas detalhes", async () => {
     const user = userEvent.setup();
     const task = buildTask("task-non-recurring", "Tarefa simples", "2026-06-20", 1);
 
@@ -374,12 +374,9 @@ describe("PreDemandaDetailPage", () => {
     fireEvent.change(dialogScope.getByLabelText(/Data e hora da conclusao/i), {
       target: { value: "2026-06-02T10:30" },
     });
-    fireEvent.change(
-      dialogScope.getByPlaceholderText("Adicione detalhes adicionais sobre a conclusao."),
-      {
-        target: { value: "Detalhe adicional" },
-      },
-    );
+    fireEvent.change(dialogScope.getByPlaceholderText("Adicione detalhes adicionais sobre a conclusao."), {
+      target: { value: "Detalhe adicional" },
+    });
 
     await user.click(dialogScope.getByRole("button", { name: "Concluir tarefa" }));
 
@@ -390,7 +387,6 @@ describe("PreDemandaDetailPage", () => {
         expect.objectContaining({
           data_hora: toIsoFromDateTimeLocal("2026-06-02T10:30"),
           gerar_nova_ocorrencia: true,
-          motivo: undefined,
           observacoes: "Detalhe adicional",
         }),
       );
@@ -421,7 +417,7 @@ describe("PreDemandaDetailPage", () => {
     fireEvent.change(dialogScope.getByLabelText(/Data e hora da conclusao/i), {
       target: { value: "2026-06-02T11:45" },
     });
-    fireEvent.change(dialogScope.getByPlaceholderText("Descreva por que a tarefa foi concluida."), {
+    fireEvent.change(dialogScope.getByPlaceholderText("Adicione detalhes adicionais sobre a conclusao."), {
       target: { value: "Fechada sem necessidade de repeticao" },
     });
 
@@ -434,7 +430,7 @@ describe("PreDemandaDetailPage", () => {
         expect.objectContaining({
           data_hora: toIsoFromDateTimeLocal("2026-06-02T11:45"),
           gerar_nova_ocorrencia: false,
-          motivo: "Fechada sem necessidade de repeticao",
+          observacoes: "Fechada sem necessidade de repeticao",
         }),
       );
     });

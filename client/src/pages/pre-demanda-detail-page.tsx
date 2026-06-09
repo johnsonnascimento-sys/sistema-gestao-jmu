@@ -493,7 +493,6 @@ export function PreDemandaDetailPage() {
     task: TarefaPendente,
     dataHora: string,
     gerarNovaOcorrencia: boolean,
-    motivo?: string,
     observacoes: string,
   ) {
     setIsSubmitting(true);
@@ -504,7 +503,6 @@ export function PreDemandaDetailPage() {
       await concluirPreDemandaTarefa(preId, task.id, {
         data_hora: dataHora,
         gerar_nova_ocorrencia: gerarNovaOcorrencia,
-        motivo,
         observacoes,
       });
       await loadRecordData();
@@ -5508,9 +5506,9 @@ export function PreDemandaDetailPage() {
 
       <TaskCompletionDialog
         isSubmitting={isSubmitting}
-        onConfirm={async ({ dataHora, motivo, observacoes, gerarNovaOcorrencia }) => {
+        onConfirm={async ({ dataHora, observacoes, gerarNovaOcorrencia }) => {
           if (!completeTask) return;
-          await completeTaskNow(completeTask, dataHora, gerarNovaOcorrencia, motivo, observacoes);
+          await completeTaskNow(completeTask, dataHora, gerarNovaOcorrencia, observacoes);
         }}
         onOpenChange={(open) => {
           if (!open) setCompleteTask(null);
