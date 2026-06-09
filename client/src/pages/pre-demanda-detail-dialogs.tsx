@@ -227,7 +227,7 @@ export function TaskCompletionDialog({
   isSubmitting: boolean;
   onConfirm: (payload: {
     dataHora: string;
-    motivo: string;
+    motivo?: string;
     observacoes: string;
     gerarNovaOcorrencia: boolean;
   }) => Promise<void> | void;
@@ -269,18 +269,13 @@ export function TaskCompletionDialog({
       return;
     }
 
-    if (!motivo.trim()) {
-      setError("Informe o motivo da conclusao.");
-      return;
-    }
-
     setSubmitting(true);
     setError("");
 
     try {
       await onConfirm({
         dataHora: toIsoFromDateTimeLocal(dataHora) ?? parsedDataHora.toISOString(),
-        motivo: motivo.trim(),
+        motivo: motivo.trim() || undefined,
         observacoes: observacoes.trim(),
         gerarNovaOcorrencia: task.recorrenciaTipo ? gerarNovaOcorrencia : true,
       });
@@ -298,7 +293,7 @@ export function TaskCompletionDialog({
         <DialogHeader>
           <DialogTitle>Concluir tarefa</DialogTitle>
           <DialogDescription>
-            Registre a data e hora reais da conclusao, alem do motivo e dos detalhes operacionais.
+            Registre a data e hora reais da conclusao, com detalhes operacionais e motivo opcional.
           </DialogDescription>
         </DialogHeader>
 
@@ -321,7 +316,7 @@ export function TaskCompletionDialog({
             />
           </FormField>
 
-          <FormField hint="Obrigatorio." label="Motivo">
+          <FormField hint="Opcional." label="Motivo">
             <Textarea
               onChange={(event) => setMotivo(event.target.value)}
               placeholder="Descreva por que a tarefa foi concluida."
@@ -364,7 +359,7 @@ export function TaskCompletionDialog({
             Cancelar
           </Button>
           <Button
-            disabled={submitting || !dataHora || !motivo.trim()}
+            disabled={submitting || !dataHora}
             onClick={() => void handleConfirm()}
             type="button"
             variant="primary"

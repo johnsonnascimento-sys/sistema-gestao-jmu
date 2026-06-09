@@ -493,7 +493,7 @@ export function PreDemandaDetailPage() {
     task: TarefaPendente,
     dataHora: string,
     gerarNovaOcorrencia: boolean,
-    motivo: string,
+    motivo?: string,
     observacoes: string,
   ) {
     setIsSubmitting(true);

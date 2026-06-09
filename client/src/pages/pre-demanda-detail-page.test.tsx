@@ -354,7 +354,7 @@ describe("PreDemandaDetailPage", () => {
     ).toBeTruthy();
   });
 
-  it("abre o modal de conclusao para tarefa sem recorrencia e envia data, motivo e detalhes", async () => {
+  it("abre o modal de conclusao para tarefa sem recorrencia e permite motivo opcional", async () => {
     const user = userEvent.setup();
     const task = buildTask("task-non-recurring", "Tarefa simples", "2026-06-20", 1);
 
@@ -374,9 +374,6 @@ describe("PreDemandaDetailPage", () => {
     fireEvent.change(dialogScope.getByLabelText(/Data e hora da conclusao/i), {
       target: { value: "2026-06-02T10:30" },
     });
-    fireEvent.change(dialogScope.getByPlaceholderText("Descreva por que a tarefa foi concluida."), {
-      target: { value: "Concluida fora do horario" },
-    });
     fireEvent.change(
       dialogScope.getByPlaceholderText("Adicione detalhes adicionais sobre a conclusao."),
       {
@@ -393,7 +390,7 @@ describe("PreDemandaDetailPage", () => {
         expect.objectContaining({
           data_hora: toIsoFromDateTimeLocal("2026-06-02T10:30"),
           gerar_nova_ocorrencia: true,
-          motivo: "Concluida fora do horario",
+          motivo: undefined,
           observacoes: "Detalhe adicional",
         }),
       );

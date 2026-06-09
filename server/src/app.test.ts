@@ -3868,6 +3868,60 @@ describe("Gestor JMU API", () => {
     expect(concluida.statusCode).toBe(400);
   });
 
+  it("permite concluir tarefa sem motivo", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas",
+      headers: { cookie },
+      payload: {
+        solicitante: "Carlos Sem Motivo",
+        assunto: "Fluxo sem motivo",
+        data_referencia: "2026-03-10",
+        prazo_processo: "2026-03-20",
+      },
+    });
+
+    expect(created.statusCode).toBe(201);
+    const preId = created.json().data.preId as string;
+
+    const tarefa = await app.inject({
+      method: "POST",
+      url: `/api/pre-demandas/${preId}/tarefas`,
+      headers: { cookie },
+      payload: {
+        descricao: "Conferir sem motivo",
+        tipo: "livre",
+        prazo_conclusao: "2026-03-12",
+      },
+    });
+
+    expect(tarefa.statusCode).toBe(201);
+    const tarefaId = tarefa.json().data.id as string;
+
+    const concluida = await app.inject({
+      method: "PATCH",
+      url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
+      headers: { cookie },
+      payload: {
+        data_hora: "2026-03-12T09:00:00.000Z",
+        observacoes: "Conclusao sem justificativa.",
+      },
+    });
+
+    expect(concluida.statusCode).toBe(200);
+    expect(concluida.json().data.motivo).toBeUndefined();
+  });
+
   it("generates the next occurrence when concluding a recurring task", async () => {
     const login = await app.inject({
       method: "POST",

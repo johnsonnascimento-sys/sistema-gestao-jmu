@@ -982,7 +982,7 @@ export function concluirPreDemandaTarefa(
   tarefaId: string,
   payload: {
     data_hora: string;
-    motivo: string;
+    motivo?: string;
     observacoes?: string;
     gerar_nova_ocorrencia?: boolean;
   },
