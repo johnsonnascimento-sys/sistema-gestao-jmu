@@ -1178,28 +1178,33 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       linkedAt: new Date().toISOString(),
       linkedBy: null,
     });
-    record.tarefasPendentes.push({
-      id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
-      preId: record.preId,
-      ordem: record.tarefasPendentes.length + 1,
-      descricao: `[${assunto.nome}] 1. ${procedimento.descricao}`,
-      tipo: "fixa",
-      assuntoId: assunto.id,
-      procedimentoId: procedimento.id,
-      prazoConclusao: record.prazoProcesso,
-      recorrenciaTipo: null,
-      recorrenciaDiasSemana: null,
-      recorrenciaDiaMes: null,
-      prazoReferencia: null,
-      prazoData: record.prazoProcesso,
-      setorDestino: procedimento.setorDestino,
-      geradaAutomaticamente: true,
-      concluida: false,
-      concluidaEm: null,
-      concluidaPor: null,
-      createdAt: new Date().toISOString(),
-      createdBy: null,
-    });
+    const alreadyHasOpenTask = record.tarefasPendentes.some(
+      (item) => item.procedimentoId === procedimento.id && !item.concluida,
+    );
+    if (!alreadyHasOpenTask) {
+      record.tarefasPendentes.push({
+        id: `123e4567-e89b-42d3-a456-${String(record.tarefasPendentes.length + 1).padStart(12, "0")}`,
+        preId: record.preId,
+        ordem: record.tarefasPendentes.length + 1,
+        descricao: `[${assunto.nome}] 1. ${procedimento.descricao}`,
+        tipo: "fixa",
+        assuntoId: assunto.id,
+        procedimentoId: procedimento.id,
+        prazoConclusao: record.prazoProcesso,
+        recorrenciaTipo: null,
+        recorrenciaDiasSemana: null,
+        recorrenciaDiaMes: null,
+        prazoReferencia: null,
+        prazoData: record.prazoProcesso,
+        setorDestino: procedimento.setorDestino,
+        geradaAutomaticamente: true,
+        concluida: false,
+        concluidaEm: null,
+        concluidaPor: null,
+        createdAt: new Date().toISOString(),
+        createdBy: null,
+      });
+    }
     const autoReopen =
       record.status === "encerrada"
         ? {
@@ -3125,6 +3130,140 @@ describe("Gestor JMU API", () => {
     }
   });
 
+  it("recria tarefa de assunto quando o assunto e re-adicionado apos conclusao anterior", async () => {
+    const repositorySnapshot = {
+      records: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records)) as PreDemandaDetail[],
+      pacotes: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { pacotes: PreDemandaPacote[] }).pacotes)) as PreDemandaPacote[],
+      andamentos: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { andamentos: Andamento[] }).andamentos)) as Andamento[],
+      audit: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { audit: PreDemandaAuditRecord[] }).audit)) as PreDemandaAuditRecord[],
+      statusAudit: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { statusAudit: PreDemandaStatusAuditRecord[] }).statusAudit)) as PreDemandaStatusAuditRecord[],
+      deleteAudit: JSON.parse(JSON.stringify((preDemandaRepository as unknown as { deleteAudit: PreDemandaDeleteAuditRecord[] }).deleteAudit)) as PreDemandaDeleteAuditRecord[],
+      nextId: (preDemandaRepository as unknown as { nextId: number }).nextId,
+      nextPacoteId: (preDemandaRepository as unknown as { nextPacoteId: number }).nextPacoteId,
+      nextAuditId: (preDemandaRepository as unknown as { nextAuditId: number }).nextAuditId,
+    };
+    const assuntoCatalogSnapshot = new Map(inMemoryAssuntoCatalog);
+
+    try {
+      const adminLogin = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "admin@jmu.local",
+          password: "Senha1234",
+        },
+      });
+      const adminCookie = `${adminLogin.cookies[0]?.name}=${adminLogin.cookies[0]?.value}`;
+
+      const operatorLogin = await app.inject({
+        method: "POST",
+        url: "/api/auth/login",
+        payload: {
+          email: "operador@jmu.local",
+          password: "Senha1234",
+        },
+      });
+      const operatorCookie = `${operatorLogin.cookies[0]?.name}=${operatorLogin.cookies[0]?.value}`;
+
+      const assunto = await app.inject({
+        method: "POST",
+        url: "/api/assuntos",
+        headers: { cookie: adminCookie },
+        payload: {
+          nome: "Divulgação teste regressão",
+          procedimentos: [{ ordem: 1, descricao: "Publicar comunicado" }],
+        },
+      });
+
+      expect(assunto.statusCode).toBe(201);
+      const assuntoId = assunto.json().data.id as string;
+
+      const createdProcess = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie: operatorCookie },
+        payload: {
+          solicitante: "Caso regressivo",
+          assunto: "Processo para reuso de assunto",
+          data_referencia: "2026-04-01",
+          prazo_processo: "2026-04-20",
+        },
+      });
+
+      expect(createdProcess.statusCode).toBe(201);
+      const preId = createdProcess.json().data.preId as string;
+
+      const linked = await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${preId}/assuntos`,
+        headers: { cookie: operatorCookie },
+        payload: {
+          assunto_id: assuntoId,
+        },
+      });
+
+      expect(linked.statusCode).toBe(201);
+      const tarefaInicial = linked.json().data.item.tarefasPendentes.find(
+        (item: { assuntoId: string; concluida: boolean }) => item.assuntoId === assuntoId && !item.concluida,
+      ) as { id: string } | undefined;
+      expect(tarefaInicial).toBeTruthy();
+
+      const concluida = await app.inject({
+        method: "PATCH",
+        url: `/api/pre-demandas/${preId}/tarefas/${tarefaInicial!.id}/concluir`,
+        headers: { cookie: operatorCookie },
+        payload: {
+          data_hora: "2026-04-02T10:00:00.000Z",
+        },
+      });
+      expect(concluida.statusCode).toBe(200);
+
+      const removida = await app.inject({
+        method: "DELETE",
+        url: `/api/pre-demandas/${preId}/assuntos/${assuntoId}`,
+        headers: { cookie: operatorCookie },
+      });
+      expect(removida.statusCode).toBe(200);
+
+      const readicao = await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${preId}/assuntos`,
+        headers: { cookie: operatorCookie },
+        payload: {
+          assunto_id: assuntoId,
+        },
+      });
+      expect(readicao.statusCode).toBe(201);
+
+      const detail = await app.inject({
+        method: "GET",
+        url: `/api/pre-demandas/${preId}`,
+        headers: { cookie: operatorCookie },
+      });
+
+      expect(detail.statusCode).toBe(200);
+      expect(
+        detail.json().data.tarefasPendentes.some(
+          (item: { assuntoId: string; concluida: boolean }) => item.assuntoId === assuntoId && !item.concluida,
+        ),
+      ).toBe(true);
+    } finally {
+      (preDemandaRepository as unknown as { records: PreDemandaDetail[] }).records = repositorySnapshot.records;
+      (preDemandaRepository as unknown as { pacotes: PreDemandaPacote[] }).pacotes = repositorySnapshot.pacotes;
+      (preDemandaRepository as unknown as { andamentos: Andamento[] }).andamentos = repositorySnapshot.andamentos;
+      (preDemandaRepository as unknown as { audit: PreDemandaAuditRecord[] }).audit = repositorySnapshot.audit;
+      (preDemandaRepository as unknown as { statusAudit: PreDemandaStatusAuditRecord[] }).statusAudit = repositorySnapshot.statusAudit;
+      (preDemandaRepository as unknown as { deleteAudit: PreDemandaDeleteAuditRecord[] }).deleteAudit = repositorySnapshot.deleteAudit;
+      (preDemandaRepository as unknown as { nextId: number }).nextId = repositorySnapshot.nextId;
+      (preDemandaRepository as unknown as { nextPacoteId: number }).nextPacoteId = repositorySnapshot.nextPacoteId;
+      (preDemandaRepository as unknown as { nextAuditId: number }).nextAuditId = repositorySnapshot.nextAuditId;
+      inMemoryAssuntoCatalog.clear();
+      for (const [id, assunto] of assuntoCatalogSnapshot) {
+        inMemoryAssuntoCatalog.set(id, assunto);
+      }
+    }
+  });
+
   it("duplicates a pre-demanda without copying andamento history", async () => {
     const login = await app.inject({
       method: "POST",
@@ -3748,12 +3887,13 @@ describe("Gestor JMU API", () => {
 
     const tarefa = await app.inject({
       method: "POST",
-      url: "/api/pre-demandas/PRE-2026-001/tarefas",
+      url: `/api/pre-demandas/${preId}/tarefas`,
       headers: { cookie: adminCookie },
       payload: {
         descricao: "Aguardar assinatura",
         tipo: "fixa",
         prazo_conclusao: "2026-03-20",
+        setor_destino_id: setorId,
       },
     });
 
@@ -3762,7 +3902,7 @@ describe("Gestor JMU API", () => {
 
     const concluida = await app.inject({
       method: "PATCH",
-      url: `/api/pre-demandas/PRE-2026-001/tarefas/${tarefaId}/concluir`,
+      url: `/api/pre-demandas/${preId}/tarefas/${tarefaId}/concluir`,
       headers: { cookie: adminCookie },
       payload: {
         data_hora: "2026-03-20T10:15:00.000Z",
@@ -3776,7 +3916,7 @@ describe("Gestor JMU API", () => {
 
     const timeline = await app.inject({
       method: "GET",
-      url: "/api/pre-demandas/PRE-2026-001/timeline",
+      url: `/api/pre-demandas/${preId}/timeline`,
       headers: { cookie: adminCookie },
     });
 
@@ -3806,7 +3946,7 @@ describe("Gestor JMU API", () => {
 
     const detail = await app.inject({
       method: "GET",
-      url: "/api/pre-demandas/PRE-2026-001",
+      url: `/api/pre-demandas/${preId}`,
       headers: { cookie: adminCookie },
     });
 

@@ -2096,7 +2096,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             created_by_user_id
           )
           values ($1, $2, $3, 'fixa', $4::uuid, $5::uuid, $6::date, $7::time, $8::time, $9::uuid, true, $10)
-          on conflict (pre_demanda_id, procedimento_id) where procedimento_id is not null do nothing
+          on conflict (pre_demanda_id, procedimento_id)
+          where procedimento_id is not null and concluida = false
+          do nothing
         `,
         [
           input.preDemandaId,
