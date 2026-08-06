@@ -40,6 +40,8 @@ import type {
   SortOrder,
   TaskScheduleSuggestion,
   TarefaPendente,
+  TarefaRelatorioQuery,
+  TarefaRelatorioResult,
   TarefaRecorrenciaTipo,
   TarefaPendenteTipo,
   TimelineEvent,
@@ -676,4 +678,5 @@ export interface PreDemandaRepository {
     page: number;
     pageSize: number;
   }): Promise<DashboardTaskListResult>;
+  listTarefasRelatorio(params: TarefaRelatorioQuery): Promise<TarefaRelatorioResult>;
 }

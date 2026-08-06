@@ -44,6 +44,8 @@ import type {
   SeiAssociation,
   TaskScheduleSuggestion,
   TarefaPendente,
+  TarefaRelatorioQuery,
+  TarefaRelatorioResult,
   TimelineEvent,
 } from "./domain/types";
 import type {
@@ -2540,6 +2542,78 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       },
     };
   }
+
+  async listTarefasRelatorio(params: TarefaRelatorioQuery): Promise<TarefaRelatorioResult> {
+    const normalize = (value: string) => value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+    const tokens = params.q ? normalize(params.q).trim().split(/\s+/).filter(Boolean) : [];
+    const today = new Date().toISOString().slice(0, 10);
+
+    const allItems = this.records
+      .flatMap((record) => record.tarefasPendentes.map((task) => ({
+        id: task.id,
+        preId: record.preId,
+        preNumero: record.principalNumero,
+        assunto: record.assunto,
+        descricao: task.descricao,
+        tipo: task.tipo,
+        urgente: Boolean(task.urgente),
+        prazoConclusao: task.prazoConclusao ?? record.prazoProcesso ?? today,
+        horarioInicio: task.horarioInicio ?? null,
+        horarioFim: task.horarioFim ?? null,
+        recorrenciaTipo: task.recorrenciaTipo ?? null,
+        setorDestinoSigla: task.setorDestino?.sigla ?? null,
+        concluida: task.concluida,
+        concluidaEm: task.concluidaEm,
+        createdAt: task.createdAt,
+      })))
+      .filter((item) => params.status === "todas" || item.concluida === (params.status === "concluidas"))
+      .filter((item) => !params.dueFrom || item.prazoConclusao >= params.dueFrom)
+      .filter((item) => !params.dueTo || item.prazoConclusao <= params.dueTo)
+      .filter((item) => {
+        if (!params.urgency || params.urgency === "todas") return true;
+        return item.urgente === (params.urgency === "urgentes");
+      })
+      .filter((item) => {
+        if (!params.recurrence) return true;
+        return params.recurrence === "sem_recorrencia"
+          ? item.recorrenciaTipo === null
+          : item.recorrenciaTipo === params.recurrence;
+      })
+      .filter((item) => {
+        if (!tokens.length) return true;
+        const searchable = normalize([
+          item.preNumero,
+          item.assunto,
+          item.descricao,
+          item.setorDestinoSigla ?? "",
+        ].join(" "));
+        return tokens.every((token) => searchable.includes(token));
+      })
+      .sort((left, right) =>
+        Number(right.urgente) - Number(left.urgente)
+        || left.prazoConclusao.localeCompare(right.prazoConclusao)
+        || left.createdAt.localeCompare(right.createdAt)
+        || left.id.localeCompare(right.id));
+
+    const summary = {
+      total: allItems.length,
+      pendentes: allItems.filter((item) => !item.concluida).length,
+      concluidas: allItems.filter((item) => item.concluida).length,
+      urgentes: allItems.filter((item) => item.urgente).length,
+      atrasadas: allItems.filter((item) => !item.concluida && item.prazoConclusao < today).length,
+    };
+
+    return {
+      items: allItems.slice(0, 1000),
+      summary,
+      generatedAt: new Date().toISOString(),
+      total: allItems.length,
+      truncated: allItems.length > 1000,
+    };
+  }
 }
 
 class InMemoryInteressadoRepository implements InteressadoRepository {
@@ -3018,6 +3092,156 @@ describe("Gestor JMU API", () => {
 
     expect(valid.statusCode).toBe(200);
     expect(valid.cookies[0]?.name).toBe("jmu_session");
+  });
+
+  it("returns the task report with defaults, filters, summaries and dashboard permission", async () => {
+    const unauthenticated = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/relatorios/tarefas",
+    });
+    expect(unauthenticated.statusCode).toBe(401);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const repository = preDemandaRepository as unknown as {
+      records: PreDemandaDetail[];
+      andamentos: Andamento[];
+      nextId: number;
+      nextAuditId: number;
+    };
+    const snapshot = {
+      records: JSON.parse(JSON.stringify(repository.records)) as PreDemandaDetail[],
+      andamentos: JSON.parse(JSON.stringify(repository.andamentos)) as Andamento[],
+      nextId: repository.nextId,
+      nextAuditId: repository.nextAuditId,
+    };
+
+    try {
+      const today = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Sao_Paulo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const created = await preDemandaRepository.create({
+        solicitante: "Teste relatorio",
+        assunto: "Marcador relatorio de tarefas",
+        dataReferencia: today,
+        prazoProcesso: addDays(today, 30),
+        createdByUserId: 1,
+      });
+      const overdue = await preDemandaRepository.createTarefa({
+        preId: created.record.preId,
+        descricao: "Marcador relatorio urgente",
+        tipo: "livre",
+        urgente: true,
+        prazoConclusao: addDays(today, -1),
+        recorrenciaTipo: "semanal",
+        setorDestinoId: "123e4567-e89b-42d3-a456-000000000001",
+        changedByUserId: 1,
+      });
+      await preDemandaRepository.createTarefa({
+        preId: created.record.preId,
+        descricao: "Marcador relatorio pendente",
+        tipo: "fixa",
+        urgente: false,
+        prazoConclusao: addDays(today, 10),
+        changedByUserId: 1,
+      });
+      const completed = await preDemandaRepository.createTarefa({
+        preId: created.record.preId,
+        descricao: "Marcador relatorio concluido",
+        tipo: "livre",
+        urgente: false,
+        prazoConclusao: addDays(today, 20),
+        changedByUserId: 1,
+      });
+      await preDemandaRepository.concluirTarefa({
+        preId: created.record.preId,
+        tarefaId: completed.id,
+        dataHora: new Date().toISOString(),
+        gerarNovaOcorrencia: false,
+        changedByUserId: 1,
+      });
+
+      const defaultReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?q=Marcador%20relatorio",
+        headers: { cookie },
+      });
+      expect(defaultReport.statusCode).toBe(200);
+      expect(defaultReport.json().data.items).toHaveLength(2);
+      expect(defaultReport.json().data.items[0].id).toBe(overdue.id);
+      expect(defaultReport.json().data.summary).toEqual({
+        total: 2,
+        pendentes: 2,
+        concluidas: 0,
+        urgentes: 1,
+        atrasadas: 1,
+      });
+      expect(defaultReport.json().data.total).toBe(2);
+      expect(defaultReport.json().data.truncated).toBe(false);
+      expect(new Date(defaultReport.json().data.generatedAt).toString()).not.toBe("Invalid Date");
+
+      const allStatuses = await app.inject({
+        method: "GET",
+        url: `/api/pre-demandas/relatorios/tarefas?status=todas&dueFrom=${today}&dueTo=${addDays(today, 30)}&q=Marcador%20relatorio`,
+        headers: { cookie },
+      });
+      expect(allStatuses.statusCode).toBe(200);
+      expect(allStatuses.json().data.summary).toEqual({
+        total: 2,
+        pendentes: 1,
+        concluidas: 1,
+        urgentes: 0,
+        atrasadas: 0,
+      });
+
+      const urgentRecurring = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?status=todas&urgency=urgentes&recurrence=semanal&q=DIPES",
+        headers: { cookie },
+      });
+      expect(urgentRecurring.statusCode).toBe(200);
+      expect(urgentRecurring.json().data.items.map((item: { id: string }) => item.id)).toEqual([overdue.id]);
+
+      const invalidRange = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?dueFrom=2026-05-02&dueTo=2026-05-01",
+        headers: { cookie },
+      });
+      expect(invalidRange.statusCode).toBe(400);
+
+      created.record.tarefasPendentes = Array.from({ length: 1001 }, (_, index) => ({
+        ...overdue,
+        id: `123e4567-e89b-42d3-a456-${String(index + 1).padStart(12, "0")}`,
+        descricao: `Marcador relatorio limite ${index + 1}`,
+        concluida: false,
+        concluidaEm: null,
+      }));
+      const truncatedReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?q=Marcador%20relatorio%20limite",
+        headers: { cookie },
+      });
+      expect(truncatedReport.statusCode).toBe(200);
+      expect(truncatedReport.json().data.items).toHaveLength(1000);
+      expect(truncatedReport.json().data.total).toBe(1001);
+      expect(truncatedReport.json().data.summary.total).toBe(1001);
+      expect(truncatedReport.json().data.truncated).toBe(true);
+    } finally {
+      repository.records = snapshot.records;
+      repository.andamentos = snapshot.andamentos;
+      repository.nextId = snapshot.nextId;
+      repository.nextAuditId = snapshot.nextAuditId;
+    }
   });
 
   it("creates a pre-demanda and returns idempotent on duplicate payload", async () => {

@@ -644,6 +644,51 @@ export interface DashboardTaskListResult {
   };
 }
 
+export type TarefaRelatorioStatusFilter = "todas" | "pendentes" | "concluidas";
+export type TarefaRelatorioUrgencyFilter = "todas" | "urgentes" | "nao_urgentes";
+export type TarefaRelatorioRecurrenceFilter = TarefaRecorrenciaTipo | "sem_recorrencia";
+
+export interface TarefaRelatorioQuery {
+  status: TarefaRelatorioStatusFilter;
+  dueFrom?: string;
+  dueTo?: string;
+  urgency?: TarefaRelatorioUrgencyFilter;
+  recurrence?: TarefaRelatorioRecurrenceFilter;
+  q?: string;
+}
+
+export interface TarefaRelatorioItem {
+  id: string;
+  preId: string;
+  preNumero: string;
+  assunto: string;
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  urgente: boolean;
+  prazoConclusao: string;
+  horarioInicio: string | null;
+  horarioFim: string | null;
+  recorrenciaTipo: TarefaRecorrenciaTipo | null;
+  setorDestinoSigla: string | null;
+  concluida: boolean;
+  concluidaEm: string | null;
+  createdAt: string;
+}
+
+export interface TarefaRelatorioResult {
+  items: TarefaRelatorioItem[];
+  summary: {
+    total: number;
+    pendentes: number;
+    concluidas: number;
+    urgentes: number;
+    atrasadas: number;
+  };
+  generatedAt: string;
+  total: number;
+  truncated: boolean;
+}
+
 export interface QueueHealthConfig {
   attentionDays: number;
   criticalDays: number;

@@ -97,6 +97,20 @@ const listDashboardTasksSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+const listTarefasRelatorioSchema = z
+  .object({
+    status: z.enum(["todas", "pendentes", "concluidas"]).default("pendentes"),
+    dueFrom: z.string().date().optional(),
+    dueTo: z.string().date().optional(),
+    urgency: z.enum(["todas", "urgentes", "nao_urgentes"]).default("todas"),
+    recurrence: z.enum(["diaria", "semanal", "mensal", "trimestral", "quadrimestral", "semestral", "anual", "sem_recorrencia"]).optional(),
+    q: z.string().trim().max(120).optional(),
+  })
+  .refine((value) => !value.dueFrom || !value.dueTo || value.dueFrom <= value.dueTo, {
+    message: "A data inicial nao pode ser posterior a data final.",
+    path: ["dueFrom"],
+  });
+
 const associateSchema = z.object({
   sei_numero: z.string().trim().regex(SEI_REGEX, "NÃºmero SEI invÃ¡lido."),
   motivo: z.string().trim().max(2000).optional().nullable(),
@@ -542,6 +556,27 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
     return reply.send({
       ok: true,
       data: tasks,
+      error: null,
+    });
+  });
+
+  app.get("/api/pre-demandas/relatorios/tarefas", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (request, reply) => {
+    const parsedQuery = listTarefasRelatorioSchema.safeParse(request.query);
+    if (!parsedQuery.success) {
+      throw new AppError(400, "VALIDATION_ERROR", "Filtros invalidos.", parsedQuery.error.flatten());
+    }
+    const query = parsedQuery.data;
+    const report = await preDemandaRepository.listTarefasRelatorio({
+      status: query.status,
+      dueFrom: query.dueFrom,
+      dueTo: query.dueTo,
+      urgency: query.urgency,
+      recurrence: query.recurrence,
+      q: query.q,
+    });
+    return reply.send({
+      ok: true,
+      data: report,
       error: null,
     });
   });

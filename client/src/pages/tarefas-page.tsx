@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import { motion } from "framer-motion";
-import { AlertTriangle, Clock3, Gavel } from "lucide-react";
+import { AlertTriangle, Clock3, FileText, Gavel } from "lucide-react";
 import { PageHeader } from "../components/page-header";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import {
@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
+import { Button } from "../components/ui/button";
 import {
   Tabs,
   TabsContent,
@@ -632,6 +633,14 @@ export function TarefasPage() {
         transition={{ duration: 0.35, ease: "easeOut" }}
       >
         <PageHeader
+          actions={
+            <Button asChild variant="secondary">
+              <Link to="/tarefas/relatorio">
+                <FileText className="h-4 w-4" />
+                Relatório
+              </Link>
+            </Button>
+          }
           eyebrow="Operacional"
           title="Tarefas"
           description="Painel dedicado para consultar tarefas pendentes e concluidas de todos os processos."

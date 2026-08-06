@@ -91,8 +91,8 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[320px_1fr]">
-      <aside className="relative overflow-hidden border-b border-white/5 bg-[linear-gradient(160deg,#1e1b4b_0%,#312e81_48%,#0f172a_100%)] px-5 py-5 text-white lg:min-h-screen lg:border-b-0 lg:border-r lg:border-white/5 lg:px-6 lg:py-6">
+    <div className="app-shell min-h-screen lg:grid lg:grid-cols-[320px_1fr]">
+      <aside className="app-shell-sidebar relative overflow-hidden border-b border-white/5 bg-[linear-gradient(160deg,#1e1b4b_0%,#312e81_48%,#0f172a_100%)] px-5 py-5 text-white lg:min-h-screen lg:border-b-0 lg:border-r lg:border-white/5 lg:px-6 lg:py-6">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.15),transparent_28%),linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:auto,48px_48px,48px_48px] opacity-90" />
         <div className="relative flex h-full flex-col gap-6">
           <div className="space-y-6">
@@ -212,8 +212,8 @@ export function AppShell() {
         </div>
       </aside>
 
-      <main className="relative min-w-0 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 rounded-b-[60px] bg-[radial-gradient(circle_at_top_left,rgba(153,51,65,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(244,181,98,0.18),transparent_28%)]" />
+      <main className="app-shell-main relative min-w-0 px-4 py-4 sm:px-6 sm:py-6 xl:px-10 xl:py-8">
+        <div className="app-shell-decoration pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 rounded-b-[60px] bg-[radial-gradient(circle_at_top_left,rgba(153,51,65,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(244,181,98,0.18),transparent_28%)]" />
         <Outlet />
         <SpotlightSearch />
       </main>

@@ -38,6 +38,8 @@ import type {
   SortOrder,
   StatusCount,
   TaskScheduleSuggestion,
+  TaskReportQuery,
+  TaskReportResult,
   TarefaPendente,
   TarefaRecorrenciaTipo,
   TarefaPendenteTipo,
@@ -1160,6 +1162,20 @@ export function listDashboardTasks(params: {
   search.set("pageSize", String(params.pageSize ?? 20));
   return request<DashboardTaskListResult>(
     `/api/pre-demandas/dashboard/tarefas?${search.toString()}`,
+  );
+}
+
+export function getTaskReport(params: TaskReportQuery) {
+  const search = new URLSearchParams();
+  search.set("status", params.status);
+  search.set("urgency", params.urgency);
+  if (params.dueFrom) search.set("dueFrom", params.dueFrom);
+  if (params.dueTo) search.set("dueTo", params.dueTo);
+  if (params.recurrence) search.set("recurrence", params.recurrence);
+  if (params.q?.trim()) search.set("q", params.q.trim());
+
+  return request<TaskReportResult>(
+    `/api/pre-demandas/relatorios/tarefas?${search.toString()}`,
   );
 }
 

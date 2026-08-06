@@ -15,6 +15,7 @@ const PacotesProcessosPage = lazy(() => import("./pages/pacotes-processos-page")
 const ProcessosLotePage = lazy(() => import("./pages/processos-lote-page").then((module) => ({ default: module.ProcessosLotePage })));
 const TarefasLotePage = lazy(() => import("./pages/tarefas-lote-page").then((module) => ({ default: module.TarefasLotePage })));
 const TarefasPage = lazy(() => import("./pages/tarefas-page").then((module) => ({ default: module.TarefasPage })));
+const TarefasRelatorioPage = lazy(() => import("./pages/tarefas-relatorio-page").then((module) => ({ default: module.TarefasRelatorioPage })));
 const AudienciasPautaPage = lazy(() => import("./pages/audiencias-pauta-page").then((module) => ({ default: module.AudienciasPautaPage })));
 const AssuntosPage = lazy(() => import("./pages/assuntos-page").then((module) => ({ default: module.AssuntosPage })));
 const InteressadosPage = lazy(() => import("./pages/interessados-page").then((module) => ({ default: module.InteressadosPage })));
@@ -39,6 +40,7 @@ export function App() {
                 <Route element={<Navigate replace to="/dashboard" />} path="/" />
                 <Route element={<DashboardPage />} path="/dashboard" />
                 <Route element={<TarefasPage />} path="/tarefas" />
+                <Route element={<TarefasRelatorioPage />} path="/tarefas/relatorio" />
                 <Route element={<AudienciasPautaPage />} path="/pauta-audiencias" />
                 <Route element={<PreDemandasPage />} path="/processos" />
                 <Route element={<PreDemandasPage />} path="/pre-demandas" />

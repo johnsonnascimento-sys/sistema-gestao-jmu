@@ -640,6 +640,53 @@ export interface DashboardTaskListResult {
   };
 }
 
+export type TaskReportStatusFilter = "todas" | "pendentes" | "concluidas";
+export type TaskReportUrgencyFilter =
+  | "todas"
+  | "urgentes"
+  | "nao_urgentes";
+
+export interface TaskReportQuery {
+  status: TaskReportStatusFilter;
+  dueFrom?: string;
+  dueTo?: string;
+  urgency: TaskReportUrgencyFilter;
+  recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
+  q?: string;
+}
+
+export interface TaskReportItem {
+  id: string;
+  preId: string;
+  preNumero: string;
+  assunto: string;
+  descricao: string;
+  tipo: TarefaPendenteTipo;
+  urgente: boolean;
+  prazoConclusao: string;
+  horarioInicio: string | null;
+  horarioFim: string | null;
+  recorrenciaTipo: TarefaRecorrenciaTipo | null;
+  setorDestinoSigla: string | null;
+  concluida: boolean;
+  concluidaEm: string | null;
+  createdAt: string;
+}
+
+export interface TaskReportResult {
+  items: TaskReportItem[];
+  summary: {
+    total: number;
+    pendentes: number;
+    concluidas: number;
+    urgentes: number;
+    atrasadas: number;
+  };
+  generatedAt: string;
+  total: number;
+  truncated: boolean;
+}
+
 export interface QueueHealthConfig {
   attentionDays: number;
   criticalDays: number;

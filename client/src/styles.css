@@ -77,3 +77,86 @@ select {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+@page {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    min-height: auto;
+    background: #fff !important;
+  }
+
+  body::before,
+  .app-shell-sidebar,
+  .app-shell-decoration,
+  .task-report-no-print {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  .app-shell-main {
+    padding: 0 !important;
+  }
+
+  .task-report-page {
+    display: block !important;
+  }
+
+  .task-report-document {
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .task-report-document-truncated {
+    display: none !important;
+  }
+
+  .task-report-document-header {
+    padding: 0 0 4mm !important;
+  }
+
+  .task-report-summary-card {
+    break-inside: avoid;
+    border-radius: 2mm !important;
+    padding: 2mm 3mm !important;
+  }
+
+  .task-report-table-wrap {
+    overflow: visible !important;
+  }
+
+  .task-report-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 7pt !important;
+  }
+
+  .task-report-table thead {
+    display: table-header-group;
+  }
+
+  .task-report-table tr {
+    break-inside: avoid;
+  }
+
+  .task-report-table th,
+  .task-report-table td {
+    padding: 1.6mm 1.2mm !important;
+  }
+
+  .task-report-table a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}

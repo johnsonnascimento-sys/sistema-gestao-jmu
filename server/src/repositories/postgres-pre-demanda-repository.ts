@@ -31,6 +31,9 @@ import type {
   Setor,
   SortOrder,
   TarefaPendente,
+  TarefaRelatorioItem,
+  TarefaRelatorioQuery,
+  TarefaRelatorioResult,
   TarefaRecorrenciaTipo,
   TimelineEvent,
 } from "../domain/types";
@@ -6065,6 +6068,150 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           updatedAt: new Date(row.updated_at).toISOString(),
         })),
       },
+    };
+  }
+
+  async listTarefasRelatorio(params: TarefaRelatorioQuery): Promise<TarefaRelatorioResult> {
+    const values: string[] = [];
+    const conditions: string[] = [];
+    const pushValue = (value: string) => {
+      values.push(value);
+      return `$${values.length}`;
+    };
+
+    if (params.status !== "todas") {
+      conditions.push(`tarefa.concluida = ${params.status === "concluidas" ? "true" : "false"}`);
+    }
+
+    if (params.dueFrom) {
+      conditions.push(`tarefa.prazo_conclusao >= ${pushValue(params.dueFrom)}::date`);
+    }
+
+    if (params.dueTo) {
+      conditions.push(`tarefa.prazo_conclusao <= ${pushValue(params.dueTo)}::date`);
+    }
+
+    if (params.urgency && params.urgency !== "todas") {
+      conditions.push(`coalesce(tarefa.urgente, false) = ${params.urgency === "urgentes" ? "true" : "false"}`);
+    }
+
+    if (params.recurrence) {
+      if (params.recurrence === "sem_recorrencia") {
+        conditions.push("tarefa.recorrencia_tipo is null");
+      } else {
+        conditions.push(`tarefa.recorrencia_tipo = ${pushValue(params.recurrence)}`);
+      }
+    }
+
+    if (params.q) {
+      const tokens = normalizeSearchTerm(params.q).split(/\s+/).filter(Boolean);
+      for (const token of tokens) {
+        const index = values.push(`%${token}%`);
+        conditions.push(`(
+          ${buildNormalizedLikeExpression("coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id)", index)}
+          or ${buildNormalizedLikeExpression("pd.assunto", index)}
+          or ${buildNormalizedLikeExpression("tarefa.descricao", index)}
+          or ${buildNormalizedLikeExpression("setor_destino.sigla", index)}
+          or ${buildNormalizedLikeExpression("setor_destino.nome_completo", index)}
+        )`);
+      }
+    }
+
+    const reportFrom = `
+      from adminlog.tarefas_pendentes tarefa
+      inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+      left join lateral (
+        select link.sei_numero
+        from adminlog.pre_to_sei_link link
+        where link.pre_id = pd.pre_id
+        order by link.updated_at desc, link.id desc
+        limit 1
+      ) pts on true
+      left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
+    `;
+    const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
+
+    const [itemsResult, summaryResult] = await Promise.all([
+      this.pool.query(
+        `
+          select
+            tarefa.id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
+            pd.assunto,
+            tarefa.descricao,
+            tarefa.tipo,
+            tarefa.urgente,
+            tarefa.prazo_conclusao,
+            tarefa.horario_inicio,
+            tarefa.horario_fim,
+            tarefa.recorrencia_tipo,
+            setor_destino.sigla as setor_destino_sigla,
+            tarefa.concluida,
+            tarefa.concluida_em,
+            tarefa.created_at
+          ${reportFrom}
+          ${whereClause}
+          order by
+            coalesce(tarefa.urgente, false) desc,
+            tarefa.prazo_conclusao asc nulls last,
+            tarefa.created_at asc,
+            tarefa.id asc
+          limit 1000
+        `,
+        values,
+      ),
+      this.pool.query(
+        `
+          select
+            count(*)::int as total,
+            count(*) filter (where tarefa.concluida = false)::int as pendentes,
+            count(*) filter (where tarefa.concluida = true)::int as concluidas,
+            count(*) filter (where coalesce(tarefa.urgente, false) = true)::int as urgentes,
+            count(*) filter (
+              where tarefa.concluida = false
+                and tarefa.prazo_conclusao < current_date
+            )::int as atrasadas
+          ${reportFrom}
+          ${whereClause}
+        `,
+        values,
+      ),
+    ]);
+
+    const summaryRow = summaryResult.rows[0] ?? {};
+    const summary = {
+      total: Number(summaryRow.total ?? 0),
+      pendentes: Number(summaryRow.pendentes ?? 0),
+      concluidas: Number(summaryRow.concluidas ?? 0),
+      urgentes: Number(summaryRow.urgentes ?? 0),
+      atrasadas: Number(summaryRow.atrasadas ?? 0),
+    };
+
+    return {
+      items: itemsResult.rows.map((row): TarefaRelatorioItem => ({
+        id: String(row.id),
+        preId: String(row.pre_id),
+        preNumero: String(row.pre_numero),
+        assunto: String(row.assunto),
+        descricao: String(row.descricao),
+        tipo: row.tipo as TarefaRelatorioItem["tipo"],
+        urgente: Boolean(row.urgente),
+        prazoConclusao: new Date(row.prazo_conclusao).toISOString().slice(0, 10),
+        horarioInicio: row.horario_inicio ? String(row.horario_inicio).slice(0, 5) : null,
+        horarioFim: row.horario_fim ? String(row.horario_fim).slice(0, 5) : null,
+        recorrenciaTipo: row.recorrencia_tipo
+          ? (String(row.recorrencia_tipo) as TarefaRelatorioItem["recorrenciaTipo"])
+          : null,
+        setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
+        concluida: Boolean(row.concluida),
+        concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
+        createdAt: new Date(row.created_at).toISOString(),
+      })),
+      summary,
+      generatedAt: new Date().toISOString(),
+      total: summary.total,
+      truncated: summary.total > 1000,
     };
   }
 }
