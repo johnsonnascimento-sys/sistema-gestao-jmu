@@ -6140,6 +6140,22 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
             pd.assunto,
             coalesce((pd.metadata ->> 'urgente')::boolean, false) as processo_urgente,
+            (
+              exists(
+                select 1
+                from adminlog.demanda_audiencias_judiciais audiencia
+                where audiencia.pre_demanda_id = pd.id
+                  and audiencia.situacao = 'designada'
+              )
+              or (
+                coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
+                and (
+                  coalesce(pd.metadata ->> 'audiencia_data', '') <> ''
+                  or coalesce(pd.metadata ->> 'audiencia_horario_inicio', '') <> ''
+                  or coalesce(pd.metadata ->> 'audiencia_horario_fim', '') <> ''
+                )
+              )
+            ) as has_audiencia,
             tarefa.descricao,
             tarefa.tipo,
             tarefa.urgente,
@@ -6196,6 +6212,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         preNumero: String(row.pre_numero),
         assunto: String(row.assunto),
         processoUrgente: Boolean(row.processo_urgente),
+        hasAudiencia: Boolean(row.has_audiencia),
         descricao: String(row.descricao),
         tipo: row.tipo as TarefaRelatorioItem["tipo"],
         urgente: Boolean(row.urgente),

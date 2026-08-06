@@ -90,6 +90,27 @@ select {
   background: #ffe4e6;
 }
 
+.task-report-section-header {
+  border-radius: 14px 14px 0 0;
+}
+
+.task-report-section-hearing .task-report-section-header {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.task-report-section-hearing .task-report-section-eyebrow,
+.task-report-section-hearing .task-report-section-count {
+  color: #92400e;
+}
+
+.task-report-process-hearing-badge {
+  display: inline-flex;
+  color: #78350f;
+  border-color: #fcd34d;
+  background: #fef3c7;
+}
+
 @page {
   size: A4 landscape;
   margin: 10mm;
@@ -144,6 +165,23 @@ select {
     padding: 2mm 3mm !important;
   }
 
+  .task-report-sections {
+    gap: 4mm !important;
+    padding: 4mm 0 0 !important;
+  }
+
+  .task-report-section-header,
+  .task-report-section-empty {
+    break-inside: avoid;
+  }
+
+  .task-report-section-header {
+    break-after: avoid;
+    page-break-after: avoid;
+    border-radius: 2mm 2mm 0 0 !important;
+    padding: 2mm 3mm !important;
+  }
+
   .task-report-table-wrap {
     overflow: visible !important;
   }
@@ -156,6 +194,8 @@ select {
 
   .task-report-table thead {
     display: table-header-group;
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
   .task-report-table tr {
@@ -170,7 +210,9 @@ select {
   .task-report-process-urgent,
   .task-report-process-urgent tr,
   .task-report-process-urgent td,
-  .task-report-process-urgent-badge {
+  .task-report-process-urgent-badge,
+  .task-report-section-hearing .task-report-section-header,
+  .task-report-process-hearing-badge {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -184,6 +226,17 @@ select {
     color: #881337 !important;
     border: 0.3mm solid #fb7185 !important;
     background: #ffe4e6 !important;
+  }
+
+  .task-report-section-hearing .task-report-section-header {
+    border-color: #f59e0b !important;
+    background: #fffbeb !important;
+  }
+
+  .task-report-process-hearing-badge {
+    color: #78350f !important;
+    border: 0.3mm solid #f59e0b !important;
+    background: #fef3c7 !important;
   }
 
   .task-report-table th,

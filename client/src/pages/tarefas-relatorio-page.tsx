@@ -114,7 +114,23 @@ function groupTaskReportItems(items: TaskReportItem[]) {
     preId,
     items: groupItems,
     processoUrgente: groupItems.some((item) => item.processoUrgente),
+    hasAudiencia: groupItems.some((item) => item.hasAudiencia),
   }));
+}
+
+function partitionTaskReportItems(items: TaskReportItem[]) {
+  const processesWithHearing = new Set(
+    items.filter((item) => item.hasAudiencia).map((item) => item.preId),
+  );
+
+  return {
+    hearingItems: items.filter((item) => processesWithHearing.has(item.preId)),
+    otherItems: items.filter((item) => !processesWithHearing.has(item.preId)),
+  };
+}
+
+function formatCount(value: number, singular: string, plural: string) {
+  return `${value} ${value === 1 ? singular : plural}`;
 }
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
@@ -123,6 +139,119 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-semibold text-slate-950">{value}</p>
     </div>
+  );
+}
+
+function TaskReportSection({
+  hasAudiencia,
+  items,
+  title,
+  unifyByProcess,
+}: {
+  hasAudiencia: boolean;
+  items: TaskReportItem[];
+  title: string;
+  unifyByProcess: boolean;
+}) {
+  const sectionId = hasAudiencia ? "task-report-hearing-section" : "task-report-other-section";
+  const processCount = new Set(items.map((item) => item.preId)).size;
+  const itemGroups = useMemo(
+    () => unifyByProcess
+      ? groupTaskReportItems(items)
+      : items.map((item) => ({
+          preId: item.id,
+          items: [item],
+          processoUrgente: item.processoUrgente,
+          hasAudiencia,
+        })),
+    [hasAudiencia, items, unifyByProcess],
+  );
+
+  return (
+    <section
+      aria-labelledby={`${sectionId}-title`}
+      className={`task-report-section ${hasAudiencia ? "task-report-section-hearing" : "task-report-section-other"}`}
+    >
+      <div className="task-report-section-header flex flex-col gap-2 border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="task-report-section-eyebrow text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
+            {hasAudiencia ? "Pauta judicial" : "Fluxo geral"}
+          </p>
+          <h3 className="mt-0.5 text-base font-semibold text-slate-950" id={`${sectionId}-title`}>{title}</h3>
+        </div>
+        <p className="task-report-section-count text-xs font-semibold text-slate-600">
+          {formatCount(processCount, "processo", "processos")} · {formatCount(items.length, "tarefa", "tarefas")}
+        </p>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="task-report-section-empty border-x border-b border-slate-200 px-4 py-3 text-xs text-slate-500">
+          Nenhuma tarefa nesta seção.
+        </p>
+      ) : (
+        <div className="task-report-table-wrap overflow-x-auto border-x border-b border-slate-200">
+          <table className="task-report-table w-full min-w-[1120px] border-collapse text-left text-xs text-slate-700">
+            <thead className="bg-slate-100 text-[10px] uppercase tracking-[0.1em] text-slate-600">
+              <tr>
+                <th className="px-3 py-3 font-bold">Processo / assunto</th>
+                <th className="px-3 py-3 font-bold">Tarefa</th>
+                <th className="px-3 py-3 font-bold">Prazo / horário</th>
+                <th className="px-3 py-3 font-bold">Situação</th>
+                <th className="px-3 py-3 font-bold">Urgência</th>
+                <th className="px-3 py-3 font-bold">Tipo</th>
+                <th className="px-3 py-3 font-bold">Recorrência</th>
+                <th className="px-3 py-3 font-bold">Setor</th>
+                <th className="px-3 py-3 font-bold">Conclusão</th>
+              </tr>
+            </thead>
+            {itemGroups.map((group) => (
+              <tbody
+                className={[
+                  unifyByProcess ? "task-report-process-group" : "",
+                  group.processoUrgente ? "task-report-process-urgent" : "",
+                  group.hasAudiencia ? "task-report-process-hearing" : "",
+                ].filter(Boolean).join(" ") || undefined}
+                key={group.preId}
+              >
+                {group.items.map((item, itemIndex) => (
+                  <tr className="border-t border-slate-200 align-top" key={item.id}>
+                    {itemIndex === 0 ? (
+                      <td className="px-3 py-3" rowSpan={unifyByProcess ? group.items.length : undefined}>
+                        <Link className="font-semibold text-indigo-800 hover:underline" to={buildPreDemandaPath(item.preId)}>
+                          {item.preNumero}
+                        </Link>
+                        {group.processoUrgente ? (
+                          <span className="task-report-process-urgent-badge ml-2 w-fit rounded-full border border-rose-300 bg-rose-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-rose-800">
+                            Processo urgente
+                          </span>
+                        ) : null}
+                        {group.hasAudiencia ? (
+                          <span className="task-report-process-hearing-badge ml-2 w-fit rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-900">
+                            Audiência designada
+                          </span>
+                        ) : null}
+                        <p className="mt-1 max-w-52 text-slate-500">{item.assunto}</p>
+                      </td>
+                    ) : null}
+                    <td className="max-w-64 px-3 py-3 font-medium text-slate-900">{item.descricao}</td>
+                    <td className="whitespace-nowrap px-3 py-3">
+                      <p className="font-medium text-slate-900">{formatDateOnlyPtBr(item.prazoConclusao)}</p>
+                      <p className="mt-1 text-slate-500">{formatTaskTime(item)}</p>
+                    </td>
+                    <td className="px-3 py-3">{item.concluida ? "Concluída" : "Pendente"}</td>
+                    <td className="px-3 py-3">{item.urgente ? "Urgente" : "Normal"}</td>
+                    <td className="px-3 py-3 capitalize">{item.tipo}</td>
+                    <td className="px-3 py-3">{formatRecurrence(item.recorrenciaTipo)}</td>
+                    <td className="px-3 py-3">{item.setorDestinoSigla ?? "-"}</td>
+                    <td className="whitespace-nowrap px-3 py-3">{formatDateTimePtBr(item.concluidaEm)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -139,15 +268,9 @@ function ReportDocument({
     () => describeFilters(filters, unifyByProcess),
     [filters, unifyByProcess],
   );
-  const itemGroups = useMemo(
-    () => unifyByProcess
-      ? groupTaskReportItems(result.items)
-      : result.items.map((item) => ({
-          preId: item.id,
-          items: [item],
-          processoUrgente: item.processoUrgente,
-        })),
-    [result.items, unifyByProcess],
+  const { hearingItems, otherItems } = useMemo(
+    () => partitionTaskReportItems(result.items),
+    [result.items],
   );
 
   return (
@@ -174,60 +297,19 @@ function ReportDocument({
         <SummaryCard label="Atrasadas" value={result.summary.atrasadas} />
       </div>
 
-      <div className="task-report-table-wrap overflow-x-auto border-t border-slate-200">
-        <table className="task-report-table w-full min-w-[1120px] border-collapse text-left text-xs text-slate-700">
-          <thead className="bg-slate-100 text-[10px] uppercase tracking-[0.1em] text-slate-600">
-            <tr>
-              <th className="px-3 py-3 font-bold">Processo / assunto</th>
-              <th className="px-3 py-3 font-bold">Tarefa</th>
-              <th className="px-3 py-3 font-bold">Prazo / horário</th>
-              <th className="px-3 py-3 font-bold">Situação</th>
-              <th className="px-3 py-3 font-bold">Urgência</th>
-              <th className="px-3 py-3 font-bold">Tipo</th>
-              <th className="px-3 py-3 font-bold">Recorrência</th>
-              <th className="px-3 py-3 font-bold">Setor</th>
-              <th className="px-3 py-3 font-bold">Conclusão</th>
-            </tr>
-          </thead>
-          {itemGroups.map((group) => (
-            <tbody
-              className={[
-                unifyByProcess ? "task-report-process-group" : "",
-                group.processoUrgente ? "task-report-process-urgent" : "",
-              ].filter(Boolean).join(" ") || undefined}
-              key={group.preId}
-            >
-              {group.items.map((item, itemIndex) => (
-                <tr className="border-t border-slate-200 align-top" key={item.id}>
-                  {itemIndex === 0 ? (
-                    <td className="px-3 py-3" rowSpan={unifyByProcess ? group.items.length : undefined}>
-                      <Link className="font-semibold text-indigo-800 hover:underline" to={buildPreDemandaPath(item.preId)}>
-                        {item.preNumero}
-                      </Link>
-                      {group.processoUrgente ? (
-                        <span className="task-report-process-urgent-badge ml-2 w-fit rounded-full border border-rose-300 bg-rose-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-rose-800">
-                          Processo urgente
-                        </span>
-                      ) : null}
-                      <p className="mt-1 max-w-52 text-slate-500">{item.assunto}</p>
-                    </td>
-                  ) : null}
-                  <td className="max-w-64 px-3 py-3 font-medium text-slate-900">{item.descricao}</td>
-                  <td className="whitespace-nowrap px-3 py-3">
-                    <p className="font-medium text-slate-900">{formatDateOnlyPtBr(item.prazoConclusao)}</p>
-                    <p className="mt-1 text-slate-500">{formatTaskTime(item)}</p>
-                  </td>
-                  <td className="px-3 py-3">{item.concluida ? "Concluída" : "Pendente"}</td>
-                  <td className="px-3 py-3">{item.urgente ? "Urgente" : "Normal"}</td>
-                  <td className="px-3 py-3 capitalize">{item.tipo}</td>
-                  <td className="px-3 py-3">{formatRecurrence(item.recorrenciaTipo)}</td>
-                  <td className="px-3 py-3">{item.setorDestinoSigla ?? "-"}</td>
-                  <td className="whitespace-nowrap px-3 py-3">{formatDateTimePtBr(item.concluidaEm)}</td>
-                </tr>
-              ))}
-            </tbody>
-          ))}
-        </table>
+      <div className="task-report-sections grid gap-5 border-t border-slate-200 px-6 py-5">
+        <TaskReportSection
+          hasAudiencia
+          items={hearingItems}
+          title="Processos com audiência designada"
+          unifyByProcess={unifyByProcess}
+        />
+        <TaskReportSection
+          hasAudiencia={false}
+          items={otherItems}
+          title="Demais processos"
+          unifyByProcess={unifyByProcess}
+        />
       </div>
     </article>
   );
@@ -368,7 +450,7 @@ export function TarefasRelatorioPage() {
       {loading ? <div className="task-report-no-print"><LoadingState description="Consultando tarefas e montando a prévia." title="Gerando relatório" /></div> : null}
       {!loading && error ? <div className="task-report-no-print"><ErrorState description={error} title="Não foi possível gerar o relatório" /></div> : null}
       {!loading && !error && result && result.items.length === 0 ? <div className="task-report-no-print"><EmptyState description="Altere os filtros para ampliar a consulta." title="Nenhuma tarefa encontrada" /></div> : null}
-      {!loading && !error && result && result.items.length > 0 ? (
+      {!loading && !error && result ? (
         <ReportDocument
           filters={appliedFilters}
           result={result}

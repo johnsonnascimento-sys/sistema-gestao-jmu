@@ -487,6 +487,20 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
+  private hasAudienciaDesignada(record: PreDemandaDetail) {
+    const hasAudienciaJudicial = (record.audiencias ?? []).some(
+      (audiencia) => audiencia.situacao === "designada",
+    );
+    const legacyStatus = record.metadata.audienciaStatus || "designada";
+    const hasLegacySchedule = Boolean(
+      record.metadata.audienciaData
+      || record.metadata.audienciaHorarioInicio
+      || record.metadata.audienciaHorarioFim,
+    );
+
+    return hasAudienciaJudicial || (legacyStatus === "designada" && hasLegacySchedule);
+  }
+
   private buildDefaultPessoa(id: string, nome?: string): Interessado {
     return {
       id,
@@ -2422,7 +2436,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           horarioFim: task.horarioFim ?? null,
           recorrenciaTipo: task.recorrenciaTipo ?? null,
           setorDestinoSigla: task.setorDestino?.sigla ?? null,
-          hasAudiencia: (item.audiencias ?? []).some((audiencia) => audiencia.situacao === "designada"),
+          hasAudiencia: this.hasAudienciaDesignada(item),
           geradaAutomaticamente: task.geradaAutomaticamente,
           concluida: task.concluida,
           concluidaEm: task.concluidaEm,
@@ -2558,6 +2572,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         preNumero: record.principalNumero,
         assunto: record.assunto,
         processoUrgente: record.metadata.urgente === true,
+        hasAudiencia: this.hasAudienciaDesignada(record),
         descricao: task.descricao,
         tipo: task.tipo,
         urgente: Boolean(task.urgente),
@@ -3131,6 +3146,20 @@ describe("Gestor JMU API", () => {
         month: "2-digit",
         day: "2-digit",
       }).format(new Date());
+      const buildAudiencia = (preId: string, situacao: Audiencia["situacao"], suffix: string): Audiencia => ({
+        id: `aud-relatorio-${suffix}`,
+        preId,
+        dataHoraInicio: `${addDays(today, 5)}T13:00:00.000Z`,
+        dataHoraFim: `${addDays(today, 5)}T14:00:00.000Z`,
+        descricao: `Audiencia ${situacao}`,
+        sala: null,
+        situacao,
+        observacoes: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        createdBy: null,
+        updatedBy: null,
+      });
       const created = await preDemandaRepository.create({
         solicitante: "Teste relatorio",
         assunto: "Marcador relatorio de tarefas",
@@ -3171,6 +3200,7 @@ describe("Gestor JMU API", () => {
         gerarNovaOcorrencia: false,
         changedByUserId: 1,
       });
+      created.record.audiencias = [buildAudiencia(created.record.preId, "designada", "designada")];
 
       const ordinaryProcess = await preDemandaRepository.create({
         solicitante: "Teste relatorio ordinario",
@@ -3187,6 +3217,46 @@ describe("Gestor JMU API", () => {
         prazoConclusao: addDays(today, 15),
         changedByUserId: 1,
       });
+      ordinaryProcess.record.audiencias = [buildAudiencia(ordinaryProcess.record.preId, "realizada", "realizada")];
+
+      const canceledProcess = await preDemandaRepository.create({
+        solicitante: "Teste relatorio cancelado",
+        assunto: "Controle cancelado de audiencia",
+        dataReferencia: today,
+        prazoProcesso: addDays(today, 30),
+        createdByUserId: 1,
+      });
+      await preDemandaRepository.createTarefa({
+        preId: canceledProcess.record.preId,
+        descricao: "Atividade com audiencia cancelada",
+        tipo: "livre",
+        urgente: false,
+        prazoConclusao: addDays(today, 16),
+        changedByUserId: 1,
+      });
+      canceledProcess.record.audiencias = [buildAudiencia(canceledProcess.record.preId, "cancelada", "cancelada")];
+
+      const legacyProcess = await preDemandaRepository.create({
+        solicitante: "Teste relatorio legado",
+        assunto: "Controle legado de audiencia",
+        dataReferencia: today,
+        prazoProcesso: addDays(today, 30),
+        createdByUserId: 1,
+      });
+      await preDemandaRepository.createTarefa({
+        preId: legacyProcess.record.preId,
+        descricao: "Atividade com audiencia legada designada",
+        tipo: "livre",
+        urgente: false,
+        prazoConclusao: addDays(today, 17),
+        changedByUserId: 1,
+      });
+      legacyProcess.record.metadata = {
+        ...legacyProcess.record.metadata,
+        audienciaStatus: "designada",
+        audienciaData: addDays(today, 5),
+        audienciaHorarioInicio: "10:00",
+      };
 
       const defaultReport = await app.inject({
         method: "GET",
@@ -3198,8 +3268,8 @@ describe("Gestor JMU API", () => {
       expect(defaultReport.json().data.items[0].id).toBe(overdue.id);
       expect(defaultReport.json().data.items).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ urgente: true, processoUrgente: true }),
-          expect.objectContaining({ urgente: false, processoUrgente: true }),
+          expect.objectContaining({ urgente: true, processoUrgente: true, hasAudiencia: true }),
+          expect.objectContaining({ urgente: false, processoUrgente: true, hasAudiencia: true }),
         ]),
       );
       expect(defaultReport.json().data.summary).toEqual({
@@ -3220,7 +3290,27 @@ describe("Gestor JMU API", () => {
       });
       expect(ordinaryReport.statusCode).toBe(200);
       expect(ordinaryReport.json().data.items).toEqual([
-        expect.objectContaining({ urgente: false, processoUrgente: false }),
+        expect.objectContaining({ urgente: false, processoUrgente: false, hasAudiencia: false }),
+      ]);
+
+      const canceledReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?q=Controle%20cancelado%20de%20audiencia",
+        headers: { cookie },
+      });
+      expect(canceledReport.statusCode).toBe(200);
+      expect(canceledReport.json().data.items).toEqual([
+        expect.objectContaining({ hasAudiencia: false }),
+      ]);
+
+      const legacyReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?q=Controle%20legado%20de%20audiencia",
+        headers: { cookie },
+      });
+      expect(legacyReport.statusCode).toBe(200);
+      expect(legacyReport.json().data.items).toEqual([
+        expect.objectContaining({ hasAudiencia: true }),
       ]);
 
       const allStatuses = await app.inject({
