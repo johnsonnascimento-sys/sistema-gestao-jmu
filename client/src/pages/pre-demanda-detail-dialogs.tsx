@@ -227,13 +227,11 @@ export function TaskCompletionDialog({
   isSubmitting: boolean;
   onConfirm: (payload: {
     dataHora: string;
-    motivo: string;
     observacoes: string;
     gerarNovaOcorrencia: boolean;
   }) => Promise<void> | void;
 }) {
   const [dataHora, setDataHora] = useState("");
-  const [motivo, setMotivo] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [gerarNovaOcorrencia, setGerarNovaOcorrencia] = useState(true);
   const [error, setError] = useState("");
@@ -242,7 +240,6 @@ export function TaskCompletionDialog({
   useEffect(() => {
     if (open) {
       setDataHora(toDateTimeLocalValue(new Date().toISOString()));
-      setMotivo("");
       setObservacoes("");
       setGerarNovaOcorrencia(true);
       setError("");
@@ -269,18 +266,12 @@ export function TaskCompletionDialog({
       return;
     }
 
-    if (!motivo.trim()) {
-      setError("Informe o motivo da conclusao.");
-      return;
-    }
-
     setSubmitting(true);
     setError("");
 
     try {
       await onConfirm({
         dataHora: toIsoFromDateTimeLocal(dataHora) ?? parsedDataHora.toISOString(),
-        motivo: motivo.trim(),
         observacoes: observacoes.trim(),
         gerarNovaOcorrencia: task.recorrenciaTipo ? gerarNovaOcorrencia : true,
       });
@@ -298,7 +289,7 @@ export function TaskCompletionDialog({
         <DialogHeader>
           <DialogTitle>Concluir tarefa</DialogTitle>
           <DialogDescription>
-            Registre a data e hora reais da conclusao, alem do motivo e dos detalhes operacionais.
+            Registre a data e hora reais da conclusao e os detalhes operacionais.
           </DialogDescription>
         </DialogHeader>
 
@@ -318,15 +309,6 @@ export function TaskCompletionDialog({
               onChange={(event) => setDataHora(event.target.value)}
               type="datetime-local"
               value={dataHora}
-            />
-          </FormField>
-
-          <FormField hint="Obrigatorio." label="Motivo">
-            <Textarea
-              onChange={(event) => setMotivo(event.target.value)}
-              placeholder="Descreva por que a tarefa foi concluida."
-              rows={4}
-              value={motivo}
             />
           </FormField>
 
@@ -364,7 +346,7 @@ export function TaskCompletionDialog({
             Cancelar
           </Button>
           <Button
-            disabled={submitting || !dataHora || !motivo.trim()}
+            disabled={submitting || !dataHora}
             onClick={() => void handleConfirm()}
             type="button"
             variant="primary"

@@ -309,7 +309,7 @@ const concluirTarefaSchema = z.object({
   data_hora: z.string().datetime().refine((value) => new Date(value).getTime() <= Date.now(), {
     message: "A data/hora da conclusao nao pode ser futura.",
   }),
-  motivo: z.string().trim().min(1).max(2000),
+  motivo: z.string().trim().max(2000).optional().nullable(),
   observacoes: z.string().trim().max(2000).optional().nullable(),
   gerar_nova_ocorrencia: z.boolean().optional(),
 });
