@@ -49,3 +49,13 @@
 **Validacao:** Suite local com 72 testes aprovada, build completo aprovado, container de producao saudavel, banco pronto, health e readiness aprovados, smoke autenticado aprovado e smoke administrativo aprovado. A inspecao pos-deploy confirmou a `main` limpa no commit funcional e o evento operacional de sucesso.
 
 **Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao. O backup foi validado por checksum antes da troca do container e a imagem anterior permaneceu disponivel para rollback.
+
+## Separacao de audiencias designadas no relatorio de tarefas
+
+**O Que:** O relatorio de tarefas passou a separar em secoes fixas os processos com audiencia designada e os demais processos. A classificacao usa a mesma regra da tela Tarefas, incluindo audiencias judiciais atuais e cadastros legados designados, preserva todas as tarefas da demanda na mesma secao, informa totais por processo e tarefa e mantem os destaques de urgencia e os estilos de impressao.
+
+**Identificadores:** Commit funcional `7898adc50fb6d6663f21f77e4985465880951f45`; imagem `gestor-jmu-web:commit-7898adc50fb6d6663f21f77e4985465880951f45`; backup pre-deploy `gestor-adminlog-20260806T223534Z-pre-deploy-7898adc.sql.gz`; imagem anterior preservada `gestor-jmu-web:commit-e1b53619ea7ec18402080e901968b2d31eb1b961`.
+
+**Validacao:** Suite local com 73 testes aprovada, build completo aprovado, container de producao saudavel, banco pronto, health e readiness aprovados, smoke autenticado aprovado e smoke administrativo aprovado. A inspecao pos-deploy confirmou a `main` limpa no commit funcional e o evento operacional de sucesso.
+
+**Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao. O backup foi validado por checksum antes da troca do container e a imagem anterior permaneceu disponivel para rollback.
