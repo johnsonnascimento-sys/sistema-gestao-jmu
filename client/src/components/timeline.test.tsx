@@ -29,8 +29,10 @@ describe("Timeline", () => {
     expect(screen.getByText((_, element) => element?.textContent === "Linha 1\nLinha 2")).toHaveClass(
       "whitespace-pre-wrap",
     );
-    expect(screen.getByText((_, element) => element?.textContent === "Paragrafo A\n\nParagrafo B")).toHaveClass(
-      "whitespace-pre-wrap",
-    );
+    expect(
+      screen.getByText(
+        (_, element) => element?.tagName === "P" && element.textContent === "Paragrafo A\n\nParagrafo B",
+      ),
+    ).toHaveClass("whitespace-pre-wrap");
   });
 });
