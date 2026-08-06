@@ -19,3 +19,13 @@
 **Validacao:** Verificacao da sequencia de migrations, execucao dos testes automatizados e build completo do frontend e backend antes da publicacao da `main`.
 
 **Seguranca:** Nenhuma credencial, token ou segredo foi exposto ou alterado.
+
+## Deploy da main consolidada na VPS
+
+**O Que:** Publicada em producao a `main` consolidada, com build Docker, recriacao controlada do container, aplicacao automatica das migrations e validacao funcional. O checkout remoto foi alinhado para a unica branch `main`; uma divergencia local automatica de `package-lock.json` foi preservada como patch operacional antes da restauracao do arquivo versionado.
+
+**Identificadores:** Commit implantado `4ff4097b4862c5d27e867812352c3ba04eca5d74`; imagem `gestor-jmu-web:commit-4ff4097b4862c5d27e867812352c3ba04eca5d74`; backup pre-deploy `gestor-adminlog-20260806T205636Z-pre-deploy-4ff4097.sql.gz`; imagem de rollback `gestor-jmu-web:commit-9b6f2da7885321a4ae930ad9b3840bc2414cce13`; migrations confirmadas `030_andamentos_motivo_observacoes.sql` e `031_tarefas_procedimento_apenas_abertas.sql`.
+
+**Validacao:** Container saudavel, endpoints de health e readiness aprovados, banco pronto, smoke autenticado aprovado e smoke administrativo aprovado. O checkout remoto permaneceu limpo na branch `main`.
+
+**Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao.
