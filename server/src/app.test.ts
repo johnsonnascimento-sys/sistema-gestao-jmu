@@ -975,6 +975,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       items = items.filter((item) => item.dataReferencia <= params.dateTo!);
     }
 
+    if (params.pessoaId) {
+      items = items.filter((item) => item.interessados.some((interessado) => interessado.interessado.id === params.pessoaId));
+    }
+
     if (params.hasSei === true) {
       items = items.filter((item) => item.currentAssociation !== null);
     }
@@ -3843,6 +3847,18 @@ describe("Gestor JMU API", () => {
     expect(linkedInteressado.statusCode).toBe(201);
     expect(linkedInteressado.json().data[0].interessado.id).toBe(interessadoId);
 
+    const linkedBaseInteressado = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/PRE-2026-001/interessados",
+      headers: { cookie: adminCookie },
+      payload: {
+        interessado_id: interessadoId,
+        papel: "interessado",
+      },
+    });
+
+    expect(linkedBaseInteressado.statusCode).toBe(201);
+
     const createdSetor = await app.inject({
       method: "POST",
       url: "/api/setores",
@@ -3855,6 +3871,17 @@ describe("Gestor JMU API", () => {
 
     expect(createdSetor.statusCode).toBe(201);
     const setorId = createdSetor.json().data.id as string;
+
+    const tramitedBase = await app.inject({
+      method: "POST",
+      url: "/api/pre-demandas/PRE-2026-001/tramitar",
+      headers: { cookie: adminCookie },
+      payload: {
+        setor_destino_id: setorId,
+      },
+    });
+
+    expect(tramitedBase.statusCode).toBe(200);
 
     const tramited = await app.inject({
       method: "POST",
@@ -4631,6 +4658,21 @@ describe("Gestor JMU API", () => {
 
     expect(vinculoUm.statusCode).toBe(201);
     expect(vinculoDois.statusCode).toBe(201);
+
+    const filteredByPessoa = await app.inject({
+      method: "GET",
+      url: `/api/pre-demandas?pessoaId=${pessoaUmId}`,
+      headers: { cookie },
+    });
+
+    expect(filteredByPessoa.statusCode).toBe(200);
+    expect(filteredByPessoa.json().data.total).toBeGreaterThanOrEqual(1);
+    expect(
+      filteredByPessoa.json().data.items.some((item: { preId: string }) => item.preId === firstPreId),
+    ).toBe(true);
+    expect(
+      filteredByPessoa.json().data.items.some((item: { preId: string }) => item.preId === secondPreId),
+    ).toBe(false);
 
     const bulk = await app.inject({
       method: "POST",

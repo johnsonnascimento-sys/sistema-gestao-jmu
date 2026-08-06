@@ -1548,7 +1548,7 @@ export function PreDemandaDetailPage() {
   async function handleAssociation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isSeiValid) {
-      setError("Informe um numero SEI no formato 000181/26-02.227.");
+      setError("Informe um numero SEI no formato 000181/26-02.227 ou 022372/25-00.01.");
       return;
     }
     await runMutation(async () => {
@@ -2532,10 +2532,23 @@ export function PreDemandaDetailPage() {
                         >
                           {pendingTasks.map((task) => (
                             <Reorder.Item key={task.id} value={task}>
-                              <div className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 cursor-grab active:cursor-grabbing backdrop-blur-xl hover:shadow-md transition-shadow">
+                              <div
+                                aria-label={`Editar tarefa ${task.descricao}`}
+                                className="rounded-[22px] border border-slate-200 bg-white px-4 py-3 cursor-grab active:cursor-grabbing backdrop-blur-xl hover:shadow-md transition-shadow"
+                                onClick={() => openTaskEditor(task)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    openTaskEditor(task);
+                                  }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                              >
                                 <div className="flex items-start gap-3">
                                   <input
                                     className="mt-1 h-4 w-4 accent-slate-950"
+                                    onClick={(event) => event.stopPropagation()}
                                     onChange={() => requestTaskCompletion(task)}
                                     type="checkbox"
                                   />
@@ -2609,10 +2622,13 @@ export function PreDemandaDetailPage() {
                                         assunto.
                                       </span>
                                     ) : null}
-                                  </div>
-                                  <div className="flex shrink-0 gap-2">
+                                </div>
+                                <div className="flex shrink-0 gap-2">
                                     <Button
-                                      onClick={() => requestTaskCompletion(task)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        requestTaskCompletion(task);
+                                      }}
                                       size="sm"
                                       type="button"
                                       variant="primary"
@@ -2620,7 +2636,10 @@ export function PreDemandaDetailPage() {
                                       Concluir
                                     </Button>
                                     <Button
-                                      onClick={() => openTaskEditor(task)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        openTaskEditor(task);
+                                      }}
                                       size="sm"
                                       type="button"
                                       variant="secondary"
@@ -2628,7 +2647,10 @@ export function PreDemandaDetailPage() {
                                       Editar
                                     </Button>
                                     <Button
-                                      onClick={() => setDeleteTask(task)}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setDeleteTask(task);
+                                      }}
                                       size="sm"
                                       type="button"
                                       variant="ghost"
@@ -2654,8 +2676,18 @@ export function PreDemandaDetailPage() {
                       ) : (
                         completedTasks.map((task) => (
                           <div
-                            className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3"
+                            aria-label={`Editar tarefa ${task.descricao}`}
+                            className="cursor-grab rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 transition-shadow hover:shadow-md active:cursor-grabbing"
                             key={task.id}
+                            onClick={() => openTaskEditor(task)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openTaskEditor(task);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
                           >
                             <p className="font-semibold text-emerald-950">
                               {task.descricao}
@@ -2828,12 +2860,23 @@ export function PreDemandaDetailPage() {
                     <div className="grid gap-3">
                       {pendingTasks.map((task) => (
                         <div
-                          className="rounded-[22px] border border-slate-200 bg-white px-4 py-3"
+                          aria-label={`Editar tarefa ${task.descricao}`}
+                          className="cursor-grab rounded-[22px] border border-slate-200 bg-white px-4 py-3 transition-shadow hover:shadow-md active:cursor-grabbing"
                           key={task.id}
+                          onClick={() => openTaskEditor(task)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openTaskEditor(task);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
                         >
                           <div className="flex items-start gap-3">
                             <input
                               className="mt-1 h-4 w-4 shrink-0 accent-slate-950"
+                              onClick={(event) => event.stopPropagation()}
                               onChange={() => requestTaskCompletion(task)}
                               type="checkbox"
                             />
@@ -2871,7 +2914,10 @@ export function PreDemandaDetailPage() {
                             </div>
                             <div className="flex shrink-0 items-start gap-2">
                               <Button
-                                onClick={() => requestTaskCompletion(task)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  requestTaskCompletion(task);
+                                }}
                                 size="sm"
                                 type="button"
                                 variant="primary"
@@ -2879,7 +2925,10 @@ export function PreDemandaDetailPage() {
                                 Concluir
                               </Button>
                               <Button
-                                onClick={() => openTaskEditor(task)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openTaskEditor(task);
+                                }}
                                 size="sm"
                                 type="button"
                                 variant="secondary"
@@ -2887,7 +2936,10 @@ export function PreDemandaDetailPage() {
                                 Editar
                               </Button>
                               <Button
-                                onClick={() => setDeleteTask(task)}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setDeleteTask(task);
+                                }}
                                 size="sm"
                                 type="button"
                                 variant="ghost"

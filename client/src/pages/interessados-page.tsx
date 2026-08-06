@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { FileSpreadsheet, Plus, Square, SquareCheckBig } from "lucide-react";
 import { PageHeader } from "../components/page-header";
 import { ErrorState, LoadingState } from "../components/states";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { createPessoa, downloadPessoasExcel, formatAppError, listPessoas, updatePessoa } from "../lib/api";
+import { buildQueueSearch } from "./pre-demandas-utils";
 import { formatCpf, isValidCpf } from "../lib/cpf";
 import type { Interessado } from "../types";
 
@@ -295,7 +297,21 @@ export function InteressadosPage() {
                           type="checkbox"
                         />
                       </td>
-                      <td className="px-4 py-4 font-medium text-slate-950">{item.nome}</td>
+                      <td className="px-4 py-4 font-medium text-slate-950">
+                        <Link
+                          className="font-semibold text-slate-950 underline decoration-sky-200 decoration-2 underline-offset-4 transition hover:text-sky-700"
+                          to={buildQueueSearch(
+                            new URLSearchParams(),
+                            {
+                              pessoaId: item.id,
+                              pessoaNome: item.nome,
+                              view: "table",
+                            },
+                          )}
+                        >
+                          {item.nome}
+                        </Link>
+                      </td>
                       <td className="px-4 py-4 text-slate-600">{item.cargo ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.matricula ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.cpf ? formatCpf(item.cpf) : "-"}</td>

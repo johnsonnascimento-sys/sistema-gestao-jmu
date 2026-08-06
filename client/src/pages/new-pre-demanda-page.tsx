@@ -554,7 +554,7 @@ export function NewPreDemandaPage() {
             {showNumbers && !isSeiValid ? (
               <div className="md:col-span-2 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
                 Informe um numero SEI valido no formato{" "}
-                <code>000181/26-02.227</code>.
+                <code>000181/26-02.227</code> ou <code>022372/25-00.01</code>.
               </div>
             ) : null}
 

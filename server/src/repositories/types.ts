@@ -461,6 +461,7 @@ export interface ListPreDemandasParams {
   queueHealthLevels?: QueueHealthLevel[];
   dateFrom?: string;
   dateTo?: string;
+  pessoaId?: string;
   hasSei?: boolean;
   setorAtualId?: string;
   withoutSetor?: boolean;

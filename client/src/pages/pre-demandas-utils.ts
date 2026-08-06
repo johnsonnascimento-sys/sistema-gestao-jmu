@@ -79,6 +79,8 @@ export type ResolvedSearchState = {
   queueHealth: QueueHealthLevel[];
   dateFrom: string;
   dateTo: string;
+  pessoaId: string;
+  pessoaNome: string;
   hasSei: "" | "true" | "false";
   setorAtualId: string;
   withoutSetor: "" | "true" | "false";
@@ -430,6 +432,8 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     !searchParams.has("queueHealth") &&
     !searchParams.has("dateFrom") &&
     !searchParams.has("dateTo") &&
+    !searchParams.has("pessoaId") &&
+    !searchParams.has("pessoaNome") &&
     !searchParams.has("hasSei") &&
     !searchParams.has("setorAtualId") &&
     !searchParams.has("withoutSetor") &&
@@ -453,6 +457,8 @@ export function resolveSearchState(searchParams: URLSearchParams): ResolvedSearc
     queueHealth: searchParams.has("queueHealth") ? (splitValues(searchParams.get("queueHealth")) as QueueHealthLevel[]) : preset?.defaults.queueHealth ?? [],
     dateFrom: searchParams.get("dateFrom") ?? "",
     dateTo: searchParams.get("dateTo") ?? "",
+    pessoaId: searchParams.get("pessoaId") ?? "",
+    pessoaNome: searchParams.get("pessoaNome") ?? "",
     hasSei: searchParams.has("hasSei") ? ((searchParams.get("hasSei") as "true" | "false") ?? "") : preset?.defaults.hasSei ?? "",
     setorAtualId: searchParams.get("setorAtualId") ?? preset?.defaults.setorAtualId ?? "",
     withoutSetor: searchParams.has("withoutSetor") ? ((searchParams.get("withoutSetor") as "true" | "false") ?? "") : preset?.defaults.withoutSetor ?? "",

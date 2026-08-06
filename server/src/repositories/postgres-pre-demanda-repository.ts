@@ -917,6 +917,18 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
     clauses.push(`pd.data_referencia <= $${values.length}::date`);
   }
 
+  if (params.pessoaId) {
+    values.push(params.pessoaId);
+    clauses.push(`
+      exists (
+        select 1
+        from adminlog.demanda_interessados di
+        where di.pre_demanda_id = pd.id
+          and di.interessado_id = $${values.length}::uuid
+      )
+    `);
+  }
+
   const hasSei = normalizeBool(params.hasSei);
   if (hasSei === true) {
     clauses.push("pts.pre_id is not null");

@@ -1,4 +1,4 @@
-const SHORT_SEI_REGEX = /^\d{6}\/\d{2}-\d{2}\.\d{3}$/;
+const SEI_REGEX = /^(?:\d{6}\/\d{2}-\d{2}\.\d{2,3}|\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/;
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "").slice(0, 13);
@@ -29,5 +29,5 @@ export function normalizeSeiValue(value: string) {
 }
 
 export function isValidSei(value: string) {
-  return SHORT_SEI_REGEX.test(value.trim());
+  return SEI_REGEX.test(value.trim());
 }

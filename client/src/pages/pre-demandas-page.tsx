@@ -21,6 +21,7 @@ import {
   ResolvedSearchState,
   SectorQueueSummary,
   buildSectorQueueSearch,
+  buildQueueSearch,
   buildWithoutSetorQueueSearch,
   getSectorRiskLevel,
   resolveSearchState,
@@ -53,6 +54,7 @@ export function PreDemandasPage() {
         queueHealth: resolvedState.queueHealth,
         dateFrom: resolvedState.dateFrom || undefined,
         dateTo: resolvedState.dateTo || undefined,
+        pessoaId: resolvedState.pessoaId || undefined,
         hasSei: resolvedState.hasSei ? resolvedState.hasSei === "true" : undefined,
         setorAtualId: resolvedState.setorAtualId || undefined,
         withoutSetor: resolvedState.withoutSetor ? resolvedState.withoutSetor === "true" : undefined,
@@ -129,6 +131,7 @@ export function PreDemandasPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const metrics = useMemo(() => counts, [counts]);
   const selectedSetor = useMemo(() => setores.find((item) => item.id === resolvedState.setorAtualId) ?? null, [resolvedState.setorAtualId, setores]);
+  const selectedPessoaLabel = resolvedState.pessoaNome || "Pessoa selecionada";
   const isWithoutSetorFocused = resolvedState.withoutSetor === "true" && !resolvedState.setorAtualId;
   const sectorSummaries = useMemo<SectorQueueSummary[]>(() => {
     const groups = new Map<string, SectorQueueSummary>();
@@ -412,6 +415,27 @@ export function PreDemandasPage() {
             </Button>
             <Button asChild size="sm" variant={resolvedState.hasInteressados === "false" ? "outline" : "ghost"}>
               <Link to={buildWithoutSetorQueueSearch(searchParams, "", "false")}>Sem envolvidos</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {resolvedState.pessoaId ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Filtro por pessoa</CardTitle>
+            <CardDescription>Mostrando apenas processos e demandas vinculados a {selectedPessoaLabel}.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            <Button asChild size="sm" variant="secondary">
+              <Link
+                to={buildQueueSearch(searchParams, {
+                  pessoaId: null,
+                  pessoaNome: null,
+                })}
+              >
+                Limpar pessoa
+              </Link>
             </Button>
           </CardContent>
         </Card>

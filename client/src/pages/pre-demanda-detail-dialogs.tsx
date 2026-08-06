@@ -1321,10 +1321,27 @@ export function TarefasDialog({
                       <Reorder.Group axis="y" className="grid gap-3" onReorder={onReorderTasks} values={pendingTasks}>
                         {pendingTasks.map((task) => (
                           <Reorder.Item key={task.id} value={task}>
-                            <div className="cursor-grab rounded-[24px] border border-slate-200 bg-white p-4 transition-shadow hover:shadow-md active:cursor-grabbing">
+                            <div
+                              aria-label={`Editar tarefa ${task.descricao}`}
+                              className="cursor-grab rounded-[24px] border border-slate-200 bg-white p-4 transition-shadow hover:shadow-md active:cursor-grabbing"
+                              onClick={() => onEditTask(task)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  onEditTask(task);
+                                }
+                              }}
+                              role="button"
+                              tabIndex={0}
+                            >
                               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="flex min-w-0 gap-3">
-                                  <input className="mt-1 h-4 w-4 shrink-0 accent-slate-950" onChange={() => onCompleteTask(task)} type="checkbox" />
+                                  <input
+                                    className="mt-1 h-4 w-4 shrink-0 accent-slate-950"
+                                    onClick={(event) => event.stopPropagation()}
+                                    onChange={() => onCompleteTask(task)}
+                                    type="checkbox"
+                                  />
                                   <div className="min-w-0">
                                     <p className="font-semibold text-slate-950">{task.descricao}</p>
                                     <div className="mt-2 flex flex-wrap gap-2">
@@ -1342,9 +1359,9 @@ export function TarefasDialog({
                                   </div>
                                 </div>
                                 <div className="flex shrink-0 flex-wrap gap-2">
-                                  <Button onClick={() => onCompleteTask(task)} size="sm" type="button">Concluir</Button>
-                                  <Button onClick={() => onEditTask(task)} size="sm" type="button" variant="secondary">Editar</Button>
-                                  <Button onClick={() => onDeleteTask(task)} size="sm" type="button" variant="ghost">Excluir</Button>
+                                  <Button onClick={(event) => { event.stopPropagation(); onCompleteTask(task); }} size="sm" type="button">Concluir</Button>
+                                  <Button onClick={(event) => { event.stopPropagation(); onEditTask(task); }} size="sm" type="button" variant="secondary">Editar</Button>
+                                  <Button onClick={(event) => { event.stopPropagation(); onDeleteTask(task); }} size="sm" type="button" variant="ghost">Excluir</Button>
                                 </div>
                               </div>
                             </div>
@@ -1372,7 +1389,20 @@ export function TarefasDialog({
                   {completedTasks.length === 0 ? (
                     <p className="rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">Nada concluido ainda.</p>
                   ) : completedTasks.map((task) => (
-                    <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3" key={task.id}>
+                    <div
+                      aria-label={`Editar tarefa ${task.descricao}`}
+                      className="cursor-grab rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-3 transition-shadow hover:shadow-md active:cursor-grabbing"
+                      key={task.id}
+                      onClick={() => onEditTask(task)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onEditTask(task);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-emerald-950">{task.descricao}</p>
                         {task.urgente ? <span className="inline-flex rounded-full bg-rose-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">Urgente</span> : null}
