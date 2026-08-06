@@ -21,8 +21,9 @@ Este arquivo existe para padronizar o comportamento do Codex e de agentes especi
   - `Ada`: frontend e UI/UX
   - `SRE-1`: QA, DevOps e operacoes
 - A partir desta convencao, o uso dos subagentes deve ser o comportamento padrao sempre que houver dominio tecnico claro.
-- `gpt-5.4-nano` deve ser usado para triagem, classificacao, extracao, ranking, roteamento e tarefas de alto volume.
-- Toda tarefa deve comecar com `gpt-5.4-mini` como ponto de partida; modelos superiores so entram quando houver justificativa tecnica concreta.
+- `gpt-5.6-luna` deve ser usado para triagem, leitura, extracao, validacao leve e tarefas rapidas.
+- `gpt-5.6-terra` deve ser o padrao para implementacao, refatoracao, testes e trabalho cotidiano.
+- `gpt-5.6-sol` deve ser reservado para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
 - `Atlas` deve manter no agente principal a integracao final e, por padrao, as etapas de `git add`, `git commit`, `git push` e `deploy`.
 - `SRE-1` deve ser preferido para build, leitura de logs, smoke tests e verificacoes operacionais antes da execucao final.
 - Sempre que um agente ou subagente for utilizado, a sessao deve informar ao usuario antes da execucao: nome do agente, funcao e modelo utilizado.
@@ -36,11 +37,9 @@ Este arquivo existe para padronizar o comportamento do Codex e de agentes especi
 - Em um computador novo, a sessao deve recriar os agentes seguindo esses arquivos.
 
 ## Politica de Modelo
-- Use `gpt-5.4-nano` para triagem, classificacao, extracao, ranking e roteamento de alto volume.
-- Use `gpt-5.4-mini` como ponto de partida para toda tarefa.
-- Use `gpt-5.3-codex` quando a tarefa for predominantemente de codificacao, patch ou refatoracao.
-- Use `gpt-5.4` apenas para tarefas de maior impacto, ambiguidade moderada, risco tecnico ou coordenacao entre dominios.
-- Use `gpt-5.5` apenas para tarefas complexas, transversais, de alto risco ou com necessidade clara de orquestracao avancada.
+- Use `gpt-5.6-luna` para triagem, leitura, extracao, validacao leve e tarefas rapidas.
+- Use `gpt-5.6-terra` como padrao para implementacao, refatoracao, testes e trabalho cotidiano.
+- Use `gpt-5.6-sol` para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
 
 ## Politica de Reasoning
 - Use `medium` como padrao.

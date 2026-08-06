@@ -74,8 +74,9 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
 
 ## 8.1 Politica de Uso Real dos Subagentes
 - O uso de subagentes deve ser o padrao operacional do projecto para tarefas de dominio claramente especializado.
-- `gpt-5.4-nano` deve ser usado para triagem, classificacao, extracao, ranking, roteamento e pre-processamento de alto volume.
-- `gpt-5.4-mini` continua sendo o ponto de partida para execucao de tarefas delimitadas.
+- `gpt-5.6-luna` deve ser usado para triagem, leitura, extracao, validacao leve, tarefas rapidas e pre-processamento de alto volume.
+- `gpt-5.6-terra` deve ser o padrao para implementacao, refatoracao, testes e trabalho cotidiano.
+- `gpt-5.6-sol` deve ser reservado para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
 - Para frontend, `Atlas` deve preferir delegar implementacao, exploracao e refinamento visual para `Ada`.
 - Para backend, `Atlas` deve preferir delegar implementacao e analise para `Turing`.
 - Para banco, schema, migrations e reconciliacao historica, `Atlas` deve preferir delegar para `Laplace`.
@@ -97,18 +98,16 @@ Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
 - Toda resposta final deve incluir tambem o consumo estimado em tokens de cada agente e subagente utilizado; quando nao for possivel estimar com base no contexto e na saida gerada, registrar explicitamente como `estimado_indisponivel`.
 
 ## 9. Politica de Modelos por Complexidade
-- **Atlas:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
-- **Laplace:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
-- **Turing:** simples `gpt-5.4-mini`, medio `gpt-5.3-codex`, complexo `gpt-5.5`
-- **Ada:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
-- **SRE-1:** simples `gpt-5.4-mini`, medio `gpt-5.4`, complexo `gpt-5.5`
+- **Atlas:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
+- **Laplace:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
+- **Turing:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
+- **Ada:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
+- **SRE-1:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
 
 ## 10. Regra Geral de Escalonamento de Modelo
-- Usar `gpt-5.4-nano` para triagem, classificacao, extracao, ranking e roteamento de alto volume.
-- Usar `gpt-5.4-mini` como ponto de partida para toda tarefa e para a primeira rodada de resposta.
-- Usar `gpt-5.3-codex` quando a tarefa for majoritariamente de codificacao, patch/refatoracao ou ajuste de comando e o foco for precisao de implementacao.
-- Escalar para `gpt-5.4` apenas quando houver maior impacto, necessidade de tool use mais robusto, integracao entre modulos ou analise comparativa mais forte.
-- Escalar para `gpt-5.5` somente quando o uso de um modelo mais forte for realmente inevitavel, por alto risco tecnico, impacto em producao, coordenacao entre dominios, revisao arquitetural ou orquestracao complexa.
+- Usar `gpt-5.6-luna` para triagem, leitura, extracao, validacao leve, tarefas rapidas e alto volume.
+- Usar `gpt-5.6-terra` como padrao para implementacao, refatoracao, testes, integracao e trabalho cotidiano.
+- Escalar para `gpt-5.6-sol` quando houver arquitetura, coordenacao entre dominios, investigacao profunda, impacto em producao ou alto risco tecnico.
 
 ## 11. Politica de Reasoning Effort
 - **Atlas:** simples `medium`, medio `high`, complexo `xhigh`

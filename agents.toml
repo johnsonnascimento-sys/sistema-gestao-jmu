@@ -1,8 +1,9 @@
 version = 1
 default_coordinator = "Atlas"
-default_model_triage = "gpt-5.4-nano"
-default_model_simple = "gpt-5.4-mini"
-default_model_complex = "gpt-5.5"
+default_model_triage = "gpt-5.6-luna"
+default_model_simple = "gpt-5.6-luna"
+default_model_medium = "gpt-5.6-terra"
+default_model_complex = "gpt-5.6-sol"
 default_reasoning_simple = "medium"
 default_reasoning_medium = "high"
 default_reasoning_complex = "xhigh"
@@ -10,9 +11,9 @@ default_reasoning_complex = "xhigh"
 [policy]
 entrypoint = "Atlas"
 delegate_by_default = true
-use_nano_for_triage = true
-prefer_mini_for_bounded_tasks = true
-use_mini_as_prompt_entry = true
+use_luna_for_triage = true
+prefer_luna_for_bounded_tasks = true
+use_terra_for_normal_work = true
 escalate_on_risk = true
 avoid_low_reasoning = true
 main_agent_finalizes_git_and_deploy = true
@@ -26,7 +27,9 @@ token_usage_must_be_reported_when_available = true
 token_usage_fallback = "estimado_indisponivel"
 
 [policy.execution]
-triage_default_model = "gpt-5.4-nano"
+triage_default_model = "gpt-5.6-luna"
+normal_work_default_model = "gpt-5.6-terra"
+high_risk_default_model = "gpt-5.6-sol"
 frontend_default_specialist = "Ada"
 backend_default_specialist = "Turing"
 database_default_specialist = "Laplace"
@@ -44,7 +47,7 @@ use_complex_model_when = [
   "reconciliacao_historica"
 ]
 use_complex_model_only_when_unavoidable = true
-use_nano_when = [
+use_luna_when = [
   "classificacao",
   "extracao_estruturada",
   "ranking",
@@ -74,9 +77,9 @@ domains = [
   "PROJECT_HANDOVER.md",
   "AI_BOOTLOADER.md"
 ]
-model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4"
-model_complex = "gpt-5.5"
+model_simple = "gpt-5.6-luna"
+model_medium = "gpt-5.6-terra"
+model_complex = "gpt-5.6-sol"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -91,9 +94,9 @@ domains = [
   "server/src/db.ts",
   "server/src/repositories/*"
 ]
-model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4"
-model_complex = "gpt-5.5"
+model_simple = "gpt-5.6-luna"
+model_medium = "gpt-5.6-terra"
+model_complex = "gpt-5.6-sol"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -107,9 +110,9 @@ domains = [
   "server/src/domain/*",
   "server/src/scripts/*"
 ]
-model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.3-codex"
-model_complex = "gpt-5.5"
+model_simple = "gpt-5.6-luna"
+model_medium = "gpt-5.6-terra"
+model_complex = "gpt-5.6-sol"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -121,9 +124,9 @@ description = "Especialista em React, TypeScript, UI, UX, estado e integracao co
 domains = [
   "client/src/*"
 ]
-model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4"
-model_complex = "gpt-5.5"
+model_simple = "gpt-5.6-luna"
+model_medium = "gpt-5.6-terra"
+model_complex = "gpt-5.6-sol"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
@@ -138,9 +141,9 @@ domains = [
   "scripts/*",
   "server/src/scripts/smoke-test.ts"
 ]
-model_simple = "gpt-5.4-mini"
-model_medium = "gpt-5.4"
-model_complex = "gpt-5.5"
+model_simple = "gpt-5.6-luna"
+model_medium = "gpt-5.6-terra"
+model_complex = "gpt-5.6-sol"
 reasoning_simple = "medium"
 reasoning_medium = "high"
 reasoning_complex = "xhigh"
