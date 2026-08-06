@@ -660,6 +660,7 @@ export interface TaskReportItem {
   preId: string;
   preNumero: string;
   assunto: string;
+  processoUrgente: boolean;
   descricao: string;
   tipo: TarefaPendenteTipo;
   urgente: boolean;

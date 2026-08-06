@@ -66,7 +66,7 @@ function formatTaskTime(item: TaskReportItem) {
   return "Sem horário";
 }
 
-function describeFilters(filters: TaskReportQuery) {
+function describeFilters(filters: TaskReportQuery, unifyByProcess: boolean) {
   const status = {
     todas: "Todas as situações",
     pendentes: "Somente pendentes",
@@ -94,7 +94,27 @@ function describeFilters(filters: TaskReportQuery) {
     urgency,
     recurrence,
     filters.q ? `Busca: “${filters.q}”` : null,
+    unifyByProcess ? "Unificado por processo/demanda" : null,
   ].filter((value): value is string => Boolean(value));
+}
+
+function groupTaskReportItems(items: TaskReportItem[]) {
+  const groups = new Map<string, TaskReportItem[]>();
+
+  items.forEach((item) => {
+    const currentGroup = groups.get(item.preId);
+    if (currentGroup) {
+      currentGroup.push(item);
+      return;
+    }
+    groups.set(item.preId, [item]);
+  });
+
+  return Array.from(groups, ([preId, groupItems]) => ({
+    preId,
+    items: groupItems,
+    processoUrgente: groupItems.some((item) => item.processoUrgente),
+  }));
 }
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
@@ -106,8 +126,29 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   );
 }
 
-function ReportDocument({ filters, result }: { filters: TaskReportQuery; result: TaskReportResult }) {
-  const filterDescriptions = useMemo(() => describeFilters(filters), [filters]);
+function ReportDocument({
+  filters,
+  result,
+  unifyByProcess,
+}: {
+  filters: TaskReportQuery;
+  result: TaskReportResult;
+  unifyByProcess: boolean;
+}) {
+  const filterDescriptions = useMemo(
+    () => describeFilters(filters, unifyByProcess),
+    [filters, unifyByProcess],
+  );
+  const itemGroups = useMemo(
+    () => unifyByProcess
+      ? groupTaskReportItems(result.items)
+      : result.items.map((item) => ({
+          preId: item.id,
+          items: [item],
+          processoUrgente: item.processoUrgente,
+        })),
+    [result.items, unifyByProcess],
+  );
 
   return (
     <article className={`task-report-document ${result.truncated ? "task-report-document-truncated" : ""} mx-auto w-full max-w-[297mm] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_48px_rgba(15,23,42,0.08)]`}>
@@ -148,29 +189,44 @@ function ReportDocument({ filters, result }: { filters: TaskReportQuery; result:
               <th className="px-3 py-3 font-bold">Conclusão</th>
             </tr>
           </thead>
-          <tbody>
-            {result.items.map((item) => (
-              <tr className="border-t border-slate-200 align-top" key={item.id}>
-                <td className="px-3 py-3">
-                  <Link className="font-semibold text-indigo-800 hover:underline" to={buildPreDemandaPath(item.preId)}>
-                    {item.preNumero}
-                  </Link>
-                  <p className="mt-1 max-w-52 text-slate-500">{item.assunto}</p>
-                </td>
-                <td className="max-w-64 px-3 py-3 font-medium text-slate-900">{item.descricao}</td>
-                <td className="whitespace-nowrap px-3 py-3">
-                  <p className="font-medium text-slate-900">{formatDateOnlyPtBr(item.prazoConclusao)}</p>
-                  <p className="mt-1 text-slate-500">{formatTaskTime(item)}</p>
-                </td>
-                <td className="px-3 py-3">{item.concluida ? "Concluída" : "Pendente"}</td>
-                <td className="px-3 py-3">{item.urgente ? "Urgente" : "Normal"}</td>
-                <td className="px-3 py-3 capitalize">{item.tipo}</td>
-                <td className="px-3 py-3">{formatRecurrence(item.recorrenciaTipo)}</td>
-                <td className="px-3 py-3">{item.setorDestinoSigla ?? "-"}</td>
-                <td className="whitespace-nowrap px-3 py-3">{formatDateTimePtBr(item.concluidaEm)}</td>
-              </tr>
-            ))}
-          </tbody>
+          {itemGroups.map((group) => (
+            <tbody
+              className={[
+                unifyByProcess ? "task-report-process-group" : "",
+                group.processoUrgente ? "task-report-process-urgent" : "",
+              ].filter(Boolean).join(" ") || undefined}
+              key={group.preId}
+            >
+              {group.items.map((item, itemIndex) => (
+                <tr className="border-t border-slate-200 align-top" key={item.id}>
+                  {itemIndex === 0 ? (
+                    <td className="px-3 py-3" rowSpan={unifyByProcess ? group.items.length : undefined}>
+                      <Link className="font-semibold text-indigo-800 hover:underline" to={buildPreDemandaPath(item.preId)}>
+                        {item.preNumero}
+                      </Link>
+                      {group.processoUrgente ? (
+                        <span className="task-report-process-urgent-badge ml-2 w-fit rounded-full border border-rose-300 bg-rose-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-rose-800">
+                          Processo urgente
+                        </span>
+                      ) : null}
+                      <p className="mt-1 max-w-52 text-slate-500">{item.assunto}</p>
+                    </td>
+                  ) : null}
+                  <td className="max-w-64 px-3 py-3 font-medium text-slate-900">{item.descricao}</td>
+                  <td className="whitespace-nowrap px-3 py-3">
+                    <p className="font-medium text-slate-900">{formatDateOnlyPtBr(item.prazoConclusao)}</p>
+                    <p className="mt-1 text-slate-500">{formatTaskTime(item)}</p>
+                  </td>
+                  <td className="px-3 py-3">{item.concluida ? "Concluída" : "Pendente"}</td>
+                  <td className="px-3 py-3">{item.urgente ? "Urgente" : "Normal"}</td>
+                  <td className="px-3 py-3 capitalize">{item.tipo}</td>
+                  <td className="px-3 py-3">{formatRecurrence(item.recorrenciaTipo)}</td>
+                  <td className="px-3 py-3">{item.setorDestinoSigla ?? "-"}</td>
+                  <td className="whitespace-nowrap px-3 py-3">{formatDateTimePtBr(item.concluidaEm)}</td>
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
     </article>
@@ -181,6 +237,8 @@ export function TarefasRelatorioPage() {
   const initialFilters = useMemo(() => getDefaultTaskReportFilters(), []);
   const [filters, setFilters] = useState<TaskReportQuery>(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState<TaskReportQuery>(initialFilters);
+  const [unifyByProcess, setUnifyByProcess] = useState(false);
+  const [appliedUnifyByProcess, setAppliedUnifyByProcess] = useState(false);
   const [requestVersion, setRequestVersion] = useState(0);
   const [result, setResult] = useState<TaskReportResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -210,6 +268,7 @@ export function TarefasRelatorioPage() {
   function applyFilters(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAppliedFilters({ ...filters, q: filters.q?.trim() || undefined });
+    setAppliedUnifyByProcess(unifyByProcess);
     setRequestVersion((current) => current + 1);
   }
 
@@ -217,6 +276,8 @@ export function TarefasRelatorioPage() {
     const defaults = getDefaultTaskReportFilters();
     setFilters(defaults);
     setAppliedFilters(defaults);
+    setUnifyByProcess(false);
+    setAppliedUnifyByProcess(false);
     setRequestVersion((current) => current + 1);
   }
 
@@ -277,7 +338,19 @@ export function TarefasRelatorioPage() {
                 {RECURRENCE_OPTIONS.map((option) => <option key={option.value || "todas"} value={option.value}>{option.label}</option>)}
               </select>
             </label>
-            <div className="flex flex-wrap items-end gap-3 lg:col-span-9 lg:justify-end">
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 lg:col-span-5">
+              <input
+                checked={unifyByProcess}
+                className="h-4 w-4 rounded border-slate-300 accent-indigo-700"
+                onChange={(event) => setUnifyByProcess(event.target.checked)}
+                type="checkbox"
+              />
+              <span className="grid gap-0.5">
+                <span className="text-sm font-semibold text-slate-800">Unificar por processo/demanda</span>
+                <span className="text-xs text-slate-500">Exibe o processo uma vez e reúne suas tarefas.</span>
+              </span>
+            </label>
+            <div className="flex flex-wrap items-end gap-3 lg:col-span-4 lg:justify-end">
               <Button onClick={resetFilters} type="button" variant="ghost"><RotateCcw className="h-4 w-4" />Restaurar padrão</Button>
               <Button type="submit"><Search className="h-4 w-4" />Gerar relatório</Button>
             </div>
@@ -295,7 +368,13 @@ export function TarefasRelatorioPage() {
       {loading ? <div className="task-report-no-print"><LoadingState description="Consultando tarefas e montando a prévia." title="Gerando relatório" /></div> : null}
       {!loading && error ? <div className="task-report-no-print"><ErrorState description={error} title="Não foi possível gerar o relatório" /></div> : null}
       {!loading && !error && result && result.items.length === 0 ? <div className="task-report-no-print"><EmptyState description="Altere os filtros para ampliar a consulta." title="Nenhuma tarefa encontrada" /></div> : null}
-      {!loading && !error && result && result.items.length > 0 ? <ReportDocument filters={appliedFilters} result={result} /> : null}
+      {!loading && !error && result && result.items.length > 0 ? (
+        <ReportDocument
+          filters={appliedFilters}
+          result={result}
+          unifyByProcess={appliedUnifyByProcess}
+        />
+      ) : null}
     </section>
   );
 }

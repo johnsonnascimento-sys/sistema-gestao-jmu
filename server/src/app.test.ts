@@ -2557,6 +2557,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
         preId: record.preId,
         preNumero: record.principalNumero,
         assunto: record.assunto,
+        processoUrgente: record.metadata.urgente === true,
         descricao: task.descricao,
         tipo: task.tipo,
         urgente: Boolean(task.urgente),
@@ -3171,6 +3172,22 @@ describe("Gestor JMU API", () => {
         changedByUserId: 1,
       });
 
+      const ordinaryProcess = await preDemandaRepository.create({
+        solicitante: "Teste relatorio ordinario",
+        assunto: "Controle ordinario de tarefas",
+        dataReferencia: today,
+        prazoProcesso: addDays(today, 30),
+        createdByUserId: 1,
+      });
+      await preDemandaRepository.createTarefa({
+        preId: ordinaryProcess.record.preId,
+        descricao: "Atividade ordinaria sem urgencia",
+        tipo: "livre",
+        urgente: false,
+        prazoConclusao: addDays(today, 15),
+        changedByUserId: 1,
+      });
+
       const defaultReport = await app.inject({
         method: "GET",
         url: "/api/pre-demandas/relatorios/tarefas?q=Marcador%20relatorio",
@@ -3179,6 +3196,12 @@ describe("Gestor JMU API", () => {
       expect(defaultReport.statusCode).toBe(200);
       expect(defaultReport.json().data.items).toHaveLength(2);
       expect(defaultReport.json().data.items[0].id).toBe(overdue.id);
+      expect(defaultReport.json().data.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ urgente: true, processoUrgente: true }),
+          expect.objectContaining({ urgente: false, processoUrgente: true }),
+        ]),
+      );
       expect(defaultReport.json().data.summary).toEqual({
         total: 2,
         pendentes: 2,
@@ -3189,6 +3212,16 @@ describe("Gestor JMU API", () => {
       expect(defaultReport.json().data.total).toBe(2);
       expect(defaultReport.json().data.truncated).toBe(false);
       expect(new Date(defaultReport.json().data.generatedAt).toString()).not.toBe("Invalid Date");
+
+      const ordinaryReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?q=Controle%20ordinario",
+        headers: { cookie },
+      });
+      expect(ordinaryReport.statusCode).toBe(200);
+      expect(ordinaryReport.json().data.items).toEqual([
+        expect.objectContaining({ urgente: false, processoUrgente: false }),
+      ]);
 
       const allStatuses = await app.inject({
         method: "GET",

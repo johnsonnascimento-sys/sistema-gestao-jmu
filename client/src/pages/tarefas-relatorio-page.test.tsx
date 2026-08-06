@@ -18,6 +18,7 @@ const reportResult: TaskReportResult = {
       preId: "PRE-1",
       preNumero: "000001/2026",
       assunto: "Assunto do processo",
+      processoUrgente: false,
       descricao: "Preparar manifestação",
       tipo: "livre",
       urgente: true,
@@ -35,6 +36,36 @@ const reportResult: TaskReportResult = {
   generatedAt: "2026-08-06T15:00:00.000Z",
   total: 1,
   truncated: false,
+};
+
+const groupedReportResult: TaskReportResult = {
+  ...reportResult,
+  items: [
+    {
+      ...reportResult.items[0],
+      processoUrgente: true,
+    },
+    {
+      ...reportResult.items[0],
+      id: "task-2",
+      processoUrgente: true,
+      descricao: "Revisar manifestação",
+      prazoConclusao: "2026-08-11",
+    },
+    {
+      ...reportResult.items[0],
+      id: "task-3",
+      preId: "PRE-2",
+      preNumero: "000002/2026",
+      assunto: "Outro assunto",
+      processoUrgente: false,
+      descricao: "Encaminhar resposta",
+      urgente: false,
+      prazoConclusao: "2026-08-12",
+    },
+  ],
+  summary: { total: 3, pendentes: 3, concluidas: 0, urgentes: 2, atrasadas: 0 },
+  total: 3,
 };
 
 function renderPage() {
@@ -92,6 +123,55 @@ describe("TarefasRelatorioPage", () => {
       recurrence: "mensal",
       q: "processo teste",
     });
+  });
+
+  it("unifica tarefas por processo somente ao gerar e restaura a exibição padrão", async () => {
+    vi.mocked(getTaskReport).mockResolvedValue(groupedReportResult);
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByText("Revisar manifestação");
+    const unifyCheckbox = screen.getByRole("checkbox", { name: /unificar por processo\/demanda/i });
+    const appliedFilters = () => screen.getByText("Filtros aplicados:").closest("p");
+    expect(unifyCheckbox).not.toBeChecked();
+    expect(screen.getAllByText("000001/2026")).toHaveLength(2);
+    expect(screen.getAllByText("Processo urgente")).toHaveLength(2);
+    expect(appliedFilters()).not.toHaveTextContent("Unificado por processo/demanda");
+
+    await user.click(unifyCheckbox);
+    expect(screen.getAllByText("000001/2026")).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Gerar relatório" }));
+
+    await waitFor(() => expect(getTaskReport).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getAllByText("000001/2026")).toHaveLength(1));
+    expect(screen.getAllByText("Processo urgente")).toHaveLength(1);
+    expect(appliedFilters()).toHaveTextContent("Unificado por processo/demanda");
+    expect(screen.getByText("Preparar manifestação")).toBeInTheDocument();
+    expect(screen.getByText("Revisar manifestação")).toBeInTheDocument();
+    expect(screen.getByText("Encaminhar resposta")).toBeInTheDocument();
+    expect(screen.getByText("000001/2026").closest("td")).toHaveAttribute("rowspan", "2");
+    expect(screen.getByText("000001/2026").closest("tbody")).toHaveClass("task-report-process-urgent");
+    expect(getTaskReport).toHaveBeenLastCalledWith(getDefaultTaskReportFilters());
+
+    await user.click(screen.getByRole("button", { name: /imprimir \/ salvar como pdf/i }));
+    expect(window.print).toHaveBeenCalledOnce();
+
+    await user.click(screen.getByRole("button", { name: "Restaurar padrão" }));
+
+    await waitFor(() => expect(getTaskReport).toHaveBeenCalledTimes(3));
+    expect(unifyCheckbox).not.toBeChecked();
+    await waitFor(() => expect(screen.getAllByText("000001/2026")).toHaveLength(2));
+    expect(appliedFilters()).not.toHaveTextContent("Unificado por processo/demanda");
+  });
+
+  it("não confunde a urgência da tarefa com a urgência do processo", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Preparar manifestação")).toBeInTheDocument();
+    expect(screen.getByText("Urgente", { selector: "td" })).toBeInTheDocument();
+    expect(screen.queryByText("Processo urgente")).not.toBeInTheDocument();
+    expect(screen.getByText("000001/2026").closest("tbody")).not.toHaveClass("task-report-process-urgent");
   });
 
   it("bloqueia a impressão quando o resultado ultrapassa 1.000 tarefas", async () => {

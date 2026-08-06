@@ -78,6 +78,18 @@ select {
   -webkit-text-fill-color: transparent;
 }
 
+.task-report-process-urgent tr {
+  border-color: #fecdd3;
+  background: #fff1f2;
+}
+
+.task-report-process-urgent-badge {
+  display: inline-flex;
+  color: #9f1239;
+  border-color: #fda4af;
+  background: #ffe4e6;
+}
+
 @page {
   size: A4 landscape;
   margin: 10mm;
@@ -148,6 +160,30 @@ select {
 
   .task-report-table tr {
     break-inside: avoid;
+  }
+
+  .task-report-process-group {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .task-report-process-urgent,
+  .task-report-process-urgent tr,
+  .task-report-process-urgent td,
+  .task-report-process-urgent-badge {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .task-report-process-urgent tr {
+    border-color: #fecdd3 !important;
+    background: #fff1f2 !important;
+  }
+
+  .task-report-process-urgent-badge {
+    color: #881337 !important;
+    border: 0.3mm solid #fb7185 !important;
+    background: #ffe4e6 !important;
   }
 
   .task-report-table th,
