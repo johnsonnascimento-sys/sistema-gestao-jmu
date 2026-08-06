@@ -39,3 +39,13 @@
 **Validacao:** Suite local com 70 testes aprovada, build completo aprovado, container de producao saudavel, banco pronto, health e readiness aprovados, smoke autenticado aprovado e smoke administrativo aprovado. A inspecao pos-deploy confirmou a `main` limpa no commit funcional e o evento operacional de sucesso.
 
 **Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao. O backup foi validado antes da troca do container e a imagem anterior permaneceu disponivel para rollback.
+
+## Agrupamento e destaque de urgencia no relatorio de tarefas
+
+**O Que:** O relatorio de tarefas passou a oferecer a opcao de unificar tarefas por processo ou demanda, preservando a ordem e os totais por tarefa. Processos marcados como urgentes agora sao identificados separadamente da urgencia individual da tarefa e recebem o mesmo destaque visual em tons de rosa da tela Tarefas, inclusive na impressao.
+
+**Identificadores:** Commit funcional `0e010c1ee41341c045c283c9b441d7b1c732c349`; imagem `gestor-jmu-web:commit-0e010c1ee41341c045c283c9b441d7b1c732c349`; backup pre-deploy `gestor-adminlog-20260806T214724Z-pre-deploy-0e010c1.sql.gz`; imagem anterior preservada `gestor-jmu-web:commit-7eb36f654ffd45aa64f0f9e452aa4cf255e8eb9c`.
+
+**Validacao:** Suite local com 72 testes aprovada, build completo aprovado, container de producao saudavel, banco pronto, health e readiness aprovados, smoke autenticado aprovado e smoke administrativo aprovado. A inspecao pos-deploy confirmou a `main` limpa no commit funcional e o evento operacional de sucesso.
+
+**Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao. O backup foi validado por checksum antes da troca do container e a imagem anterior permaneceu disponivel para rollback.
