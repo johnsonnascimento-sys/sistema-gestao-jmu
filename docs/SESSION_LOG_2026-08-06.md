@@ -29,3 +29,13 @@
 **Validacao:** Container saudavel, endpoints de health e readiness aprovados, banco pronto, smoke autenticado aprovado e smoke administrativo aprovado. O checkout remoto permaneceu limpo na branch `main`.
 
 **Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao.
+
+## Relatorio imprimivel de tarefas em producao
+
+**O Que:** Adicionada ao menu Tarefas uma pagina dedicada de relatorio com filtros proprios, resumo operacional, tabela de ate mil tarefas e visualizacao preparada para impressao A4 ou salvamento em PDF. O backend recebeu uma rota autenticada de relatorio, com busca, filtros, totais e protecao contra impressao de resultados truncados. A funcionalidade foi publicada na VPS apos backup preventivo do banco.
+
+**Identificadores:** Commit funcional `433b2f28ceb5742b599dc86bc8e7c3ce625cc0e8`; imagem `gestor-jmu-web:commit-433b2f28ceb5742b599dc86bc8e7c3ce625cc0e8`; backup pre-deploy `gestor-adminlog-20260806T213131Z-pre-deploy-433b2f2.sql.gz`; imagem anterior preservada `gestor-jmu-web:commit-c784e1bdb69e5fe5ff1ebff6dad2c6cadad9176a`.
+
+**Validacao:** Suite local com 70 testes aprovada, build completo aprovado, container de producao saudavel, banco pronto, health e readiness aprovados, smoke autenticado aprovado e smoke administrativo aprovado. A inspecao pos-deploy confirmou a `main` limpa no commit funcional e o evento operacional de sucesso.
+
+**Seguranca:** Nenhuma credencial, senha, token ou host sensivel foi registrado na documentacao. O backup foi validado antes da troca do container e a imagem anterior permaneceu disponivel para rollback.
