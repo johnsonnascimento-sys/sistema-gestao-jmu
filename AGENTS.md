@@ -13,3 +13,8 @@ Priority reading order:
 2. `AGENT_RULES`
 3. `START_HERE_AGENTS.md`
 4. `agents.toml`
+
+Current model ladder:
+- `gpt-5.6-luna` for triage, reading, extraction, light validation, and fast tasks
+- `gpt-5.6-terra` for implementation, refactoring, testing, and everyday work
+- `gpt-5.6-sol` for architecture, coordination, deep investigation, production, and high-risk work

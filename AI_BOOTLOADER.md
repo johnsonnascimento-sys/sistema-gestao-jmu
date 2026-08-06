@@ -64,11 +64,9 @@ Referencia rapida:
 - Em qualquer computador novo, a ordem minima de leitura e: `START_HERE_AGENTS.md` -> `AI_BOOTLOADER.md` -> `AGENT_RULES` -> `agents.toml`.
 - O uso de especialistas deve ser o padrao de execucao quando houver dominio claro de frontend, backend, banco ou operacoes.
 - `Atlas` coordena, integra, revisa e executa a etapa final sensivel de versionamento e deploy, salvo decisao operacional explicita em contrario.
-- `gpt-5.4-nano` e o modelo de triagem para classificacao, extracao, ranking, roteamento e tarefas de alto volume.
-- `gpt-5.4-mini` e o ponto de partida para toda tarefa; os modelos superiores so entram quando a necessidade tecnica estiver clara.
-- `gpt-5.3-codex` deve ser reservado para tarefas predominantemente de codificacao e refatoracao.
-- `gpt-5.4` deve ser usado apenas quando houver integracao, ambiguidade moderada ou revisao tecnica mais forte.
-- `gpt-5.5` deve ser usado somente quando o risco, a coordenacao ou a complexidade tornarem a escalada realmente necessaria.
+- `gpt-5.6-luna` e o modelo para triagem, leitura, extracao, validacao leve e tarefas rapidas.
+- `gpt-5.6-terra` e o modelo padrao para implementacao, refatoracao, testes e trabalho cotidiano.
+- `gpt-5.6-sol` e o modelo para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
 - Sempre que houver uso de agente especializado, informar ao usuario antes da execucao o nome do agente, a funcao e o modelo utilizado.
 - Ao finalizar a tarefa, repetir a informacao com o resultado entregue e quais agentes ou subagentes foram de fato usados.
 - Toda resposta final deve incluir um resumo curto do que foi feito, a lista de agentes e subagentes usados com o respectivo modelo e o consumo estimado em tokens de cada um; quando nao for possivel estimar com base no contexto e na saida gerada, registrar `estimado_indisponivel`.
