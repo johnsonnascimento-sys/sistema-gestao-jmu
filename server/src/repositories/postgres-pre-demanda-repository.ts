@@ -5529,8 +5529,20 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `
           ${DASHBOARD_BASE_SELECT}
           where pd.status <> 'encerrada'
-            and coalesce((pd.metadata ->> 'urgente')::boolean, false) = true
-          order by pd.prazo_processo asc nulls last, pd.updated_at asc, pd.id asc
+            and exists (
+              select 1
+              from adminlog.tarefas_pendentes tarefa
+              where tarefa.pre_demanda_id = pd.id
+                and tarefa.concluida = false
+                and coalesce(tarefa.urgente, false) = true
+            )
+          order by (
+            select min(tarefa.prazo_conclusao)
+            from adminlog.tarefas_pendentes tarefa
+            where tarefa.pre_demanda_id = pd.id
+              and tarefa.concluida = false
+              and coalesce(tarefa.urgente, false) = true
+          ) asc nulls last, pd.updated_at asc, pd.id asc
           limit 5
         `,
       ),

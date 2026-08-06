@@ -861,7 +861,7 @@ export function DashboardPage() {
                   value="urgentes"
                   className="group flex items-center gap-2 rounded-full px-4 py-2 border border-slate-200/60 bg-white shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:border-transparent data-[state=active]:shadow-md hover:bg-slate-50 transition-all duration-200"
                 >
-                  <span>Urgentes</span>
+                  <span>Tarefas urgentes</span>
                   <span className="flex h-5 items-center justify-center rounded-full bg-slate-100 px-2 text-[10px] font-bold text-slate-600 group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">
                     {summary.urgentItems.length}
                   </span>
@@ -909,8 +909,8 @@ export function DashboardPage() {
                 {summary.urgentItems.length === 0 ? (
                   <div className="py-8">
                     <EmptyState
-                      description="Nenhum processo marcado como urgente para tratamento imediato."
-                      title="Zero Urgências"
+                      description="Nenhuma tarefa marcada como urgente para tratamento imediato."
+                      title="Sem tarefas urgentes"
                     />
                   </div>
                 ) : (
