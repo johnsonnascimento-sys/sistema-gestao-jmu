@@ -20,13 +20,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "../components/ui/tabs";
-import { formatAppError, listDashboardTasks } from "../lib/api";
+import { formatAppError, getAudienciasPauta, listDashboardTasks } from "../lib/api";
 import { formatDateOnlyPtBr } from "../lib/date";
 import type {
   DashboardTaskItem,
   DashboardTaskSortMode,
   DashboardTaskStatusFilter,
   OpenProcessWithoutTaskItem,
+  PreDemandaDashboardSummary,
   UrgentProcessItem,
   TarefaRecorrenciaTipo,
 } from "../types";
@@ -529,6 +530,57 @@ function OpenProcessesWithoutTasksCard({
   );
 }
 
+function ScheduledHearingsCard({
+  items,
+}: {
+  items: PreDemandaDashboardSummary["upcomingAudiencias"];
+}) {
+  return (
+    <Card className="rounded-[28px] border border-amber-200/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.95),rgba(255,247,237,0.88))] shadow-[0_12px_24px_rgba(120,53,15,0.05)]">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-amber-900">
+          <Gavel className="h-5 w-5" />
+          Audiências designadas
+        </CardTitle>
+        <CardDescription>
+          Processos com audiência marcada, inclusive quando ainda não possuem uma tarefa cadastrada.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {items.length === 0 ? (
+          <EmptyState
+            title="Sem audiências designadas"
+            description="Nenhuma audiência designada encontrada."
+          />
+        ) : (
+          <div className="grid gap-3">
+            {items.map((item) => (
+              <Link
+                key={item.id}
+                className="rounded-[20px] border border-amber-200/70 bg-white/90 px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                to={buildPreDemandaPath(item.preId)}
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-amber-700">
+                  {item.preNumero}
+                </p>
+                <h3 className="mt-2 text-sm font-semibold text-slate-950">
+                  {item.assunto}
+                </h3>
+                <p className="mt-2 text-sm font-medium text-amber-900">
+                  {new Date(item.dataHoraInicio).toLocaleString("pt-BR")}
+                </p>
+                {item.descricao ? (
+                  <p className="mt-1 text-xs text-slate-500">{item.descricao}</p>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function TarefasPage() {
   const [items, setItems] = useState<DashboardTaskItem[]>([]);
   const [urgentProcesses, setUrgentProcesses] = useState<{
@@ -539,6 +591,9 @@ export function TarefasPage() {
     total: number;
     items: OpenProcessWithoutTaskItem[];
   }>({ total: 0, items: [] });
+  const [scheduledHearings, setScheduledHearings] = useState<
+    PreDemandaDashboardSummary["upcomingAudiencias"]
+  >([]);
   const [currentTab, setCurrentTab] =
     useState<DashboardTaskStatusFilter>("pendentes");
   const [sortMode, setSortMode] = useState<DashboardTaskSortMode>("prazo_asc");
@@ -562,23 +617,27 @@ export function TarefasPage() {
 
     void (async () => {
       try {
-        const next = await listDashboardTasks({
-          status: currentTab,
-          sort: sortMode,
-          date: selectedDate || undefined,
-          recurrence: selectedRecurrence || undefined,
-          urgentOnly: onlyUrgent,
-          openWithoutTasksQ: openWithoutTasksQ || undefined,
-          urgentProcessesQ: urgentProcessesQ || undefined,
-          page,
-          pageSize: PAGE_SIZE,
-        });
+        const [next, hearings] = await Promise.all([
+          listDashboardTasks({
+            status: currentTab,
+            sort: sortMode,
+            date: selectedDate || undefined,
+            recurrence: selectedRecurrence || undefined,
+            urgentOnly: onlyUrgent,
+            openWithoutTasksQ: openWithoutTasksQ || undefined,
+            urgentProcessesQ: urgentProcessesQ || undefined,
+            page,
+            pageSize: PAGE_SIZE,
+          }),
+          getAudienciasPauta(),
+        ]);
         if (mounted) {
           setItems(next.items);
           setTotal(next.total);
           setCounts(next.counts);
           setOpenProcessesWithoutTasks(next.openProcessesWithoutTasks);
           setUrgentProcesses(next.urgentProcesses);
+          setScheduledHearings(hearings);
           setError("");
         }
       } catch (nextError) {
@@ -824,6 +883,14 @@ export function TarefasPage() {
             </div>
           </CardContent>
         </Card>
+      </motion.div>
+
+      <motion.div
+        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, y: 16 }}
+        transition={{ duration: 0.45, delay: 0.1, ease: "easeOut" }}
+      >
+        <ScheduledHearingsCard items={scheduledHearings} />
       </motion.div>
 
       <motion.div
