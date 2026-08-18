@@ -33,6 +33,7 @@ const baseReportItem: TaskReportItem = {
 
 const reportResult: TaskReportResult = {
   items: [baseReportItem],
+  audienciasDesignadas: [],
   summary: { total: 1, pendentes: 1, concluidas: 0, urgentes: 1, atrasadas: 0 },
   generatedAt: "2026-08-06T15:00:00.000Z",
   total: 1,
@@ -41,6 +42,39 @@ const reportResult: TaskReportResult = {
 
 const groupedReportResult: TaskReportResult = {
   ...reportResult,
+  audienciasDesignadas: [
+    {
+      id: "aud-1",
+      preId: "PRE-1",
+      preNumero: "000001/2026",
+      assunto: "Assunto do processo",
+      dataHoraInicio: "2026-08-10T09:00:00.000Z",
+      dataHoraFim: null,
+      descricao: "Audiencia de instrucao",
+      observacoes: null,
+      situacao: "designada",
+      tarefasPendentes: [
+        {
+          id: "task-1",
+          descricao: "Preparar manifestação",
+          tipo: "livre",
+          urgente: true,
+          prazoConclusao: "2026-08-10",
+          horarioInicio: "09:00",
+          horarioFim: "10:00",
+        },
+        {
+          id: "task-2",
+          descricao: "Revisar manifestação",
+          tipo: "livre",
+          urgente: true,
+          prazoConclusao: "2026-08-11",
+          horarioInicio: null,
+          horarioFim: null,
+        },
+      ],
+    },
+  ],
   items: [
     {
       ...baseReportItem,
@@ -102,8 +136,8 @@ describe("TarefasRelatorioPage", () => {
     expect(screen.getAllByText("1", { selector: ".task-report-summary-card p:last-child" })).toHaveLength(3);
     const hearingSection = screen.getByRole("region", { name: "Processos com audiência designada" });
     const otherSection = screen.getByRole("region", { name: "Demais processos" });
-    expect(within(hearingSection).getByText("0 processos · 0 tarefas")).toBeInTheDocument();
-    expect(within(hearingSection).getByText("Nenhuma tarefa nesta seção.")).toBeInTheDocument();
+    expect(within(hearingSection).getByText("0 processos · 0 tarefas pendentes")).toBeInTheDocument();
+    expect(within(hearingSection).getByText("Nenhuma audiência designada neste recorte.")).toBeInTheDocument();
     expect(within(otherSection).getByText("1 processo · 1 tarefa")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /imprimir \/ salvar como pdf/i }));
@@ -142,27 +176,20 @@ describe("TarefasRelatorioPage", () => {
     const unifyCheckbox = screen.getByRole("checkbox", { name: /unificar por processo\/demanda/i });
     const appliedFilters = () => screen.getByText("Filtros aplicados:").closest("p");
     expect(unifyCheckbox).not.toBeChecked();
-    expect(screen.getAllByText("000001/2026")).toHaveLength(2);
-    expect(screen.getAllByText("Processo urgente")).toHaveLength(2);
-    expect(screen.getAllByText("Audiência designada")).toHaveLength(2);
+    expect(screen.getAllByText("000001/2026")).toHaveLength(1);
     expect(appliedFilters()).not.toHaveTextContent("Unificado por processo/demanda");
 
     await user.click(unifyCheckbox);
-    expect(screen.getAllByText("000001/2026")).toHaveLength(2);
+    expect(screen.getAllByText("000001/2026")).toHaveLength(1);
 
     await user.click(screen.getByRole("button", { name: "Gerar relatório" }));
 
     await waitFor(() => expect(getTaskReport).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getAllByText("000001/2026")).toHaveLength(1));
-    expect(screen.getAllByText("Processo urgente")).toHaveLength(1);
-    expect(screen.getAllByText("Audiência designada")).toHaveLength(1);
     expect(appliedFilters()).toHaveTextContent("Unificado por processo/demanda");
     expect(screen.getByText("Preparar manifestação")).toBeInTheDocument();
     expect(screen.getByText("Revisar manifestação")).toBeInTheDocument();
     expect(screen.getByText("Encaminhar resposta")).toBeInTheDocument();
-    expect(screen.getByText("000001/2026").closest("td")).toHaveAttribute("rowspan", "2");
-    expect(screen.getByText("000001/2026").closest("tbody")).toHaveClass("task-report-process-urgent");
-    expect(screen.getByText("000001/2026").closest("tbody")).toHaveClass("task-report-process-hearing");
     expect(getTaskReport).toHaveBeenLastCalledWith(getDefaultTaskReportFilters());
 
     await user.click(screen.getByRole("button", { name: /imprimir \/ salvar como pdf/i }));
@@ -172,11 +199,11 @@ describe("TarefasRelatorioPage", () => {
 
     await waitFor(() => expect(getTaskReport).toHaveBeenCalledTimes(3));
     expect(unifyCheckbox).not.toBeChecked();
-    await waitFor(() => expect(screen.getAllByText("000001/2026")).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText("000001/2026")).toHaveLength(1));
     expect(appliedFilters()).not.toHaveTextContent("Unificado por processo/demanda");
   });
 
-  it("separa processos com audiência, preserva a ordem e repete cabeçalhos nas duas seções", async () => {
+  it("consolida audiência formal e pendências, sem repeti-las em demais processos", async () => {
     vi.mocked(getTaskReport).mockResolvedValue(groupedReportResult);
     renderPage();
 
@@ -184,15 +211,16 @@ describe("TarefasRelatorioPage", () => {
     const otherSection = screen.getByRole("region", { name: "Demais processos" });
     const hearingText = hearingSection.textContent ?? "";
 
-    expect(within(hearingSection).getByText("1 processo · 2 tarefas")).toBeInTheDocument();
+    expect(within(hearingSection).getByText("1 processo · 2 tarefas pendentes")).toBeInTheDocument();
     expect(within(otherSection).getByText("1 processo · 1 tarefa")).toBeInTheDocument();
     expect(hearingText.indexOf("Preparar manifestação"))
       .toBeLessThan(hearingText.indexOf("Revisar manifestação"));
-    expect(within(hearingSection).getAllByText("Audiência designada")).toHaveLength(2);
+    expect(within(hearingSection).getAllByText("Audiência designada")).toHaveLength(1);
     expect(within(otherSection).queryByText("Audiência designada")).not.toBeInTheDocument();
-    expect(within(hearingSection).getAllByText("000001/2026")[0]!.closest("tbody"))
-      .toHaveClass("task-report-process-urgent", "task-report-process-hearing");
-    expect(hearingSection.querySelectorAll("thead")).toHaveLength(1);
+    expect(within(hearingSection).getByText(/Audiência:/)).toBeInTheDocument();
+    expect(within(hearingSection).getByText("Audiencia de instrucao")).toBeInTheDocument();
+    expect(within(otherSection).queryByText("Preparar manifestação")).not.toBeInTheDocument();
+    expect(hearingSection.querySelectorAll("thead")).toHaveLength(0);
     expect(otherSection.querySelectorAll("thead")).toHaveLength(1);
     expect(hearingSection.querySelector(".task-report-section-header")).toBeInTheDocument();
   });
@@ -233,7 +261,7 @@ describe("TarefasRelatorioPage", () => {
     });
     renderPage();
     expect(await screen.findByText("Nenhuma tarefa encontrada")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Processos com audiência designada" })).toHaveTextContent("Nenhuma tarefa nesta seção.");
+    expect(screen.getByRole("region", { name: "Processos com audiência designada" })).toHaveTextContent("Nenhuma audiência designada neste recorte.");
     expect(screen.getByRole("region", { name: "Demais processos" })).toHaveTextContent("Nenhuma tarefa nesta seção.");
   });
 });

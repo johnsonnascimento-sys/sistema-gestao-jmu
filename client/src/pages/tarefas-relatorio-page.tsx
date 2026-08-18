@@ -9,6 +9,7 @@ import { formatAppError, getTaskReport } from "../lib/api";
 import { formatDateOnlyPtBr, formatDateTimePtBr } from "../lib/date";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import type {
+  TaskReportAudiencia,
   TaskReportItem,
   TaskReportQuery,
   TaskReportResult,
@@ -59,7 +60,7 @@ function formatRecurrence(value: TarefaRecorrenciaTipo | null) {
   return RECURRENCE_OPTIONS.find((option) => option.value === (value ?? "sem_recorrencia"))?.label ?? "-";
 }
 
-function formatTaskTime(item: TaskReportItem) {
+function formatTaskTime(item: Pick<TaskReportItem, "horarioInicio" | "horarioFim">) {
   if (item.horarioInicio && item.horarioFim) return `${item.horarioInicio}–${item.horarioFim}`;
   if (item.horarioInicio) return `A partir de ${item.horarioInicio}`;
   if (item.horarioFim) return `Até ${item.horarioFim}`;
@@ -118,15 +119,12 @@ function groupTaskReportItems(items: TaskReportItem[]) {
   }));
 }
 
-function partitionTaskReportItems(items: TaskReportItem[]) {
-  const processesWithHearing = new Set(
-    items.filter((item) => item.hasAudiencia).map((item) => item.preId),
-  );
-
-  return {
-    hearingItems: items.filter((item) => processesWithHearing.has(item.preId)),
-    otherItems: items.filter((item) => !processesWithHearing.has(item.preId)),
-  };
+function getOtherTaskReportItems(
+  items: TaskReportItem[],
+  hearings: TaskReportAudiencia[],
+) {
+  const hearingProcessIds = new Set(hearings.map((hearing) => hearing.preId));
+  return items.filter((item) => !hearingProcessIds.has(item.preId));
 }
 
 function formatCount(value: number, singular: string, plural: string) {
@@ -255,6 +253,86 @@ function TaskReportSection({
   );
 }
 
+function HearingReportSection({ hearings }: { hearings: TaskReportAudiencia[] }) {
+  const processCount = new Set(hearings.map((hearing) => hearing.preId)).size;
+  const taskCount = hearings.reduce(
+    (total, hearing) => total + hearing.tarefasPendentes.length,
+    0,
+  );
+
+  return (
+    <section
+      aria-labelledby="task-report-hearing-section-title"
+      className="task-report-section task-report-section-hearing"
+    >
+      <div className="task-report-section-header flex flex-col gap-2 border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="task-report-section-eyebrow text-[10px] font-bold uppercase tracking-[0.16em] text-amber-800">
+            Pauta judicial
+          </p>
+          <h3 className="mt-0.5 text-base font-semibold text-slate-950" id="task-report-hearing-section-title">
+            Processos com audiência designada
+          </h3>
+        </div>
+        <p className="task-report-section-count text-xs font-semibold text-slate-600">
+          {formatCount(processCount, "processo", "processos")} · {formatCount(taskCount, "tarefa pendente", "tarefas pendentes")}
+        </p>
+      </div>
+
+      {hearings.length === 0 ? (
+        <p className="task-report-section-empty border-x border-b border-slate-200 px-4 py-3 text-xs text-slate-500">
+          Nenhuma audiência designada neste recorte.
+        </p>
+      ) : (
+        <div className="grid gap-3 border-x border-b border-amber-200 p-3">
+          {hearings.map((hearing) => (
+            <Link
+              className="rounded-2xl border border-amber-200 bg-white px-4 py-3 transition hover:border-amber-300 hover:shadow-sm"
+              key={hearing.id}
+              to={buildPreDemandaPath(hearing.preId)}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-indigo-800">{hearing.preNumero}</p>
+                <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-900">
+                  Audiência designada
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-slate-600">{hearing.assunto}</p>
+              <p className="mt-2 text-sm font-medium text-amber-950">
+                Audiência: {formatDateTimePtBr(hearing.dataHoraInicio)}
+              </p>
+              {hearing.descricao ?? hearing.observacoes ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  {hearing.descricao ?? hearing.observacoes}
+                </p>
+              ) : null}
+              <div className="mt-3 grid gap-2 border-t border-amber-100 pt-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">
+                  {hearing.tarefasPendentes.length === 0
+                    ? "Sem tarefas pendentes"
+                    : formatCount(hearing.tarefasPendentes.length, "tarefa pendente", "tarefas pendentes")}
+                </p>
+                {hearing.tarefasPendentes.map((task) => (
+                  <div className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-slate-700" key={task.id}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-slate-900">{task.descricao}</p>
+                      {task.urgente ? <span className="font-bold text-rose-700">Urgente</span> : null}
+                      <span>Prazo {formatDateOnlyPtBr(task.prazoConclusao)}</span>
+                    </div>
+                    <p className="mt-1 text-slate-500">
+                      {task.tipo} · {formatTaskTime(task)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ReportDocument({
   filters,
   result,
@@ -268,9 +346,9 @@ function ReportDocument({
     () => describeFilters(filters, unifyByProcess),
     [filters, unifyByProcess],
   );
-  const { hearingItems, otherItems } = useMemo(
-    () => partitionTaskReportItems(result.items),
-    [result.items],
+  const otherItems = useMemo(
+    () => getOtherTaskReportItems(result.items, result.audienciasDesignadas),
+    [result.audienciasDesignadas, result.items],
   );
 
   return (
@@ -298,12 +376,7 @@ function ReportDocument({
       </div>
 
       <div className="task-report-sections grid gap-5 border-t border-slate-200 px-6 py-5">
-        <TaskReportSection
-          hasAudiencia
-          items={hearingItems}
-          title="Processos com audiência designada"
-          unifyByProcess={unifyByProcess}
-        />
+        <HearingReportSection hearings={result.audienciasDesignadas} />
         <TaskReportSection
           hasAudiencia={false}
           items={otherItems}

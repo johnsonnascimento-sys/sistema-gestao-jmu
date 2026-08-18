@@ -684,8 +684,30 @@ export interface TaskReportItem {
   createdAt: string;
 }
 
+export interface TaskReportAudiencia {
+  id: string;
+  preId: string;
+  preNumero: string;
+  assunto: string;
+  dataHoraInicio: string;
+  dataHoraFim: string | null;
+  descricao: string | null;
+  observacoes: string | null;
+  situacao: AudienciaSituacao;
+  tarefasPendentes: Array<{
+    id: string;
+    descricao: string;
+    tipo: TarefaPendenteTipo;
+    urgente: boolean;
+    prazoConclusao: string;
+    horarioInicio: string | null;
+    horarioFim: string | null;
+  }>;
+}
+
 export interface TaskReportResult {
   items: TaskReportItem[];
+  audienciasDesignadas: TaskReportAudiencia[];
   summary: {
     total: number;
     pendentes: number;

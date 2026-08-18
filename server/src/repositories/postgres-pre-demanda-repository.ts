@@ -5981,7 +5981,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     `;
     const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
 
-    const [itemsResult, summaryResult] = await Promise.all([
+    const [itemsResult, summaryResult, audienciasDesignadas] = await Promise.all([
       this.pool.query(
         `
           select
@@ -6034,6 +6034,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         `,
         values,
       ),
+      this.getAudienciasPauta(),
     ]);
 
     const summaryRow = summaryResult.rows[0] ?? {};
@@ -6067,6 +6068,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
         createdAt: new Date(row.created_at).toISOString(),
       })),
+      audienciasDesignadas,
       summary,
       generatedAt: new Date().toISOString(),
       total: summary.total,

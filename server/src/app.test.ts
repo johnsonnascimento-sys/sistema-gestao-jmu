@@ -2628,9 +2628,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       urgentes: allItems.filter((item) => item.urgente).length,
       atrasadas: allItems.filter((item) => !item.concluida && item.prazoConclusao < today).length,
     };
+    const audienciasDesignadas = await this.getAudienciasPauta();
 
     return {
       items: allItems.slice(0, 1000),
+      audienciasDesignadas,
       summary,
       generatedAt: new Date().toISOString(),
       total: allItems.length,
@@ -3265,6 +3267,24 @@ describe("Gestor JMU API", () => {
         audienciaHorarioInicio: "10:00",
       };
 
+      const closedProcess = await preDemandaRepository.create({
+        solicitante: "Teste relatorio encerrado",
+        assunto: "Controle encerrado com audiencia designada",
+        dataReferencia: today,
+        prazoProcesso: addDays(today, 30),
+        createdByUserId: 1,
+      });
+      await preDemandaRepository.createTarefa({
+        preId: closedProcess.record.preId,
+        descricao: "Atividade de processo encerrado com audiencia",
+        tipo: "livre",
+        urgente: false,
+        prazoConclusao: addDays(today, 18),
+        changedByUserId: 1,
+      });
+      closedProcess.record.status = "encerrada";
+      closedProcess.record.audiencias = [buildAudiencia(closedProcess.record.preId, "designada", "encerrada")];
+
       const defaultReport = await app.inject({
         method: "GET",
         url: "/api/pre-demandas/relatorios/tarefas?q=Marcador%20relatorio",
@@ -3289,6 +3309,24 @@ describe("Gestor JMU API", () => {
       expect(defaultReport.json().data.total).toBe(2);
       expect(defaultReport.json().data.truncated).toBe(false);
       expect(new Date(defaultReport.json().data.generatedAt).toString()).not.toBe("Invalid Date");
+      expect(
+        defaultReport
+          .json()
+          .data.audienciasDesignadas.find((item: { preId: string }) => item.preId === created.record.preId),
+      ).toEqual(expect.objectContaining({
+        situacao: "designada",
+        tarefasPendentes: expect.arrayContaining([
+          expect.objectContaining({ descricao: "Marcador relatorio urgente", urgente: true }),
+          expect.objectContaining({ descricao: "Marcador relatorio pendente", urgente: false }),
+        ]),
+      }));
+      expect(
+        defaultReport
+          .json()
+          .data.audienciasDesignadas.some((item: { preId: string }) =>
+            item.preId === legacyProcess.record.preId || item.preId === closedProcess.record.preId,
+          ),
+      ).toBe(false);
 
       const ordinaryReport = await app.inject({
         method: "GET",
@@ -3317,6 +3355,16 @@ describe("Gestor JMU API", () => {
       });
       expect(legacyReport.statusCode).toBe(200);
       expect(legacyReport.json().data.items).toEqual([
+        expect.objectContaining({ hasAudiencia: false }),
+      ]);
+
+      const closedReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas?q=Controle%20encerrado%20com%20audiencia%20designada",
+        headers: { cookie },
+      });
+      expect(closedReport.statusCode).toBe(200);
+      expect(closedReport.json().data.items).toEqual([
         expect.objectContaining({ hasAudiencia: false }),
       ]);
 
