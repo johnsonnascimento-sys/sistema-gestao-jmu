@@ -2329,8 +2329,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             tarefasPendentes: item.tarefasPendentes
               .filter((tarefa) => !tarefa.concluida)
               .sort((left, right) =>
-                (left.prazoConclusao ?? item.prazoProcesso ?? "").localeCompare(right.prazoConclusao ?? item.prazoProcesso ?? "")
-                || left.createdAt.localeCompare(right.createdAt),
+                left.ordem - right.ordem
+                || left.createdAt.localeCompare(right.createdAt)
+                || left.id.localeCompare(right.id),
               )
               .map((tarefa) => ({
                 id: tarefa.id,
@@ -3320,6 +3321,15 @@ describe("Gestor JMU API", () => {
           expect.objectContaining({ descricao: "Marcador relatorio pendente", urgente: false }),
         ]),
       }));
+      expect(
+        defaultReport
+          .json()
+          .data.audienciasDesignadas.find((item: { preId: string }) => item.preId === created.record.preId)
+          .tarefasPendentes.map((item: { descricao: string }) => item.descricao),
+      ).toEqual([
+        "Marcador relatorio urgente",
+        "Marcador relatorio pendente",
+      ]);
       expect(
         defaultReport
           .json()

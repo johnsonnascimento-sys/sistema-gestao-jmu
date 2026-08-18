@@ -5300,7 +5300,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
                   'horario_fim', tarefa.horario_fim,
                   'urgente', coalesce(tarefa.urgente, false)
                 )
-                order by tarefa.prazo_conclusao asc, tarefa.created_at asc, tarefa.id asc
+                order by tarefa.ordem asc, tarefa.created_at asc, tarefa.id asc
               ),
               '[]'::jsonb
             ) as tarefas_pendentes
