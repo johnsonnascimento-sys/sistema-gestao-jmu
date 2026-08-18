@@ -189,7 +189,11 @@ select {
   .task-report-table {
     min-width: 0 !important;
     width: 100% !important;
-    font-size: 7pt !important;
+    /* Evita a substituição da fonte da tela em PDFs e preserva as hastes de I/L. */
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 8pt !important;
+    font-synthesis: none;
+    line-height: 1.35;
   }
 
   .task-report-table thead {
@@ -242,6 +246,7 @@ select {
   .task-report-table th,
   .task-report-table td {
     padding: 1.6mm 1.2mm !important;
+    font-family: inherit !important;
   }
 
   .task-report-table a {
