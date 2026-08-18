@@ -2,12 +2,13 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getTaskReport } from "../lib/api";
+import { downloadTaskReportPdf, getTaskReport } from "../lib/api";
 import type { TaskReportItem, TaskReportResult } from "../types";
 import { getDefaultTaskReportFilters, TarefasRelatorioPage } from "./tarefas-relatorio-page";
 
 vi.mock("../lib/api", () => ({
   getTaskReport: vi.fn(),
+  downloadTaskReportPdf: vi.fn(),
   formatAppError: (_error: unknown, fallback: string) => fallback,
 }));
 
@@ -121,7 +122,9 @@ describe("TarefasRelatorioPage", () => {
 
   beforeEach(() => {
     vi.mocked(getTaskReport).mockReset();
+    vi.mocked(downloadTaskReportPdf).mockReset();
     vi.mocked(getTaskReport).mockResolvedValue(reportResult);
+    vi.mocked(downloadTaskReportPdf).mockResolvedValue(undefined);
     vi.stubGlobal("print", vi.fn());
   });
 
@@ -140,6 +143,7 @@ describe("TarefasRelatorioPage", () => {
     expect(within(hearingSection).getByText("Nenhuma audiência designada neste recorte.")).toBeInTheDocument();
     expect(within(otherSection).getByText("1 processo · 1 tarefa")).toBeInTheDocument();
 
+    expect(screen.getByRole("button", { name: /baixar pdf pesquisavel/i })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: /imprimir \/ salvar como pdf/i }));
     expect(window.print).toHaveBeenCalledOnce();
   });

@@ -1165,7 +1165,7 @@ export function listDashboardTasks(params: {
   );
 }
 
-export function getTaskReport(params: TaskReportQuery) {
+function buildTaskReportSearch(params: TaskReportQuery) {
   const search = new URLSearchParams();
   search.set("status", params.status);
   search.set("urgency", params.urgency);
@@ -1173,10 +1173,30 @@ export function getTaskReport(params: TaskReportQuery) {
   if (params.dueTo) search.set("dueTo", params.dueTo);
   if (params.recurrence) search.set("recurrence", params.recurrence);
   if (params.q?.trim()) search.set("q", params.q.trim());
+  return search;
+}
 
+export function getTaskReport(params: TaskReportQuery) {
+  const search = buildTaskReportSearch(params);
   return request<TaskReportResult>(
     `/api/pre-demandas/relatorios/tarefas?${search.toString()}`,
   );
+}
+
+export async function downloadTaskReportPdf(params: TaskReportQuery) {
+  const response = await fetch(`/api/pre-demandas/relatorios/tarefas.pdf?${buildTaskReportSearch(params).toString()}`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, "TASK_REPORT_PDF_FAILED", "Nao foi possivel gerar o PDF pesquisavel.");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "relatorio-de-tarefas.pdf";
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export function listInteressados(params: ListInteressadosParams = {}) {

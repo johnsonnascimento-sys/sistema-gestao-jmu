@@ -4,6 +4,7 @@ import { SEI_REGEX } from "../lib/sei";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
 import { AppError } from "../errors";
+import { createTaskReportPdf } from "../lib/task-report-pdf";
 import type { AssuntoRepository, PreDemandaRepository, PreDemandaAndamentoRepository, PreDemandaTarefaRepository } from "../repositories/types";
 
 const STATUSES: PreDemandaStatus[] = ["em_andamento", "aguardando_sei", "encerrada"];
@@ -579,6 +580,28 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       data: report,
       error: null,
     });
+  });
+
+  app.get("/api/pre-demandas/relatorios/tarefas.pdf", { preHandler: [app.authenticate, app.authorize("dashboard.read")] }, async (request, reply) => {
+    const parsedQuery = listTarefasRelatorioSchema.safeParse(request.query);
+    if (!parsedQuery.success) {
+      throw new AppError(400, "VALIDATION_ERROR", "Filtros invalidos.", parsedQuery.error.flatten());
+    }
+    const query = parsedQuery.data;
+    const report = await preDemandaRepository.listTarefasRelatorio({
+      status: query.status,
+      dueFrom: query.dueFrom,
+      dueTo: query.dueTo,
+      urgency: query.urgency,
+      recurrence: query.recurrence,
+      q: query.q,
+    });
+    const pdf = createTaskReportPdf(report, query);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", "attachment; filename=relatorio-de-tarefas.pdf")
+      .header("Content-Length", String(pdf.length))
+      .send(pdf);
   });
 
   app.get("/api/pre-demandas/timeline/recentes", { preHandler: [app.authenticate, app.authorize("pre_demanda.read_timeline")] }, async (request, reply) => {

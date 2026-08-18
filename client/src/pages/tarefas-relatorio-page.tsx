@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, ArrowLeft, Printer, RotateCcw, Search } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, Printer, RotateCcw, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/states";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { formatAppError, getTaskReport } from "../lib/api";
+import { downloadTaskReportPdf, formatAppError, getTaskReport } from "../lib/api";
 import { formatDateOnlyPtBr, formatDateTimePtBr } from "../lib/date";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import type {
@@ -437,6 +437,19 @@ export function TarefasRelatorioPage() {
   }
 
   const printDisabled = loading || !result || result.truncated;
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  async function handleDownloadPdf() {
+    if (printDisabled) return;
+    setDownloadingPdf(true);
+    try {
+      await downloadTaskReportPdf(appliedFilters);
+    } catch (error) {
+      setError(formatAppError(error, "Nao foi possivel gerar o PDF pesquisavel."));
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
 
   return (
     <section className="task-report-page grid gap-6">
@@ -450,7 +463,10 @@ export function TarefasRelatorioPage() {
           <Button asChild variant="secondary">
             <Link to="/tarefas"><ArrowLeft className="h-4 w-4" />Voltar</Link>
           </Button>
-          <Button disabled={printDisabled} onClick={() => window.print()} type="button">
+          <Button disabled={printDisabled || downloadingPdf} onClick={handleDownloadPdf} type="button">
+            <Download className="h-4 w-4" />{downloadingPdf ? "Gerando PDF..." : "Baixar PDF pesquisavel"}
+          </Button>
+          <Button disabled={printDisabled} onClick={() => window.print()} type="button" variant="outline">
             <Printer className="h-4 w-4" />Imprimir / Salvar como PDF
           </Button>
         </div>

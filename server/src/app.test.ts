@@ -3338,6 +3338,17 @@ describe("Gestor JMU API", () => {
           ),
       ).toBe(false);
 
+      const pdfReport = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas/relatorios/tarefas.pdf?q=Marcador%20relatorio",
+        headers: { cookie },
+      });
+      expect(pdfReport.statusCode).toBe(200);
+      expect(pdfReport.headers["content-type"]).toContain("application/pdf");
+      expect(pdfReport.headers["content-disposition"]).toContain("relatorio-de-tarefas.pdf");
+      expect(pdfReport.body).toContain("%PDF-1.4");
+      expect(pdfReport.body).toContain("RELATORIO DE TAREFAS");
+
       const ordinaryReport = await app.inject({
         method: "GET",
         url: "/api/pre-demandas/relatorios/tarefas?q=Controle%20ordinario",
