@@ -53,6 +53,7 @@ describe("TarefasPage", () => {
         dataHoraFim: null,
         observacoes: null,
         situacao: "designada",
+        tarefasPendentes: [],
       },
     ]);
 
@@ -63,6 +64,43 @@ describe("TarefasPage", () => {
     );
 
     expect(await screen.findByText("7000236-03.2025.7.02.0002")).toBeInTheDocument();
+    expect(screen.getByText("Sem tarefas pendentes")).toBeInTheDocument();
     expect(screen.getByText("Audiência sem tarefa")).toBeInTheDocument();
+  });
+  it("mantem a pendencia de audiencia somente no cartao do processo", async () => {
+    vi.mocked(listDashboardTasks).mockResolvedValueOnce({
+      items: [
+        {
+          id: "task-audiencia", preId: "pre-audiencia", preNumero: "7000236-03.2025.7.02.0002",
+          assunto: "Processo com audiencia", descricao: "Preparar audiencia", tipo: "livre",
+          urgente: false, prazoConclusao: "2026-08-20", horarioInicio: null, horarioFim: null,
+          recorrenciaTipo: null, setorDestinoSigla: null, hasAudiencia: true,
+          geradaAutomaticamente: false, concluida: false, concluidaEm: null, createdAt: "2026-08-18T10:00:00.000Z",
+        },
+        {
+          id: "task-geral", preId: "pre-geral", preNumero: "PRE-001",
+          assunto: "Processo geral", descricao: "Tarefa geral", tipo: "livre",
+          urgente: false, prazoConclusao: "2026-08-21", horarioInicio: null, horarioFim: null,
+          recorrenciaTipo: null, setorDestinoSigla: null, hasAudiencia: false,
+          geradaAutomaticamente: false, concluida: false, concluidaEm: null, createdAt: "2026-08-18T10:00:00.000Z",
+        },
+      ], total: 2, page: 1, pageSize: 20, counts: { pendentes: 2, concluidas: 0 },
+      openProcessesWithoutTasks: { total: 0, items: [] }, urgentProcesses: { total: 0, items: [] },
+    });
+    vi.mocked(getAudienciasPauta).mockResolvedValueOnce([{
+      id: "aud-7000236", preId: "pre-audiencia", preNumero: "7000236-03.2025.7.02.0002",
+      numeroJudicial: "7000236-03.2025.7.02.0002", assunto: "Processo com audiencia",
+      magistradoNome: null, descricao: null, dataHoraInicio: "2026-08-20T13:00:00.000Z",
+      dataHoraFim: null, observacoes: null, situacao: "designada",
+      tarefasPendentes: [{
+        id: "task-audiencia", descricao: "Preparar audiencia", tipo: "livre", urgente: false,
+        prazoConclusao: "2026-08-20", horarioInicio: null, horarioFim: null,
+      }],
+    }]);
+
+    render(<MemoryRouter><TarefasPage /></MemoryRouter>);
+
+    expect(await screen.findByText("Tarefa geral")).toBeInTheDocument();
+    expect(screen.getAllByText("Preparar audiencia")).toHaveLength(1);
   });
 });

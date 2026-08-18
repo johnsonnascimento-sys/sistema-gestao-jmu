@@ -555,7 +555,7 @@ export interface PreDemandaDashboardSummary {
   urgentItems: PreDemanda[];
   withoutSetorItems: PreDemanda[];
   withoutInteressadosItems: PreDemanda[];
-  upcomingAudiencias?: Array<{
+  upcomingAudiencias: Array<{
     id: string;
     preId: string;
     preNumero: string;
@@ -567,6 +567,15 @@ export interface PreDemandaDashboardSummary {
     dataHoraFim: string | null;
     observacoes: string | null;
     situacao: AudienciaSituacao;
+    tarefasPendentes: Array<{
+      id: string;
+      descricao: string;
+      tipo: TarefaPendenteTipo;
+      urgente: boolean;
+      prazoConclusao: string;
+      horarioInicio: string | null;
+      horarioFim: string | null;
+    }>;
   }>;
   oldestOpenTasks: Array<{
     id: string;

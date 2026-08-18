@@ -488,17 +488,9 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
   }
 
   private hasAudienciaDesignada(record: PreDemandaDetail) {
-    const hasAudienciaJudicial = (record.audiencias ?? []).some(
+    return record.status !== "encerrada" && (record.audiencias ?? []).some(
       (audiencia) => audiencia.situacao === "designada",
     );
-    const legacyStatus = record.metadata.audienciaStatus || "designada";
-    const hasLegacySchedule = Boolean(
-      record.metadata.audienciaData
-      || record.metadata.audienciaHorarioInicio
-      || record.metadata.audienciaHorarioFim,
-    );
-
-    return hasAudienciaJudicial || (legacyStatus === "designada" && hasLegacySchedule);
   }
 
   private buildDefaultPessoa(id: string, nome?: string): Interessado {
@@ -2314,7 +2306,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const upcomingAudiencias = this.records
       .flatMap((item) =>
         (item.audiencias ?? [])
-          .filter((audiencia) => audiencia.situacao === "designada")
+          .filter((audiencia) => item.status !== "encerrada" && audiencia.situacao === "designada")
           .map((audiencia) => ({
             id: audiencia.id,
             preId: item.preId,
@@ -2334,6 +2326,21 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             descricao: audiencia.descricao,
             observacoes: audiencia.observacoes,
             situacao: audiencia.situacao,
+            tarefasPendentes: item.tarefasPendentes
+              .filter((tarefa) => !tarefa.concluida)
+              .sort((left, right) =>
+                (left.prazoConclusao ?? item.prazoProcesso ?? "").localeCompare(right.prazoConclusao ?? item.prazoProcesso ?? "")
+                || left.createdAt.localeCompare(right.createdAt),
+              )
+              .map((tarefa) => ({
+                id: tarefa.id,
+                descricao: tarefa.descricao,
+                tipo: tarefa.tipo,
+                prazoConclusao: tarefa.prazoConclusao ?? item.prazoProcesso ?? new Date().toISOString().slice(0, 10),
+                horarioInicio: tarefa.horarioInicio ?? null,
+                horarioFim: tarefa.horarioFim ?? null,
+                urgente: Boolean(tarefa.urgente),
+              })),
           })),
       )
       .sort((left, right) => left.dataHoraInicio.localeCompare(right.dataHoraInicio))
@@ -3310,7 +3317,7 @@ describe("Gestor JMU API", () => {
       });
       expect(legacyReport.statusCode).toBe(200);
       expect(legacyReport.json().data.items).toEqual([
-        expect.objectContaining({ hasAudiencia: true }),
+        expect.objectContaining({ hasAudiencia: false }),
       ]);
 
       const allStatuses = await app.inject({
@@ -4884,6 +4891,51 @@ describe("Gestor JMU API", () => {
     expect(realized.statusCode).toBe(201);
     expect(scheduled.statusCode).toBe(201);
 
+    await preDemandaRepository.createTarefa({
+      preId,
+      descricao: "Providência da audiência designada",
+      tipo: "livre",
+      urgente: true,
+      prazoConclusao: "2026-05-09",
+      horarioInicio: "09:30",
+      horarioFim: "10:00",
+      changedByUserId: 2,
+    });
+
+    const legacy = await preDemandaRepository.create({
+      solicitante: "Secretaria",
+      assunto: "Processo somente com audiência legada",
+      dataReferencia: "2026-05-03",
+      prazoProcesso: "2026-05-20",
+      metadata: {
+        audienciaStatus: "designada",
+        audienciaData: "2026-05-12",
+        audienciaHorarioInicio: "10:00",
+      },
+      createdByUserId: 2,
+    });
+    await preDemandaRepository.createTarefa({
+      preId: legacy.record.preId,
+      descricao: "Tarefa de processo com audiência legada",
+      tipo: "livre",
+      prazoConclusao: "2026-05-12",
+      changedByUserId: 2,
+    });
+
+    const closed = await preDemandaRepository.create({
+      solicitante: "Secretaria",
+      assunto: "Processo encerrado com audiência formal",
+      dataReferencia: "2026-05-03",
+      prazoProcesso: "2026-05-20",
+      createdByUserId: 2,
+    });
+    closed.record.status = "encerrada";
+    closed.record.audiencias = [{
+      ...scheduled.json().data.item,
+      id: "audiencia-processo-encerrado",
+      preId: closed.record.preId,
+    }];
+
     const dashboard = await app.inject({
       method: "GET",
       url: "/api/pre-demandas/dashboard/resumo",
@@ -4905,6 +4957,23 @@ describe("Gestor JMU API", () => {
           item.id === scheduled.json().data.item.id && item.situacao === "designada",
         ),
     ).toBe(true);
+    expect(
+      dashboard
+        .json()
+        .data.upcomingAudiencias.find((item: { id: string }) => item.id === scheduled.json().data.item.id),
+    ).toEqual(expect.objectContaining({
+      tarefasPendentes: [expect.objectContaining({
+        descricao: "Providência da audiência designada",
+        urgente: true,
+        horarioInicio: "09:30",
+        horarioFim: "10:00",
+      })],
+    }));
+    expect(
+      dashboard
+        .json()
+        .data.upcomingAudiencias.some((item: { preId: string }) => item.preId === legacy.record.preId || item.preId === closed.record.preId),
+    ).toBe(false);
 
     const pauta = await app.inject({
       method: "GET",
@@ -4920,6 +4989,18 @@ describe("Gestor JMU API", () => {
           item.id === realized.json().data.item.id || item.situacao !== "designada",
         ),
     ).toBe(false);
+
+    const taskList = await app.inject({
+      method: "GET",
+      url: "/api/pre-demandas/dashboard/tarefas?status=pendentes&page=1&pageSize=100",
+      headers: { cookie },
+    });
+    expect(taskList.statusCode).toBe(200);
+    expect(
+      taskList
+        .json()
+        .data.items.find((item: { descricao: string }) => item.descricao === "Tarefa de processo com audiência legada"),
+    ).toEqual(expect.objectContaining({ hasAudiencia: false }));
   });
 
   it("registers signature tarefas em lote with one signer per process", async () => {

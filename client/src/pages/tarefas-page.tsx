@@ -257,20 +257,8 @@ function TaskTabPanel({
     () => (onlyUrgent ? items.filter((item) => item.urgente) : items),
     [items, onlyUrgent],
   );
-  const urgentItems = useMemo(
-    () => filteredItems.filter((item) => item.urgente),
-    [filteredItems],
-  );
-  const audienciaItems = useMemo(
-    () => filteredItems.filter((item) => !item.urgente && item.hasAudiencia),
-    [filteredItems],
-  );
-  const regularItems = useMemo(
-    () => filteredItems.filter((item) => !item.urgente && !item.hasAudiencia),
-    [filteredItems],
-  );
-  const groupByProcess = (groupItems: DashboardTaskItem[]) => {
-    const grouped = groupItems.reduce((map, item) => {
+  const processes = useMemo(() => {
+    const grouped = filteredItems.reduce((map, item) => {
       const current = map.get(item.preId) ?? {
         preId: item.preId,
         preNumero: item.preNumero,
@@ -284,143 +272,20 @@ function TaskTabPanel({
     }, new Map<string, { preId: string; preNumero: string; assunto: string; hasAudiencia: boolean; tasks: DashboardTaskItem[] }>());
 
     return Array.from(grouped.values());
-  };
-  const urgentProcessos = useMemo(
-    () => groupByProcess(urgentItems),
-    [urgentItems],
-  );
-  const audienciaProcessos = useMemo(
-    () => groupByProcess(audienciaItems),
-    [audienciaItems],
-  );
-  const regularProcessos = useMemo(
-    () => groupByProcess(regularItems),
-    [regularItems],
-  );
+  }, [filteredItems]);
 
   if (filteredItems.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
 
   return (
-    <div className="grid gap-6">
-      {/* ── URGENTES ─────────────────────────────────────────────── */}
-      {urgentItems.length > 0 && (
-        <div className="grid gap-3 rounded-[20px] border border-rose-200/80 bg-[linear-gradient(180deg,rgba(255,241,242,0.95),rgba(255,228,230,0.85))] p-4 shadow-sm">
-          <div>
-            <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-rose-700">
-              <AlertTriangle className="h-4 w-4" />
-              Tarefas urgentes{" "}
-              <span className="normal-case tracking-normal text-rose-400">
-                ({unifyByProcess ? urgentProcessos.length : urgentItems.length})
-              </span>
-            </h3>
-            <p className="mt-1 text-sm text-rose-500/80">
-              Tarefas marcadas como urgentes que requerem atencao imediata.
-            </p>
-          </div>
-          {unifyByProcess ? (
-            <div className="grid gap-3">
-              {urgentProcessos.map((processo) => (
-                <ProcessTaskGroupCard key={processo.preId} {...processo} />
-              ))}
-            </div>
-          ) : (
-            <div className="grid gap-3">
-              {urgentItems.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── AUDIÊNCIAS ───────────────────────────────────────────── */}
-      {!onlyUrgent && (
-        <div className="grid gap-3">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
-              Processos com audiencia{" "}
-              <span className="normal-case tracking-normal text-slate-400">
-                (
-                {unifyByProcess
-                  ? audienciaProcessos.length
-                  : audienciaItems.length}
-                )
-              </span>
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Tarefas ligadas a processos que possuem audiencia cadastrada.
-            </p>
-          </div>
-          {unifyByProcess ? (
-            audienciaProcessos.length === 0 ? (
-              <EmptyState
-                title="Sem tarefas de audiencias"
-                description="Nenhuma tarefa de processo com audiencia neste grupo."
-              />
-            ) : (
-              <div className="grid gap-3">
-                {audienciaProcessos.map((processo) => (
-                  <ProcessTaskGroupCard key={processo.preId} {...processo} />
-                ))}
-              </div>
-            )
-          ) : audienciaItems.length === 0 ? (
-            <EmptyState
-              title="Sem tarefas de audiencias"
-              description="Nenhuma tarefa de processo com audiencia neste grupo."
-            />
-          ) : (
-            <div className="grid gap-3">
-              {audienciaItems.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── DEMAIS ───────────────────────────────────────────────── */}
-      {!onlyUrgent && (
-        <div className="grid gap-3">
-          <div>
-            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">
-              Demais processos{" "}
-              <span className="normal-case tracking-normal text-slate-400">
-                ({unifyByProcess ? regularProcessos.length : regularItems.length})
-              </span>
-            </h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Demais tarefas operacionais da fila geral.
-            </p>
-          </div>
-          {unifyByProcess ? (
-            regularProcessos.length === 0 ? (
-              <EmptyState
-                title="Sem outras tarefas"
-                description="Nenhuma tarefa fora de processos com audiencia neste grupo."
-              />
-            ) : (
-              <div className="grid gap-3">
-                {regularProcessos.map((processo) => (
-                  <ProcessTaskGroupCard key={processo.preId} {...processo} />
-                ))}
-              </div>
-            )
-          ) : regularItems.length === 0 ? (
-            <EmptyState
-              title="Sem outras tarefas"
-              description="Nenhuma tarefa fora de processos com audiencia neste grupo."
-            />
-          ) : (
-            <div className="grid gap-3">
-              {regularItems.map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </div>
-          )}
-        </div>
+    <div className="grid gap-3">
+      {unifyByProcess ? (
+        processes.map((processo) => (
+          <ProcessTaskGroupCard key={processo.preId} {...processo} />
+        ))
+      ) : (
+        filteredItems.map((task) => <TaskCard key={task.id} task={task} />)
       )}
     </div>
   );
@@ -540,16 +405,16 @@ function ScheduledHearingsCard({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-amber-900">
           <Gavel className="h-5 w-5" />
-          Audiências designadas
+          Processos com audiência
         </CardTitle>
         <CardDescription>
-          Processos com audiência marcada, inclusive quando ainda não possuem uma tarefa cadastrada.
+          Audiências designadas e suas pendências, inclusive processos sem tarefa pendente.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
           <EmptyState
-            title="Sem audiências designadas"
+            title="Sem processos com audiência"
             description="Nenhuma audiência designada encontrada."
           />
         ) : (
@@ -572,6 +437,42 @@ function ScheduledHearingsCard({
                 {item.descricao ? (
                   <p className="mt-1 text-xs text-slate-500">{item.descricao}</p>
                 ) : null}
+                <div className="mt-3 grid gap-2 border-t border-amber-100 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-800">
+                    {item.tarefasPendentes.length === 0
+                      ? "Sem tarefas pendentes"
+                      : `${item.tarefasPendentes.length} tarefa(s) pendente(s)`}
+                  </p>
+                  {item.tarefasPendentes.map((task) => {
+                    const timeLabel = formatTaskTime(task);
+                    return (
+                      <div
+                        key={task.id}
+                        className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-900">
+                            {task.descricao}
+                          </p>
+                          {task.urgente ? (
+                            <span className="rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white">
+                              Urgente
+                            </span>
+                          ) : null}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] ${getTaskDeadlineTone(task.prazoConclusao)}`}
+                          >
+                            Prazo {formatDateOnlyPtBr(task.prazoConclusao)}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+                          <span>Tipo: {task.tipo}</span>
+                          {timeLabel ? <span>Horario: {timeLabel}</span> : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </Link>
             ))}
           </div>
@@ -841,7 +742,11 @@ export function TarefasPage() {
                 <TaskTabPanel
                   emptyDescription={onlyUrgent ? "Nenhuma tarefa urgente pendente encontrada." : "Nenhuma tarefa pendente encontrada."}
                   emptyTitle={onlyUrgent ? "Sem urgentes" : "Sem pendencias"}
-                  items={currentTab === "pendentes" ? items : []}
+                  items={
+                    currentTab === "pendentes"
+                      ? items.filter((item) => !item.hasAudiencia)
+                      : []
+                  }
                   unifyByProcess={unifyByProcess}
                   onlyUrgent={onlyUrgent}
                 />

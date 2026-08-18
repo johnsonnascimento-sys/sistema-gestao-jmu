@@ -582,6 +582,15 @@ export interface PreDemandaDashboardSummary {
     descricao: string | null;
     observacoes: string | null;
     situacao: AudienciaSituacao;
+    tarefasPendentes: Array<{
+      id: string;
+      descricao: string;
+      tipo: TarefaPendenteTipo;
+      prazoConclusao: string;
+      horarioInicio: string | null;
+      horarioFim: string | null;
+      urgente: boolean;
+    }>;
   }>;
   recentTimeline: TimelineEvent[];
 }

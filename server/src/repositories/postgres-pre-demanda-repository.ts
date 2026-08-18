@@ -5250,9 +5250,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async getAudienciasPauta(): Promise<PreDemandaDashboardSummary["upcomingAudiencias"]> {
-    const [upcomingAudienciasResult, legacyAudienciasResult] = await Promise.all([
-      this.pool.query(
-        `
+    const upcomingAudienciasResult = await this.pool.query(
+      `
           select
             audiencia.id,
             pd.pre_id,
@@ -5264,7 +5263,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             audiencia.data_hora_fim,
             audiencia.descricao,
             audiencia.observacoes,
-            audiencia.situacao
+            audiencia.situacao,
+            tarefas.tarefas_pendentes
           from adminlog.demanda_audiencias_judiciais audiencia
           inner join adminlog.pre_demanda pd on pd.id = audiencia.pre_demanda_id
           left join lateral (
@@ -5288,76 +5288,33 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             order by di.created_at desc, pessoa.nome asc
             limit 1
           ) magistrado on true
-          where audiencia.situacao = 'designada'
+          left join lateral (
+            select coalesce(
+              jsonb_agg(
+                jsonb_build_object(
+                  'id', tarefa.id,
+                  'descricao', tarefa.descricao,
+                  'tipo', tarefa.tipo,
+                  'prazo_conclusao', tarefa.prazo_conclusao,
+                  'horario_inicio', tarefa.horario_inicio,
+                  'horario_fim', tarefa.horario_fim,
+                  'urgente', coalesce(tarefa.urgente, false)
+                )
+                order by tarefa.prazo_conclusao asc, tarefa.created_at asc, tarefa.id asc
+              ),
+              '[]'::jsonb
+            ) as tarefas_pendentes
+            from adminlog.tarefas_pendentes tarefa
+            where tarefa.pre_demanda_id = pd.id
+              and tarefa.concluida = false
+          ) tarefas on true
+          where pd.status <> 'encerrada'
+            and audiencia.situacao = 'designada'
           order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
-        `,
-      ),
-      this.pool.query(
-        `
-          select
-            concat('legacy-', pd.id) as id,
-            pd.pre_id,
-            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
-            pd.numero_judicial,
-            pd.assunto,
-            magistrado.nome as magistrado_nome,
-            case
-              when nullif(pd.metadata ->> 'audiencia_horario_inicio', '') is not null
-                then concat(pd.metadata ->> 'audiencia_data', ' ', pd.metadata ->> 'audiencia_horario_inicio')::timestamp
-              else (pd.metadata ->> 'audiencia_data')::date::timestamp
-            end as data_hora_inicio,
-            case
-              when nullif(pd.metadata ->> 'audiencia_horario_fim', '') is not null
-                then concat(pd.metadata ->> 'audiencia_data', ' ', pd.metadata ->> 'audiencia_horario_fim')::timestamp
-              else null::timestamp
-            end as data_hora_fim,
-            nullif(pd.metadata ->> 'audiencia_descricao', '') as descricao,
-            null::text as observacoes,
-            coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') as situacao
-          from adminlog.pre_demanda pd
-          left join lateral (
-            select link.sei_numero
-            from adminlog.pre_to_sei_link link
-            where link.pre_id = pd.pre_id
-            order by link.updated_at desc, link.id desc
-            limit 1
-          ) pts on true
-          left join lateral (
-            select pessoa.nome
-            from adminlog.demanda_interessados di
-            inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
-            where di.pre_demanda_id = pd.id
-              and pessoa.cargo in (
-                'JuÃƒÆ’Ã‚Â­za Federal da JustiÃƒÆ’Ã‚Â§a Militar',
-                'Juiz Federal da JustiÃƒÆ’Ã‚Â§a Militar',
-                'Juiz Federal Substituto da JustiÃƒÆ’Ã‚Â§a Militar',
-                'JuÃƒÆ’Ã‚Â­za Federal Substituta da JustiÃƒÆ’Ã‚Â§a Militar'
-              )
-            order by di.created_at desc, pessoa.nome asc
-            limit 1
-          ) magistrado on true
-          where nullif(pd.metadata ->> 'audiencia_data', '') is not null
-            and coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
-            and not exists (
-              select 1
-              from adminlog.demanda_audiencias_judiciais audiencia
-              where audiencia.pre_demanda_id = pd.id
-            )
-          order by data_hora_inicio asc nulls last, pd.updated_at asc, pd.id asc
-        `,
-      ),
-    ]);
+      `,
+    );
 
-    return [...upcomingAudienciasResult.rows, ...legacyAudienciasResult.rows]
-      .sort((left, right) => {
-        const leftTime = left.data_hora_inicio ? new Date(left.data_hora_inicio).getTime() : Number.MAX_SAFE_INTEGER;
-        const rightTime = right.data_hora_inicio ? new Date(right.data_hora_inicio).getTime() : Number.MAX_SAFE_INTEGER;
-        if (leftTime !== rightTime) {
-          return leftTime - rightTime;
-        }
-        return String(left.id).localeCompare(String(right.id));
-      })
-      .map((row) => ({
+    return upcomingAudienciasResult.rows.map((row) => ({
         id: String(row.id),
         preId: String(row.pre_id),
         preNumero: String(row.principal_numero),
@@ -5369,6 +5326,15 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         descricao: row.descricao ? String(row.descricao) : null,
         observacoes: row.observacoes ? String(row.observacoes) : null,
         situacao: row.situacao as PreDemandaDashboardSummary["upcomingAudiencias"][number]["situacao"],
+        tarefasPendentes: (Array.isArray(row.tarefas_pendentes) ? row.tarefas_pendentes : []).map((tarefa: any) => ({
+          id: String(tarefa.id),
+          descricao: String(tarefa.descricao),
+          tipo: tarefa.tipo as DashboardTaskItem["tipo"],
+          prazoConclusao: new Date(tarefa.prazo_conclusao).toISOString().slice(0, 10),
+          horarioInicio: tarefa.horario_inicio ? String(tarefa.horario_inicio).slice(0, 5) : null,
+          horarioFim: tarefa.horario_fim ? String(tarefa.horario_fim).slice(0, 5) : null,
+          urgente: Boolean(tarefa.urgente),
+        })),
       }));
   }
 
@@ -5379,7 +5345,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     }
 
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
-    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, oldestOpenTasksResult, upcomingAudienciasResult, legacyAudienciasResult, recentTimeline] = await Promise.all([
+    const [counts, lifecycleMetricsResult, staleItemsResult, awaitingSeiResult, agingMetricsResult, caseSignalsResult, dueSoonItemsResult, paymentMarkedItemsResult, urgentItemsResult, withoutSetorItemsResult, withoutInteressadosItemsResult, oldestOpenTasksResult, upcomingAudiencias, recentTimeline] = await Promise.all([
       this.getStatusCounts(),
       this.pool.query(
         `
@@ -5613,114 +5579,9 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           limit 8
         `,
       ),
-      this.pool.query(
-        `
-          select
-            audiencia.id,
-            pd.pre_id,
-            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
-            pd.numero_judicial,
-            pd.assunto,
-            magistrado.nome as magistrado_nome,
-            audiencia.data_hora_inicio,
-            audiencia.data_hora_fim,
-            audiencia.descricao,
-            audiencia.observacoes,
-            audiencia.situacao
-          from adminlog.demanda_audiencias_judiciais audiencia
-          inner join adminlog.pre_demanda pd on pd.id = audiencia.pre_demanda_id
-          left join lateral (
-            select link.sei_numero
-            from adminlog.pre_to_sei_link link
-            where link.pre_id = pd.pre_id
-            order by link.updated_at desc, link.id desc
-            limit 1
-          ) pts on true
-          left join lateral (
-            select pessoa.nome
-            from adminlog.demanda_interessados di
-            inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
-            where di.pre_demanda_id = pd.id
-              and pessoa.cargo in (
-                'JuÃ­za Federal da JustiÃ§a Militar',
-                'Juiz Federal da JustiÃ§a Militar',
-                'Juiz Federal Substituto da JustiÃ§a Militar',
-                'JuÃ­za Federal Substituta da JustiÃ§a Militar'
-              )
-            order by di.created_at desc, pessoa.nome asc
-            limit 1
-          ) magistrado on true
-          where pd.status <> 'encerrada'
-            and audiencia.situacao = 'designada'
-          order by audiencia.data_hora_inicio asc, audiencia.created_at asc, audiencia.id asc
-        `,
-      ),
-      this.pool.query(
-        `
-          select
-            concat('legacy-', pd.id) as id,
-            pd.pre_id,
-            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as principal_numero,
-            pd.numero_judicial,
-            pd.assunto,
-            magistrado.nome as magistrado_nome,
-            case
-              when nullif(pd.metadata ->> 'audiencia_horario_inicio', '') is not null
-                then concat(pd.metadata ->> 'audiencia_data', ' ', pd.metadata ->> 'audiencia_horario_inicio')::timestamp
-              else (pd.metadata ->> 'audiencia_data')::date::timestamp
-            end as data_hora_inicio,
-            case
-              when nullif(pd.metadata ->> 'audiencia_horario_fim', '') is not null
-                then concat(pd.metadata ->> 'audiencia_data', ' ', pd.metadata ->> 'audiencia_horario_fim')::timestamp
-              else null::timestamp
-            end as data_hora_fim,
-            nullif(pd.metadata ->> 'audiencia_descricao', '') as descricao,
-            null::text as observacoes,
-            coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') as situacao
-          from adminlog.pre_demanda pd
-          left join lateral (
-            select link.sei_numero
-            from adminlog.pre_to_sei_link link
-            where link.pre_id = pd.pre_id
-            order by link.updated_at desc, link.id desc
-            limit 1
-          ) pts on true
-          left join lateral (
-            select pessoa.nome
-            from adminlog.demanda_interessados di
-            inner join adminlog.interessados pessoa on pessoa.id = di.interessado_id
-            where di.pre_demanda_id = pd.id
-              and pessoa.cargo in (
-                'JuÃƒÂ­za Federal da JustiÃƒÂ§a Militar',
-                'Juiz Federal da JustiÃƒÂ§a Militar',
-                'Juiz Federal Substituto da JustiÃƒÂ§a Militar',
-                'JuÃƒÂ­za Federal Substituta da JustiÃƒÂ§a Militar'
-              )
-            order by di.created_at desc, pessoa.nome asc
-            limit 1
-          ) magistrado on true
-          where pd.status <> 'encerrada'
-            and nullif(pd.metadata ->> 'audiencia_data', '') is not null
-            and coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
-            and not exists (
-              select 1
-              from adminlog.demanda_audiencias_judiciais audiencia
-              where audiencia.pre_demanda_id = pd.id
-            )
-          order by data_hora_inicio asc nulls last, pd.updated_at asc, pd.id asc
-        `,
-      ),
+      this.getAudienciasPauta(),
       this.listRecentTimeline(8),
     ]);
-
-    const upcomingAudienciasRows = [...upcomingAudienciasResult.rows, ...legacyAudienciasResult.rows].sort((left, right) => {
-      const leftTime = left.data_hora_inicio ? new Date(left.data_hora_inicio).getTime() : Number.MAX_SAFE_INTEGER;
-      const rightTime = right.data_hora_inicio ? new Date(right.data_hora_inicio).getTime() : Number.MAX_SAFE_INTEGER;
-      if (leftTime !== rightTime) {
-        return leftTime - rightTime;
-      }
-      return String(left.id).localeCompare(String(right.id));
-    });
 
     const summary = {
       counts,
@@ -5768,19 +5629,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         setorDestinoSigla: row.setor_destino_sigla ? String(row.setor_destino_sigla) : null,
         createdAt: new Date(row.created_at).toISOString(),
       })),
-      upcomingAudiencias: upcomingAudienciasRows.map((row) => ({
-        id: String(row.id),
-        preId: String(row.pre_id),
-        preNumero: String(row.principal_numero),
-        numeroJudicial: row.numero_judicial ? String(row.numero_judicial) : null,
-        assunto: String(row.assunto),
-        magistradoNome: row.magistrado_nome ? String(row.magistrado_nome) : null,
-        dataHoraInicio: new Date(row.data_hora_inicio).toISOString(),
-        dataHoraFim: row.data_hora_fim ? new Date(row.data_hora_fim).toISOString() : null,
-        descricao: row.descricao ? String(row.descricao) : null,
-        observacoes: row.observacoes ? String(row.observacoes) : null,
-        situacao: row.situacao as PreDemandaDashboardSummary["upcomingAudiencias"][number]["situacao"],
-      })),
+      upcomingAudiencias,
       recentTimeline,
     };
 
@@ -5813,6 +5662,17 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
     const statusPlaceholder = pushValue(params.status === "concluidas");
     conditions.push(`tarefa.concluida = ${statusPlaceholder}`);
+
+    if (params.status === "pendentes") {
+      const withoutScheduledAudiencia = `not exists (
+        select 1
+        from adminlog.demanda_audiencias_judiciais audiencia
+        where audiencia.pre_demanda_id = tarefa.pre_demanda_id
+          and audiencia.situacao = 'designada'
+      )`;
+      conditions.push(withoutScheduledAudiencia);
+      countsConditions.push(withoutScheduledAudiencia);
+    }
 
     if (params.date) {
       const datePlaceholder = pushValue(params.date);
@@ -5926,21 +5786,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             tarefa.horario_fim,
             tarefa.recorrencia_tipo,
             setor_destino.sigla as setor_destino_sigla,
-            (
-              exists(
-                select 1
-                from adminlog.demanda_audiencias_judiciais audiencia
-                where audiencia.pre_demanda_id = pd.id
-                  and audiencia.situacao = 'designada'
-              )
-              or (
-                coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
-                and (
-                  coalesce(pd.metadata ->> 'audiencia_data', '') <> ''
-                  or coalesce(pd.metadata ->> 'audiencia_horario_inicio', '') <> ''
-                  or coalesce(pd.metadata ->> 'audiencia_horario_fim', '') <> ''
-                )
-              )
+            pd.status <> 'encerrada' and exists(
+              select 1
+              from adminlog.demanda_audiencias_judiciais audiencia
+              where audiencia.pre_demanda_id = pd.id
+                and audiencia.situacao = 'designada'
             ) as has_audiencia,
             tarefa.gerada_automaticamente,
             tarefa.concluida,
@@ -6140,21 +5990,11 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
             pd.assunto,
             coalesce((pd.metadata ->> 'urgente')::boolean, false) as processo_urgente,
-            (
-              exists(
-                select 1
-                from adminlog.demanda_audiencias_judiciais audiencia
-                where audiencia.pre_demanda_id = pd.id
-                  and audiencia.situacao = 'designada'
-              )
-              or (
-                coalesce(nullif(pd.metadata ->> 'audiencia_status', ''), 'designada') = 'designada'
-                and (
-                  coalesce(pd.metadata ->> 'audiencia_data', '') <> ''
-                  or coalesce(pd.metadata ->> 'audiencia_horario_inicio', '') <> ''
-                  or coalesce(pd.metadata ->> 'audiencia_horario_fim', '') <> ''
-                )
-              )
+            pd.status <> 'encerrada' and exists(
+              select 1
+              from adminlog.demanda_audiencias_judiciais audiencia
+              where audiencia.pre_demanda_id = pd.id
+                and audiencia.situacao = 'designada'
             ) as has_audiencia,
             tarefa.descricao,
             tarefa.tipo,
