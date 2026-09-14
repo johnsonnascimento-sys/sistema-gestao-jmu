@@ -20,7 +20,11 @@
 - Preflight produtivo: 1.752 demandas, tabela com 2.680 kB e nenhuma colisao na nova chave composta.
 - Backup anterior ao deploy: `gestor-adminlog-20260914T213033Z-pre-idempotencia-20260914.sql.gz`, 1,1 MB, SHA-256 `52e06f2f17c742525bcaf43e56ebeee61d5858779bc460c10882c7cbb887e857`.
 - Restore drill do backup: aprovado.
-- Migration e smoke test produtivo: a preencher apos o deploy.
+- Deploy produtivo do commit `cfd1ef6c18135b993cd7457efde7bf288d5ba03e`: aprovado.
+- Migration `032_pre_demanda_idempotencia_sei.sql`: aplicada com sucesso.
+- Endpoints `/api/health` e `/api/ready`: aprovados, com banco em estado `ready`.
+- Smoke test autenticado e administrativo: aprovado.
+- Pos-deploy: coluna `idempotencia_sei_norm` obrigatoria com default vazio, indice composto correto e nenhuma colisao na nova chave.
 
 ### Seguranca
 - Nenhuma senha, chave privada ou segredo foi registrado neste documento.
