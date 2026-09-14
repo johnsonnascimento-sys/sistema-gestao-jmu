@@ -43,6 +43,7 @@
 ### Processos e demandas
 - criacao e edicao de processo
 - status, fila operacional e reassociacao PRE x SEI
+- idempotencia de criacao pela combinacao de solicitante, assunto, data de referencia e SEI inicial normalizado; demandas sem SEI continuam usando apenas os tres primeiros campos
 - processos judiciais com numero judicial e audiencias
 - criacao de processos em lote por pacotes reutilizaveis de assuntos, mantendo um processo por assunto e vinculando os processos do mesmo lote
 

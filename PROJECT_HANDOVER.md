@@ -48,6 +48,7 @@ Regra de ouro:
 - O deploy produtivo e feito pelos scripts `deploy:vps`, `rollback:vps`, `status:vps`, `backup:vps` e `restore:vps`.
 - O banco primario ja foi migrado para a VPS.
 - O Supabase permanece apenas como contingencia temporaria, fora do runtime ativo.
+- A identidade idempotente de uma demanda inclui o SEI informado na criacao; sem SEI, permanece a combinacao solicitante, assunto e data de referencia. Reassociacoes posteriores nao alteram essa identidade inicial.
 
 ---
 

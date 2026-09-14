@@ -2198,18 +2198,56 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     });
   }
 
+  private async findCreateDuplicate(
+    queryable: Queryable,
+    input: Pick<CreatePreDemandaInput, "solicitante" | "assunto" | "dataReferencia" | "seiNumero">,
+    queueHealthThresholds: QueueHealthThresholds,
+  ) {
+    const solicitante = input.solicitante?.trim() || "Nao informado";
+    const seiNumero = input.seiNumero?.trim() || null;
+    const duplicate = await queryable.query(
+      `
+        ${DASHBOARD_BASE_SELECT}
+        where pd.solicitante_norm = lower(regexp_replace(trim($1), '\\s+', ' ', 'g'))
+          and pd.assunto_norm = lower(regexp_replace(trim($2), '\\s+', ' ', 'g'))
+          and pd.data_referencia = $3::date
+          and pd.idempotencia_sei_norm = regexp_replace(coalesce($4::text, ''), '[^0-9]', '', 'g')
+        limit 1
+      `,
+      [solicitante, input.assunto, input.dataReferencia, seiNumero],
+    );
+
+    return duplicate.rows[0]
+      ? this.hydrateDetail(queryable, duplicate.rows[0], queueHealthThresholds)
+      : null;
+  }
+
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const queueHealthThresholds = await this.loadQueueHealthThresholds();
     const dbMetadata = normalizeMetadataForDb(input.metadata ?? null);
     const initialStatus: PreDemandaStatus = "em_andamento";
+    const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
+    const seiNumero = input.seiNumero?.trim() || null;
 
     try {
-      const record = await inTransaction(this.pool, async (client) => {
+      return await inTransaction(this.pool, async (client) => {
         if (!input.prazoProcesso) {
           throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
         }
 
-        const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
+        const existing = await this.findCreateDuplicate(
+          client,
+          { ...input, solicitante: resolvedSolicitante, seiNumero },
+          queueHealthThresholds,
+        );
+        if (existing) {
+          return {
+            record: existing,
+            idempotent: true,
+            existingPreId: existing.preId,
+          };
+        }
+
         const numeroJudicial = formatNumeroJudicialValue(input.numeroJudicial);
 
         const defaultSetor = await this.resolveDefaultInitialSetor(client);
@@ -2224,13 +2262,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               solicitante,
               assunto,
               data_referencia,
-            status,
-            descricao,
-            fonte,
-            observacoes,
-            prazo_processo,
-            numero_judicial,
-            setor_atual_id,
+              idempotencia_sei_norm,
+              status,
+              descricao,
+              fonte,
+              observacoes,
+              prazo_processo,
+              numero_judicial,
+              setor_atual_id,
               metadata,
               created_by_user_id
             )
@@ -2239,15 +2278,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               $2,
               $3,
               $1::date,
-              $4,
+              regexp_replace(coalesce($4::text, ''), '[^0-9]', '', 'g'),
               $5,
               $6,
               $7,
-              $8::date,
-              $9,
-              $10::uuid,
-              coalesce($11::jsonb, '{}'::jsonb),
-              $12
+              $8,
+              $9::date,
+              $10,
+              $11::uuid,
+              coalesce($12::jsonb, '{}'::jsonb),
+              $13
             )
             returning id, pre_id
           `,
@@ -2255,6 +2295,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             input.dataReferencia,
             resolvedSolicitante,
             input.assunto,
+            seiNumero,
             initialStatus,
             input.descricao ?? null,
             input.fonte ?? null,
@@ -2286,13 +2327,13 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           [preDemandaId, defaultSetor.id, input.createdByUserId],
         );
 
-        if (input.seiNumero) {
+        if (seiNumero) {
           await client.query(
             `
               insert into adminlog.pre_to_sei_link (pre_id, sei_numero, sei_numero_inicial, observacoes, linked_by_user_id)
               values ($1, $2, $2, $3, $4)
             `,
-            [nextPreId, input.seiNumero, "Processo registado ja com numeracao de origem.", input.createdByUserId],
+            [nextPreId, seiNumero, "Processo registado ja com numeracao de origem.", input.createdByUserId],
           );
 
           await client.query(
@@ -2302,7 +2343,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
             `,
             [
               nextPreId,
-              input.seiNumero,
+              seiNumero,
               "Processo registado ja com numeracao de origem",
               "Associacao inicial criada na abertura do processo.",
               input.createdByUserId,
@@ -2317,7 +2358,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               set principal = true,
                   observacoes = excluded.observacoes
             `,
-            [preDemandaId, input.seiNumero, "Processo registado ja com numeracao de origem.", input.createdByUserId],
+            [preDemandaId, seiNumero, "Processo registado ja com numeracao de origem.", input.createdByUserId],
           );
         }
 
@@ -2370,43 +2411,32 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         }
 
         const record = await this.hydrateDetail(client, detailRow, queueHealthThresholds);
-        return record;
+        return {
+          record,
+          idempotent: false,
+          existingPreId: null,
+        };
       });
-
-      return {
-        record,
-        idempotent: false,
-        existingPreId: null,
-      };
     } catch (error) {
       const pgError = error as { code?: string; constraint?: string };
       if (pgError.code !== "23505" || pgError.constraint !== "uq_pre_demanda_idempotencia") {
         throw error;
       }
 
-      const duplicateSolicitante = input.solicitante?.trim() || "Nao informado";
-      const duplicate = await this.pool.query(
-        `
-          ${DASHBOARD_BASE_SELECT}
-          where pd.solicitante_norm = lower(regexp_replace(trim($1), '\s+', ' ', 'g'))
-            and pd.assunto_norm = lower(regexp_replace(trim($2), '\s+', ' ', 'g'))
-            and pd.data_referencia = $3::date
-          limit 1
-        `,
-        [duplicateSolicitante, input.assunto, input.dataReferencia],
+      const duplicate = await this.findCreateDuplicate(
+        this.pool,
+        { ...input, solicitante: resolvedSolicitante, seiNumero },
+        queueHealthThresholds,
       );
 
-      if (!duplicate.rows[0]) {
-        throw new AppError(409, "PRE_DEMANDA_DUPLICATE", "Nao foi possivel recuperar a demanda existente.", {
-          existingPreId: null,
-        });
+      if (!duplicate) {
+        throw error;
       }
 
-      const record = await this.hydrateDetail(this.pool, duplicate.rows[0], queueHealthThresholds);
       return {
-        record,
+        record: duplicate,
         idempotent: true,
-        existingPreId: record.preId,
+        existingPreId: duplicate.preId,
       };
     }
   }
@@ -2571,6 +2601,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
               where pd.solicitante_norm = lower(regexp_replace(trim($1), '\\s+', ' ', 'g'))
                 and pd.assunto_norm = lower(regexp_replace(trim($2), '\\s+', ' ', 'g'))
                 and pd.data_referencia = $3::date
+                and pd.idempotencia_sei_norm = ''
               limit 1
             `,
             [pessoa.nome, assuntoProcesso, input.dataReferencia],
@@ -4516,7 +4547,8 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
   }
 
   async associateSei(input: AssociateSeiInput): Promise<AssociateSeiResult> {
-    return inTransaction(this.pool, async (client) => {
+    try {
+      return await inTransaction(this.pool, async (client) => {
       const demanda = await client.query(
         `
           select pre_id, id, status
@@ -4545,6 +4577,16 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
       let audited = false;
       if (!currentLinkResult.rows[0]) {
+        await client.query(
+          `
+            update adminlog.pre_demanda
+            set idempotencia_sei_norm = regexp_replace($2::text, '[^0-9]', '', 'g')
+            where pre_id = $1
+              and idempotencia_sei_norm = ''
+          `,
+          [input.preId, input.seiNumero],
+        );
+
         await client.query(
           `
             insert into adminlog.pre_to_sei_link (pre_id, sei_numero, sei_numero_inicial, observacoes, linked_by_user_id)
@@ -4627,7 +4669,18 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         association: currentAssociation,
         audited,
       };
-    });
+      });
+    } catch (error) {
+      const pgError = error as { code?: string; constraint?: string };
+      if (pgError.code === "23505" && pgError.constraint === "uq_pre_demanda_idempotencia") {
+        throw new AppError(
+          409,
+          "PRE_DEMANDA_DUPLICATE",
+          "Ja existe uma demanda com o mesmo solicitante, assunto, data de referencia e numero SEI inicial.",
+        );
+      }
+      throw error;
+    }
   }
 
   async updateStatus(input: UpdatePreDemandaStatusInput): Promise<UpdatePreDemandaStatusResult> {

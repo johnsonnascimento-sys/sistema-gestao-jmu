@@ -521,12 +521,27 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
   async create(input: CreatePreDemandaInput): Promise<CreatePreDemandaResult> {
     const resolvedSolicitante = input.solicitante ?? (input.pessoaSolicitanteId ? `Pessoa ${input.pessoaSolicitanteId.slice(0, 4)}` : "");
-    const existing = this.records.find(
-      (item) =>
+    const seiNumero = input.seiNumero?.trim() || null;
+    const seiNumeroNorm = seiNumero?.replace(/\D/g, "") ?? "";
+    const existing = this.records.find((item) => {
+      const sameBaseKey =
         item.solicitante.trim().toLowerCase() === resolvedSolicitante.trim().toLowerCase() &&
         item.assunto.trim().toLowerCase() === input.assunto.trim().toLowerCase() &&
-        item.dataReferencia === input.dataReferencia,
-    );
+        item.dataReferencia === input.dataReferencia;
+
+      if (!sameBaseKey) {
+        return false;
+      }
+
+      const firstReassociation = this.audit
+        .filter((audit) => audit.preId === item.preId)
+        .sort((left, right) => left.id - right.id)[0];
+      const initialSeiNumero = firstReassociation?.seiNumeroAnterior ?? item.currentAssociation?.seiNumero ?? null;
+
+      return seiNumeroNorm
+        ? initialSeiNumero?.replace(/\D/g, "") === seiNumeroNorm
+        : item.seiAssociations.length === 0;
+    });
 
     if (existing) {
       return { record: existing, idempotent: true, existingPreId: existing.preId };
@@ -546,8 +561,8 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       preId,
       solicitante: resolvedSolicitante,
       pessoaPrincipal,
-      principalNumero: input.seiNumero ?? input.numeroJudicial ?? preId,
-      principalTipo: input.seiNumero ? "sei" : "demanda",
+      principalNumero: seiNumero ?? input.numeroJudicial ?? preId,
+      principalTipo: seiNumero ? "sei" : "demanda",
       assunto: input.assunto,
       dataReferencia: input.dataReferencia,
       status: initialStatus,
@@ -567,10 +582,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       createdAt: now,
       updatedAt: now,
       createdBy: null,
-      currentAssociation: input.seiNumero
+      currentAssociation: seiNumero
         ? {
             preId,
-            seiNumero: input.seiNumero,
+            seiNumero,
             principal: true,
             linkedAt: now,
             updatedAt: now,
@@ -578,11 +593,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
             linkedBy: null,
           }
         : null,
-      seiAssociations: input.seiNumero
+      seiAssociations: seiNumero
         ? [
             {
               preId,
-              seiNumero: input.seiNumero,
+              seiNumero,
               principal: true,
               linkedAt: now,
               updatedAt: now,
@@ -598,7 +613,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       })),
       numerosJudiciais: input.numeroJudicial ? [{ numero: input.numeroJudicial, principal: true, createdAt: now }] : [],
       queueHealth: buildQueueHealth(initialStatus, now, input.dataReferencia, this.queueHealthThresholds),
-      allowedNextStatuses: getAllowedNextStatuses({ currentStatus: initialStatus, hasAssociation: Boolean(input.seiNumero) }),
+      allowedNextStatuses: getAllowedNextStatuses({ currentStatus: initialStatus, hasAssociation: Boolean(seiNumero) }),
       interessados: pessoaPrincipal
         ? [
             {
@@ -3554,6 +3569,106 @@ describe("Gestor JMU API", () => {
       for (const [id, assunto] of assuntoCatalogSnapshot) {
         inMemoryAssuntoCatalog.set(id, assunto);
       }
+    }
+  });
+
+  it("uses the base key and initial SEI number to identify duplicate pre-demandas", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: {
+        email: "operador@jmu.local",
+        password: "Senha1234",
+      },
+    });
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const repository = preDemandaRepository as unknown as {
+      records: PreDemandaDetail[];
+      nextId: number;
+    };
+    const snapshot = {
+      records: JSON.parse(JSON.stringify(repository.records)) as PreDemandaDetail[],
+      nextId: repository.nextId,
+    };
+    const basePayload = {
+      solicitante: "Solicitante do caso de regressao",
+      assunto: "Assunto compartilhado entre processos SEI",
+      data_referencia: "2026-09-14",
+      prazo_processo: "2026-09-30",
+    };
+
+    try {
+      const first = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...basePayload, sei_numero: "019326/26-00.101" },
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...basePayload, sei_numero: "018976/26-00.101" },
+      });
+      const secondRetry = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...basePayload, sei_numero: "018976/26-00.101" },
+      });
+      const sameSeiOtherSubject = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          ...basePayload,
+          assunto: "Outro assunto para o mesmo numero SEI",
+          sei_numero: "019326/26-00.101",
+        },
+      });
+      const withoutSei = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: basePayload,
+      });
+      const withoutSeiRetry = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: basePayload,
+      });
+      const firstAssociation = await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${withoutSei.json().data.preId}/associacoes-sei`,
+        headers: { cookie },
+        payload: { sei_numero: "012345/26-00.101" },
+      });
+      const associatedRetry = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...basePayload, sei_numero: "012345/26-00.101" },
+      });
+
+      expect(first.statusCode).toBe(201);
+      expect(second.statusCode).toBe(201);
+      expect(second.json().data.preId).not.toBe(first.json().data.preId);
+      expect(secondRetry.statusCode).toBe(200);
+      expect(secondRetry.json().data.idempotent).toBe(true);
+      expect(secondRetry.json().data.existingPreId).toBe(second.json().data.preId);
+      expect(sameSeiOtherSubject.statusCode).toBe(201);
+      expect(sameSeiOtherSubject.json().data.preId).not.toBe(first.json().data.preId);
+      expect(withoutSei.statusCode).toBe(201);
+      expect(withoutSeiRetry.statusCode).toBe(200);
+      expect(withoutSeiRetry.json().data.existingPreId).toBe(withoutSei.json().data.preId);
+      expect(firstAssociation.statusCode).toBe(200);
+      expect(associatedRetry.statusCode).toBe(200);
+      expect(associatedRetry.json().data.idempotent).toBe(true);
+      expect(associatedRetry.json().data.existingPreId).toBe(withoutSei.json().data.preId);
+    } finally {
+      repository.records = snapshot.records;
+      repository.nextId = snapshot.nextId;
     }
   });
 

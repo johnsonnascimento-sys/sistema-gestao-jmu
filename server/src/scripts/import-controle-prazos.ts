@@ -103,34 +103,18 @@ async function detectConflicts(pool: Pool, row: ParsedControlePrazosRow, sourceI
     return { alreadyImported: true, conflicts };
   }
 
-  if (row.seiNumbers.length) {
-    const seiConflict = await pool.query<{ pre_id: string; sei_numero: string }>(
-      `
-        select pd.pre_id, vinculo.sei_numero
-        from adminlog.demanda_sei_vinculos vinculo
-        inner join adminlog.pre_demanda pd on pd.id = vinculo.pre_demanda_id
-        where vinculo.sei_numero = any($1::varchar[])
-        order by pd.updated_at desc
-      `,
-      [row.seiNumbers],
-    );
-
-    for (const item of seiConflict.rows) {
-      conflicts.push(`SEI ${String(item.sei_numero)} ja vinculado ao processo ${String(item.pre_id)}.`);
-    }
-  }
-
   if (row.interessados[0] && row.dataReferencia) {
     const identityConflict = await pool.query<{ pre_id: string }>(
       `
         select pre_id
         from adminlog.pre_demanda
-        where assunto_norm = lower(regexp_replace(trim($1), '\s+', ' ', 'g'))
+        where assunto_norm = lower(regexp_replace(trim($1), '[[:space:]]+', ' ', 'g'))
           and data_referencia = $2::date
-          and solicitante_norm = lower(regexp_replace(trim($3), '\s+', ' ', 'g'))
+          and solicitante_norm = lower(regexp_replace(trim($3), '[[:space:]]+', ' ', 'g'))
+          and idempotencia_sei_norm = regexp_replace(coalesce($4::text, ''), '[^0-9]', '', 'g')
         limit 3
       `,
-      [row.assunto, row.dataReferencia, row.interessados[0]],
+      [row.assunto, row.dataReferencia, row.interessados[0], row.seiNumbers[0] ?? null],
     );
 
     for (const item of identityConflict.rows) {
@@ -146,7 +130,7 @@ async function findOrCreateInteressado(client: PoolClient, nome: string) {
     `
       select id
       from adminlog.interessados
-      where lower(regexp_replace(trim(nome), '\s+', ' ', 'g')) = lower(regexp_replace(trim($1), '\s+', ' ', 'g'))
+      where lower(regexp_replace(trim(nome), '[[:space:]]+', ' ', 'g')) = lower(regexp_replace(trim($1), '[[:space:]]+', ' ', 'g'))
       order by updated_at desc
       limit 1
     `,
@@ -203,6 +187,7 @@ async function applyRow(
           solicitante,
           assunto,
           data_referencia,
+          idempotencia_sei_norm,
           status,
           observacoes,
           prazo_inicial,
@@ -218,15 +203,16 @@ async function applyRow(
           $2,
           $3,
           $1::date,
-          $4,
+          regexp_replace(coalesce($4::text, ''), '[^0-9]', '', 'g'),
           $5,
-          $6::date,
+          $6,
           $7::date,
           $8::date,
           $9::date,
-          $10::uuid,
-          coalesce($11::jsonb, '{}'::jsonb),
-          $12
+          $10::date,
+          $11::uuid,
+          coalesce($12::jsonb, '{}'::jsonb),
+          $13
         )
         returning id, pre_id
       `,
@@ -234,6 +220,7 @@ async function applyRow(
         row.dataReferencia,
         primaryInteressado,
         row.assunto,
+        row.seiNumbers[0] ?? null,
         row.status,
         row.observacoes,
         row.prazoInicial.value,

@@ -72,7 +72,7 @@ Referencia rapida:
 - Toda resposta final deve incluir um resumo curto do que foi feito, a lista de agentes e subagentes usados com o respectivo modelo e o consumo estimado em tokens de cada um; quando nao for possivel estimar com base no contexto e na saida gerada, registrar `estimado_indisponivel`.
 
 ### Regras Gerais
-- Idempotencia de demanda: `solicitante + assunto + data_referencia (YYYY-MM-DD)`.
+- Idempotencia de demanda: `solicitante + assunto + data_referencia (YYYY-MM-DD) + SEI inicial normalizado`; para demandas criadas sem SEI, a chave permanece `solicitante + assunto + data_referencia`.
 - Datas no banco: ISO 8601.
 - Chaves: suportar demandas sem `sei_numero` usando `pre_id`.
 - Auditoria: reassociacao PRE->SEI permitida com registro de historico.
