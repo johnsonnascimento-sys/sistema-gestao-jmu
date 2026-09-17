@@ -1,52 +1,22 @@
 # START HERE - AGENTES DO PROJETO
 
-Este arquivo existe para padronizar o comportamento do Codex e de agentes especialistas em qualquer computador.
+Use este roteiro ao iniciar uma sessao em qualquer computador.
 
-## Objetivo
-- Garantir que a mesma convencao de agentes seja aplicada em multiplas maquinas.
-- Reduzir ambiguidade ao iniciar novas sessoes.
-- Definir a ordem minima de leitura antes de qualquer delegacao.
+## Ordem de leitura
 
-## Ordem Obrigatoria de Leitura
 1. `AI_BOOTLOADER.md`
 2. `AGENT_RULES`
 3. `agents.toml`
 
-## Regra Operacional
-- O agente de entrada padrao e `Atlas`.
-- `Atlas` atua como coordenador principal.
-- Os subagentes sao instanciados sob demanda, conforme a tarefa:
-  - `Laplace`: banco de dados e migrations
-  - `Turing`: backend e integracoes
-  - `Ada`: frontend e UI/UX
-  - `SRE-1`: QA, DevOps e operacoes
-- A partir desta convencao, o uso dos subagentes deve ser o comportamento padrao sempre que houver dominio tecnico claro.
-- `gpt-5.6-luna` deve ser usado para triagem, leitura, extracao, validacao leve e tarefas rapidas.
-- `gpt-5.6-terra` deve ser o padrao para implementacao, refatoracao, testes e trabalho cotidiano.
-- `gpt-5.6-sol` deve ser reservado para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
-- `Atlas` deve manter no agente principal a integracao final e, por padrao, as etapas de `git add`, `git commit`, `git push` e `deploy`.
-- `SRE-1` deve ser preferido para build, leitura de logs, smoke tests e verificacoes operacionais antes da execucao final.
-- Sempre que um agente ou subagente for utilizado, a sessao deve informar ao usuario antes da execucao: nome do agente, funcao e modelo utilizado.
-- Ao terminar a tarefa, a sessao deve repetir a informacao com quais agentes ou subagentes foram usados e o que foi entregue.
-- O encerramento de toda tarefa deve incluir um resumo curto do que foi feito, a lista de agentes e subagentes usados com seus respectivos modelos e o consumo estimado em tokens de cada um; quando nao for possivel estimar com base no contexto e na saida gerada, registrar `estimado_indisponivel`.
-- Quando relevante, tambem deve informar o `reasoning_effort` aplicado naquela execucao.
+## Operacao
+
+- `Atlas` e o ponto de entrada. `Laplace`, `Turing`, `Ada` e `SRE-1` sao especialistas acionados apenas quando agregarem ganho claro.
+- `agents.toml` define os modelos, o reasoning effort e os criterios de delegacao; nao duplicar sua matriz neste arquivo.
+- A escada de modelos e Luna -> Terra -> Sol; Astra e excepcional, nunca padrao, e requer escopo fechado, criterio de sucesso e justificativa antes do uso.
+- Tarefas pequenas, localizadas e de baixo risco podem ser feitas pelo agente principal.
+- O agente principal conserva a integracao final e, por padrao, `git add`, `git commit`, `git push` e deploy.
+- Informar agentes e modelos antes do uso; ao final, relatar os efetivamente usados, resultado e consumo estimado de tokens ou `estimado_indisponivel`.
 
 ## Persistencia
-- Os subagentes nao persistem entre sessoes como processos ativos.
-- O que persiste no repositorio e a configuracao portavel em `agents.toml` e as regras em `AGENT_RULES`.
-- Em um computador novo, a sessao deve recriar os agentes seguindo esses arquivos.
 
-## Politica de Modelo
-- Use `gpt-5.6-luna` para triagem, leitura, extracao, validacao leve e tarefas rapidas.
-- Use `gpt-5.6-terra` como padrao para implementacao, refatoracao, testes e trabalho cotidiano.
-- Use `gpt-5.6-sol` para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
-
-## Politica de Reasoning
-- Use `medium` como padrao.
-- Use `high` para tarefas com integracao moderada ou analise comparativa.
-- Use `xhigh` para arquitetura, producao, reconciliacao historica, investigacao profunda ou alto risco tecnico.
-
-## Quando Atualizar Este Arquivo
-- Sempre que houver mudanca na convencao de agentes.
-- Sempre que mudar a ordem de leitura ou a politica de modelo/reasoning.
-- Sempre que um novo agente especialista for adicionado ou removido.
+Os agentes nao persistem como processos entre sessoes. A configuracao portavel fica em `agents.toml`; `AGENT_RULES` descreve os limites e responsabilidades do projeto.

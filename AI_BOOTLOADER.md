@@ -58,18 +58,12 @@ Referencia rapida:
 ## 4. Regras Tecnicas
 
 ### Convencao de Agentes
-- A definicao portavel dos agentes do projeto fica em `agents.toml`.
-- As regras narrativas e operacionais ficam em `AGENT_RULES`.
-- O arquivo `START_HERE_AGENTS.md` existe para orientar a retomada rapida em qualquer computador.
-- Em qualquer computador novo, a ordem minima de leitura e: `START_HERE_AGENTS.md` -> `AI_BOOTLOADER.md` -> `AGENT_RULES` -> `agents.toml`.
-- O uso de especialistas deve ser o padrao de execucao quando houver dominio claro de frontend, backend, banco ou operacoes.
-- `Atlas` coordena, integra, revisa e executa a etapa final sensivel de versionamento e deploy, salvo decisao operacional explicita em contrario.
-- `gpt-5.6-luna` e o modelo para triagem, leitura, extracao, validacao leve e tarefas rapidas.
-- `gpt-5.6-terra` e o modelo padrao para implementacao, refatoracao, testes e trabalho cotidiano.
-- `gpt-5.6-sol` e o modelo para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
-- Sempre que houver uso de agente especializado, informar ao usuario antes da execucao o nome do agente, a funcao e o modelo utilizado.
-- Ao finalizar a tarefa, repetir a informacao com o resultado entregue e quais agentes ou subagentes foram de fato usados.
-- Toda resposta final deve incluir um resumo curto do que foi feito, a lista de agentes e subagentes usados com o respectivo modelo e o consumo estimado em tokens de cada um; quando nao for possivel estimar com base no contexto e na saida gerada, registrar `estimado_indisponivel`.
+- `agents.toml` e a fonte operacional de verdade para os agentes, modelos, reasoning e delegacao. `AGENT_RULES` contem responsabilidades e limites; `START_HERE_AGENTS.md` orienta a retomada.
+- Em nova maquina ou sessao, ler `START_HERE_AGENTS.md`, `AI_BOOTLOADER.md`, `AGENT_RULES` e `agents.toml`.
+- `Atlas` coordena, integra, revisa e executa versionamento e deploy, salvo decisao operacional explicita em contrario.
+- A escada e Luna -> Terra -> Sol. Astra e excepcional, nunca padrao, e requer escopo fechado, criterio de sucesso e justificativa previa; consultar `agents.toml` para os criterios completos.
+- Especialistas so sao usados quando trouxerem ganho claro. Tarefas pequenas, localizadas e de baixo risco podem ficar no agente principal.
+- Antes de usar agente especializado, informar nome, papel e modelo; ao final, informar resultado, agentes usados e consumo estimado ou `estimado_indisponivel`.
 
 ### Regras Gerais
 - Idempotencia de demanda: `solicitante + assunto + data_referencia (YYYY-MM-DD) + SEI inicial normalizado`; para demandas criadas sem SEI, a chave permanece `solicitante + assunto + data_referencia`.

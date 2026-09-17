@@ -1,5 +1,15 @@
 # Sessao 2026-09-17 — Iniciar Processo Relacionado
 
+## Politica de agentes e economia de uso
+
+- `agents.toml` foi promovido a fonte operacional de verdade para modelos, reasoning, delegacao e escalonamento; `AGENTS.md`, `AGENT_RULES`, `AI_BOOTLOADER.md` e `START_HERE_AGENTS.md` passaram a manter apenas resumos e referencias.
+- A escada de modelos passou a ser Luna para triagem e tarefas pequenas, Terra para trabalho habitual, Sol para risco e investigacao complexa, e Astra somente em casos excepcionais.
+- Astra exige escopo fechado, criterio de sucesso e justificativa breve antes da execucao; nao e modelo padrao de Atlas nem dos especialistas.
+- Delegacao deixou de ser automatica por dominio: so ocorre quando um especialista trouxer ganho claro. Tarefas pequenas, localizadas e de baixo risco podem ser executadas pelo agente principal.
+- Reasoning padrao: `low` para tarefas simples delimitadas, `medium` para trabalho habitual, `high` para ambiguidade ou integracao e `xhigh` apenas para producao, banco destrutivo, arquitetura de alto impacto ou investigacao comprovadamente dificil.
+- Validacao: `agents.toml` mantem a mesma escada para Atlas, Laplace, Turing, Ada e SRE-1; nenhum modelo ou regra define Astra como padrao ou permite seu uso sem os tres requisitos.
+- Nenhuma credencial, infraestrutura produtiva, schema de banco ou fluxo de dados foi alterado.
+
 ## Alteracao
 
 - Botao no detalhe de processos/demandas abre o cadastro em branco com `origemPreId` na URL. O formulario identifica a origem, permite cancelar e abre o novo registro depois de salvar.

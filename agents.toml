@@ -1,24 +1,28 @@
-version = 1
+version = 2
 default_coordinator = "Atlas"
 default_model_triage = "gpt-5.6-luna"
 default_model_simple = "gpt-5.6-luna"
 default_model_medium = "gpt-5.6-terra"
 default_model_complex = "gpt-5.6-sol"
-default_reasoning_simple = "medium"
-default_reasoning_medium = "high"
-default_reasoning_complex = "xhigh"
+exceptional_model = "gpt-6-astra"
+default_reasoning_simple = "low"
+default_reasoning_medium = "medium"
+default_reasoning_complex = "high"
+exceptional_reasoning = "xhigh"
 
 [policy]
 entrypoint = "Atlas"
-delegate_by_default = true
+agents_toml_is_operational_source_of_truth = true
+delegate_by_default = false
+delegate_when_clear_gain = true
+allow_main_agent_direct_execution_for_small_local_low_risk_work = true
 use_luna_for_triage = true
 prefer_luna_for_bounded_tasks = true
 use_terra_for_normal_work = true
 escalate_on_risk = true
-avoid_low_reasoning = true
+allow_low_reasoning_for_simple_bounded_tasks = true
 main_agent_finalizes_git_and_deploy = true
 specialists_prepare_domain_work = true
-allow_main_agent_direct_execution_only_for_trivial_or_tightly_coupled_work = true
 announce_agent_name_role_model_on_use = true
 announce_reasoning_when_relevant = true
 final_response_requires_summary_and_agents = true
@@ -30,120 +34,94 @@ token_usage_fallback = "estimado_indisponivel"
 triage_default_model = "gpt-5.6-luna"
 normal_work_default_model = "gpt-5.6-terra"
 high_risk_default_model = "gpt-5.6-sol"
+exceptional_work_model = "gpt-6-astra"
 frontend_default_specialist = "Ada"
 backend_default_specialist = "Turing"
 database_default_specialist = "Laplace"
 devops_default_specialist = "SRE-1"
 keep_commit_push_deploy_on_main_agent = true
-delegate_build_logs_and_smoke_to_sre = true
+delegate_build_logs_and_smoke_when_specialist_adds_clear_value = true
 
 [policy.escalation]
-use_complex_model_when = [
-  "alto_risco_tecnico",
-  "impacto_em_producao",
-  "coordenacao_entre_dominios",
-  "revisao_arquitetural",
-  "investigacao_profunda",
-  "reconciliacao_historica"
-]
-use_complex_model_only_when_unavoidable = true
-use_luna_when = [
-  "classificacao",
-  "extracao_estruturada",
-  "ranking",
-  "roteamento",
-  "pre-triagem"
-]
-use_high_reasoning_when = [
-  "ambiguidade_moderada",
-  "analise_comparativa",
-  "integracao_entre_modulos"
-]
-use_xhigh_reasoning_when = [
-  "alto_risco_tecnico",
-  "impacto_em_producao",
-  "investigacao_profunda",
-  "coordenacao_entre_dominios",
-  "reconciliacao_historica"
-]
+use_luna_when = ["classificacao", "leitura", "extracao_estruturada", "validacao_leve", "ajuste_pequeno", "roteamento", "pre-triagem"]
+use_terra_when = ["implementacao_habitual", "correcao", "refatoracao", "teste", "integracao_rotineira"]
+use_sol_when = ["alto_risco_tecnico", "impacto_em_producao", "coordenacao_entre_dominios", "revisao_arquitetural", "investigacao_profunda", "reconciliacao_historica"]
+use_astra_when = ["complexidade_excepcional", "tentativas_frustradas_com_luna_terra_ou_sol", "investigacao_longa", "decisao_arquitetural_critica"]
+astra_is_never_default = true
+astra_requires_closed_scope = true
+astra_requires_success_criterion = true
+astra_requires_brief_justification_before_execution = true
+use_low_reasoning_when = ["tarefa_simples", "tarefa_delimitada", "leitura", "classificacao", "extracao"]
+use_medium_reasoning_when = ["trabalho_normal", "implementacao_habitual", "teste_rotineiro"]
+use_high_reasoning_when = ["ambiguidade_moderada", "analise_comparativa", "integracao_entre_modulos"]
+use_xhigh_reasoning_when = ["producao", "banco_destrutivo", "arquitetura_de_alto_impacto", "investigacao_comprovadamente_dificil"]
 
 [[agents]]
 name = "Atlas"
 role = "coordenador_principal"
-description = "Tech Lead e Arquiteto; analisa requisitos, decompoe tarefas, delega, revisa e integra entregas."
-domains = [
-  "ARCHITECTURE.md",
-  "AGENT_RULES",
-  "PROJECT_HANDOVER.md",
-  "AI_BOOTLOADER.md"
-]
+description = "Tech Lead e Arquiteto; analisa requisitos, decide quando a delegacao gera ganho claro, revisa e integra entregas."
+domains = ["ARCHITECTURE.md", "AGENT_RULES", "PROJECT_HANDOVER.md", "AI_BOOTLOADER.md"]
 model_simple = "gpt-5.6-luna"
 model_medium = "gpt-5.6-terra"
 model_complex = "gpt-5.6-sol"
-reasoning_simple = "medium"
-reasoning_medium = "high"
-reasoning_complex = "xhigh"
+model_exceptional = "gpt-6-astra"
+reasoning_simple = "low"
+reasoning_medium = "medium"
+reasoning_complex = "high"
+reasoning_exceptional = "xhigh"
 
 [[agents]]
 name = "Laplace"
 role = "database_specialist"
 description = "Especialista em PostgreSQL, migrations, modelagem, integridade de schema, queries e repositorios."
-domains = [
-  "sql/migrations/*",
-  "sql/*.sql",
-  "server/src/db.ts",
-  "server/src/repositories/*"
-]
+domains = ["sql/migrations/*", "sql/*.sql", "server/src/db.ts", "server/src/repositories/*"]
 model_simple = "gpt-5.6-luna"
 model_medium = "gpt-5.6-terra"
 model_complex = "gpt-5.6-sol"
-reasoning_simple = "medium"
-reasoning_medium = "high"
-reasoning_complex = "xhigh"
+model_exceptional = "gpt-6-astra"
+reasoning_simple = "low"
+reasoning_medium = "medium"
+reasoning_complex = "high"
+reasoning_exceptional = "xhigh"
 
 [[agents]]
 name = "Turing"
 role = "backend_integrations_specialist"
 description = "Especialista em Fastify, dominio, rotas HTTP, contratos e integracoes internas."
-domains = [
-  "server/src/routes/*",
-  "server/src/domain/*",
-  "server/src/scripts/*"
-]
+domains = ["server/src/routes/*", "server/src/domain/*", "server/src/scripts/*"]
 model_simple = "gpt-5.6-luna"
 model_medium = "gpt-5.6-terra"
 model_complex = "gpt-5.6-sol"
-reasoning_simple = "medium"
-reasoning_medium = "high"
-reasoning_complex = "xhigh"
+model_exceptional = "gpt-6-astra"
+reasoning_simple = "low"
+reasoning_medium = "medium"
+reasoning_complex = "high"
+reasoning_exceptional = "xhigh"
 
 [[agents]]
 name = "Ada"
 role = "frontend_uiux_specialist"
 description = "Especialista em React, TypeScript, UI, UX, estado e integracao com API."
-domains = [
-  "client/src/*"
-]
+domains = ["client/src/*"]
 model_simple = "gpt-5.6-luna"
 model_medium = "gpt-5.6-terra"
 model_complex = "gpt-5.6-sol"
-reasoning_simple = "medium"
-reasoning_medium = "high"
-reasoning_complex = "xhigh"
+model_exceptional = "gpt-6-astra"
+reasoning_simple = "low"
+reasoning_medium = "medium"
+reasoning_complex = "high"
+reasoning_exceptional = "xhigh"
 
 [[agents]]
 name = "SRE-1"
 role = "qa_devops_specialist"
 description = "Especialista em Docker, deploy, backup, restore, smoke test, monitoracao e operacoes."
-domains = [
-  "Dockerfile",
-  "ops/*",
-  "scripts/*",
-  "server/src/scripts/smoke-test.ts"
-]
+domains = ["Dockerfile", "ops/*", "scripts/*", "server/src/scripts/smoke-test.ts"]
 model_simple = "gpt-5.6-luna"
 model_medium = "gpt-5.6-terra"
 model_complex = "gpt-5.6-sol"
-reasoning_simple = "medium"
-reasoning_medium = "high"
-reasoning_complex = "xhigh"
+model_exceptional = "gpt-6-astra"
+reasoning_simple = "low"
+reasoning_medium = "medium"
+reasoning_complex = "high"
+reasoning_exceptional = "xhigh"

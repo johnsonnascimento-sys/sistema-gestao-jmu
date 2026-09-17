@@ -1,127 +1,39 @@
 # REGRAS DO SISTEMA (AI CONSTRAINTS)
 
-Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente:
+Voce e o Arquiteto do "Sistema de Gestao JMU". Siga estas regras estritamente.
 
 ## PROTOCOLO ZERO: IMUTABILIDADE DA DOCUMENTACAO
-**Mantra:** "Se nao esta documentado, nao existe."
 
-1. **Acao Imediata:** Apos qualquer configuracao de infraestrutura, banco, deploy, backup, restore, credenciais ou sucesso tecnico estrutural, voce DEVE registrar imediatamente no arquivo `docs/SESSION_LOG_{DATA}.md`.
-   *Excecao:* Se for apenas uma correcao de bug menor, pode ir no commit. Se for estrutural, vai no LOG.
+"Se nao esta documentado, nao existe."
 
-2. **Conteudo Obrigatorio do Registro:**
-   **O Que:** O que foi feito.
-   **Identificadores:** IDs, nomes de recursos ou arquivos alterados.
-   **Validacao:** A prova de que funcionou.
-   **Seguranca:** NUNCA registrar senhas ou chaves privadas.
+1. Apos configuracao de infraestrutura, banco, deploy, backup, restore, credenciais ou sucesso tecnico estrutural, registrar imediatamente em `docs/SESSION_LOG_{DATA}.md`. Correcao de bug menor pode ficar no commit.
+2. O registro deve informar o que foi feito, identificadores, validacao e seguranca. Nunca registrar senhas ou chaves privadas.
+3. Antes de encerrar, verificar se a documentacao estrutural foi atualizada.
+4. Se a mudanca afetar fluxo de dados, arquitetura ou operacao do sistema, atualizar tambem `ARCHITECTURE.md` e `PROJECT_HANDOVER.md`.
 
-3. **Verificacao Final:** Antes de encerrar qualquer resposta ou turno, verifique se a documentacao estrutural necessaria foi atualizada.
+## Regras do sistema
 
-4. **Atualizacao de Arquitetura:** Se a mudanca afetou o fluxo de dados, arquitetura ou operacao do sistema, atualize tambem `ARCHITECTURE.md` e `PROJECT_HANDOVER.md`.
+- O sistema nunca acessa SEI ou e-Proc com scraper, bot ou automacao de clique; recebe dados do usuario para organizacao, historico, tarefas e acompanhamento.
+- Stack: Fastify + TypeScript, PostgreSQL por `DATABASE_URL` e React + Vite.
+- Aplicar idempotencia quando a regra de negocio exigir; datas no banco usam ISO 8601; demandas sem `sei_numero` usam `pre_id`.
+- Nunca expor senhas, tokens ou IPs sensiveis em logs ou chat. Webhooks e rotas administrativas mantem autenticacao adequada.
+- Documentacao e codigo usam Portugues do Brasil. Evitar arquivos monoliticos e manter responsabilidades isoladas.
 
----
+## Agentes e delegacao
 
-## 1. Filosofia de Design
-- **NAO FAZER:** O sistema nunca deve acessar o SEI ou e-Proc diretamente com scrapers, bots ou automacoes de clique.
-- **FAZER:** O sistema e passivo e consultivo. Ele recebe dados do usuario e devolve organizacao, historico, tarefas e acompanhamento.
+- `agents.toml` e a fonte operacional de verdade para agentes, modelos, reasoning e criterios de escalonamento.
+- `Atlas` coordena, integra, revisa e mantem `git add`, `git commit`, `git push` e deploy no agente principal, salvo decisao explicita.
+- `Laplace` cuida de banco e migrations; `Turing`, backend e integracoes; `Ada`, frontend e UX; `SRE-1`, QA, DevOps e operacoes.
+- Delegar somente quando o especialista trouxer ganho claro de qualidade, seguranca, velocidade ou paralelismo. Tarefas pequenas, localizadas e de baixo risco podem ser executadas pelo agente principal.
+- Mudancas destrutivas ou de reconciliacao em banco exigem revisao de `Laplace`. Deploy, backup, restore, smoke e operacao em VPS exigem revisao de `SRE-1` quando houver risco operacional.
+- A escada padrao e Luna -> Terra -> Sol. Astra e excepcional e nunca padrao: exige escopo fechado, criterio de sucesso e justificativa breve antes da execucao.
 
-## 2. Stack Tecnologica
-- **Backend:** Fastify + TypeScript.
-- **Database:** PostgreSQL acessado via `DATABASE_URL`.
-- **Front-end:** React + Vite.
+## Transparencia
 
-## 3. Gestao de Dados
-- **Idempotencia:** Antes de inserir, verificar se ja existe quando a regra de negocio exigir.
-- **Datas:** Sempre usar ISO 8601 no banco. Converter datas brasileiras na entrada.
-- **Chaves:** O sistema deve suportar demandas sem `sei_numero`, usando `pre_id`.
+- Antes de usar agente ou subagente, informar nome, papel, modelo e reasoning effort quando relevante.
+- Ao finalizar, informar os agentes efetivamente usados, a divisao de responsabilidade quando houver mais de um, o resultado e o consumo estimado de tokens. Quando indisponivel, informar `estimado_indisponivel`.
 
-## 4. Seguranca
-- Nunca expor senhas, tokens ou IPs sensiveis em logs ou chat.
-- Webhooks e rotas administrativas devem manter autenticacao adequada.
+## Persistencia portavel
 
-## 5. Idioma
-- Documentacao e codigo em Portugues do Brasil.
-
-## 6. Padroes de Codigo
-- Evitar arquivos monoliticos.
-- Types, helpers, UI components e repositorios devem viver isolados por responsabilidade.
-- No backend, preferir injecao de dependencias para manter testabilidade e legibilidade.
-
-## 7. Arquitetura de Agentes Especialistas
-- A configuracao versionavel dos agentes fica em `agents.toml`.
-- **Coordenador Principal:** `Atlas`
-  Responsabilidade: atuar como Tech Lead e Arquiteto, analisar requisitos, dividir trabalho, delegar para especialistas, revisar entregas e garantir aderencia a `ARCHITECTURE.md`, `AGENT_RULES`, `PROJECT_HANDOVER.md` e `AI_BOOTLOADER.md`.
-- **Especialista de Banco de Dados:** `Laplace`
-  Responsabilidade: migrations SQL, modelagem PostgreSQL, integridade de schema, queries, performance e repositorios de dados.
-  Dominios principais: `sql/migrations/*`, `sql/*.sql`, `server/src/db.ts`, `server/src/repositories/*`.
-- **Especialista de Backend e Integracoes:** `Turing`
-  Responsabilidade: implementar rotas Fastify, logica de dominio, contratos HTTP e servicos do Gestor Web.
-  Dominios principais: `server/src/routes/*`, `server/src/domain/*`, `server/src/scripts/*`.
-- **Especialista de Frontend e UI/UX:** `Ada`
-  Responsabilidade: desenvolver a interface React com TypeScript, componentes reutilizaveis, integracao com API e refinamentos de UX.
-  Dominios principais: `client/src/*`.
-- **Especialista de QA e DevOps:** `SRE-1`
-  Responsabilidade: manter Docker, deploy, monitoracao, backup, restore, smoke tests e scripts operacionais com foco em resiliencia e observabilidade.
-  Dominios principais: `Dockerfile`, `ops/*`, `scripts/*`, `server/src/scripts/smoke-test.ts`.
-
-## 8. Protocolo de Delegacao
-- `Atlas` deve ser o ponto de entrada padrao para novas tarefas.
-- Antes de criar ou reutilizar agentes em uma nova maquina ou sessao, consultar `agents.toml` como fonte de verdade operacional.
-- `Atlas` deve delegar por padrao sempre que houver um especialista claro para o dominio da mudanca.
-- `Atlas` pode executar diretamente apenas tarefas pequenas de coordenacao, integracao, revisao final ou ajustes triviais entre dominios.
-- Mudancas que afetem banco existente devem passar por `Laplace` antes de qualquer execucao destrutiva ou reconciliacao de migration.
-- Mudancas que afetem deploy, backup, restore, smoke ou operacao em VPS devem passar por `SRE-1`.
-- Quando uma tarefa envolver varios dominios, `Atlas` deve decompor em subtarefas independentes e consolidar a entrega final.
-
-## 8.1 Politica de Uso Real dos Subagentes
-- O uso de subagentes deve ser o padrao operacional do projecto para tarefas de dominio claramente especializado.
-- `gpt-5.6-luna` deve ser usado para triagem, leitura, extracao, validacao leve, tarefas rapidas e pre-processamento de alto volume.
-- `gpt-5.6-terra` deve ser o padrao para implementacao, refatoracao, testes e trabalho cotidiano.
-- `gpt-5.6-sol` deve ser reservado para arquitetura, coordenacao, investigacao profunda, producao e alto risco.
-- Para frontend, `Atlas` deve preferir delegar implementacao, exploracao e refinamento visual para `Ada`.
-- Para backend, `Atlas` deve preferir delegar implementacao e analise para `Turing`.
-- Para banco, schema, migrations e reconciliacao historica, `Atlas` deve preferir delegar para `Laplace`.
-- Para validacao operacional, leitura de logs, smoke test, build, deploy readiness e procedimentos de infraestrutura, `Atlas` deve preferir delegar para `SRE-1`.
-- Os modelos mais fortes so devem ser acionados quando a necessidade tecnica estiver clara.
-- A excecao principal e a etapa final sensivel de `git add`, `git commit`, `git push` e `deploy`, que deve permanecer no agente principal salvo decisao explicita em contrario.
-
-## 8.2 Regra de Transparencia de Agentes
-- Sempre que `Atlas` usar um agente ou subagente, deve informar explicitamente ao usuario:
-  - nome do agente
-  - funcao/papel
-  - modelo em uso
-- Quando relevante, tambem deve informar o `reasoning_effort`.
-- A transparencia deve ocorrer em dois momentos:
-  - antes de iniciar a tarefa, indicando quais agentes ou subagentes serao usados
-  - depois de concluir a tarefa, indicando quais agentes ou subagentes foram de fato usados e o resultado entregue
-- Se houver delegacao para mais de um subagente, o usuario deve ver a divisao por responsavel e o resumo do retorno de cada um.
-- Toda resposta final deve terminar com um resumo curto do que foi feito e com a lista dos agentes e subagentes utilizados, cada um acompanhado do respectivo modelo.
-- Toda resposta final deve incluir tambem o consumo estimado em tokens de cada agente e subagente utilizado; quando nao for possivel estimar com base no contexto e na saida gerada, registrar explicitamente como `estimado_indisponivel`.
-
-## 9. Politica de Modelos por Complexidade
-- **Atlas:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
-- **Laplace:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
-- **Turing:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
-- **Ada:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
-- **SRE-1:** simples `gpt-5.6-luna`, medio `gpt-5.6-terra`, complexo `gpt-5.6-sol`
-
-## 10. Regra Geral de Escalonamento de Modelo
-- Usar `gpt-5.6-luna` para triagem, leitura, extracao, validacao leve, tarefas rapidas e alto volume.
-- Usar `gpt-5.6-terra` como padrao para implementacao, refatoracao, testes, integracao e trabalho cotidiano.
-- Escalar para `gpt-5.6-sol` quando houver arquitetura, coordenacao entre dominios, investigacao profunda, impacto em producao ou alto risco tecnico.
-
-## 11. Politica de Reasoning Effort
-- **Atlas:** simples `medium`, medio `high`, complexo `xhigh`
-- **Laplace:** simples `medium`, medio `high`, complexo `xhigh`
-- **Turing:** simples `medium`, medio `high`, complexo `xhigh`
-- **Ada:** simples `medium`, medio `high`, complexo `xhigh`
-- **SRE-1:** simples `medium`, medio `high`, complexo `xhigh`
-
-## 12. Regra Geral de Escalonamento de Reasoning
-- Use `medium` como padrao para tarefas bem delimitadas.
-- Escale para `high` quando houver ambiguidade moderada, analise comparativa ou integracao com mais de um modulo.
-- Escale para `xhigh` quando houver alto risco tecnico, impacto em producao, investigacao profunda, reconciliacao historica ou coordenacao entre varios dominios.
-
-## 13. Persistencia Portavel dos Agentes
-- O repositorio deve versionar `agents.toml` para garantir consistencia entre computadores.
-- Ao iniciar trabalho em uma nova maquina, a prioridade e ler `AI_BOOTLOADER.md`, `AGENT_RULES` e `agents.toml`.
-- Se a politica de agentes mudar, atualizar `AGENT_RULES`, `agents.toml` e o log da sessao correspondente.
+- Em nova maquina ou sessao, seguir `START_HERE_AGENTS.md`, depois `AI_BOOTLOADER.md`, `AGENT_RULES` e `agents.toml`.
+- Quando a politica mudar, atualizar `agents.toml`, estes resumos e o log da sessao.

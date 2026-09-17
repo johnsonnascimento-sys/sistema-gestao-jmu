@@ -104,3 +104,12 @@ Rotas operacionais e detalhes de execucao ficam documentados em `docs/GESTOR_WEB
 - paginas atuam como orquestradoras
 - modais, tabelas, componentes visuais, tipos e utilitarios devem ser extraidos por responsabilidade
 - evitar arquivos monoliticos e estados acoplados sem necessidade
+
+---
+
+## 7. Politica operacional de agentes
+
+- `agents.toml` e a fonte de verdade para modelos, reasoning, delegacao e escalonamento dos agentes do repositorio.
+- A selecao segue Luna para tarefas pequenas, Terra para trabalho habitual e Sol para risco ou investigacao complexa.
+- GPT-6 Astra e excepcional, nunca padrao, e requer escopo fechado, criterio de sucesso e justificativa breve antes da execucao.
+- Especialistas sao acionados somente quando agregarem ganho claro; tarefas pequenas, localizadas e de baixo risco podem ser resolvidas pelo agente principal.
