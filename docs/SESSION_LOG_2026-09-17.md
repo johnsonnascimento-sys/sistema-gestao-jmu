@@ -26,7 +26,7 @@ Nove cenarios aprovados usando o repositorio real:
 
 ## Seguranca e entrega
 
-- Scripts de status, deploy e rollback aceitam `JMU_SSH_HOST_FINGERPRINT` para validar a chave publica da VPS durante a negociacao SSH, antes da autenticacao. Nenhuma credencial e persistida no repositorio.
+- Scripts de status, backup, deploy e rollback aceitam `JMU_SSH_HOST_FINGERPRINT` para validar a chave publica da VPS durante a negociacao SSH, antes da autenticacao. Nenhuma credencial e persistida no repositorio.
 - Suite final: `npm test` com 21 arquivos e 88 testes aprovados; `npm run build` com frontend e backend aprovados.
 - Checagem de tipos do cliente: 32 erros no estado atual e os mesmos 32 erros em uma copia isolada de `HEAD`, sem erro introduzido pela mudanca.
 - Nenhuma senha, chave ou dado de producao foi usado nos testes.
