@@ -7,6 +7,7 @@ import {
   FilePlus2,
   Files,
   GitBranch,
+  GitBranchPlus,
   LayoutDashboard,
   Link as LinkIcon,
   ListTodo,
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Reorder } from "framer-motion";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../auth-context";
 import { ConfirmDialog } from "../components/confirm-dialog";
 import { FormField } from "../components/form-field";
@@ -316,6 +317,7 @@ function composeAutoReopenSuccessMessage(
 
 export function PreDemandaDetailPage() {
   const { preId = "" } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const [record, setRecord] = useState<PreDemanda | null>(null);
@@ -349,6 +351,15 @@ export function PreDemandaDetailPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [toolbarDialog, setToolbarDialog] = useState<ToolbarDialog>(null);
+
+  useEffect(() => {
+    const creationWarning = (
+      location.state as { creationWarning?: unknown } | null
+    )?.creationWarning;
+    if (typeof creationWarning === "string" && creationWarning) {
+      setMessage(creationWarning);
+    }
+  }, [location.state]);
   const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
   const [duplicateAction, setDuplicateAction] = useState(false);
   const [deleteAction, setDeleteAction] = useState(false);
@@ -846,11 +857,16 @@ export function PreDemandaDetailPage() {
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
       const data = customEvent.detail as { preId?: string; type?: string } | undefined;
-      // Se mudou ESTE processo, recarrega
       if (data?.preId === preId) {
         void loadRecordData();
         if (data.type === "task") {
           void loadTarefasData(true);
+        }
+        if (data.type === "vinculo" && relatedLoaded) {
+          void loadVinculosData(true);
+        }
+        if (data.type === "vinculo") {
+          void loadTimelineData();
         }
       }
     };
@@ -859,7 +875,7 @@ export function PreDemandaDetailPage() {
     return () => {
       window.removeEventListener("pre-demanda-updated", handleUpdate);
     };
-  }, [preId]);
+  }, [preId, relatedLoaded]);
 
   useEffect(() => {
     void loadRecordData(true);
@@ -1740,6 +1756,18 @@ export function PreDemandaDetailPage() {
               label="Duplicar"
               onClick={() => setDuplicateAction(true)}
               title="Criar uma nova demanda a partir dos dados principais deste processo"
+            />
+          ) : null}
+          {hasPermission("pre_demanda.create") &&
+          hasPermission("pre_demanda.manage_vinculos") ? (
+            <ToolbarActionButton
+              disabled={isSubmitting}
+              icon={GitBranchPlus}
+              label="Iniciar Processo Relacionado"
+              onClick={() =>
+                navigate(`/pre-demandas/nova?${new URLSearchParams({ origemPreId: record.preId }).toString()}`)
+              }
+              title="Criar processo relacionado a este processo"
             />
           ) : null}
           {hasPermission("pre_demanda.delete") ? (

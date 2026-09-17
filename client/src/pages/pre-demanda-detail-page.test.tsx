@@ -224,7 +224,10 @@ function LocationProbe() {
   return <div data-testid="pathname">{location.pathname}</div>;
 }
 
-function renderPage(preId = "PRE-2026-001") {
+function renderPage(
+  preId = "PRE-2026-001",
+  permissionCheck: (permission: string) => boolean = () => true,
+) {
   render(
     <AuthContext.Provider
       value={{
@@ -246,7 +249,7 @@ function renderPage(preId = "PRE-2026-001") {
         login: vi.fn(),
         logout: vi.fn(),
         refresh: vi.fn(),
-        hasPermission: vi.fn().mockReturnValue(true),
+        hasPermission: vi.fn(permissionCheck),
       }}
     >
       <MemoryRouter initialEntries={[`/pre-demandas/${preId}`]}>
@@ -302,6 +305,46 @@ describe("PreDemandaDetailPage", () => {
       buildRecord("PRE-2026-002", "realizada"),
     );
     navigateMock.mockReset();
+  });
+
+  it("mostra iniciar processo relacionado somente com as duas permissões", async () => {
+    renderPage("PRE-2026-001", (permission) => permission === "pre_demanda.create");
+    await screen.findByText("Audiencia de teste");
+    expect(
+      screen.queryByRole("button", { name: "Iniciar Processo Relacionado" }),
+    ).not.toBeInTheDocument();
+
+    cleanup();
+    renderPage("PRE-2026-001", (permission) =>
+      ["pre_demanda.create", "pre_demanda.manage_vinculos"].includes(permission),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Iniciar Processo Relacionado" }),
+    );
+    expect(navigateMock).toHaveBeenCalledWith(
+      "/pre-demandas/nova?origemPreId=PRE-2026-001",
+    );
+  });
+
+  it("atualiza relacionamentos e histórico ao receber evento remoto de vínculo", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Relacionamentos" }));
+    await waitFor(() =>
+      expect(apiMocks.listPreDemandaVinculos).toHaveBeenCalledWith("PRE-2026-001"),
+    );
+    apiMocks.listPreDemandaVinculos.mockClear();
+    apiMocks.getTimeline.mockClear();
+
+    window.dispatchEvent(
+      new CustomEvent("pre-demanda-updated", {
+        detail: { preId: "PRE-2026-001", type: "vinculo" },
+      }),
+    );
+
+    await waitFor(() =>
+      expect(apiMocks.listPreDemandaVinculos).toHaveBeenCalledWith("PRE-2026-001"),
+    );
+    expect(apiMocks.getTimeline).toHaveBeenCalledWith("PRE-2026-001");
   });
 
   it("destaca a proxima audiencia futura quando ha audiencia antiga cadastrada", async () => {

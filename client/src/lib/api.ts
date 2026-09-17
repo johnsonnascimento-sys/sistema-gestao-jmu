@@ -319,6 +319,7 @@ export interface CreatePreDemandaPayload {
   prazo_processo: string;
   sei_numero?: string | null;
   numero_judicial?: string | null;
+  origem_pre_id?: string;
   assunto_ids?: string[];
   metadata?: {
     frequencia?: string | null;

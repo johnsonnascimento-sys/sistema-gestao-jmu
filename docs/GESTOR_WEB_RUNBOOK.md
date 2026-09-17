@@ -28,6 +28,7 @@ Use `npm run deploy:vps` com:
 - `JMU_SSH_HOST`
 - `JMU_SSH_USER`
 - `JMU_SSH_PASSWORD` ou `JMU_SSH_KEY_PATH`
+- `JMU_SSH_HOST_FINGERPRINT=SHA256:...` para conferir a chave do servidor antes da autenticacao
 - opcionais: `JMU_REMOTE_APP_DIR`, `JMU_CONTAINER_NAME`, `JMU_CONTAINER_BIND`, `JMU_BRANCH`
 - opcionais: `JMU_DOCKER_NETWORK` para a rede Docker do app e do banco
 - opcionais para smoke autenticado: `JMU_SMOKE_TEST_EMAIL`, `JMU_SMOKE_TEST_PASSWORD`

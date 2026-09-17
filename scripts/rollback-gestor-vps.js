@@ -1,5 +1,6 @@
 const fs = require("fs");
 const { Client } = require("ssh2");
+const { sshHostVerifier } = require("./ssh-host-verifier");
 
 function getRequiredEnv(name) {
   const value = process.env[name];
@@ -113,6 +114,7 @@ async function run() {
   const port = Number(process.env.JMU_SSH_PORT || "22");
   const password = process.env.JMU_SSH_PASSWORD;
   const keyPath = process.env.JMU_SSH_KEY_PATH;
+  const hostVerifier = sshHostVerifier(process.env.JMU_SSH_HOST_FINGERPRINT);
   const rollbackCommit = process.env.JMU_ROLLBACK_COMMIT || "";
   const rollbackImage = process.env.JMU_ROLLBACK_IMAGE || "";
 
@@ -175,6 +177,7 @@ async function run() {
         host,
         port,
         username,
+        ...(hostVerifier ? { hostVerifier } : {}),
         ...(process.env.SSH_AUTH_SOCK ? { agent: process.env.SSH_AUTH_SOCK } : {}),
         ...(keyPath ? { privateKey: fs.readFileSync(keyPath, "utf8") } : {}),
         ...(password ? { password } : {}),

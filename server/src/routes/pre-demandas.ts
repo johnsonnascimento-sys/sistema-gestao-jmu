@@ -3,7 +3,7 @@ import { emitPreDemandaUpdate } from "../lib/events";
 import { SEI_REGEX } from "../lib/sei";
 import { z } from "zod";
 import type { PreDemandaSortBy, PreDemandaStatus, QueueHealthLevel, SortOrder } from "../domain/types";
-import { AppError } from "../errors";
+import { AppError, isAppError } from "../errors";
 import { createTaskReportPdf } from "../lib/task-report-pdf";
 import type { AssuntoRepository, PreDemandaRepository, PreDemandaAndamentoRepository, PreDemandaTarefaRepository } from "../repositories/types";
 
@@ -50,6 +50,7 @@ const createSchema = z.object({
   numero_judicial: numeroJudicialSchema,
   assunto_ids: z.array(z.string().uuid()).max(24).optional().default([]),
   metadata: metadataSchema,
+  origem_pre_id: z.string().trim().min(1).optional().nullable(),
 })
   .refine((value) => {
     return Boolean(value.prazo_processo);
@@ -424,23 +425,55 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
   const { preDemandaRepository, assuntoRepository, preDemandaAndamentoRepository, preDemandaTarefaRepository } = options;
 
   app.post("/api/pre-demandas", { preHandler: [app.authenticate, app.authorize("pre_demanda.create")] }, async (request, reply) => {
-    const payload = createSchema.parse(request.body);
-    const result = await preDemandaRepository.create({
-      solicitante: emptyToNull(payload.solicitante) ?? undefined,
-      assunto: payload.assunto,
-      dataReferencia: payload.data_referencia,
-      descricao: emptyToNull(payload.descricao),
-      fonte: emptyToNull(payload.fonte),
-      observacoes: emptyToNull(payload.observacoes),
-      prazoProcesso: payload.prazo_processo,
-      seiNumero: emptyToNull(payload.sei_numero),
-      numeroJudicial: emptyToNull(payload.numero_judicial),
-      assuntoIds: payload.assunto_ids,
-      metadata: normalizeMetadata(payload.metadata) ?? null,
-      createdByUserId: request.user!.id,
-    });
+    const parsedPayload = createSchema.safeParse(request.body);
+    if (!parsedPayload.success) {
+      return reply.status(400).send({
+        ok: false,
+        data: null,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Payload invalido.",
+          details: parsedPayload.error.flatten(),
+        },
+      });
+    }
+    const payload = parsedPayload.data;
+    if (payload.origem_pre_id) {
+      await app.authorize("pre_demanda.manage_vinculos")(request);
+    }
+    let result;
+    try {
+      result = await preDemandaRepository.create({
+        solicitante: emptyToNull(payload.solicitante) ?? undefined,
+        assunto: payload.assunto,
+        dataReferencia: payload.data_referencia,
+        descricao: emptyToNull(payload.descricao),
+        fonte: emptyToNull(payload.fonte),
+        observacoes: emptyToNull(payload.observacoes),
+        prazoProcesso: payload.prazo_processo,
+        seiNumero: emptyToNull(payload.sei_numero),
+        numeroJudicial: emptyToNull(payload.numero_judicial),
+        assuntoIds: payload.assunto_ids,
+        metadata: normalizeMetadata(payload.metadata) ?? null,
+        origemPreId: payload.origem_pre_id ?? null,
+        createdByUserId: request.user!.id,
+      });
+    } catch (error) {
+      if (isAppError(error) && error.code === "PRE_DEMANDA_DUPLICATE_RELATIONSHIP_REQUIRED") {
+        return reply.status(error.statusCode).send({
+          ok: false,
+          data: null,
+          error: { code: error.code, message: error.message, details: error.details ?? null },
+        });
+      }
+      throw error;
+    }
 
     emitPreDemandaUpdate({ preId: result.record.preId, type: "status", action: "create" });
+    if (payload.origem_pre_id && !result.idempotent) {
+      emitPreDemandaUpdate({ preId: payload.origem_pre_id, type: "vinculo", action: "create" });
+      emitPreDemandaUpdate({ preId: result.record.preId, type: "vinculo", action: "create" });
+    }
 
     request.log.info(
       {
@@ -896,6 +929,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       changedByUserId: request.user!.id,
     });
 
+    emitPreDemandaUpdate({ preId: params.preId, type: "vinculo", action: "create" });
+    emitPreDemandaUpdate({ preId: payload.destino_pre_id, type: "vinculo", action: "create" });
+
     return reply.status(201).send({
       ok: true,
       data: items,
@@ -910,6 +946,9 @@ export async function registerPreDemandaRoutes(app: FastifyInstance, options: {
       destinoPreId: params.destinoPreId,
       changedByUserId: request.user!.id,
     });
+
+    emitPreDemandaUpdate({ preId: params.preId, type: "vinculo", action: "delete" });
+    emitPreDemandaUpdate({ preId: params.destinoPreId, type: "vinculo", action: "delete" });
 
     return reply.send({
       ok: true,

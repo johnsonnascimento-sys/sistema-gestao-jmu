@@ -1610,6 +1610,20 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     return result.rows.map(mapDemandaVinculo);
   }
 
+  private async areVinculados(queryable: Queryable, origemPreDemandaId: number, destinoPreDemandaId: number) {
+    const result = await queryable.query(
+      `
+        select 1
+        from adminlog.demanda_vinculos
+        where (origem_pre_demanda_id = $1 and destino_pre_demanda_id = $2)
+           or (origem_pre_demanda_id = $2 and destino_pre_demanda_id = $1)
+        limit 1
+      `,
+      [origemPreDemandaId, destinoPreDemandaId],
+    );
+    return Boolean(result.rows[0]);
+  }
+
   private async loadSetoresAtivos(queryable: Queryable, preDemandaId: number) {
     const result = await queryable.query(
       `
@@ -2228,6 +2242,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const initialStatus: PreDemandaStatus = "em_andamento";
     const resolvedSolicitante = input.solicitante?.trim() || "Nao informado";
     const seiNumero = input.seiNumero?.trim() || null;
+    const origemPreId = input.origemPreId?.trim() || null;
 
     try {
       return await inTransaction(this.pool, async (client) => {
@@ -2235,12 +2250,27 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           throw new AppError(400, "PRE_DEMANDA_PRAZO_REQUIRED", "Prazo do processo e obrigatorio.");
         }
 
+        const origem = origemPreId ? await getResolvedPreDemanda(client, origemPreId) : null;
+
         const existing = await this.findCreateDuplicate(
           client,
           { ...input, solicitante: resolvedSolicitante, seiNumero },
           queueHealthThresholds,
         );
         if (existing) {
+          if (origem) {
+            if (existing.preId === origem.preId) {
+              throw new AppError(409, "PRE_DEMANDA_SELF_LINK", "Nao e permitido vincular o processo a ele mesmo.");
+            }
+            if (!await this.areVinculados(client, origem.id, existing.id)) {
+              throw new AppError(
+                409,
+                "PRE_DEMANDA_DUPLICATE_RELATIONSHIP_REQUIRED",
+                "Ja existe uma demanda com estes dados, mas ela nao esta vinculada ao processo de origem.",
+                { existingPreId: existing.preId },
+              );
+            }
+          }
           return {
             record: existing,
             idempotent: true,
@@ -2405,6 +2435,32 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
           });
         }
 
+        if (origem) {
+          const origemRelacionado = nextPreId;
+          const destinoRelacionado = origem.principalNumero || origem.preId;
+          await client.query(
+            `
+              insert into adminlog.demanda_vinculos (origem_pre_demanda_id, destino_pre_demanda_id, created_by_user_id)
+              values ($1, $2, $3)
+            `,
+            [origem.id, preDemandaId, input.createdByUserId],
+          );
+          await this.insertAndamento(client, {
+            preDemandaId: origem.id,
+            preId: origem.preId,
+            descricao: `Processo ${origemRelacionado} vinculado a ${origem.preId}.`,
+            tipo: "vinculo_added",
+            createdByUserId: input.createdByUserId,
+          });
+          await this.insertAndamento(client, {
+            preDemandaId,
+            preId: nextPreId,
+            descricao: `Processo ${destinoRelacionado} vinculado a ${nextPreId}.`,
+            tipo: "vinculo_added",
+            createdByUserId: input.createdByUserId,
+          });
+        }
+
         const detailRow = await getPreDemandaRowByPreId(client, nextPreId);
         if (!detailRow) {
           throw new AppError(500, "PRE_DEMANDA_CREATE_FAILED", "Falha ao carregar a demanda criada.");
@@ -2431,6 +2487,21 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
 
       if (!duplicate) {
         throw error;
+      }
+
+      if (origemPreId) {
+        const origem = await getResolvedPreDemanda(this.pool, origemPreId);
+        if (duplicate.preId === origem.preId) {
+          throw new AppError(409, "PRE_DEMANDA_SELF_LINK", "Nao e permitido vincular o processo a ele mesmo.");
+        }
+        if (!await this.areVinculados(this.pool, origem.id, duplicate.id)) {
+          throw new AppError(
+            409,
+            "PRE_DEMANDA_DUPLICATE_RELATIONSHIP_REQUIRED",
+            "Ja existe uma demanda com estes dados, mas ela nao esta vinculada ao processo de origem.",
+            { existingPreId: duplicate.preId },
+          );
+        }
       }
 
       return {

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth-context";
 import { buildPreDemandaPath } from "../lib/pre-demanda-path";
 import { FormField } from "../components/form-field";
 import { PageHeader } from "../components/page-header";
@@ -13,6 +14,7 @@ import {
   appendRequestReference,
   createPreDemanda,
   formatAppError,
+  getPreDemanda,
   listAssuntos,
   listPessoas,
 } from "../lib/api";
@@ -21,7 +23,7 @@ import {
   isValidNumeroJudicial,
 } from "../lib/numero-judicial";
 import { formatSeiInput, isValidSei } from "../lib/sei";
-import type { Assunto, Pessoa } from "../types";
+import type { Assunto, Pessoa, PreDemanda } from "../types";
 
 type EntryType = "existing" | "eventual" | "continuous";
 
@@ -39,6 +41,15 @@ function getConflictPreId(details: unknown) {
 }
 
 export function NewPreDemandaPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const origemPreId = new URLSearchParams(location.search)
+    .get("origemPreId")
+    ?.trim();
+  const [origem, setOrigem] = useState<PreDemanda | null>(null);
+  const [origemLoading, setOrigemLoading] = useState(Boolean(origemPreId));
+  const [origemError, setOrigemError] = useState("");
   const [entryType, setEntryType] = useState<EntryType>("eventual");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [form, setForm] = useState({
@@ -69,11 +80,17 @@ export function NewPreDemandaPage() {
   const [selectedAssuntoIds, setSelectedAssuntoIds] = useState<string[]>([]);
 
   const showNumbers = entryType === "existing";
+  const canCreate = hasPermission("pre_demanda.create");
+  const canCreateRelated =
+    canCreate && hasPermission("pre_demanda.manage_vinculos");
   const isSeiValid = !form.sei_numero || isValidSei(form.sei_numero);
   const isNumeroJudicialValid =
     !form.numero_judicial || isValidNumeroJudicial(form.numero_judicial);
   const isSubmitBlocked =
     isSubmitting ||
+    !canCreate ||
+    Boolean(origemPreId && !canCreateRelated) ||
+    Boolean(origemPreId && (!origem || origemLoading)) ||
     !form.assunto.trim() ||
     !form.prazo_processo ||
     (showNumbers && !isSeiValid) ||
@@ -88,6 +105,43 @@ export function NewPreDemandaPage() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!origemPreId) {
+      setOrigem(null);
+      setOrigemError("");
+      setOrigemLoading(false);
+      return;
+    }
+
+    let active = true;
+    setOrigem(null);
+    setOrigemError("");
+    setOrigemLoading(true);
+
+    void getPreDemanda(origemPreId)
+      .then((nextOrigem) => {
+        if (active) {
+          setOrigem(nextOrigem);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setOrigemError(
+            "Não foi possível localizar o processo de origem para iniciar o relacionado.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setOrigemLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [origemPreId]);
 
   useEffect(() => {
     if (interessadoSearch.trim().length < 2) {
@@ -149,6 +203,22 @@ export function NewPreDemandaPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canCreate || (origemPreId && !canCreateRelated)) {
+      setError(
+        origemPreId
+          ? "Você não tem permissão para iniciar um processo relacionado."
+          : "Você não tem permissão para criar processos.",
+      );
+      return;
+    }
+    if (isSubmitBlocked) {
+      if (origemPreId && !origem) {
+        setError(
+          origemError || "Aguarde a validação do processo de origem antes de salvar.",
+        );
+      }
+      return;
+    }
     setIsSubmitting(true);
     setError("");
     setConflictPreId(null);
@@ -165,6 +235,7 @@ export function NewPreDemandaPage() {
         sei_numero: showNumbers ? form.sei_numero || null : null,
         prazo_processo: form.prazo_processo,
         numero_judicial: showNumbers ? form.numero_judicial || null : null,
+        origem_pre_id: origem?.preId,
         assunto_ids: selectedAssuntoIds,
         metadata: {
           pagamento_envolvido: form.pagamento_envolvido,
@@ -172,27 +243,56 @@ export function NewPreDemandaPage() {
         },
       });
 
+      const createdPreId = created.existingPreId ?? created.preId;
+      let interessadosError: unknown = null;
       if (!created.idempotent && selectedInteressados.length > 0) {
-        await Promise.all(
-          selectedInteressados.map((pessoa) =>
-            addPreDemandaInteressado(created.preId, {
-              interessado_id: pessoa.id,
-              papel: "interessado",
-            }),
-          ),
-        );
+        try {
+          await Promise.all(
+            selectedInteressados.map((pessoa) =>
+              addPreDemandaInteressado(created.preId, {
+                interessado_id: pessoa.id,
+                papel: "interessado",
+              }),
+            ),
+          );
+        } catch (nextError) {
+          interessadosError = nextError;
+        }
       }
 
       setResult({
-        preId: created.existingPreId ?? created.preId,
+        preId: createdPreId,
         idempotent: created.idempotent,
       });
+
+      if (interessadosError) {
+        const message = appendRequestReference(
+          "O processo foi criado, mas não foi possível vincular todas as pessoas interessadas. Não envie o cadastro novamente; conclua os vínculos no detalhe do processo.",
+          interessadosError instanceof ApiError
+            ? interessadosError.requestId
+            : undefined,
+        );
+        if (origem) {
+          navigate(buildPreDemandaPath(createdPreId), {
+            state: { creationWarning: message },
+          });
+          return;
+        }
+        setError(message);
+        return;
+      }
+
+      if (origem) {
+        navigate(buildPreDemandaPath(createdPreId));
+      }
     } catch (nextError) {
       if (nextError instanceof ApiError && nextError.status === 409) {
         setConflictPreId(getConflictPreId(nextError.details));
         setError(
           appendRequestReference(
-            "Ja existe um processo registrado com estes dados.",
+            origem
+              ? "Já existe um processo com estes dados, mas ele não está vinculado à origem selecionada."
+              : "Ja existe um processo registrado com estes dados.",
             nextError.requestId,
           ),
         );
@@ -207,10 +307,38 @@ export function NewPreDemandaPage() {
   return (
     <section className="grid gap-6">
       <PageHeader
-        description="Cadastro com prazo geral do processo e flags operacionais. A recorrencia fica nas tarefas."
+        description={
+          origem
+            ? "Preencha um novo cadastro. O vínculo com a origem será criado ao salvar."
+            : "Cadastro com prazo geral do processo e flags operacionais. A recorrencia fica nas tarefas."
+        }
         eyebrow="Cadastro"
-        title="Novo Processo"
+        title={origem ? "Novo Processo Relacionado" : "Novo Processo"}
       />
+
+      {origemLoading ? (
+        <div className="rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-900">
+          Validando processo de origem...
+        </div>
+      ) : null}
+      {origemError ? (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          {origemError}
+        </div>
+      ) : null}
+      {origemPreId && !canCreateRelated ? (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+          Você não tem permissão para iniciar um processo relacionado.
+        </div>
+      ) : null}
+      {origem ? (
+        <div className="rounded-3xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <p className="font-semibold">Processo de origem</p>
+          <p className="mt-1">
+            {origem.preId} · {origem.principalNumero} · {origem.assunto}
+          </p>
+        </div>
+      ) : null}
 
       <Card>
         <CardContent className="p-6">
@@ -572,7 +700,17 @@ export function NewPreDemandaPage() {
               </div>
             ) : null}
 
-            <div className="md:col-span-2 flex justify-end">
+            <div className="md:col-span-2 flex justify-end gap-3">
+              {origem ? (
+                <Button
+                  disabled={isSubmitting}
+                  onClick={() => navigate(buildPreDemandaPath(origem.preId))}
+                  type="button"
+                  variant="secondary"
+                >
+                  Cancelar
+                </Button>
+              ) : null}
               <Button disabled={isSubmitBlocked} type="submit">
                 {isSubmitting ? "Salvando..." : "Salvar processo"}
               </Button>

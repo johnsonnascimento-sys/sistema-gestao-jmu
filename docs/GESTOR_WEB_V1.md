@@ -86,6 +86,7 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - Login proprio
 - Dashboard do Gestor
 - Cadastro de pre-demanda
+- Inicio de processo relacionado a partir da barra de acoes do detalhe, com cadastro em branco e vinculo automatico
 - Cadastro de processos em lote por pacotes de assuntos, com uma pre-demanda por assunto confirmado
 - Cadastro simples de pacotes de processos usando assuntos existentes
 - Lista com filtros e paginacao
@@ -96,5 +97,15 @@ Para validar a area administrativa, use `SMOKE_TEST_REQUIRE_ADMIN=true`, `SMOKE_
 - Associacao e reassociacao PRE -> SEI
 - Auditoria de reassociacoes, status e administracao de utilizadores
 - Exclusao definitiva de processo/demanda restrita a admin, com preview de impacto, confirmacao por `pre_id` e auditoria permanente em `pre_demanda_delete_audit`
+
+## Iniciar Processo Relacionado
+
+No detalhe do processo/demanda, o botao **Iniciar Processo Relacionado** abre `/pre-demandas/nova?origemPreId=...`. O formulario mostra a origem, mas conserva os valores iniciais do cadastro comum, sem copiar dados do processo. Cancelar retorna a origem. Ao salvar, o sistema abre o novo registro ja relacionado.
+
+O contrato `POST /api/pre-demandas` aceita `origem_pre_id` opcional. Quando informado, exige as permissoes `pre_demanda.create` e `pre_demanda.manage_vinculos`. A criacao, o vinculo em `demanda_vinculos` e os registros de historico sao gravados juntos: uma falha desfaz toda a operacao. Os recursos atuais de consulta, inclusao e remocao de vinculos continuam disponiveis.
+
+Se os dados identificarem um cadastro existente sem o relacionamento solicitado, a API retorna conflito e informa o registro existente, sem relaciona-lo automaticamente. Uma repeticao que encontre o registro ja vinculado retorna o resultado idempotente, sem duplicar o historico. O cadastro comum permanece inalterado.
+
+Os processos sao independentes: nao compartilham status, prazos, tarefas ou interessados. E possivel iniciar um relacionado a uma origem encerrada sem reabri-la. Remover o relacionamento nao exclui nenhum processo e registra o evento nos dois historicos. A funcionalidade nao cria processos no SEI externo e nao exige nova migration.
 
 Appsmith, n8n e RAG/indexacao juridica ficam fora do runtime atual desta aplicacao. O banco operacional atual tambem nao depende de `pgvector` nem de artefatos de embeddings. A producao usa PostgreSQL local na VPS, com o Supabase apenas como contingencia temporaria apos o cutover.

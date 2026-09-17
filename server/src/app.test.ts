@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -510,6 +510,39 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     };
   }
 
+  private addVinculoEntreRegistros(origem: PreDemandaDetail, destino: PreDemandaDetail) {
+    if (origem.preId === destino.preId) {
+      throw new AppError(409, "PRE_DEMANDA_SELF_LINK", "Nao e permitido vincular o processo a ele mesmo.");
+    }
+    if (origem.vinculos.some((item) => item.processo.preId === destino.preId)) {
+      return false;
+    }
+
+    const linkedAt = new Date().toISOString();
+    const toVinculo = (record: PreDemandaDetail): DemandaVinculo => ({
+      processo: {
+        id: record.id,
+        preId: record.preId,
+        principalNumero: record.principalNumero,
+        assunto: record.assunto,
+        status: record.status,
+        dataReferencia: record.dataReferencia,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      },
+      linkedAt,
+      linkedBy: null,
+    });
+
+    origem.vinculos.unshift(toVinculo(destino));
+    destino.vinculos.unshift(toVinculo(origem));
+    this.addAndamentoRecord(origem, `Processo ${destino.principalNumero} vinculado a ${origem.preId}.`, "vinculo_added");
+    this.addAndamentoRecord(destino, `Processo ${origem.principalNumero} vinculado a ${destino.preId}.`, "vinculo_added");
+    this.touch(origem);
+    this.touch(destino);
+    return true;
+  }
+
   private toPacoteAssuntos(assuntoIds: string[]) {
     const now = new Date().toISOString();
     return Array.from(new Set(assuntoIds)).map((assuntoId, index) => ({
@@ -523,6 +556,11 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     const resolvedSolicitante = input.solicitante ?? (input.pessoaSolicitanteId ? `Pessoa ${input.pessoaSolicitanteId.slice(0, 4)}` : "");
     const seiNumero = input.seiNumero?.trim() || null;
     const seiNumeroNorm = seiNumero?.replace(/\D/g, "") ?? "";
+    const origemPreId = input.origemPreId?.trim() || null;
+    const origem = origemPreId ? this.records.find((item) => item.preId === origemPreId) : null;
+    if (origemPreId && !origem) {
+      throw new AppError(404, "PRE_DEMANDA_NOT_FOUND", "Pre-demanda nao encontrada.");
+    }
     const existing = this.records.find((item) => {
       const sameBaseKey =
         item.solicitante.trim().toLowerCase() === resolvedSolicitante.trim().toLowerCase() &&
@@ -544,6 +582,19 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     });
 
     if (existing) {
+      if (origem) {
+        if (existing.preId === origem.preId) {
+          throw new AppError(409, "PRE_DEMANDA_SELF_LINK", "Nao e permitido vincular o processo a ele mesmo.");
+        }
+        if (!existing.vinculos.some((item) => item.processo.preId === origem.preId)) {
+          throw new AppError(
+            409,
+            "PRE_DEMANDA_DUPLICATE_RELATIONSHIP_REQUIRED",
+            "Ja existe uma demanda com estes dados, mas ela nao esta vinculada ao processo de origem.",
+            { existingPreId: existing.preId },
+          );
+        }
+      }
       return { record: existing, idempotent: true, existingPreId: existing.preId };
     }
 
@@ -681,6 +732,10 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
 
     this.nextId += 1;
     this.records.unshift(record);
+
+    if (origem) {
+      this.addVinculoEntreRegistros(origem, record);
+    }
 
     return { record, idempotent: false, existingPreId: null };
   }
@@ -1382,30 +1437,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
       throw new Error("not found");
     }
 
-    if (!origem.vinculos.some((item) => item.processo.preId === destino.preId)) {
-      const vinculo: DemandaVinculo = {
-        processo: {
-          id: destino.id,
-          preId: destino.preId,
-          principalNumero: destino.principalNumero,
-          assunto: destino.assunto,
-          status: destino.status,
-          dataReferencia: destino.dataReferencia,
-          createdAt: destino.createdAt,
-          updatedAt: destino.updatedAt,
-        },
-        linkedAt: new Date().toISOString(),
-        linkedBy: null,
-      };
-
-      origem.vinculos.unshift(vinculo);
-      this.addAndamentoRecord(
-        origem,
-        `Processo ${destino.principalNumero} vinculado a ${origem.preId}.`,
-        "vinculo_added",
-      );
-      this.touch(origem);
-    }
+    this.addVinculoEntreRegistros(origem, destino);
 
     return origem.vinculos;
   }
@@ -1413,17 +1445,24 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
   async removeVinculo(input: RemoveDemandaVinculoInput) {
     const origem = this.records.find((item) => item.preId === input.preId);
     const destino = this.records.find((item) => item.preId === input.destinoPreId);
-    if (!origem) {
+    if (!origem || !destino) {
       throw new Error("not found");
     }
 
+    if (!origem.vinculos.some((item) => item.processo.preId === destino.preId)) {
+      throw new AppError(404, "PRE_DEMANDA_LINK_NOT_FOUND", "Vinculo nao encontrado.");
+    }
+
     origem.vinculos = origem.vinculos.filter((item) => item.processo.preId !== input.destinoPreId);
+    destino.vinculos = destino.vinculos.filter((item) => item.processo.preId !== origem.preId);
     this.addAndamentoRecord(
       origem,
-      `Processo ${destino?.principalNumero ?? input.destinoPreId} desvinculado de ${origem.preId}.`,
+      `Processo ${destino.principalNumero} desvinculado de ${origem.preId}.`,
       "vinculo_removed",
     );
+    this.addAndamentoRecord(destino, `Processo ${origem.principalNumero} desvinculado de ${destino.preId}.`, "vinculo_removed");
     this.touch(origem);
+    this.touch(destino);
     return origem.vinculos;
   }
 
@@ -3569,6 +3608,183 @@ describe("Gestor JMU API", () => {
       for (const [id, assunto] of assuntoCatalogSnapshot) {
         inMemoryAssuntoCatalog.set(id, assunto);
       }
+    }
+  });
+
+  it("exige permissao para gerenciar vinculos ao criar processo relacionado", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: "operador@jmu.local", password: "Senha1234" },
+    });
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const authorizeSpy = vi.spyOn(app, "authorize").mockImplementation((permission) => {
+      expect(permission).toBe("pre_demanda.manage_vinculos");
+      return async () => {
+        throw new AppError(403, "FORBIDDEN", "Você não possui permissão para esta operação.");
+      };
+    });
+
+    try {
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Usuario sem permissao de vinculo",
+          assunto: "Processo relacionado bloqueado",
+          data_referencia: "2026-09-16",
+          prazo_processo: "2026-10-15",
+          origem_pre_id: "PRE-2026-ORIGEM",
+        },
+      });
+      expect(response.statusCode).toBe(403);
+      expect(authorizeSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      authorizeSpy.mockRestore();
+    }
+  });
+
+  it("cria processo relacionado, preserva a origem e aplica idempotencia ao vinculo", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: "operador@jmu.local", password: "Senha1234" },
+    });
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const repository = preDemandaRepository as unknown as {
+      records: PreDemandaDetail[];
+      andamentos: Andamento[];
+      nextId: number;
+      nextAuditId: number;
+    };
+    const snapshot = {
+      records: JSON.parse(JSON.stringify(repository.records)) as PreDemandaDetail[],
+      andamentos: JSON.parse(JSON.stringify(repository.andamentos)) as Andamento[],
+      nextId: repository.nextId,
+      nextAuditId: repository.nextAuditId,
+    };
+
+    try {
+      const source = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Origem do processo relacionado",
+          assunto: "Processo de origem relacionado",
+          data_referencia: "2026-09-16",
+          prazo_processo: "2026-10-15",
+        },
+      });
+      expect(source.statusCode).toBe(201);
+      const sourcePreId = source.json().data.preId as string;
+
+      const closedSource = await app.inject({
+        method: "PATCH",
+        url: `/api/pre-demandas/${sourcePreId}/status`,
+        headers: { cookie },
+        payload: { status: "encerrada", motivo: "Origem concluida para teste." },
+      });
+      expect(closedSource.statusCode).toBe(200);
+
+      const childPayload = {
+        solicitante: "Nova demanda independente",
+        assunto: "Processo iniciado a partir da origem",
+        data_referencia: "2026-09-17",
+        prazo_processo: "2026-10-20",
+        origem_pre_id: sourcePreId,
+      };
+      const child = await app.inject({ method: "POST", url: "/api/pre-demandas", headers: { cookie }, payload: childPayload });
+      expect(child.statusCode).toBe(201);
+      const childPreId = child.json().data.preId as string;
+
+      const [sourceDetail, childDetail] = await Promise.all([
+        app.inject({ method: "GET", url: `/api/pre-demandas/${sourcePreId}`, headers: { cookie } }),
+        app.inject({ method: "GET", url: `/api/pre-demandas/${childPreId}`, headers: { cookie } }),
+      ]);
+      expect(sourceDetail.json().data.status).toBe("encerrada");
+      expect(sourceDetail.json().data.vinculos.map((item: DemandaVinculo) => item.processo.preId)).toContain(childPreId);
+      expect(childDetail.json().data.vinculos.map((item: DemandaVinculo) => item.processo.preId)).toContain(sourcePreId);
+      expect(sourceDetail.json().data.recentAndamentos.some((item: Andamento) => item.tipo === "vinculo_added")).toBe(true);
+      expect(childDetail.json().data.recentAndamentos.some((item: Andamento) => item.tipo === "vinculo_added")).toBe(true);
+
+      const retry = await app.inject({ method: "POST", url: "/api/pre-demandas", headers: { cookie }, payload: childPayload });
+      expect(retry.statusCode).toBe(200);
+      expect(retry.json().data).toMatchObject({ idempotent: true, existingPreId: childPreId });
+
+      const otherSource = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Outra origem relacionada",
+          assunto: "Processo de outra origem",
+          data_referencia: "2026-09-18",
+          prazo_processo: "2026-10-21",
+        },
+      });
+      const duplicateWithoutLink = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...childPayload, origem_pre_id: otherSource.json().data.preId },
+      });
+      expect(duplicateWithoutLink.statusCode).toBe(409);
+      expect(duplicateWithoutLink.json().error).toMatchObject({
+        code: "PRE_DEMANDA_DUPLICATE_RELATIONSHIP_REQUIRED",
+        details: { existingPreId: childPreId },
+      });
+
+      const invalidOrigin = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...childPayload, assunto: "Origem inexistente relacionada", origem_pre_id: "PRE-NAO-EXISTE" },
+      });
+      expect(invalidOrigin.statusCode).toBe(404);
+
+      const emptyOrigin = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: { ...childPayload, assunto: "Origem vazia relacionada", origem_pre_id: "   " },
+      });
+      expect(emptyOrigin.statusCode).toBe(400);
+
+      const removed = await app.inject({
+        method: "DELETE",
+        url: `/api/pre-demandas/${sourcePreId}/vinculos/${childPreId}`,
+        headers: { cookie },
+      });
+      expect(removed.statusCode).toBe(200);
+      const [sourceAfterRemoval, childAfterRemoval] = await Promise.all([
+        app.inject({ method: "GET", url: `/api/pre-demandas/${sourcePreId}`, headers: { cookie } }),
+        app.inject({ method: "GET", url: `/api/pre-demandas/${childPreId}`, headers: { cookie } }),
+      ]);
+      expect(sourceAfterRemoval.json().data.vinculos).toHaveLength(0);
+      expect(childAfterRemoval.json().data.vinculos).toHaveLength(0);
+      expect(sourceAfterRemoval.json().data.recentAndamentos.some((item: Andamento) => item.tipo === "vinculo_removed")).toBe(true);
+      expect(childAfterRemoval.json().data.recentAndamentos.some((item: Andamento) => item.tipo === "vinculo_removed")).toBe(true);
+
+      const concurrentPayload = {
+        solicitante: "Criacao concorrente relacionada",
+        assunto: "Processo concorrente relacionado",
+        data_referencia: "2026-09-19",
+        prazo_processo: "2026-10-22",
+        origem_pre_id: sourcePreId,
+      };
+      const concurrent = await Promise.all([
+        app.inject({ method: "POST", url: "/api/pre-demandas", headers: { cookie }, payload: concurrentPayload }),
+        app.inject({ method: "POST", url: "/api/pre-demandas", headers: { cookie }, payload: concurrentPayload }),
+      ]);
+      expect(concurrent.map((item) => item.statusCode).sort()).toEqual([200, 201]);
+      expect(concurrent[0].json().data.preId).toBe(concurrent[1].json().data.preId);
+    } finally {
+      repository.records = snapshot.records;
+      repository.andamentos = snapshot.andamentos;
+      repository.nextId = snapshot.nextId;
+      repository.nextAuditId = snapshot.nextAuditId;
     }
   });
 

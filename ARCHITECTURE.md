@@ -42,6 +42,7 @@
 
 ### Processos e demandas
 - criacao e edicao de processo
+- inicio de processo relacionado pelo cadastro em branco: criacao, relacionamento em `demanda_vinculos` e auditoria dos dois registros na mesma transacao; processos mantem status, prazos e tarefas independentes
 - status, fila operacional e reassociacao PRE x SEI
 - idempotencia de criacao pela combinacao de solicitante, assunto, data de referencia e SEI inicial normalizado; demandas sem SEI continuam usando apenas os tres primeiros campos
 - processos judiciais com numero judicial e audiencias
@@ -82,6 +83,7 @@
 O sistema usa API HTTP propria do backend Fastify, incluindo:
 - autenticacao de usuario
 - CRUD e operacoes de processo
+- `POST /api/pre-demandas` aceita `origem_pre_id` opcional para iniciar processo relacionado, exigindo tambem `pre_demanda.manage_vinculos`; duplicado sem o vinculo solicitado retorna conflito, e repeticao com vinculo existente retorna o registro sem duplicar auditoria
 - pacotes de processos e criacao de pre-demandas em lote
 - timeline e auditoria
 - tarefas, audiencias, pessoas, setores e assuntos

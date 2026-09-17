@@ -44,6 +44,7 @@ Regra de ouro:
 
 ## 3. Status Atual
 - O Gestor Web e a unica interface ativa deste repositorio.
+- O detalhe de cada processo permite iniciar um processo relacionado pelo cadastro em branco. A origem segue em `origemPreId` na URL; criacao e vinculo sao atomicos e a area Relacionamentos permite navegar e remover o vinculo sem excluir os processos. Nao ha nova tabela nem integracao com o SEI externo.
 - O sistema ja cobre dashboard, processos, processos em lote por pacotes, tarefas, audiencias, pauta, assuntos, pessoas, setores, comentarios, documentos e auditoria.
 - O deploy produtivo e feito pelos scripts `deploy:vps`, `rollback:vps`, `status:vps`, `backup:vps` e `restore:vps`.
 - O banco primario ja foi migrado para a VPS.
