@@ -12,6 +12,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   requireReason,
+  reasonPresetOptions,
   extraOption,
   reopenScheduleOption,
   onConfirm,
@@ -22,6 +23,7 @@ export function ConfirmDialog({
   description: string;
   confirmLabel: string;
   requireReason?: boolean;
+  reasonPresetOptions?: readonly string[];
   extraOption?: {
     label: string;
     description?: string;
@@ -35,6 +37,7 @@ export function ConfirmDialog({
   }) => Promise<void> | void;
 }) {
   const [motivo, setMotivo] = useState("");
+  const [reasonPreset, setReasonPreset] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [extraOptionChecked, setExtraOptionChecked] = useState(false);
   const [scheduleReopen, setScheduleReopen] = useState(false);
@@ -47,6 +50,7 @@ export function ConfirmDialog({
   useEffect(() => {
     if (!open) {
       setMotivo("");
+      setReasonPreset("");
       setObservacoes("");
       setExtraOptionChecked(false);
       setScheduleReopen(false);
@@ -106,6 +110,29 @@ export function ConfirmDialog({
         </DialogHeader>
 
         <div className="grid gap-4">
+          {reasonPresetOptions?.length ? (
+            <FormField label="Texto padrao">
+              <select
+                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                onChange={(event) => {
+                  const preset = event.target.value;
+                  setReasonPreset(preset);
+                  if (preset) {
+                    setMotivo(preset);
+                  }
+                }}
+                value={reasonPreset}
+              >
+                <option value="">Selecione um texto padrao</option>
+                {reasonPresetOptions.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          ) : null}
+
           <FormField hint="Obrigatorio para encerramento e reabertura." label="Motivo">
             <Textarea onChange={(event) => setMotivo(event.target.value)} placeholder="Descreva a razao operacional." rows={3} value={motivo} />
           </FormField>

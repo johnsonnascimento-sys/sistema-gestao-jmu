@@ -5610,6 +5610,7 @@ export function PreDemandaDetailPage() {
             : undefined
         }
         reopenScheduleOption={statusAction?.nextStatus === "encerrada"}
+        reasonPresetOptions={statusAction?.nextStatus === "encerrada" ? ["Sem mais providências"] : undefined}
         onConfirm={async ({
           motivo,
           observacoes,

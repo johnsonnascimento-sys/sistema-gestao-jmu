@@ -508,6 +508,7 @@ export function PreDemandasPage() {
             : undefined
         }
         reopenScheduleOption={quickAction?.nextStatus === "encerrada"}
+        reasonPresetOptions={quickAction?.nextStatus === "encerrada" ? ["Sem mais providências"] : undefined}
         onConfirm={async ({ motivo, observacoes, extraOptionChecked, reopenSchedule }) => {
           if (!quickAction) {
             return;
