@@ -67,6 +67,21 @@ describe("TarefasPage", () => {
     expect(screen.getByText("Sem tarefas pendentes")).toBeInTheDocument();
     expect(screen.getByText("Audiência sem tarefa")).toBeInTheDocument();
   });
+
+  it("pagina por processo ao unificar para manter juntas todas as tarefas dele", async () => {
+    const user = userEvent.setup();
+    render(<MemoryRouter><TarefasPage /></MemoryRouter>);
+
+    await screen.findByText("Fila geral de tarefas");
+    await user.click(screen.getByRole("checkbox", { name: "Unificar tarefas por processo" }));
+
+    expect(listDashboardTasks).toHaveBeenLastCalledWith(expect.objectContaining({
+      groupByProcess: true,
+      page: 1,
+      pageSize: 20,
+    }));
+  });
+
   it("mantem a pendencia de audiencia somente no cartao do processo", async () => {
     vi.mocked(listDashboardTasks).mockResolvedValueOnce({
       items: [

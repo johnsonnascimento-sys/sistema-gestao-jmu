@@ -5771,6 +5771,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     date?: string;
     recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
     urgentOnly?: boolean;
+    groupByProcess?: boolean;
     openWithoutTasksQ?: string;
     urgentProcessesQ?: string;
     page: number;
@@ -5823,8 +5824,100 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const whereClause = conditions.length ? `where ${conditions.join(" and ")}` : "";
     const countsWhereClause = countsConditions.filter(Boolean).length ? `where ${countsConditions.filter(Boolean).join(" and ")}` : "";
     const orderByClause = DASHBOARD_TASK_SORT_SQL[params.sort];
+    const groupOrderByClause: Record<DashboardTaskSortMode, string> = {
+      prazo_asc: "min(tarefa.prazo_conclusao) asc nulls last, min(tarefa.created_at) asc, tarefa.pre_demanda_id asc",
+      created_desc: "max(tarefa.created_at) desc, tarefa.pre_demanda_id desc",
+      created_asc: "min(tarefa.created_at) asc, tarefa.pre_demanda_id asc",
+    };
     const limitPlaceholder = pushValue(params.pageSize);
     const offsetPlaceholder = pushValue((params.page - 1) * params.pageSize);
+    const itemsQuery = params.groupByProcess
+      ? `
+          with paged_processes as (
+            select
+              tarefa.pre_demanda_id,
+              row_number() over (order by bool_or(coalesce(tarefa.urgente, false)) desc, ${groupOrderByClause[params.sort]}) as group_position
+            from adminlog.tarefas_pendentes tarefa
+            ${whereClause}
+            group by tarefa.pre_demanda_id
+            order by bool_or(coalesce(tarefa.urgente, false)) desc, ${groupOrderByClause[params.sort]}
+            limit ${limitPlaceholder} offset ${offsetPlaceholder}
+          )
+          select
+            tarefa.id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
+            pd.assunto,
+            tarefa.descricao,
+            tarefa.tipo,
+            tarefa.urgente,
+            tarefa.prazo_conclusao,
+            tarefa.horario_inicio,
+            tarefa.horario_fim,
+            tarefa.recorrencia_tipo,
+            setor_destino.sigla as setor_destino_sigla,
+            pd.status <> 'encerrada' and exists(
+              select 1
+              from adminlog.demanda_audiencias_judiciais audiencia
+              where audiencia.pre_demanda_id = pd.id
+                and audiencia.situacao = 'designada'
+            ) as has_audiencia,
+            tarefa.gerada_automaticamente,
+            tarefa.concluida,
+            tarefa.concluida_em,
+            tarefa.created_at
+          from adminlog.tarefas_pendentes tarefa
+          inner join paged_processes on paged_processes.pre_demanda_id = tarefa.pre_demanda_id
+          inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
+          ${whereClause}
+          order by paged_processes.group_position, coalesce(tarefa.urgente, false) desc, ${orderByClause}
+        `
+      : `
+          select
+            tarefa.id,
+            pd.pre_id,
+            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
+            pd.assunto,
+            tarefa.descricao,
+            tarefa.tipo,
+            tarefa.urgente,
+            tarefa.prazo_conclusao,
+            tarefa.horario_inicio,
+            tarefa.horario_fim,
+            tarefa.recorrencia_tipo,
+            setor_destino.sigla as setor_destino_sigla,
+            pd.status <> 'encerrada' and exists(
+              select 1
+              from adminlog.demanda_audiencias_judiciais audiencia
+              where audiencia.pre_demanda_id = pd.id
+                and audiencia.situacao = 'designada'
+            ) as has_audiencia,
+            tarefa.gerada_automaticamente,
+            tarefa.concluida,
+            tarefa.concluida_em,
+            tarefa.created_at
+          from adminlog.tarefas_pendentes tarefa
+          inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
+          left join lateral (
+            select link.sei_numero
+            from adminlog.pre_to_sei_link link
+            where link.pre_id = pd.pre_id
+            order by link.updated_at desc, link.id desc
+            limit 1
+          ) pts on true
+          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
+          ${whereClause}
+          order by coalesce(tarefa.urgente, false) desc, has_audiencia desc, ${orderByClause}
+          limit ${limitPlaceholder} offset ${offsetPlaceholder}
+        `;
 
     const openWithoutTasksConditions: string[] = [`pd.status <> 'encerrada'`, `not exists (
               select 1
@@ -5895,53 +5988,14 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
     const countValues = values.slice(0, values.length - 2);
 
     const [itemsResult, countResult, openProcessesWithoutTasksResult, urgentProcessesResult] = await Promise.all([
-      this.pool.query(
-        `
-          select
-            tarefa.id,
-            pd.pre_id,
-            coalesce(pts.sei_numero, pd.numero_judicial, pd.pre_id) as pre_numero,
-            pd.assunto,
-            tarefa.descricao,
-            tarefa.tipo,
-            tarefa.urgente,
-            tarefa.prazo_conclusao,
-            tarefa.horario_inicio,
-            tarefa.horario_fim,
-            tarefa.recorrencia_tipo,
-            setor_destino.sigla as setor_destino_sigla,
-            pd.status <> 'encerrada' and exists(
-              select 1
-              from adminlog.demanda_audiencias_judiciais audiencia
-              where audiencia.pre_demanda_id = pd.id
-                and audiencia.situacao = 'designada'
-            ) as has_audiencia,
-            tarefa.gerada_automaticamente,
-            tarefa.concluida,
-            tarefa.concluida_em,
-            tarefa.created_at
-          from adminlog.tarefas_pendentes tarefa
-          inner join adminlog.pre_demanda pd on pd.id = tarefa.pre_demanda_id
-          left join lateral (
-            select link.sei_numero
-            from adminlog.pre_to_sei_link link
-            where link.pre_id = pd.pre_id
-            order by link.updated_at desc, link.id desc
-            limit 1
-          ) pts on true
-          left join adminlog.setores setor_destino on setor_destino.id = tarefa.setor_destino_id
-          ${whereClause}
-          order by coalesce(tarefa.urgente, false) desc, has_audiencia desc, ${orderByClause}
-          limit ${limitPlaceholder} offset ${offsetPlaceholder}
-        `,
-        values,
-      ),
+      this.pool.query(itemsQuery, values),
       this.pool.query(
         `
           select
             count(*) filter (where tarefa.concluida = false)::int as pendentes,
             count(*) filter (where tarefa.concluida = true)::int as concluidas,
             count(*) filter (where tarefa.concluida = ${statusPlaceholder})::int as total_status
+            , count(distinct tarefa.pre_demanda_id) filter (where tarefa.concluida = ${statusPlaceholder})::int as total_processos
           from adminlog.tarefas_pendentes tarefa
           ${countsWhereClause}
         `,
@@ -6015,7 +6069,7 @@ export class PostgresPreDemandaRepository implements PreDemandaRepository {
         concluidaEm: row.concluida_em ? new Date(row.concluida_em).toISOString() : null,
         createdAt: new Date(row.created_at).toISOString(),
       })),
-      total: Number(countResult.rows[0]?.total_status ?? 0),
+      total: Number(countResult.rows[0]?.[params.groupByProcess ? "total_processos" : "total_status"] ?? 0),
       page: params.page,
       pageSize: params.pageSize,
       counts: {

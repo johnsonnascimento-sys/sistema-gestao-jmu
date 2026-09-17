@@ -525,6 +525,7 @@ export function TarefasPage() {
             date: selectedDate || undefined,
             recurrence: selectedRecurrence || undefined,
             urgentOnly: onlyUrgent,
+            groupByProcess: unifyByProcess,
             openWithoutTasksQ: openWithoutTasksQ || undefined,
             urgentProcessesQ: urgentProcessesQ || undefined,
             page,
@@ -558,6 +559,7 @@ export function TarefasPage() {
   }, [
     currentTab,
     onlyUrgent,
+    unifyByProcess,
     openWithoutTasksQ,
     urgentProcessesQ,
     page,
@@ -570,7 +572,7 @@ export function TarefasPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [currentTab, onlyUrgent, selectedDate, selectedRecurrence, sortMode]);
+  }, [currentTab, onlyUrgent, selectedDate, selectedRecurrence, sortMode, unifyByProcess]);
 
   if (loading) {
     return (
@@ -763,7 +765,7 @@ export function TarefasPage() {
             </Tabs>
             <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-slate-500">
-                Pagina {page} de {totalPages} • {total} item(ns) nesta aba
+                Pagina {page} de {totalPages} • {total} {unifyByProcess ? "processo(s)" : "tarefa(s)"} nesta aba
               </p>
               <div className="flex items-center gap-2">
                 <button

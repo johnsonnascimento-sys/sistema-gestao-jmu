@@ -674,6 +674,7 @@ export interface PreDemandaRepository {
     date?: string;
     recurrence?: TarefaRecorrenciaTipo | "sem_recorrencia";
     urgentOnly?: boolean;
+    groupByProcess?: boolean;
     openWithoutTasksQ?: string;
     urgentProcessesQ?: string;
     page: number;
