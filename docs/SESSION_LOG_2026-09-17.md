@@ -33,3 +33,13 @@ Nove cenarios aprovados usando o repositorio real:
 - Sem operacoes no SEI/e-Proc externo e sem alteracao de infraestrutura produtiva.
 - Arquitetura, handover e visao funcional atualizados.
 - Responsaveis: Atlas (coordenacao e integracao, modelo da sessao), Ada e Turing (GPT-5.6 Terra, frontend e backend), SRE-1 (GPT-5.6 Luna, verificacoes e banco temporario).
+
+## Deploy produtivo
+
+- Commit funcional publicado: `b6927da52cd855d3e7aec28974d1bfe11a6ebfdf` na branch `main`. A chave publica da VPS foi conferida pela impressao digital SSH fornecida pelo operador antes da autenticacao.
+- Backup antes da troca: `gestor-adminlog-20260917T182934Z-pre-deploy-processo-relacionado-20260917.sql.gz`, schema `adminlog`, 1.099.488 bytes, gzip validado, SHA-256 `81891292864b1406cc75033b6cd2851c15a14c9db9a26c480e9d4055ecee7f40`.
+- A imagem `gestor-jmu-web:commit-b6927da52cd855d3e7aec28974d1bfe11a6ebfdf` foi criada; container `gestor-jmu-web` iniciou saudavel.
+- `GET /api/health` retornou `up` e o commit esperado; `GET /api/ready` retornou `ready` com banco `ready`. Smokes autenticado de operador/admin e administrativo passaram.
+- `npm run status:vps` apos o deploy mostrou checkout remoto limpo, branch `main`, commit esperado, container saudavel, backup preservado e evento `deploy/success` em `2026-09-17T18:32:17Z`.
+- A tag da imagem anterior `gestor-jmu-web:commit-c809e24cbd281c9d6b501ce07a1f96cf5dd7a617` permanece disponivel para rollback.
+- Nenhuma senha ou chave privada foi registrada neste arquivo ou no repositorio.
