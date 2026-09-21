@@ -298,7 +298,7 @@ export function PreDemandasFilters({
       <form onSubmit={handleFilterSubmit}>
         <FilterBar className="xl:grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_auto]">
           <FormField label="Buscar">
-            <Input onChange={(event) => setQuery(event.target.value)} placeholder="PROCESSO, SEI, pessoa ou assunto" value={query} />
+            <Input onChange={(event) => setQuery(event.target.value)} placeholder="PROCESSO, SEI, pessoa, assunto ou andamento" value={query} />
           </FormField>
 
           <FormField label="Pessoa específica">

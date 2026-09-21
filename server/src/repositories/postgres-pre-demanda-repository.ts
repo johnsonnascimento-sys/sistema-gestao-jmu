@@ -702,6 +702,10 @@ function normalizeSearchTerm(value: string) {
     .trim();
 }
 
+function tokenizeSearchTerm(value: string) {
+  return normalizeSearchTerm(value).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
 function normalizeMetadataForDb(metadata: Partial<PreDemandaMetadata> | null | undefined) {
   if (!metadata) {
     return null;
@@ -787,12 +791,13 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
 
   if (params.q) {
     const normalizedQuery = normalizeSearchTerm(params.q);
-    const normalizedTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+    const normalizedTokens = tokenizeSearchTerm(params.q);
     const numericOnly = normalizedQuery.replace(/\D/g, "");
     const qClauses: string[] = [];
 
     if (normalizedTokens.length) {
       const tokenClauses: string[] = [];
+      const andamentoTokenClauses: string[] = [];
 
       for (const token of normalizedTokens) {
         values.push(`%${token}%`);
@@ -839,9 +844,22 @@ function buildWhereClause(params: ListPreDemandasParams, queueHealthThresholds: 
               and ${buildNormalizedLikeExpression("sei_relacionado.sei_numero", index)}
           )
         )`);
+        andamentoTokenClauses.push(`(
+          ${buildNormalizedLikeExpression("andamento_busca.descricao", index)}
+          or ${buildNormalizedLikeExpression("andamento_busca.motivo", index)}
+          or ${buildNormalizedLikeExpression("andamento_busca.observacoes", index)}
+        )`);
       }
 
-      qClauses.push(`(${tokenClauses.join(" and ")})`);
+      qClauses.push(`(
+        (${tokenClauses.join(" and ")})
+        or exists (
+          select 1
+          from adminlog.andamentos andamento_busca
+          where andamento_busca.pre_demanda_id = pd.id
+            and ${andamentoTokenClauses.join(" and ")}
+        )
+      )`);
     }
 
     if (numericOnly.length >= 3) {

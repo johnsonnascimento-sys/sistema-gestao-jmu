@@ -124,4 +124,46 @@ describe("QuickProcessSearch", () => {
     expect(screen.getByLabelText("Buscar pessoa especifica")).toHaveValue("");
     expect(screen.queryByText("Maria Assinante")).not.toBeInTheDocument();
   });
+
+  it("encaminha a busca da barra lateral ao mecanismo global", async () => {
+    apiMocks.listPreDemandas.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          preId: "PRE-2026-0409",
+          principalNumero: "019840/26-00.020",
+          currentAssociation: null,
+          numeroJudicial: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 8,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route
+            path="*"
+            element={
+              <>
+                <QuickProcessSearch variant="sidebar" />
+                <LocationEcho />
+              </>
+            }
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Buscar processo rapido"), "Google Drive");
+    await user.click(screen.getByRole("button", { name: "Filtrar" }));
+
+    await waitFor(() => {
+      expect(apiMocks.listPreDemandas).toHaveBeenCalledWith({ q: "Google Drive", pageSize: 8 });
+      expect(screen.getByTestId("location")).toHaveTextContent("/pre-demandas/PRE-2026-0409");
+    });
+  });
 });

@@ -190,7 +190,7 @@ export function QuickProcessSearch({
               : "border-sky-100 bg-white text-slate-950 placeholder:text-slate-400",
           )}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="PROCESSO, SEI, pessoa ou assunto"
+          placeholder="PROCESSO, SEI, pessoa, assunto ou andamento"
           value={query}
         />
 

@@ -382,6 +382,10 @@ function normalizeInMemorySearch(value: string) {
     .trim();
 }
 
+function tokenizeInMemorySearch(value: string) {
+  return normalizeInMemorySearch(value).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
 function buildAssuntoStub(id: string, withSetor = false): Assunto {
   const now = new Date().toISOString();
   return {
@@ -1016,7 +1020,7 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
     let items = [...this.records];
 
     if (params.q) {
-      const tokens = normalizeInMemorySearch(params.q).split(/\s+/).filter(Boolean);
+      const tokens = tokenizeInMemorySearch(params.q);
       items = items.filter((item) => {
         const searchable = [
           item.preId,
@@ -1033,7 +1037,17 @@ class InMemoryPreDemandaRepository implements PreDemandaRepository {
           .map(normalizeInMemorySearch)
           .join(" ");
 
-        return tokens.every((token) => searchable.includes(token));
+        const matchesProcess = tokens.every((token) => searchable.includes(token));
+        const matchesAndamento = this.andamentos
+          .filter((andamento) => andamento.preId === item.preId)
+          .some((andamento) => {
+            const searchableAndamento = normalizeInMemorySearch(
+              [andamento.descricao, andamento.motivo ?? "", andamento.observacoes ?? ""].join(" "),
+            );
+            return tokens.every((token) => searchableAndamento.includes(token));
+          });
+
+        return matchesProcess || matchesAndamento;
       });
     }
 
@@ -3608,6 +3622,92 @@ describe("Gestor JMU API", () => {
       for (const [id, assunto] of assuntoCatalogSnapshot) {
         inMemoryAssuntoCatalog.set(id, assunto);
       }
+    }
+  });
+
+  it("encontra palavras do mesmo andamento na busca global", async () => {
+    const login = await app.inject({
+      method: "POST",
+      url: "/api/auth/login",
+      payload: { email: "operador@jmu.local", password: "Senha1234" },
+    });
+    const cookie = `${login.cookies[0]?.name}=${login.cookies[0]?.value}`;
+    const repository = preDemandaRepository as unknown as {
+      records: PreDemandaDetail[];
+      andamentos: Andamento[];
+      nextId: number;
+      nextAuditId: number;
+    };
+    const snapshot = {
+      records: JSON.parse(JSON.stringify(repository.records)) as PreDemandaDetail[],
+      andamentos: JSON.parse(JSON.stringify(repository.andamentos)) as Andamento[],
+      nextId: repository.nextId,
+      nextAuditId: repository.nextAuditId,
+    };
+
+    try {
+      const target = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Arquivo central",
+          assunto: "Consulta de armazenamento externo",
+          data_referencia: "2026-09-21",
+          prazo_processo: "2026-10-21",
+        },
+      });
+      const splitTerms = await app.inject({
+        method: "POST",
+        url: "/api/pre-demandas",
+        headers: { cookie },
+        payload: {
+          solicitante: "Arquivo auxiliar",
+          assunto: "Consulta de arquivos digitais",
+          data_referencia: "2026-09-22",
+          prazo_processo: "2026-10-22",
+        },
+      });
+
+      expect(target.statusCode).toBe(201);
+      expect(splitTerms.statusCode).toBe(201);
+
+      const targetPreId = target.json().data.preId as string;
+      const splitTermsPreId = splitTerms.json().data.preId as string;
+      await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${targetPreId}/andamentos`,
+        headers: { cookie },
+        payload: { descricao: "Arquivos transferidos para Google Drive, OneDrive e Dropbox." },
+      });
+      await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${splitTermsPreId}/andamentos`,
+        headers: { cookie },
+        payload: { descricao: "Arquivos transferidos para Google Drive." },
+      });
+      await app.inject({
+        method: "POST",
+        url: `/api/pre-demandas/${splitTermsPreId}/andamentos`,
+        headers: { cookie },
+        payload: { descricao: "Arquivos transferidos para OneDrive e Dropbox." },
+      });
+
+      const search = await app.inject({
+        method: "GET",
+        url: "/api/pre-demandas?q=GOOGLE%20dr%C3%ADve%2C%20onedrive%3B%20DROPBOX",
+        headers: { cookie },
+      });
+
+      expect(search.statusCode).toBe(200);
+      const foundPreIds = search.json().data.items.map((item: { preId: string }) => item.preId);
+      expect(foundPreIds).toContain(targetPreId);
+      expect(foundPreIds).not.toContain(splitTermsPreId);
+    } finally {
+      repository.records = snapshot.records;
+      repository.andamentos = snapshot.andamentos;
+      repository.nextId = snapshot.nextId;
+      repository.nextAuditId = snapshot.nextAuditId;
     }
   });
 
