@@ -26,7 +26,7 @@ function buildPessoa(id: string, nome: string): Interessado {
     pai: null,
     mae: null,
     endereco: null,
-    dataNascimento: null,
+    dataNascimento: "1964-04-18",
     createdAt: "2026-06-03T12:00:00.000Z",
     updatedAt: "2026-06-03T12:00:00.000Z",
   };
@@ -69,6 +69,7 @@ describe("InteressadosPage", () => {
     );
 
     const link = await screen.findByRole("link", { name: "Maria Assinante" });
+    expect(screen.getByText("18/04/1964")).toBeInTheDocument();
     expect(link).toHaveAttribute(
       "href",
       "/pre-demandas?pessoaId=11111111-1111-1111-1111-111111111111&pessoaNome=Maria+Assinante&view=table&page=1",

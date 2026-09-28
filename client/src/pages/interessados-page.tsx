@@ -39,6 +39,11 @@ const EMPTY_FORM: InteressadoFormState = {
 
 const PAGE_SIZE = 25;
 
+function formatDateOnlyBr(value: string) {
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 function normalizePayload(form: InteressadoFormState) {
   return {
     nome: form.nome,
@@ -316,7 +321,7 @@ export function InteressadosPage() {
                       <td className="px-4 py-4 text-slate-600">{item.matricula ?? "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.cpf ? formatCpf(item.cpf) : "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{item.rg ?? "-"}</td>
-                      <td className="px-4 py-4 text-slate-600">{item.dataNascimento ? new Date(item.dataNascimento).toLocaleDateString("pt-BR") : "-"}</td>
+                      <td className="px-4 py-4 text-slate-600">{item.dataNascimento ? formatDateOnlyBr(item.dataNascimento) : "-"}</td>
                       <td className="px-4 py-4 text-slate-600">{new Date(item.createdAt).toLocaleDateString("pt-BR")}</td>
                       <td className="px-4 py-4 text-right">
                         <Button onClick={() => openEditDialog(item)} size="sm" type="button" variant="ghost">
